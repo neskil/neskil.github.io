@@ -183,6 +183,46 @@
             g.fillRect(bt.x, bt.y, bt.w, bt.h);
             arrow(g, { x: bt.x, y: bt.y, w: bt.w, h: bt.h, ax: bd.x, ay: bd.y });
         }
+        // Boost pads: vibrant cyan/emerald launch strips with a bold directional arrow.
+        var boosts = hole.boosts || [];
+        for (i = 0; i < boosts.length; i++) {
+            var bp = boosts[i], bpd = GOLF.physics.chuteDir(bp);
+            g.fillStyle = '#0ea5e9';
+            g.fillRect(bp.x, bp.y, bp.w, bp.h);
+            g.strokeStyle = '#67e8f9';
+            g.lineWidth = 4;
+            g.strokeRect(bp.x + 2, bp.y + 2, bp.w - 4, bp.h - 4);
+            arrow(g, { x: bp.x, y: bp.y, w: bp.w, h: bp.h, ax: bpd.x, ay: bpd.y });
+        }
+        // One-way check gates: coral back-stop bar with green pass chevron + hinge posts.
+        var oneways = hole.oneways || [];
+        for (i = 0; i < oneways.length; i++) {
+            var ow = oneways[i], og = GOLF.physics.onewayBasis(ow);
+            g.strokeStyle = '#4ade80';
+            g.lineWidth = 10;
+            g.beginPath();
+            g.moveTo(ow.x + og.nx * 4, ow.y + og.ny * 4);
+            g.lineTo(ow.tx + og.nx * 4, ow.ty + og.ny * 4);
+            g.stroke();
+            g.strokeStyle = '#f87171';
+            g.lineWidth = 8;
+            g.beginPath();
+            g.moveTo(ow.x - og.nx * 4, ow.y - og.ny * 4);
+            g.lineTo(ow.tx - og.nx * 4, ow.ty - og.ny * 4);
+            g.stroke();
+            var omx = (ow.x + ow.tx) / 2, omy = (ow.y + ow.ty) / 2;
+            g.fillStyle = '#fde68a';
+            [ow, { x: ow.tx, y: ow.ty }].forEach(function (pt) {
+                g.beginPath(); g.arc(pt.x, pt.y, C.ONEWAY_POST_R + 4, 0, Math.PI * 2); g.fill();
+            });
+            g.fillStyle = '#4ade80';
+            g.beginPath();
+            g.moveTo(omx + og.nx * 24, omy + og.ny * 24);
+            g.lineTo(omx + og.ux * 12 + og.nx * 4, omy + og.uy * 12 + og.ny * 4);
+            g.lineTo(omx - og.ux * 12 + og.nx * 4, omy - og.uy * 12 + og.ny * 4);
+            g.closePath();
+            g.fill();
+        }
         var spins = hole.spinners || [];
         for (i = 0; i < spins.length; i++) {
             var sp = spins[i], reach = GOLF.physics.sweepOf(sp);

@@ -316,6 +316,18 @@
             setTimeout(function () { tone(160, 0.18, 'sine', 0.08, 640); }, 120);
             noise(0.3, 500, 0.8, 0.05, 'lowpass');
         },
+        // Shot across a boost strip: a clean rising turbine zip.
+        boost: function () {
+            tone(320, 0.18, 'sawtooth', 0.06, 980);
+            tone(520, 0.22, 'sine', 0.09, 1320);
+            noise(0.16, 2800, 1.2, 0.06, 'bandpass');
+        },
+        // Saloon check gate swinging shut behind the ball: a brass latch click.
+        oneway: function () {
+            noise(0.035, 1900, 3.5, 0.09);
+            tone(640, 0.07, 'triangle', 0.08, 420);
+            setTimeout(function () { tone(920, 0.05, 'sine', 0.05, 760); }, 45);
+        },
         // Taken by a skater: the hiss of a blade turning on the ice and a
         // little whistle — the skater is pleased with it, even if you are not.
         steal: function () {

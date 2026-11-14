@@ -118,12 +118,16 @@
         study:    { kerb: 'book', soil: '#3b2a1c', plants: ['shrub', 'flowers'], flowers: ['#fef3c7', '#fda4af'] },
         space:    { kerb: 'hull', soil: '#10131c', plants: ['boulder', 'pebble'], flowers: ['#a5f3fc'] },
         // Raked gravel round a stone and a clipped azalea.
-        zen:      { kerb: 'bamboo', soil: '#e6e1d3', plants: ['boulder', 'shrub', 'pebble'], flowers: ['#f9a8d4', '#fbcfe8'] }
+        zen:      { kerb: 'bamboo', soil: '#e6e1d3', plants: ['boulder', 'shrub', 'pebble'], flowers: ['#f9a8d4', '#fbcfe8'] },
+        arcade:   { kerb: 'hull', soil: '#141a2e', plants: ['pebble', 'flowers'], flowers: ['#38bdf8', '#f472b6', '#5eead4'] },
+        ruins:    { kerb: 'stone', soil: '#2a3d34', plants: ['fern', 'shrub', 'moss'], flowers: ['#a7f3d0', '#fef08a'] },
+        clockwork: { kerb: 'brass', soil: '#3d2c1b', plants: ['boulder', 'shrub', 'pebble'], flowers: ['#fde68a', '#fbbf24'] }
     };
     var SHRUB = {
         parkland: ['#1f5a2a', '#3f8a46'], garden: ['#22602e', '#4f9a4f'], meadow: ['#3a6a26', '#6a9a3a'],
         autumn: ['#8f2f14', '#e98a2e'], night: ['#12302a', '#21453b'], woodland: ['#1d4a2b', '#2f6a3a'],
-        study: ['#21592a', '#47a052'], zen: ['#2f5a2c', '#5f8f45']
+        study: ['#21592a', '#47a052'], zen: ['#2f5a2c', '#5f8f45'],
+        arcade: ['#134e4a', '#2dd4bf'], ruins: ['#14532d', '#34d399'], clockwork: ['#422006', '#ca8a04']
     };
     // A rock in the biome it lies in.
     /* What a rock is made of where it stands: the stone's colour lit and
@@ -139,6 +143,9 @@
         seaside: { kind: 'stone', top: '#a6a195', side: '#55514a', gap: '#2f2c27', on: 'lichen' },
         study: { kind: 'stone', top: '#9b968c', side: '#4d4a44', gap: '#2a2824', on: 'none' },
         zen: { kind: 'stone', top: '#8f938b', side: '#454842', gap: '#24261f', on: 'moss' },
+        arcade: { kind: 'granite', top: '#64748b', side: '#1e293b', gap: '#0f172a', on: 'none' },
+        ruins: { kind: 'stone', top: '#7f8f86', side: '#334139', gap: '#16241d', on: 'moss' },
+        clockwork: { kind: 'granite', top: '#8c7a62', side: '#443525', gap: '#23180e', on: 'none' },
         _: { kind: 'stone', top: '#999b93', side: '#4a4b46', gap: '#282a25', on: 'moss' }
     };
 
@@ -3091,11 +3098,175 @@
         for (var i = 0; i < list.length; i++) drawSkater(g, list[i], i, world, v);
     }
 
+    /* ── boost pads ────────────────────────────────────────────────────
+
+       Electric speed strips: a dark sunken casing with glowing cyan rails and
+       fast-marching double chevrons so a player reads the kick direction and
+       distinguishes a sudden accelerator from a steady conveyor belt. */
+    function drawBoostBase(g, pad, v) {
+        var sh = sv(v, 3, 5);
+        g.save();
+        g.fillStyle = 'rgba(0, 0, 0, 0.24)';
+        GOLF.landscape.roundRect(g, pad.x + sh.x, pad.y + sh.y, pad.w, pad.h, 8);
+        g.fill();
+        GOLF.landscape.roundRect(g, pad.x, pad.y, pad.w, pad.h, 8);
+        g.fillStyle = '#0b1e2d';
+        g.fill();
+        g.lineWidth = 2;
+        g.strokeStyle = 'rgba(56, 189, 248, 0.72)';
+        g.stroke();
+        // Brighter inner bed inset from the frame.
+        GOLF.landscape.roundRect(g, pad.x + 3, pad.y + 3, pad.w - 6, pad.h - 6, 5);
+        g.fillStyle = '#0f3046';
+        g.fill();
+        g.restore();
+    }
+
+    function drawBoostChevrons(g, pad, t) {
+        var ax = beltAxis(pad), step = 30, size = Math.min(ax.across * 0.26, 13);
+        var off = ((145 * t) % step + step) % step;
+        g.save();
+        g.beginPath();
+        g.rect(pad.x + 4, pad.y + 4, pad.w - 8, pad.h - 8);
+        g.clip();
+        g.lineCap = 'round';
+        g.lineJoin = 'round';
+        for (var c = -step; c < ax.along + step; c += step) {
+            var u = c + off, cx, cy;
+            if (ax.d.x) { cx = ax.d.x > 0 ? pad.x + u : pad.x + pad.w - u; cy = pad.y + pad.h / 2; }
+            else { cx = pad.x + pad.w / 2; cy = ax.d.y > 0 ? pad.y + u : pad.y + pad.h - u; }
+            var tail = 4;
+            g.strokeStyle = 'rgba(56, 189, 248, 0.48)';
+            g.lineWidth = 4.5;
+            g.beginPath();
+            g.moveTo(cx - ax.d.x * (size + tail) - ax.d.y * size, cy - ax.d.y * (size + tail) - ax.d.x * size);
+            g.lineTo(cx - ax.d.x * tail, cy - ax.d.y * tail);
+            g.lineTo(cx - ax.d.x * (size + tail) + ax.d.y * size, cy - ax.d.y * (size + tail) + ax.d.x * size);
+            g.stroke();
+            g.strokeStyle = '#bae6fd';
+            g.lineWidth = 2.4;
+            g.beginPath();
+            g.moveTo(cx - ax.d.x * size - ax.d.y * size, cy - ax.d.y * size - ax.d.x * size);
+            g.lineTo(cx, cy);
+            g.lineTo(cx - ax.d.x * size + ax.d.y * size, cy - ax.d.y * size + ax.d.x * size);
+            g.stroke();
+        }
+        g.restore();
+    }
+
+    /* ── one-way check gates ───────────────────────────────────────────
+
+       A hinged saloon check-bar between two posts: ground arrows mark the open
+       passage way, and the twin gate leaves swing flat in the pass direction on
+       entry before latching back against any return shot. */
+    function drawOnewayTrack(g, ow) {
+        var b = P.onewayBasis(ow);
+        g.save();
+        // Ground sill and direction chevrons pointing in pass normal (+n).
+        g.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        g.lineWidth = 6;
+        g.lineCap = 'butt';
+        g.beginPath();
+        g.moveTo(ow.x, ow.y);
+        g.lineTo(ow.tx, ow.ty);
+        g.stroke();
+
+        // Guard stripe on the blocked side (+n edge) + pass chevrons across the mouth.
+        g.strokeStyle = 'rgba(248, 113, 113, 0.65)';
+        g.lineWidth = 2;
+        g.setLineDash([5, 4]);
+        g.beginPath();
+        g.moveTo(ow.x + b.nx * 7, ow.y + b.ny * 7);
+        g.lineTo(ow.tx + b.nx * 7, ow.ty + b.ny * 7);
+        g.stroke();
+        g.setLineDash([]);
+
+        g.strokeStyle = 'rgba(74, 222, 128, 0.8)';
+        g.lineWidth = 2;
+        g.lineCap = 'round';
+        g.lineJoin = 'round';
+        for (var u = 22; u <= b.len - 22; u += 28) {
+            var cx = ow.x + b.ux * u - b.nx * 13, cy = ow.y + b.uy * u - b.ny * 13;
+            g.beginPath();
+            g.moveTo(cx - b.ux * 5 - b.nx * 4, cy - b.uy * 5 - b.ny * 4);
+            g.lineTo(cx + b.nx * 3, cy + b.ny * 3);
+            g.lineTo(cx + b.ux * 5 - b.nx * 4, cy + b.uy * 5 - b.ny * 4);
+            g.stroke();
+        }
+        g.restore();
+    }
+
+    function drawOnewayGate(g, ow, i, world, v) {
+        var b = P.onewayBasis(ow), pr = C.ONEWAY_POST_R || 8;
+        var latched = world && world.gateState && world.gateState[i] >= 0;
+        var sw = 0;
+        if (world && world.gateSwing && world.gateSwing[i] != null) {
+            var dt = world.time - world.gateSwing[i];
+            if (dt >= 0 && dt < 0.36) sw = Math.sin(dt / 0.36 * Math.PI) * 1.15;
+        }
+        var mid = b.len / 2, span = Math.max(4, mid - pr - 1);
+        var ldx = b.ux * Math.cos(sw) + b.nx * Math.sin(sw), ldy = b.uy * Math.cos(sw) + b.ny * Math.sin(sw);
+        var rdx = -b.ux * Math.cos(sw) + b.nx * Math.sin(sw), rdy = -b.uy * Math.cos(sw) + b.ny * Math.sin(sw);
+        var lx0 = ow.x + b.ux * pr, ly0 = ow.y + b.uy * pr;
+        var rx0 = ow.tx - b.ux * pr, ry0 = ow.ty - b.uy * pr;
+        var sh = sv(v, 3, 5);
+
+        g.save();
+        g.lineCap = 'round';
+        // Leaf shadow.
+        g.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+        g.lineWidth = (C.ONEWAY_HALF_W || 4) * 2;
+        g.beginPath();
+        g.moveTo(lx0 + sh.x, ly0 + sh.y); g.lineTo(lx0 + ldx * span + sh.x, ly0 + ldy * span + sh.y);
+        g.moveTo(rx0 + sh.x, ry0 + sh.y); g.lineTo(rx0 + rdx * span + sh.x, ry0 + rdy * span + sh.y);
+        g.stroke();
+
+        // Twin gate bars: warm brass when latched, emerald tint while open.
+        g.strokeStyle = latched ? '#d97706' : '#34d399';
+        g.lineWidth = (C.ONEWAY_HALF_W || 4) * 2;
+        g.beginPath();
+        g.moveTo(lx0, ly0); g.lineTo(lx0 + ldx * span, ly0 + ldy * span);
+        g.moveTo(rx0, ry0); g.lineTo(rx0 + rdx * span, ry0 + rdy * span);
+        g.stroke();
+
+        g.strokeStyle = latched ? '#fde68a' : '#d1fae5';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(lx0 + b.nx * 1.2, ly0 + b.ny * 1.2);
+        g.lineTo(lx0 + ldx * span + b.nx * 1.2, ly0 + ldy * span + b.ny * 1.2);
+        g.moveTo(rx0 + b.nx * 1.2, ry0 + b.ny * 1.2);
+        g.lineTo(rx0 + rdx * span + b.nx * 1.2, ry0 + rdy * span + b.ny * 1.2);
+        g.stroke();
+
+        // End hinge posts.
+        var l = sv(v, -pr * 0.35, -pr * 0.35);
+        [[ow.x, ow.y], [ow.tx, ow.ty]].forEach(function (pt) {
+            g.fillStyle = 'rgba(0, 0, 0, 0.26)';
+            g.beginPath();
+            g.arc(pt[0] + sh.x * 0.8, pt[1] + sh.y * 0.8, pr, 0, Math.PI * 2);
+            g.fill();
+            var grad = g.createRadialGradient(pt[0] + l.x, pt[1] + l.y, 1, pt[0], pt[1], pr);
+            grad.addColorStop(0, '#f8fafc');
+            grad.addColorStop(1, '#475569');
+            g.fillStyle = grad;
+            g.beginPath();
+            g.arc(pt[0], pt[1], pr, 0, Math.PI * 2);
+            g.fill();
+            g.fillStyle = latched ? '#ef4444' : '#22c55e';
+            g.beginPath();
+            g.arc(pt[0], pt[1], 2.8, 0, Math.PI * 2);
+            g.fill();
+        });
+        g.restore();
+    }
+
     function ground(g, course, theme, v) {
         var i;
         millPaths(g, course);
         for (i = 0; i < (course.skaters || []).length; i++) drawLap(g, course.skaters[i]);
         for (i = 0; i < (course.belts || []).length; i++) drawBeltBase(g, course.belts[i], v);
+        for (i = 0; i < (course.boosts || []).length; i++) drawBoostBase(g, course.boosts[i], v);
+        for (i = 0; i < (course.oneways || []).length; i++) drawOnewayTrack(g, course.oneways[i]);
         for (i = 0; i < (course.turntables || []).length; i++) drawPlatter(g, course.turntables[i], v);
         for (i = 0; i < (course.spinners || []).length; i++) drawSpinTrack(g, course.spinners[i]);
         for (i = 0; i < (course.hills || []).length; i++) {
@@ -3136,22 +3307,24 @@
         return b.x0 === Infinity ? null : b;
     }
 
-    // Live, under the ball: the wind's streaks and the belts' slats.
+    // Live, under the ball: the wind's streaks, the belts' slats and the boosts' chevrons.
     function air(g, course, clock) {
         (course.slopes || []).forEach(function (s) { if (s.wind) streaks(g, s, clock); });
         (course.belts || []).forEach(function (bt) { drawBeltSlats(g, bt, clock); });
+        (course.boosts || []).forEach(function (bp) { drawBoostChevrons(g, bp, clock); });
     }
 
-    // Live, on the still walls: a fan's rotor, and the spinners' arms —
-    // those on the world's clock `t`, because where an arm is is a fact
-    // of play.
-    function machines(g, course, clock, t, theme, v) {
+    // Live, on the still walls: a fan's rotor, the spinners' arms, and the
+    // check gates — those on the world's clock `t`, because where an arm is
+    // and whether a gate is latched are facts of play.
+    function machines(g, course, clock, t, theme, v, world) {
         (course.blocks || []).forEach(function (b) {
             if (b.look === 'fan') rotor(g, b, course, clock);
             if (b.look === 'carousel') carousel(g, b, clock);
         });
         (course.spinners || []).forEach(function (sp) { drawSpinner(g, sp, t, theme, v); });
         (course.turntables || []).forEach(function (tt) { drawLabel(g, tt, t); });
+        (course.oneways || []).forEach(function (ow, i) { drawOnewayGate(g, ow, i, world, v); });
     }
 
     // Live, over the ball: a windmill's sails.

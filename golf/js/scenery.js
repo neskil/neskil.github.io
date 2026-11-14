@@ -255,9 +255,56 @@
             leaves: ['#f9a8d4', '#fbcfe8', '#fda4af'],
             ambient: [{ kind: 'petal', n: 12 }], sound: ['chimes', 'birds'],
             backdrop: '#0b130c', plan: '#56703f'
+        },
+        /* Deep emerald-cyan arcade cabinet: brushed alloy rim, neon-lit turf,
+           and crisp synth acoustics under boost pads and check gates. */
+        arcade: {
+            name: 'Arcade',
+            turf: { h: 162, s: 44, l: 24 },
+            rough: { fill: 'rgba(26, 20, 62, 0.58)', tuft: 'rgba(94, 234, 212, 0.24)', edge: 'rgba(15, 23, 42, 0.6)' },
+            sand: { base: '#c4b5fd', rake: 'rgba(76, 29, 149, 0.22)', lip: 'rgba(49, 16, 98, 0.34)' },
+            water: { kind: 'pond', top: '#0284c7', deep: '#0c2461', wave: 'rgba(125, 211, 252, 0.34)', shore: 'rgba(94, 234, 212, 0.72)', edge: 'none', pads: false, duck: false, bank: '#1e293b', bed: '#0f172a', sky: '#38bdf8', clear: 0.9 },
+            wall: 'hull', bumper: 'lamp', rim: 'hull', canopy: 'none',
+            border: ['bolt', 'panel', 'bolt'], lawn: ['speck'],
+            leaves: ['#5eead4', '#60a5fa', '#f472b6'],
+            ambient: [{ kind: 'firefly', n: 14 }], sound: ['hum', 'beeps'],
+            clouds: 0,
+            grade: { a: 'rgba(56, 189, 248, 0.08)', b: 'rgba(15, 10, 45, 0.22)' },
+            backdrop: '#040a14', plan: '#1e6656'
+        },
+        /* Flooded stone ruins overrun with moss and jade pools under palms. */
+        ruins: {
+            name: 'Sunken Temple',
+            turf: { h: 146, s: 32, l: 29 },
+            rough: { fill: 'rgba(12, 48, 32, 0.6)', tuft: 'rgba(134, 239, 172, 0.26)', edge: 'rgba(8, 32, 20, 0.55)' },
+            sand: { base: '#d9c598', rake: 'rgba(125, 100, 55, 0.22)', lip: 'rgba(90, 70, 35, 0.34)' },
+            water: { kind: 'pond', top: '#0d9488', deep: '#083b42', wave: 'rgba(180, 248, 238, 0.24)', shore: 'rgba(168, 172, 152, 0.88)', duck: false, bank: '#52524c', bed: '#495a50', sky: '#a7f3d0', clear: 1.2 },
+            wall: 'stone', bumper: 'lantern', rim: 'stone', canopy: 'palm',
+            border: ['moss', 'stone', 'flower', 'moss'], lawn: ['clover'],
+            leaves: ['#4ade80', '#86efac', '#34d399'],
+            ambient: [{ kind: 'firefly', n: 12 }, { kind: 'butterfly', n: 2 }], sound: ['birds', 'crickets'],
+            clouds: 2,
+            grade: { a: 'rgba(167, 243, 208, 0.09)', b: 'rgba(4, 30, 24, 0.16)' },
+            backdrop: '#051512', plan: '#2f6a56'
+        },
+        /* An oiled workbench and clockhouse of timber, brass posts and ticking gears. */
+        clockwork: {
+            name: 'Brassworks',
+            floor: 'wood',
+            turf: { h: 42, s: 36, l: 28 },
+            rough: { fill: 'rgba(42, 32, 16, 0.62)', tuft: 'rgba(251, 191, 36, 0.20)', edge: 'rgba(20, 14, 6, 0.55)' },
+            sand: { base: '#e2cba0', rake: 'rgba(140, 100, 45, 0.24)', lip: 'rgba(100, 68, 26, 0.34)' },
+            water: { kind: 'pond', top: '#1d4ed8', deep: '#0f172a', wave: 'rgba(191, 219, 254, 0.22)', shore: 'rgba(180, 160, 120, 0.72)', edge: 'none', pads: false, duck: false, bank: '#4b3621', bed: '#232832', sky: '#fde68a', clear: 0.7 },
+            wall: 'timber', bumper: 'brass', rim: 'desk', canopy: 'none',
+            border: ['clip', 'pebble', 'bolt', 'stone'], lawn: ['crumb'],
+            leaves: ['#fde68a', '#fbbf24', '#d97706'],
+            ambient: [{ kind: 'dust', n: 16 }], sound: ['clock'],
+            clouds: 0,
+            grade: { a: 'rgba(251, 191, 36, 0.14)', b: 'rgba(25, 12, 0, 0.20)' },
+            backdrop: '#120c05', plan: '#6f5c30'
         }
     };
-    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night', 'study', 'space', 'zen'];
+    var ORDER = ['parkland', 'garden', 'seaside', 'woodland', 'meadow', 'autumn', 'winter', 'alpine', 'desert', 'volcanic', 'night', 'study', 'space', 'zen', 'arcade', 'ruins', 'clockwork'];
     ORDER.forEach(function (k) { THEMES[k].id = k; });
 
     /* The biome a course is drawn in. A card names its own; the draw takes
@@ -494,7 +541,8 @@
             if (!clearOf(keep, x, y, 0)) return false;
             if (P.zoneAt(hole.water, x, y) || P.zoneAt(hole.sand, x, y) || P.zoneAt(hole.ice, x, y) ||
                 P.zoneAt(hole.slopes, x, y) || P.zoneAt(hole.lava, x, y) || P.zoneAt(hole.avalanches, x, y) ||
-                P.inHill(hole.hills, x, y) || P.zoneAt(hole.belts, x, y) ||
+                P.inHill(hole.hills, x, y) || P.zoneAt(hole.belts, x, y) || P.zoneAt(hole.boosts, x, y) ||
+                (hole.oneways || []).some(function (ow) { return P.circleRail(x, y, 20, { x: ow.x, y: ow.y, tx: ow.tx, ty: ow.ty, w: 12 }) !== null; }) ||
                 (hole.spinners || []).some(function (sp) { return Math.hypot(x - sp.x, y - sp.y) < P.sweepOf(sp) + 6; }) ||
                 (hole.turntables || []).some(function (tt) { return Math.hypot(x - tt.x, y - tt.y) < tt.r + 10; })) return false;
             return !onSolid(hole, x, y, 10);

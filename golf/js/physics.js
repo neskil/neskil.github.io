@@ -531,6 +531,117 @@
         events.pass = { x: b.x, y: b.y, i: h.i, angle: a };
     }
 
+    /* ── boost pads & one-way check gates ─────────────────────────────── */
+
+    function onewayBasis(ow) {
+        var dx = ow.tx - ow.x, dy = ow.ty - ow.y;
+        var len = Math.hypot(dx, dy) || 1;
+        var ux = dx / len, uy = dy / len;
+        var s = ow.side === -1 ? -1 : 1;
+        // Pass direction normal: clockwise-90 left normal scaled by side (-1 or +1).
+        return { len: len, ux: ux, uy: uy, nx: -uy * s, ny: ux * s };
+    }
+
+    function postWallBump(b, post, events) {
+        var bump = circleCircle(b.x, b.y, C.BALL_R, post);
+        if (!bump) return;
+        b.x += bump.nx * bump.depth;
+        b.y += bump.ny * bump.depth;
+        var bn = b.vx * bump.nx + b.vy * bump.ny;
+        if (bn < 0) {
+            b.vx -= (1 + C.RESTITUTION) * bn * bump.nx;
+            b.vy -= (1 + C.RESTITUTION) * bn * bump.ny;
+            events.bounce = true;
+            knock(events, b, bump.nx, bump.ny, -bn);
+        }
+    }
+
+    function hitOneways(world, b, events) {
+        var list = world.course.oneways || EMPTY;
+        if (!list.length) return;
+        var reach = C.BALL_R + C.ONEWAY_HALF_W;
+        for (var i = 0; i < list.length; i++) {
+            var ow = list[i], g = onewayBasis(ow);
+            postWallBump(b, { x: ow.x, y: ow.y, r: C.ONEWAY_POST_R }, events);
+            postWallBump(b, { x: ow.tx, y: ow.ty, r: C.ONEWAY_POST_R }, events);
+
+            var rx = b.x - ow.x, ry = b.y - ow.y;
+            var u = rx * g.ux + ry * g.uy;
+            var d = rx * g.nx + ry * g.ny;
+
+            // If the ball went round the outside back to the entry side, re-arm the flap.
+            if (d <= -(reach + 2)) {
+                world.gateState[i] = -1;
+                world.gateInside[i] = false;
+                continue;
+            }
+            if (u < 0 || u > g.len) {
+                world.gateInside[i] = false;
+                if (d >= reach) world.gateState[i] = 1;
+                continue;
+            }
+            if (world.gateState[i] < 0) {
+                if (d >= reach) {
+                    world.gateState[i] = 1;
+                    world.gateInside[i] = false;
+                } else if (Math.abs(d) < reach) {
+                    if (!world.gateInside[i] && (b.vx * g.nx + b.vy * g.ny) > 5) {
+                        world.gateInside[i] = true;
+                        world.gateSwing[i] = world.time;
+                        events.oneway = { x: ow.x + g.ux * u, y: ow.y + g.uy * u, i: i };
+                    }
+                } else {
+                    world.gateInside[i] = false;
+                }
+            } else if (d < reach && d > -(reach + 10)) {
+                var depth = reach - d;
+                b.x += g.nx * depth;
+                b.y += g.ny * depth;
+                var vn = b.vx * g.nx + b.vy * g.ny;
+                if (vn < 0) {
+                    b.vx -= (1 + C.RESTITUTION) * vn * g.nx;
+                    b.vy -= (1 + C.RESTITUTION) * vn * g.ny;
+                    events.bounce = true;
+                    knock(events, b, g.nx, g.ny, -vn);
+                }
+            }
+        }
+    }
+
+    function applyBoosts(world, b, events) {
+        var list = world.course.boosts || EMPTY;
+        if (!list.length) return;
+        for (var i = 0; i < list.length; i++) {
+            var pad = list[i];
+            if (pointInRect(b.x, b.y, pad)) {
+                if (!world.inBoost[i] && world.time >= (world.boostUntil[i] || 0) &&
+                    (world.boostUses[i] || 0) < C.BOOST_SHOT_MAX) {
+                    world.inBoost[i] = true;
+                    world.boostUntil[i] = world.time + C.BOOST_COOLDOWN;
+                    world.boostUses[i] = (world.boostUses[i] || 0) + 1;
+                    var bd = chuteDir(pad);
+                    var kick = pad.kick || C.BOOST_KICK;
+                    b.vx += bd.x * kick;
+                    b.vy += bd.y * kick;
+                    var minFwd = pad.speed || C.BOOST_SPEED;
+                    var fwd = b.vx * bd.x + b.vy * bd.y;
+                    if (fwd < minFwd) {
+                        b.vx += bd.x * (minFwd - fwd);
+                        b.vy += bd.y * (minFwd - fwd);
+                    }
+                    var sp = speedOf(b);
+                    if (sp > C.BOOST_MAX) {
+                        b.vx *= C.BOOST_MAX / sp;
+                        b.vy *= C.BOOST_MAX / sp;
+                    }
+                    events.boost = { x: pad.x + pad.w / 2, y: pad.y + pad.h / 2, dir: pad.dir, i: i };
+                }
+            } else {
+                world.inBoost[i] = false;
+            }
+        }
+    }
+
     function bumpOff(b, post, events) {
         var bump = circleCircle(b.x, b.y, C.BALL_R, post);
         if (!bump) return;
@@ -546,6 +657,24 @@
     }
 
     /* ── world ──────────────────────────────────────────────────────────── */
+
+    function initGateState(course, ball) {
+        var reach = C.BALL_R + C.ONEWAY_HALF_W;
+        return (course.oneways || EMPTY).map(function (ow) {
+            var g = onewayBasis(ow);
+            var d = (ball.x - ow.x) * g.nx + (ball.y - ow.y) * g.ny;
+            return d >= reach ? 1 : -1;
+        });
+    }
+
+    function initBoostState(course, ball) {
+        var out = {};
+        var list = course.boosts || EMPTY;
+        for (var i = 0; i < list.length; i++) {
+            if (pointInRect(ball.x, ball.y, list[i])) out[i] = true;
+        }
+        return out;
+    }
 
     function createWorld(course, from, time) {
         return {
@@ -578,7 +707,14 @@
             /* A skater dribbling the ball — { i, from, until, turn, speed }
                — and which skaters have already played it this shot. */
             held: null,
-            passed: {}
+            passed: {},
+            /* Boost pad reentry guards and one-way gate latch states. */
+            inBoost: initBoostState(course, from),
+            boostUntil: {},
+            boostUses: {},
+            gateState: initGateState(course, from),
+            gateInside: {},
+            gateSwing: {}
         };
     }
 
@@ -647,6 +783,11 @@
         world.skips = 0;
         world.held = null;
         world.passed = {};
+        world.inBoost = initBoostState(world.course, world.ball);
+        world.boostUntil = {};
+        world.boostUses = {};
+        world.gateState = initGateState(world.course, world.ball);
+        world.gateInside = {};
         return true;
     }
 
@@ -828,6 +969,9 @@
         // A turntable's spindle is a post like any other.
         var decks = course.turntables || EMPTY;
         for (j = 0; j < decks.length; j++) bumpOff(b, spindleOf(decks[j]), events);
+        // One-way check gates: solid hinge posts, and a one-way barrier that
+        // opens along its normal and blocks the way back once cleared.
+        hitOneways(world, b, events);
 
         // Cushions. The field edge is solid on all four sides.
         if (b.x < C.BALL_R) { b.x = C.BALL_R; knock(events, b, 1, 0, Math.abs(b.vx)); b.vx = Math.abs(b.vx) * C.RESTITUTION; events.bounce = true; }
@@ -839,6 +983,9 @@
         // not a tunnel, not the cup, not the water it is skipping over.
         if (world.air > 0) return;
         if (aloft) events.land = { x: b.x, y: b.y, wet: !!(zoneAt(course.water, b.x, b.y) || zoneAt(course.lava, b.x, b.y)) };
+
+        // Boost pads kick a grounded ball once per pass along their chevrons.
+        applyBoosts(world, b, events);
 
         // A skater takes a moving ball off whatever it was doing.
         if (takeBall(world, events)) return;
@@ -1185,6 +1332,7 @@
         chuteLength: chuteLength,
         chuteAlong: chuteAlong,
         chuteDir: chuteDir,
+        onewayBasis: onewayBasis,
         slideClock: slideClock,
         slideAt: slideAt,
         sweptBy: sweptBy,

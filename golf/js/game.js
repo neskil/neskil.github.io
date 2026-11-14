@@ -165,12 +165,26 @@
         return null;
     }
 
+    function syncCoursePill(course, hole) {
+        var btn = $('hole-course-btn');
+        if (!btn) return;
+        btn.hidden = !!GOLF.PLAYTEST;
+        if (GOLF.PLAYTEST || !course) return;
+        var theme = themeFor(course, hole);
+        var t = theme.turf;
+        var dot = 'hsl(' + t.h + ', ' + Math.min(78, t.s + 14) + '%, ' + Math.min(62, t.l + 18) + '%)';
+        btn.innerHTML = '<i class="hc-dot" style="background:' + dot + '"></i><span>' +
+            course.name + ' \u00b7 ' + theme.name + '</span><span class="hc-arrow">\u25be</span>';
+    }
+
     function syncCourse() {
         var course = currentCourse();
+        var hole = state && GOLF.COURSE ? GOLF.COURSE[state.holeIndex] : null;
         var tagline = document.querySelector('.tagline');
-        if (tagline && course) tagline.textContent = course.name + ' — ' + course.blurb;
+        if (tagline && course) tagline.textContent = course.name + ' \u2014 ' + course.blurb;
         // The letterbox round the board is the biome's too.
-        $('stage').style.background = themeFor(course, state && GOLF.COURSE[state.holeIndex]).backdrop;
+        $('stage').style.background = themeFor(course, hole).backdrop;
+        syncCoursePill(course, hole);
     }
 
     /* ── scenery ────────────────────────────────────────────────────────
@@ -326,23 +340,59 @@
     // this page starts, and on a phone that has not repainted yet the second
     // impatient tap lands on whichever card has slid under it.
     var menuTaking = false;
+    var menuTab = 'all';
+    var menuDetailId = null;
 
-    function openMenu() {
+    function courseDotColor(course, hole) {
+        var t = SC.themeOf(course, hole).turf;
+        return 'hsl(' + t.h + ', ' + Math.min(82, t.s + 16) + '%, ' + Math.min(62, t.l + 18) + '%)';
+    }
+
+    function menuCoursesForTab(tab) {
+        if (!tab || tab === 'all') return GOLF.COURSES.slice();
+        return GOLF.COURSES.filter(function (c) { return c.group === tab; });
+    }
+
+    function pickFeaturedContinue(total) {
+        var active = currentCourse();
+        var seed = active && typeof active.seed === 'number' ? active.seed : null;
+        if (active && S.loadRound(active.holes, active.id, seed)) {
+            return { kind: 'Continue', course: active, carry: S.loadRound(active.holes, active.id, seed) };
+        }
+        for (var i = 0; i < GOLF.COURSES.length; i++) {
+            var c = GOLF.COURSES[i];
+            if (!PR.isOpen(c, total)) continue;
+            var s = typeof c.seed === 'number' ? c.seed : null;
+            var r = S.loadRound(c.holes, c.id, s);
+            if (r) return { kind: 'Resume', course: c, carry: r };
+        }
+        return { kind: 'Playing', course: active || PR.starter(), carry: null };
+    }
+
+    function openMenu(detailId) {
         if (GOLF.PLAYTEST) return;
         menuTaking = false;
         // The picker is the menu's own second page; it does not stack on it.
         closeTitle();
         closeParty();
         cancelAim();
+        menuDetailId = (typeof detailId === 'string' && courseById(detailId)) ? detailId : null;
         drawCourses();
         drawScenery();
         $('menu').classList.add('show');
-        var first = $('menu-list').querySelector('.cc-head');
-        if (first) { try { first.focus(); } catch (e) { /* ignore */ } }
-        drawPlans();
+        var inner = $('menu').querySelector('.modal-inner');
+        if (inner) inner.scrollTop = 0;
+        var focusEl = menuDetailId
+            ? ($('md-play').disabled ? $('md-back') : $('md-play'))
+            : ($('menu-list').querySelector('.world') || $('menu-close'));
+        if (focusEl) { try { focusEl.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+        drawPlans(menuDetailId ? $('menu-detail') : null);
     }
 
-    function closeMenu() { shut('menu'); }
+    function closeMenu() {
+        menuDetailId = null;
+        shut('menu');
+    }
 
     /* Take a dialog down, and take the focus out of it with it: a focused
        button inside a dialog nobody can see is where a keyboard or a screen
@@ -362,30 +412,23 @@
         playCourse(id, 'Course', hole);
     }
 
-    /* What one card says about itself under the blurb: length, par, the
-       record, and the round waiting on it if there is one. The record line is
-       the reason `scoring.js` takes a course id — the whole rack is priced at once
-       and none of it may move `GOLF.COURSE_ID`, which is the pointer the ball
-       is rolling on. */
-    function courseMeta(course, open) {
-        var bits = [course.holes.length + ' holes', 'par ' + GOLF.coursePar(course.holes)];
-        if (course.record === false) {
-            // A draw holds no record, and saying "best —" for ever reads as a
-            // record nobody has managed rather than as a rule.
-            bits.push('not recorded');
-        } else {
-            var rec = S.load(course.id);
-            var st = S.courseStars(rec, course.holes);
-            bits.push('\u2605 ' + st.got + '/' + st.max);
-            bits.push('best ' + (rec.best === null
-                ? '\u2014'
-                : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')'));
-        }
-        if (!open) return bits.join(' \u00b7 ');
-        var seed = typeof course.seed === 'number' ? course.seed : null;
-        var carry = S.loadRound(course.holes, course.id, seed);
-        if (carry) bits.push('resumes at hole ' + (carry.holeIndex + 1));
-        return bits.join(' \u00b7 ');
+    function openDetail(courseId) {
+        if (!courseById(courseId)) return;
+        menuDetailId = courseId;
+        drawCourses();
+        drawPlans($('menu-detail'));
+        var inner = $('menu').querySelector('.modal-inner');
+        if (inner) inner.scrollTop = 0;
+        var focusEl = $('md-play').disabled ? $('md-back') : $('md-play');
+        if (focusEl) { try { focusEl.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+    }
+
+    function closeDetail() {
+        menuDetailId = null;
+        drawCourses();
+        drawPlans();
+        var inner = $('menu').querySelector('.modal-inner');
+        if (inner) inner.scrollTop = 0;
     }
 
     /* Said wherever a locked card is pressed, so the answer to "why can't I"
@@ -397,135 +440,245 @@
               short + ' more to go', 'bad');
     }
 
-    function drawCourses() {
+    function buildHoleCell(course, hole, i, save, open) {
+        var cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cc-hole' + (open ? '' : ' locked');
+        var got = save ? S.stars(save.holes[i], hole.par) : 0;
+        cell.title = hole.name + ' \u2014 par ' + hole.par +
+            (save && typeof save.holes[i] === 'number' ? ' \u2014 best ' + save.holes[i] : '');
+        cell.disabled = !open;
+        cell.setAttribute('data-course', course.id);
+        cell.setAttribute('data-hole', i);
+        var hasNew = open && PR.unseen(hole).length > 0;
+        cell.innerHTML =
+            '<canvas class="cc-map" aria-hidden="true"></canvas>' +
+            (save ? '<span class="cc-stars' + (got ? '' : ' none') + '" aria-label="' + got +
+                ' of 3 stars">' + starText(got) + '</span>' : '') +
+            (hasNew ? '<span class="cc-new">New</span>' : '') +
+            '<span class="cc-num">' + (i + 1) + '</span>' +
+            '<span class="cc-par">' + hole.par + '</span>' +
+            '<span class="cc-hname">' + hole.name + '</span>';
+        cell.addEventListener('click', function () { takeCourse(course.id, i); });
+        return cell;
+    }
+
+    function renderMenuProgress(starSum) {
+        var total = starSum.got;
+        var openCount = GOLF.COURSES.filter(function (c) { return PR.isOpen(c, total); }).length;
+        $('menu-count').textContent = openCount + ' / ' + GOLF.COURSES.length + ' open';
+        $('menu-progress-nums').textContent = total + ' / ' + starSum.max + ' \u2605';
+        var pct = starSum.max ? Math.min(100, Math.round(total / starSum.max * 100)) : 0;
+        $('menu-progress-fill').style.width = pct + '%';
+        var next = PR.nextUnlock(total);
+        $('menu-progress-next').textContent = next
+            ? 'Next course: ' + next.course.name + ' at ' + next.need + ' \u2605 (' + next.short + ' more to go)'
+            : 'All courses open \u2014 chase 3 stars on every hole!';
+    }
+
+    function renderMenuDetail(course, total) {
+        var open = PR.isOpen(course, total);
+        var save = course.record === false ? null : S.load(course.id);
+        var st = save ? S.courseStars(save, course.holes) : null;
+        var seed = typeof course.seed === 'number' ? course.seed : null;
+        var carry = open ? S.loadRound(course.holes, course.id, seed) : null;
+        var theme = SC.themeOf(course);
+        var dot = courseDotColor(course);
+        $('md-biome').innerHTML = '<i class="world-dot" style="background:' + dot + '"></i>' + theme.name;
+        $('md-title').textContent = course.name;
+        $('md-blurb').textContent = course.blurb;
+
+        var access = !open ? ('Opens at ' + PR.need(course) + ' \u2605')
+            : carry ? ('Resume H' + (carry.holeIndex + 1))
+            : 'Open';
+        var stats = [
+            ['Format', course.holes.length + 'H \u00b7 Par ' + GOLF.coursePar(course.holes)],
+            ['Stars', st ? (st.got + ' / ' + st.max + ' \u2605') : 'Draw round'],
+            ['Best round', !save ? 'Not recorded' : (save.best === null ? '\u2014' : save.best + ' (' + S.formatVsPar(save.bestVsPar) + ')')],
+            ['Status', access]
+        ];
+        $('md-stats').innerHTML = stats.map(function (item) {
+            return '<div class="md-stat"><div class="md-stat-k">' + item[0] +
+                '</div><div class="md-stat-v">' + item[1] + '</div></div>';
+        }).join('');
+
+        var playBtn = $('md-play');
+        if (!open) {
+            playBtn.disabled = true;
+            playBtn.textContent = '\uD83D\uDD12 Earn ' + (PR.need(course) - total) + ' more \u2605 (unlocks at ' + PR.need(course) + ')';
+            playBtn.onclick = null;
+        } else {
+            playBtn.disabled = false;
+            playBtn.textContent = carry
+                ? ('Continue from Hole ' + (carry.holeIndex + 1) + ' \u2192')
+                : ('Play from Hole 1 \u2192');
+            playBtn.onclick = function () { takeCourse(course.id); };
+        }
+
+        var redraw = $('md-redraw');
+        var isDraw = !!(GOLF.installDraw && course.id === GOLF.generator.DRAW_ID);
+        redraw.hidden = !isDraw;
+        redraw.disabled = !open;
+        redraw.onclick = function () {
+            if (menuTaking) return;
+            menuTaking = true;
+            newDraw();
+        };
+
+        var strip = $('md-holes');
+        strip.className = 'cc-holes md-holes' + (course.holes.length === 9 ? ' draw9' : '');
+        strip.innerHTML = '';
+        course.holes.forEach(function (hole, i) {
+            strip.appendChild(buildHoleCell(course, hole, i, save, open));
+        });
+    }
+
+    function renderMenuOverview(total) {
+        var featuredHost = $('menu-featured');
+        featuredHost.innerHTML = '';
+
+        var cont = pickFeaturedContinue(total);
+        var cBtn = document.createElement('button');
+        cBtn.type = 'button';
+        cBtn.className = 'mf-card';
+        cBtn.innerHTML =
+            '<span class="mf-eyebrow"><i class="world-dot" style="background:' + courseDotColor(cont.course) + '"></i>' + cont.kind + '</span>' +
+            '<span class="mf-title">' + cont.course.name + '</span>' +
+            '<span class="mf-meta">' + (cont.carry
+                ? 'Hole ' + (cont.carry.holeIndex + 1) + ' of ' + cont.course.holes.length
+                : cont.course.holes.length + ' holes \u00b7 Par ' + GOLF.coursePar(cont.course.holes)) + '</span>';
+        cBtn.addEventListener('click', function () { takeCourse(cont.course.id); });
+        featuredHost.appendChild(cBtn);
+
+        var drawCourse = GOLF.installDraw ? courseById(GOLF.generator.DRAW_ID) : null;
+        if (drawCourse) {
+            var drawOpen = PR.isOpen(drawCourse, total);
+            var dCard = document.createElement('div');
+            dCard.className = 'mf-card mf-draw';
+            var seedTxt = typeof drawCourse.seed === 'number'
+                ? 'Seed #' + GOLF.generator.seedLabel(drawCourse.seed)
+                : '9 procedural holes';
+            dCard.innerHTML =
+                '<span class="mf-eyebrow"><i class="world-dot" style="background:' + courseDotColor(drawCourse) + '"></i>Procedural</span>' +
+                '<span class="mf-title">Random Draw</span>' +
+                '<span class="mf-meta">' + seedTxt + (drawOpen ? '' : ' \u00b7 \uD83D\uDD12 ' + PR.need(drawCourse) + ' \u2605') + '</span>' +
+                '<div class="mf-actions">' +
+                    '<button type="button" class="mf-btn mf-open-draw">' + (drawOpen ? 'Inspect' : 'Preview') + '</button>' +
+                    '<button type="button" class="mf-btn sec cc-redraw" title="Deal nine holes nobody has played (G)"' + (drawOpen ? '' : ' disabled') + '>\u2726 Re-deal</button>' +
+                '</div>';
+            dCard.querySelector('.mf-open-draw').addEventListener('click', function () { openDetail(drawCourse.id); });
+            dCard.querySelector('.cc-redraw').addEventListener('click', function () {
+                if (menuTaking) return;
+                menuTaking = true;
+                newDraw();
+            });
+            featuredHost.appendChild(dCard);
+        }
+
+        var sBtn = document.createElement('button');
+        sBtn.type = 'button';
+        sBtn.className = 'mf-card';
+        sBtn.innerHTML =
+            '<span class="mf-eyebrow">\uD83C\uDFB2 Surprise me</span>' +
+            '<span class="mf-title">Random Open Course</span>' +
+            '<span class="mf-meta">Jump to any unlocked card (D)</span>';
+        sBtn.addEventListener('click', function () {
+            if (menuTaking) return;
+            menuTaking = dealRandomCourse();
+        });
+        featuredHost.appendChild(sBtn);
+
+        var tabsHost = $('menu-tabs');
+        tabsHost.innerHTML = '';
+        var tabs = [{ id: 'all', name: 'All', blurb: 'Every course on the rack \u2014 handcrafted circuits plus your live Random Draw.' }]
+            .concat(GOLF.COURSE_GROUPS || []);
+        var activeTabObj = tabs[0];
+        tabs.forEach(function (t) {
+            if (t.id === menuTab) activeTabObj = t;
+            var count = menuCoursesForTab(t.id).length;
+            var tb = document.createElement('button');
+            tb.type = 'button';
+            tb.className = 'menu-tab' + (t.id === menuTab ? ' on' : '');
+            tb.setAttribute('role', 'tab');
+            tb.setAttribute('aria-selected', t.id === menuTab ? 'true' : 'false');
+            tb.setAttribute('data-tab', t.id);
+            tb.innerHTML = '<span>' + t.name + '</span><span class="mt-n">' + count + '</span>';
+            tb.addEventListener('click', function () {
+                menuTab = t.id;
+                drawCourses();
+                drawPlans();
+            });
+            tabsHost.appendChild(tb);
+        });
+        $('menu-tab-blurb').textContent = activeTabObj.blurb;
+
         var host = $('menu-list');
         host.innerHTML = '';
-        // Priced once for the whole rack: every card asks the same question.
-        var total = PR.totalStars().got;
-
-        GOLF.COURSES.forEach(function (course) {
+        menuCoursesForTab(menuTab).forEach(function (course) {
             var here = course.id === GOLF.COURSE_ID;
             var open = PR.isOpen(course, total);
             var save = course.record === false ? null : S.load(course.id);
-            // Open from the start on a wide screen, where a strip of plans has
-            // never crowded anything out. On a phone only the card you are
-            // standing on starts open.
-            var opened = !document.body.classList.contains('compact-ui') || here;
-            var stripId = 'cc-holes-' + course.id;
-            var card = document.createElement('div');
-            card.className = 'course-card' + (here ? ' playing' : '') +
-                (opened ? ' expanded' : '') + (open ? '' : ' locked');
+            var st = save ? S.courseStars(save, course.holes) : null;
+            var seed = typeof course.seed === 'number' ? course.seed : null;
+            var carry = open ? S.loadRound(course.holes, course.id, seed) : null;
+            var theme = SC.themeOf(course);
+            var dot = courseDotColor(course);
 
-            var topRow = document.createElement('div');
-            topRow.className = 'cc-top';
+            var tagClass = 'world-tag';
+            var tagText = '';
+            if (here) { tagClass += ' playing'; tagText = 'Playing'; }
+            else if (!open) { tagClass += ' locked'; tagText = '\uD83D\uDD12 ' + PR.need(course) + ' \u2605'; }
+            else if (st && st.max > 0 && st.got === st.max) { tagClass += ' done'; tagText = 'All \u2605\u2605\u2605'; }
+            else if (course.starter && total === 0 && !PR.get().veteran) { tagClass += ' playing'; tagText = 'Start here'; }
+            else if (st && st.got === 0 && !carry) { tagClass += ' fresh'; tagText = 'New'; }
 
-            // The head is the whole card except the plans: pressing it starts
-            // this course the way choosing it from the old menu did, which is
-            // to say from wherever you left it.
-            var head = document.createElement('button');
-            head.type = 'button';
-            head.className = 'cc-head';
-            /* A locked card still shows everything — the plans, the par, the
-               blurb. What is coming is the reason to keep going, and a grey
-               box that says "locked" gives nobody a reason. */
-            var badge = here ? '<span class="cc-here">playing</span>'
-                : !open ? '<span class="cc-lock">\uD83D\uDD12 ' + PR.need(course) + ' \u2605</span>'
-                : course.starter && total === 0 && !PR.get().veteran ? '<span class="cc-here">start here</span>'
-                : '';
-            head.innerHTML =
-                '<span class="cc-name">' + course.name + badge + '</span>' +
-                '<span class="cc-blurb">' + course.blurb + '</span>' +
-                '<span class="cc-meta">' + courseMeta(course, open) +
-                (open ? '' : ' \u00b7 opens at ' + PR.need(course) + ' \u2605, ' +
-                    (PR.need(course) - total) + ' to go') + '</span>';
-            head.addEventListener('click', function () {
-                if (!open) { lockedToast(course); return; }
-                takeCourse(course.id);
-            });
-            topRow.appendChild(head);
+            var starsCol = course.record === false
+                ? ('Seed #' + (seed !== null ? GOLF.generator.seedLabel(seed) : '\u2014'))
+                : ('\u2605 ' + st.got + '/' + st.max);
+            var rightCol = !open ? (PR.need(course) - total) + ' \u2605 away'
+                : carry ? ('H' + (carry.holeIndex + 1) + ' active')
+                : (save && save.best !== null ? (save.best + ' (' + S.formatVsPar(save.bestVsPar) + ')') : '\u2014');
 
-            /* Only the strip folds, and only on a compact screen. Fifty-one
-               plans stacked flat is four screens of scrolling on a phone
-               before you have reached the last card; folded, the whole rack
-               is one. The head stays a full-width button either way, so a
-               folded card still costs one tap to start. */
-            var toggle = document.createElement('button');
-            toggle.type = 'button';
-            toggle.className = 'cc-toggle';
-            toggle.setAttribute('aria-controls', stripId);
-            toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
-            toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
-            toggle.title = 'Show hole plans';
-            toggle.textContent = '⌄';
-            toggle.addEventListener('click', function () {
-                var open = card.classList.toggle('expanded');
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-                // The plans in a strip that was folded when the dialog opened
-                // were skipped for having no laid-out box; now there is one.
-                if (open) drawPlans(card);
-            });
-            topRow.appendChild(toggle);
-
-            /* The draw is the one card on the rack that can be replaced rather
-               than merely chosen, so it is the one card that carries a second
-               button. It sits on the card it re-rolls instead of in the bar,
-               where "New draw" was a chip nobody could place until they had
-               pressed it once. */
-            if (GOLF.installDraw && course.id === GOLF.generator.DRAW_ID) {
-                var again = document.createElement('button');
-                again.type = 'button';
-                again.className = 'cc-redraw';
-                again.title = 'Deal nine holes nobody has played (G)';
-                again.innerHTML = '\u2726<span> Re-deal</span>';
-                again.disabled = !open;
-                again.addEventListener('click', function () {
-                    if (menuTaking) return;
-                    menuTaking = true;
-                    newDraw();
-                });
-                topRow.appendChild(again);
-            }
-            card.appendChild(topRow);
-
-            var strip = document.createElement('div');
-            strip.className = 'cc-holes';
-            strip.id = stripId;
-            course.holes.forEach(function (hole, i) {
-                var cell = document.createElement('button');
-                cell.type = 'button';
-                cell.className = 'cc-hole';
-                var got = save ? S.stars(save.holes[i], hole.par) : 0;
-                cell.title = hole.name + ' \u2014 par ' + hole.par +
-                    (save && typeof save.holes[i] === 'number' ? ' \u2014 best ' + save.holes[i] : '');
-                cell.disabled = !open;
-                // Read back by the plan pass rather than counted out of the
-                // DOM, so the order above is free to change.
-                cell.setAttribute('data-course', course.id);
-                cell.setAttribute('data-hole', i);
-                /* The stars a hole has given you, on its own plan — the level
-                   select every game with stars has, and the reason to go back
-                   to the hole you bogeyed rather than on to the next card. */
-                cell.innerHTML =
-                    '<canvas class="cc-map" aria-hidden="true"></canvas>' +
-                    (save ? '<span class="cc-stars' + (got ? '' : ' none') + '" aria-label="' + got +
-                        ' of 3 stars">' + starText(got) + '</span>' : '') +
-                    '<span class="cc-num">' + (i + 1) + '</span>' +
-                    '<span class="cc-par">' + hole.par + '</span>';
-                cell.addEventListener('click', function () { takeCourse(course.id, i); });
-                strip.appendChild(cell);
-            });
-            card.appendChild(strip);
+            var card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'world' + (here ? ' playing' : '') + (open ? '' : ' locked');
+            card.setAttribute('data-course', course.id);
+            card.innerHTML =
+                '<div class="world-preview">' +
+                    '<canvas class="world-plan" aria-hidden="true"></canvas>' +
+                    (tagText ? '<span class="' + tagClass + '">' + tagText + '</span>' : '') +
+                    '<span class="world-biome"><i class="world-dot" style="background:' + dot + '"></i>' + theme.name + '</span>' +
+                '</div>' +
+                '<div class="world-body">' +
+                    '<div class="world-top"><span class="world-title">' + course.name + '</span>' +
+                    '<span class="world-par">' + course.holes.length + 'H \u00b7 P' + GOLF.coursePar(course.holes) + '</span></div>' +
+                    '<span class="world-blurb">' + course.blurb + '</span>' +
+                    '<div class="world-foot"><span class="world-stars">' + starsCol + '</span>' +
+                    '<span class="world-best' + (rightCol === '\u2014' ? ' none' : '') + '">' + rightCol + '</span></div>' +
+                '</div>';
+            card.addEventListener('click', function () { openDetail(course.id); });
             host.appendChild(card);
         });
 
-        /* The way past the ladder, for whoever came to look rather than to
-           climb. Two presses, because it cannot be taken back and one stray
-           tap on a phone should not spend somebody's progression for them. */
         var foot = $('menu-unlock');
         foot.hidden = PR.everythingOpen();
         foot.classList.remove('armed');
         foot.textContent = 'Open every course';
         host.scrollTop = 0;
+    }
+
+    function drawCourses() {
+        var starSum = PR.totalStars();
+        renderMenuProgress(starSum);
+        var activeDetail = menuDetailId ? courseById(menuDetailId) : null;
+        if (!activeDetail) menuDetailId = null;
+        $('menu-overview').hidden = !!activeDetail;
+        $('menu-detail').hidden = !activeDetail;
+        if (activeDetail) {
+            renderMenuDetail(activeDetail, starSum.got);
+        } else {
+            renderMenuOverview(starSum.got);
+        }
     }
 
     function unlockEverything() {
@@ -537,33 +690,30 @@
         }
         PR.unlockAll();
         drawCourses();
-        drawPlans();
+        drawPlans(menuDetailId ? $('menu-detail') : null);
         toast('Every course is open');
     }
 
-    /* Draw the plans in `root`, or in the whole list. plan.js caches what it
-       draws, so a second opening of the picker pays for none of it and a card
-       unfolded twice is drawn once.
-
-       On the first opening this is put off a frame: the dialog has just been
-       filled with fifty-one canvases, and rasterising them all before the
-       browser has painted anything is the difference between a picker that
-       opens and a picker that hesitates. Unfolding one card is not that —
-       nine plans at most, wanted the instant the strip is open — so that
-       path draws where it stands. */
+    /* Draw the plans in `root`, or in the visible menu grid/detail. plan.js
+       caches what it draws, so reopening the picker pays nothing. */
     function drawPlans(root) {
         if (!GOLF.plan) return;
         var draw = function () {
-            var cells = (root || $('menu-list')).querySelectorAll('.cc-hole');
+            var scope = root || $('menu');
+            if (!scope) return;
+            var worldCards = scope.querySelectorAll('.world[data-course]');
+            for (var w = 0; w < worldCards.length; w++) {
+                if (!worldCards[w].clientWidth) continue;
+                var wid = worldCards[w].getAttribute('data-course');
+                var wc = courseById(wid);
+                GOLF.plan.into(worldCards[w].querySelector('.world-plan'), wid, 0,
+                    wc && typeof wc.seed === 'number' ? wc.seed : null);
+            }
+            var cells = scope.querySelectorAll('.cc-hole');
             for (var k = 0; k < cells.length; k++) {
-                // A folded strip lays nothing out. Drawing into it would cache
-                // a plan one pixel wide under the size the strip will have.
                 if (!cells[k].clientWidth) continue;
                 var id = cells[k].getAttribute('data-course');
-                var course = null;
-                for (var j = 0; j < GOLF.COURSES.length; j++) {
-                    if (GOLF.COURSES[j].id === id) { course = GOLF.COURSES[j]; break; }
-                }
+                var course = courseById(id);
                 GOLF.plan.into(cells[k].querySelector('.cc-map'), id,
                     parseInt(cells[k].getAttribute('data-hole'), 10),
                     course && typeof course.seed === 'number' ? course.seed : null);
@@ -577,9 +727,12 @@
         // to pick from and no round to swap out from under a draft.
         if (GOLF.PLAYTEST) {
             $('btn-courses').hidden = true;
+            if ($('hole-course-btn')) $('hole-course-btn').hidden = true;
             return;
         }
         $('btn-courses').addEventListener('click', openMenu);
+        $('hole-course-btn').addEventListener('click', openMenu);
+        $('md-back').addEventListener('click', closeDetail);
         $('menu-close').addEventListener('click', closeMenu);
         $('menu-unlock').addEventListener('click', unlockEverything);
         $('menu-shuffle').addEventListener('click', function () {
@@ -664,6 +817,8 @@
             world: null,
             aim: { active: false, angle: 0, power: 0, keyboard: false, origin: null },
             trail: [],
+            prevTrail: [],
+            shotPoints: [],
             save: S.load(),
             phase: 'aim',          // aim | rolling | holed | finished
             lastFrac: null,        // weight of the last shot on this hole, 0..1
@@ -707,6 +862,8 @@
         state.strokes = 0;
         state.world = P.createWorld(hole, hole.tee, 0);
         state.trail = [];
+        state.prevTrail = [];
+        state.shotPoints = [];
         state.aim.active = false;
         state.aim.power = 0;
         state.aim.keyboard = false;
@@ -739,10 +896,31 @@
         syncHud();
     }
 
+    function syncLegend(hole) {
+        var legend = $('legend');
+        if (!legend || !hole) return;
+        var items = legend.querySelectorAll('span[data-hazard]');
+        var any = false;
+        for (var i = 0; i < items.length; i++) {
+            var hk = items[i].getAttribute('data-hazard');
+            var on = false;
+            if (hk === 'movingWalls') on = (hole.walls || []).some(function (w) { return !!w.move; });
+            else if (hk === 'walls') on = (hole.walls || []).some(function (w) { return !w.move; });
+            else if (hk === 'slopes') on = (hole.slopes || []).some(function (s) { return !s.wind; });
+            else if (hk === 'wind') on = (hole.slopes || []).some(function (s) { return !!s.wind; });
+            else on = (hole[hk] || []).length > 0;
+            items[i].classList.toggle('active', on);
+            if (on) any = true;
+        }
+        legend.classList.toggle('has-active', any);
+    }
+
     function syncHud() {
         var hole = GOLF.COURSE[state.holeIndex];
         $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + GOLF.COURSE.length;
         $('hole-name').textContent = hole.name;
+        syncCoursePill(currentCourse(), hole);
+        syncLegend(hole);
         $('hole-blurb').textContent = hole.blurb;
         $('hole-par').textContent = hole.par;
         $('hole-strokes').textContent = state.strokes;
@@ -806,7 +984,9 @@
         tunnels: ['sw-tunnel', 'Tunnel', 'out of the mouth the same colour, same speed, same line.'],
         avalanches: ['sw-chute', 'Avalanche', 'a slide comes down the chute on a clock. Watch for the smoke, go behind it.'],
         lava: ['sw-lava', 'Lava', 'a stroke and a replay, and nothing skips across it.'],
-        vents: ['sw-vent', 'Geyser', 'catch it blowing and it throws the ball over whatever is beyond.']
+        vents: ['sw-vent', 'Geyser', 'catch it blowing and it throws the ball over whatever is beyond.'],
+        boosts: ['sw-boost', 'Boost pad', 'kicks the ball forward along its arrow \u2014 enough speed to skip water.'],
+        oneways: ['sw-oneway', 'One-way gate', 'swings open from its chevron side, then latches shut behind you.']
     };
 
     /* The card goes wherever on the *screen* is furthest from both the ball
@@ -923,8 +1103,9 @@
         state.phase = 'rolling';
         state.lastFrac = power / C.MAX_POWER;
         state.trail = [];
+        state.shotPoints = [{ x: state.world.ball.x, y: state.world.ball.y }];
         // What this shot does on its way, for the call-out if it drops.
-        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, vents: 0, skaters: 0, swept: false, lipped: false };
+        state.shot = { from: { x: state.world.ball.x, y: state.world.ball.y }, banks: 0, posts: 0, tunnels: 0, skips: 0, vents: 0, skaters: 0, boosts: 0, oneways: 0, swept: false, lipped: false };
         state.lipping = false;
         a.active = false;
         a.power = 0;
@@ -969,6 +1150,8 @@
         w.moving = false;
         w.air = w.airMax = 0;
         w.held = null;
+        if (state.shotPoints && state.shotPoints.length > 1) state.prevTrail = state.shotPoints.slice();
+        state.shotPoints = [];
         state.trail = [];
         state.phase = 'aim';
         syncHud();
@@ -994,6 +1177,8 @@
         if (s.skips) bits.push(s.skips > 1 ? s.skips + ' skips across the water' : 'skipped across');
         if (s.tunnels) bits.push(s.tunnels > 1 ? 'through ' + s.tunnels + ' tunnels' : 'through the tunnel');
         if (s.vents) bits.push(s.vents > 1 ? 'off ' + s.vents + ' geysers' : 'off the geyser');
+        if (s.boosts) bits.push(s.boosts > 1 ? 'chaining ' + s.boosts + ' boosts' : 'off the boost pad');
+        if (s.oneways) bits.push('locked behind the gate');
         if (s.swept) bits.push('rode the avalanche');
         if (s.skaters) bits.push(s.skaters > 1 ? 'passed down the line' : 'an assist from the skater');
         if (s.posts >= 3) bits.push('pinball wizard');
@@ -1049,6 +1234,11 @@
                 starsLine += '<span class="bs-best">new best — was ' + rec.before + '</span>';
             } else if (rec.before !== null && !rec.improved && had > got) {
                 starsLine += '<span class="bs-was">your best here: ' + rec.before + '</span>';
+            } else if (got < 3) {
+                var nextHint = got === 2 ? ('Birdie (' + (hole.par - 1) + ') for \u2605\u2605\u2605')
+                    : got === 1 ? ('Par (' + hole.par + ') for \u2605\u2605\u2606')
+                    : ('Finish in ' + S.strokeLimit(hole.par) + ' for \u2605\u2606\u2606');
+                starsLine += '<span class="bs-was">' + nextHint + '</span>';
             }
             if (got > had) {
                 A.stars(got - had);
@@ -1097,6 +1287,7 @@
         // A door opening is the biggest thing a hole can do, and looks it.
         $('banner-note').className = 'banner-note' + (/now open/.test(note) ? ' unlock' : '');
         $('banner-next').textContent = next;
+        $('banner-replay').hidden = !!(state.party || GOLF.PLAYTEST);
         $('banner').classList.add('show');
         syncHud();
         // Keyboard players get the button under their hand, so Enter goes on.
@@ -2207,6 +2398,8 @@
             var w = state.world, tee = GOLF.COURSE[state.holeIndex].tee;
             w.ball.x = tee.x; w.ball.y = tee.y; w.ball.vx = w.ball.vy = 0;
             state.trail = [];
+            state.prevTrail = [];
+            state.shotPoints = [];
             toast('Back to the tee — strokes stand');
             return;
         }
@@ -2536,6 +2729,12 @@
         if (w.moving) {
             state.trail.push({ x: w.ball.x, y: w.ball.y });
             if (state.trail.length > 20) state.trail.shift();
+            if (state.shotPoints && state.shotPoints.length) {
+                var lp = state.shotPoints[state.shotPoints.length - 1];
+                if (Math.hypot(w.ball.x - lp.x, w.ball.y - lp.y) >= 8) {
+                    state.shotPoints.push({ x: w.ball.x, y: w.ball.y });
+                }
+            }
 
             if (P.zoneAt(w.course.sand, w.ball.x, w.ball.y) && now - lastSandAt > 90) {
                 lastSandAt = now;
@@ -2554,6 +2753,18 @@
             A.buzz(20);
             R.effects.vent(ev.vent.x, ev.vent.y);
             if (shot) shot.vents++;
+        }
+        if (ev.boost) {
+            A.boost();
+            A.buzz(14);
+            R.effects.boost(ev.boost.x, ev.boost.y, ev.boost.dir);
+            if (shot) shot.boosts++;
+        }
+        if (ev.oneway) {
+            A.oneway();
+            A.buzz(10);
+            R.effects.oneway(ev.oneway.x, ev.oneway.y);
+            if (shot) shot.oneways++;
         }
         /* Taken by a skater, and passed on. Called once, on the steal: the
            pass that follows is what the player is watching, not reading. */
@@ -2590,6 +2801,11 @@
         // into the cup is holed on the strokes already played.
         if (ev.sunk && (state.phase === 'rolling' || state.phase === 'aim')) holeComplete(false);
         if (ev.rest && state.phase === 'rolling') {
+            if (state.shotPoints && state.shotPoints.length > 1) {
+                state.shotPoints.push({ x: w.ball.x, y: w.ball.y });
+                state.prevTrail = state.shotPoints.slice();
+            }
+            state.shotPoints = [];
             state.phase = 'aim';
             state.aim.angle = Math.atan2(w.course.hole.y - w.ball.y, w.course.hole.x - w.ball.x);
             if (outOfStrokes()) {
@@ -2648,6 +2864,9 @@
         setMuted(A.isMuted());
 
         $('banner-next').addEventListener('click', advanceHole);
+        $('banner-replay').addEventListener('click', function () {
+            if (state.phase === 'holed') playCourse(GOLF.COURSE_ID, null, state.holeIndex);
+        });
         if (canFullscreen()) {
             $('btn-full').addEventListener('click', toggleFullscreen);
             document.addEventListener('fullscreenchange', syncFullscreen);
