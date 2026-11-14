@@ -3100,8 +3100,12 @@ kbd {
 
 /* On a phone — and on any window short or narrow enough that the clubhouse
    chrome would eat the course — the canvas takes the viewport and the
-   scoreboard folds into the overlay it already has. Everything else stays
-   where it was, one scroll below the fold.
+   scoreboard folds into the overlay it already has — and that is the whole
+   page. Nothing waits below the fold any more: a page that scrolls is a page
+   whose course slides away under a thumb that meant to aim, and on a phone
+   the address bar's own show-and-hide made the stage jump with it. The two
+   reminder panels are the How to play dialog's job here (☰ → ?), and ⛶ or
+   the fullscreen offer takes the browser's bars away too.
 
    Short counts as well as narrow, and it did not used to: a window 480 tall
    kept the title, the strapline and the six-figure scoreboard, which between
@@ -3110,17 +3114,25 @@ kbd {
    the same three `syncCompact` asks in game.js — edit one and edit the
    other. */
 @media (max-width: 900px), (max-height: 560px), (pointer: coarse) {
+    html, body {
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+
     body { padding: 0; }
 
     .wrap { max-width: none; }
 
-    /* The course owns the screen; the help and the legend sit one scroll
-       below it. */
+    /* The course owns the screen, and the screen is all there is. */
     .viewport {
         display: flex;
         flex-direction: column;
+        height: 100vh;
         height: 100dvh;
     }
+
+    .panel, .best-line { display: none; }
 
     .topbar {
         padding: 0.55rem 0.7rem;
@@ -3161,8 +3173,6 @@ kbd {
 
     .swing { flex: 1 1 auto; }
 
-    .panel, .best-line { margin-left: 0.8rem; margin-right: 0.8rem; }
-    .panel:last-of-type { margin-bottom: 2rem; }
 }
 
 
@@ -4647,3 +4657,100 @@ body.lane-swing .swipe-hint {
 .md-play { align-items: center; }
 /* On a card's page the plans are the page, never folded away. */
 .compact-ui .menu-detail .cc-holes { display: grid; max-height: none; opacity: 1; padding: 0; overflow: visible; pointer-events: auto; }
+
+/* ── the loading screen ───────────────────────────────────────────────────
+
+   A plate over the whole page until the course has drawn its first frame
+   (game.js → hideLoader). A ball chips, bounces twice, runs out and drops,
+   on a loop — the only thing that moves, in the clubhouse's own inks. With
+   less motion asked for it stands still on the green. */
+.loader {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 16px;
+    background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+    color: var(--ink);
+    transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
+
+.loader.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.ld-scene { width: min(320px, 78vw); height: auto; overflow: visible; }
+.ld-ground { fill: #3c4a2a; }
+.ld-cup { fill: #0b0c08; }
+.ld-pole { stroke: var(--ink-dim); stroke-width: 1.4; stroke-linecap: round; }
+.ld-flag {
+    fill: var(--accent);
+    transform-origin: 152.6px 26.5px;
+    animation: ld-wave 1.4s ease-in-out infinite alternate;
+}
+.ld-ball { fill: var(--ink); }
+.ld-shadow { fill: rgba(0, 0, 0, 0.4); }
+
+.ld-ball-x { animation: ld-x 2.8s infinite; }
+.ld-ball-y { animation: ld-y 2.8s infinite; }
+.ld-shadow { animation: ld-shadow 2.8s infinite; }
+
+@keyframes ld-x {
+    0%   { transform: translateX(0); opacity: 0; animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1); }
+    4%   { opacity: 1; }
+    62%  { transform: translateX(118px); animation-timing-function: ease-out; }
+    74%  { transform: translateX(126px); opacity: 1; }
+    86%  { transform: translateX(126px); opacity: 1; }
+    92%, 100% { transform: translateX(126px); opacity: 0; }
+}
+
+@keyframes ld-y {
+    0%   { transform: translateY(0); animation-timing-function: ease-out; }
+    20%  { transform: translateY(-38px); animation-timing-function: ease-in; }
+    38%  { transform: translateY(0); animation-timing-function: ease-out; }
+    46%  { transform: translateY(-11px); animation-timing-function: ease-in; }
+    54%  { transform: translateY(0); animation-timing-function: ease-out; }
+    58%  { transform: translateY(-3px); animation-timing-function: ease-in; }
+    62%  { transform: translateY(0); }
+    74%  { transform: translateY(0); animation-timing-function: ease-in; }
+    80%, 100% { transform: translateY(9px); }
+}
+
+@keyframes ld-shadow {
+    0%, 72%  { opacity: 1; }
+    76%, 100% { opacity: 0; }
+}
+
+@keyframes ld-wave {
+    from { transform: skewY(-4deg) scaleX(1); }
+    to   { transform: skewY(5deg) scaleX(0.9); }
+}
+
+.ld-title {
+    margin: 0.4rem 0 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+.ld-title span { color: var(--accent); }
+
+.ld-note {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.ld-dots i { font-style: normal; animation: ld-dot 1.2s infinite; }
+.ld-dots i:nth-child(2) { animation-delay: 0.2s; }
+.ld-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ld-dot { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .ld-ball-x, .ld-ball-y, .ld-shadow, .ld-flag, .ld-dots i { animation: none; }
+    .ld-ball-x { transform: translateX(110px); }
+}
