@@ -5670,10 +5670,21 @@
        them is the whole trick: a caddie that has stopped for *any* reason
        (holed out, out of strokes, no shot it can see, a lie it refused) is
        noticed here without this ever having to ask which. */
+    /* Whether this hole's live world is still on its way: wanted, not yet
+       drawn, not failed, and not waited on past the curtain's own limit
+       (WORLD_WAIT) — a world that never comes must not stall the caddie. */
+    function worldPending(w, beat) {
+        var h = state.course.holes[state.holeIndex], B = G3.backdrop;
+        if (!h || !h.place || !R.liveWanted || R.live || demo) { w.held = 0; return false; }
+        if (B && B.failed(h.place.world)) return false;
+        w.held = (w.held || 0) + beat;
+        return w.held * 1000 < WORLD_WAIT;
+    }
+
     function tickWalk(w, beat, moveOn) {
         if (w.wait > 0) {
             w.wait -= beat;
-            if (w.wait <= 0) moveOn();
+            if (w.wait <= 0) { w.held = 0; moveOn(); }
             return;
         }
         if (state.phase === 'holed' || state.phase === 'finished' ||
@@ -5681,6 +5692,18 @@
             w.wait = C.DEMO_HOLD;
             return;
         }
+        /* A tour hole's world still building behind the curtain (holdForWorld)
+           is not a hole anyone can see yet, and the caddie used to take its
+           first swing back there — the shot was half gone by the time the
+           world opened (the owner: "starts a bit quick on the portals maps").
+           It waits the curtain out, then a beat more once it opens, so the
+           first frames of a fresh world are looked at rather than played
+           through. The curtain alone is not enough: a world prepared ahead
+           (from the menu, say) skips it while it is still a second or two
+           from its first frame, so worldPending asks the renderer itself.
+           A hole with no world, or live worlds off, costs nothing here. */
+        if (curtain.up || portalBusy || worldPending(w, beat)) { w.settle = C.BOT_SETTLE; return; }
+        if (w.settle > 0) { w.settle -= beat; return; }
         // The hole introduces itself first. The flyover is the best thing on
         // the screen and a caddie with nowhere to be can wait it out — and
         // make its plan for the tee shot meanwhile.
