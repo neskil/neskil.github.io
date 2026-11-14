@@ -1057,9 +1057,15 @@
        between kinds of place as well as between places. Then the six are put
        in order of what they ask, so the first door opens on something gentle
        and the last on something that is not. */
-    function dealJourney(rng, save, first) {
+    /* `avoid` (world ids) is left out of the pool when enough is left without
+       it — "six new holes" after a tour means six that tour did not have. */
+    function dealJourney(rng, save, first, avoid) {
         rng = rng || Math.random;
         var pool = WORLDS.slice(), out = [], last = null, i, w;
+        if (avoid && avoid.length) {
+            var fresh = pool.filter(function (x) { return avoid.indexOf(x.id) < 0 || x.id === first; });
+            if (fresh.length >= LENGTH) pool = fresh;
+        }
         function weight(x) {
             var rec = save && save.holes ? save.holes['world-' + x.id + ':0'] : null;
             var n = rec ? rec.plays || 0 : 0;
