@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.163.0';
+G3.VERSION = '1.164.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -968,7 +968,8 @@ G3.CONFIG = {
         END_MAX: 1.2,       // …and no higher
         PIN_LIFT: 30,       // the flag launches this far straight up…
         PIN_BY: 0.5,        // …in this share of the dive, then is gone
-        PREPARE_AFTER: 1.2  // the next world starts building this long after the sink
+        PREPARE_AFTER: 1.2, // the next world starts building this long after the sink, if it has not already…
+        PREPARE_AHEAD: 6    // …which it does once a hole has been open this long, at the first quiet moment
     },
 
     /* The demo's own camera. Nobody is aiming, so the seat behind the ball is

@@ -4394,7 +4394,8 @@ body.lane-swing .swipe-hint {
 }
 .portal-wipe.holding { opacity: 1; pointer-events: auto; }
 /* What it says while a world is building behind it (game.js → holdForWorld):
-   an opaque plate, where you are going, and a bar that only says "working". */
+   an opaque plate, where you are going, and a bar that fills as the build
+   goes (curtainBar) — or only says "working" until there is a build to follow. */
 .pw-card {
     position: absolute;
     left: 50%; top: 50%;
@@ -4433,10 +4434,15 @@ body.lane-swing .swipe-hint {
     animation: pw-run 1.3s ease-in-out infinite alternate;
 }
 @keyframes pw-run { from { transform: translateX(-20%); } to { transform: translateX(205%); } }
+/* Filled by a scale rather than a width: a transform is animated by the
+   compositor, and the build this bar follows can hold the page's own thread
+   for most of a frame. */
+.pw-bar.known i { width: 100%; animation: none; transform: scaleX(0.03); transform-origin: left center; transition: transform 0.3s linear; }
+.pw-note { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
     .portal-wipe.closing, .portal-wipe.opening { animation: none; }
     .portal-wipe.opening { opacity: 0; }
-    .pw-bar i { animation: none; width: 100%; opacity: 0.5; }
+    .pw-bar:not(.known) i { animation: none; width: 100%; opacity: 0.5; }
 }
 
 /* ── the picker's top ────────────────────────────────────────────────────

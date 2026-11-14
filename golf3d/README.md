@@ -4423,6 +4423,28 @@ plate (`curtain.built`, `.portal-wipe.quiet`). Before v1.162.0 the plate
 never showed between two holes at all: the wipe kept its `closing` class
 while it held, and only `holding` shows the plate.
 
+**Earlier still, and with a bar that fills** (v1.163.0; the owner: "show
+progress… it's also very slow"). Three moves:
+
+- *During the demo.* `startDemo` deals the next tour ahead (`warmTour`,
+  `nextJourney`) and builds its first world aside in slices; Start
+  (`leaveDemo` → `newJourney`) takes that deal, so the first hole opens on a
+  world already built or part way there. Leaving the demo any other way drops
+  the deal and the world (`backdrop.drop`). A hole with no world no longer
+  throws a spare away (`want(null)`), nor turns its slices off.
+- *During a hole.* `prepareAhead` builds the next world once the hole has
+  been open `DIVE.PREPARE_AHEAD` seconds, at a quiet moment (aiming, no
+  flyover, the current world drawn). `prepareNext` at the sink is the
+  fallback; the files are fetched 1.5 s in rather than 4.
+- *The bar.* The engine names each step of a build (`perf.setPhase`:
+  fetch, leaf, build, compile, warm) but not how far through it is, so
+  `backdrop.progress(id)` estimates: each step is given what it took on this
+  device last time (that world's own record, else the device's running
+  average, in `localStorage` `golf3d.worldTimes`), and a step still running
+  creeps towards its end without passing it. `curtainBar` shows it with the
+  step's name and a percentage, never moving backwards, filled by `scaleX`
+  so the compositor can draw it while the build holds the page's thread.
+
 ### Down the cup
 
 Between two worlds the cup is the portal (the owner's idea, v1.162.0). On
