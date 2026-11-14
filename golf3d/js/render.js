@@ -104,6 +104,7 @@
         buildMarkers();
         buildTrail();
         buildParticles();
+        if (G3.sandfx) G3.sandfx.build(R.scene);
         if (G3.bag) G3.bag.build(R.scene);
 
         R.ready = true;
@@ -118,6 +119,7 @@
         R.renderer.setSize(w, h, false);
         R.camera.aspect = w / Math.max(1, h);
         R.camera.updateProjectionMatrix();
+        if (G3.sandfx) G3.sandfx.resize(h * R.renderer.getPixelRatio());
         if (R.fx) {
             var dpr = R.renderer.getPixelRatio();
             G3.postfx.resize(w * dpr, h * dpr);
@@ -5357,6 +5359,8 @@
         group.add(sun);
         group.add(sun.target);
         R.sun = sun;
+        // The sand's spray is drawn unlit, so it is told what light the sand is in.
+        if (G3.sandfx) G3.sandfx.light(amb, sun, weather.wet || 0);
         R.sunDir.set(pos[0] * reach, Math.max(2.5, pos[1] * lift), pos[2] * reach).normalize();
 
         var fill = new THREE.DirectionalLight(skyLight, 0.16 + weather.cloud * 0.10);
@@ -5676,6 +5680,8 @@
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         clearTrail();
+        // The last hole's furrows and craters were in the last hole's sand.
+        if (G3.sandfx) G3.sandfx.clear();
         // A hole changed with a ball inside a pipe would leave it shrunk.
         R.ball.scale.setScalar(1);
         R.ball.visible = true;
@@ -7228,6 +7234,8 @@
 
         updateAim(world, aim);
         stepParticles(dt);
+        // What the sand does back: spray and a furrow off a rolling ball.
+        if (G3.sandfx) G3.sandfx.step(dt, world);
         stepRipples(dt);
         stepBlackHoles(dt, world);
         if (G3.worlds) G3.worlds.step(dt, R.clock);
@@ -7411,7 +7419,14 @@
         if (speed > 1.5) ripple(x, y, z, 0.2 + speed * 0.08);
         if (speed > 4) burst(x, y + 0.05, z, 0x27f0ff, Math.min(8, Math.round(speed)), 0.8 + Math.min(1, speed * 0.1));
     }
-    function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
+    /* A landing in a bunker. sandfx.js reads how the ball came down — how
+       fast, how flat, after how long in the air — and throws the crown, the
+       dust and the crater to match; a big arrival also flinches the camera. */
+    function sandAt(x, y, z) {
+        if (!G3.sandfx || !R.holeGroup) { burst(x, y, z, 0xe8d8a8, 14, 1.5); return; }
+        var hard = G3.sandfx.land(R.hole, x, y, z);
+        if (hard > 0.45) R.cam.kick = Math.max(R.cam.kick, (hard - 0.45) * 0.5);
+    }
     /* The ball goes past the pin on its way in — nothing stops it, since the
        simulation has never heard of the pin — so the pin at least acknowledges
        it and rattles, which is what a real one does and what your ear is
@@ -7423,6 +7438,8 @@
 
     /* Whatever the ball was sitting on, sprayed backwards off the strike. */
     function divot(x, y, z, yaw, frac, kind) {
+        // Out of a bunker the club takes the sand with it (sandfx, blast).
+        if (kind === 'sand' && G3.sandfx && R.hole) { G3.sandfx.blast(R.hole, x, y, z, yaw, frac); return; }
         var colour = kind === 'sand' ? 0xe8d8a8 : (kind === 'wood' ? 0xc79a63 : 0x6fbf5a);
         var n = 5 + Math.round(frac * 13);
         burst(x - Math.sin(yaw) * 0.1, y + 0.03, z - Math.cos(yaw) * 0.1,
