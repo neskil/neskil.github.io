@@ -465,6 +465,27 @@
        moment (no flyover, no ball in flight, nothing else building) and
        gives up when the hole changes; prepareNext, at the sink, is what
        is left if it never found one. */
+    /* …and while it is built, it stands still whenever the player is doing
+       something: a finger on the glass (drawing a stroke, turning the view,
+       working the swing card), a swing gate running, a ball moving. It goes
+       on in the gaps — lining up, reading the green, the celebration — which
+       is most of a hole. A finger the phone never said was lifted counts for
+       at most a few seconds after its last move, so a lost release cannot
+       hold a build for ever. */
+    var heldDown = 0, heldAt = 0;
+    function noteHeld(e) {
+        if (e.type === 'pointerdown') heldDown++;
+        else if (e.type === 'pointerup' || e.type === 'pointercancel') heldDown = Math.max(0, heldDown - 1);
+        if (!e.buttons && e.type !== 'pointerdown') heldDown = 0;
+        heldAt = performance.now();
+    }
+    function buildHeld(now) {
+        if (!state || demo) return false;
+        if (heldDown > 0 && now - heldAt < 4000) return true;
+        if (gate || arc || needle) return true;
+        return state.phase === 'rolling';
+    }
+
     var aheadTimer = 0;
     function prepareAhead() {
         clearInterval(aheadTimer);
@@ -5974,6 +5995,7 @@
            And a frame the game had nothing to do on is still a frame the
            machine drew, which is the kind around a stall. */
         tickFps(raw);
+        if (G3.backdrop && G3.backdrop.hold) G3.backdrop.hold(buildHeld(now));
         if (!state || !state.world) return;
         // The replay draws a world of its own and nothing else moves under it.
         if (replay) { tickReplay(dt); return; }
@@ -6184,6 +6206,9 @@
            a pointer crossing the window is a person in the room, not a person
            asking for anything. */
         window.addEventListener('pointerdown', onActivity, true);
+        ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function (t) {
+            window.addEventListener(t, noteHeld, true);
+        });
         window.addEventListener('keydown', onActivity, true);
         window.addEventListener('wheel', onActivity, { capture: true, passive: true });
         window.addEventListener('pointermove', noteActivity, { passive: true });
