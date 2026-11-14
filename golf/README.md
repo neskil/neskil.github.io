@@ -1,18 +1,18 @@
 # Pocket Links
 
-A 2D mini golf game with fourteen courses of six holes, climbing from a walled
-garden past a volcano and out into space and ending in a garden of puzzles — plus one more that is generated from a seed and is
+A 2D mini golf game with seventeen courses of six holes, climbing from a walled
+garden past a neon arcade, sunken ruins, a volcano, a brass clockwork foundry, out into space and ending in a garden of puzzles — plus one more that is generated from a seed and is
 different every time you ask for one. Each course is a place with a trick of
 its own: parkland corners and posts, the sea's water, a farm's wind, a wood's
-hills and sweeping bars, the desert's dunes, a meadow's tunnels, a winter ice
-run's curves, a mountain's avalanche chutes, a funfair's turnstiles and
-travelators, a volcano's lava and geysers, a desk's record player, the
+hills and sweeping bars, a neon arcade's boost pads, the desert's dunes, a meadow's tunnels, a winter ice
+run's curves, a mountain's avalanche chutes, sunken ruins' one-way check gates, a funfair's turnstiles and
+travelators, a volcano's lava and geysers, a desk's record player, brasswork gears and pistons, the
 black holes of space and a zen garden's puzzles — and the first card walks
 through six of those places in six holes, with an ace to find on every one. A first visit is handed
 that card and a reason to finish it; every hole gives up to three stars, and
 stars open the next card. Up to four can play on one screen. Any course can be
-dressed in any of fourteen biomes, autumn, winter, desert, a moonlit night, a
-study desk, deep space and a zen garden among them. A hole may run on the slant, bend round a curve, rise over a hill
+dressed in any of seventeen biomes, autumn, winter, desert, a moonlit night, a
+neon arcade, sunken ruins, a brass clockwork foundry, a study desk, deep space and a zen garden among them. A hole may run on the slant, bend round a curve, rise over a hill
 and have a windmill, a big wheel, a snowman or a turning record in the middle
 of it.
 Canvas, plain ES5-flavoured JavaScript, no build step and no dependencies —
@@ -47,7 +47,7 @@ same as everything else here, open `index.html` and it runs.
 | `tests.html` | Headless test harness for the logic. Open it; green is green. |
 | `ui-tests.html` | The same, for the page — the bar, the ☰ panel, the picker, the title, a party, the turned and side layouts. |
 
-## The fourteen courses
+## The seventeen courses
 
 `GOLF.COURSES` is a rack of cards, each `{ id, name, blurb, holes }`, and
 `GOLF.COURSE` is whichever one is being played. Everything downstream — the
@@ -59,10 +59,10 @@ the whole handling a stale stored preference needs.
 **The rack is a ladder.** Every card is six holes, drawn in a place of its own
 and built round one thing that place does, and the order is the order the
 stars open them — `unlock` on each card: the Short Six from the start, then the
-Old Course at 4, Tidewater at 10, Harvest Wind at 16, the Wild Six at 22, the
-Dunes at 28, the Warren at 34, the Ice Run at 40, Avalanche Pass at 46, the
-Midnight Funfair at 52, Desk Job at 58, Ember Ridge at 64, Orbit at 70 and the
-Puzzle Garden at 76, and the draw, which the generator puts last, at 84. Each threshold is about a third of the stars the
+Old Course at 4, Tidewater at 10, The Arcade Six at 16, Harvest Wind at 22, the
+Wild Six at 28, the Dunes at 34, Sunken Temple at 40, the Warren at 46, the Ice Run at 52, Avalanche Pass at 58, the
+Midnight Funfair at 64, Desk Job at 70, The Brassworks at 76, Ember Ridge at 82, Orbit at 88 and the
+Puzzle Garden at 94, and the draw, which the generator puts last, at 100. Each threshold is about a third of the stars the
 cards above it can give, so finishing holes is enough and playing them well is
 quicker. The cards alternate: one that recombines what has gone before, then
 one built round something new.
@@ -1198,7 +1198,7 @@ where the skater is on it.
 ## Biomes, and what a hole is drawn as
 
 A field of flat blue rectangles is a diagram of a hole rather than a place,
-and fourteen courses in one palette are one course wearing fourteen names. So each
+and seventeen courses in one palette are one course wearing seventeen names. So each
 card is drawn in a biome — the Short Six in a walled **garden**, the Old
 Course in **parkland**, Tidewater by the **seaside**, the Wild Six in
 **woodland**, the Warren in a **meadow**, Avalanche Pass on the **alpine**
@@ -1244,7 +1244,7 @@ leaves on the pond), **winter** (snowy logs, snow pines, a snowman for a post,
 a skin of ice on the water), **desert** (sandstone, acacias, cacti, a
 tumbleweed) and **moonlit**, a night course lit by lanterns round the cushion
 and posts that glow, with the moon on the water. The **Scenery** row in the
-course picker — or `S` — puts any course in any of the fourteen, or back in its
+course picker — or `S` — puts any course in any of the seventeen, or back in its
 own; the choice is kept in `miniGolf.scenery.v1` and survives Reset progress,
 which is about the player's record, not their taste.
 

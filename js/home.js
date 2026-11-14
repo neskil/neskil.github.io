@@ -1,4 +1,3 @@
-<script>
 const canvas = document.getElementById('networkCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -571,6 +570,93 @@ window.addEventListener('scroll', () => {
     bumpPending = Math.max(-BUMP_MAX, Math.min(BUMP_MAX, delta));
 }, { passive: true });
 
+/* ── Shooting stars ──────────────────────────────────────────────────
+   Every so often a meteor crosses the constellation and the dots it
+   passes flare up and fade back, the way the cursor lights them. It took
+   the place of two drifting CSS glows that had been retired for costing
+   frames: this lives in the canvas that is already being redrawn, so it
+   adds one gradient stroke a frame for about a second, and no layers.
+
+   Progress is advanced by frame time (capped) rather than read off the
+   clock, so a frame the loop skips — a phone holds the field still while
+   the page scrolls — pauses the meteor instead of teleporting it. */
+const METEOR_GAP_MS = [7000, 16000];
+const meteor = { on: false, next: performance.now() + 3500, last: 0 };
+
+function startMeteor(now) {
+    // In along the top or a top corner, heading down and across at a
+    // shallow angle, with the direction picked so it crosses the screen.
+    const ltr = Math.random() < 0.5;
+    const angle = 0.28 + Math.random() * 0.3; // 16–33° below horizontal
+    const dx = Math.cos(angle) * (ltr ? 1 : -1), dy = Math.sin(angle);
+    meteor.x0 = ltr ? Math.random() * width * 0.6 - width * 0.1 : width * (0.5 + Math.random() * 0.6);
+    meteor.y0 = Math.random() * height * 0.35 - 40;
+    meteor.dx = dx; meteor.dy = dy;
+    meteor.dist = Math.max(width, height) * (0.55 + Math.random() * 0.3);
+    meteor.dur = 900 + Math.random() * 500;
+    meteor.tail = 110 + Math.random() * 90;
+    meteor.t = 0;
+    meteor.last = now;
+    const hue = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hue'));
+    meteor.hue = Number.isFinite(hue) ? hue : 220;
+    meteor.on = true;
+}
+
+function drawMeteor(now) {
+    if (!meteor.on) {
+        if (now < meteor.next) return;
+        // Not for reduced motion, and not at the emergency tier.
+        if (canvasReduceMotion.matches || perfTier >= 2) {
+            meteor.next = now + METEOR_GAP_MS[0];
+            return;
+        }
+        startMeteor(now);
+    }
+    meteor.t += Math.min(50, now - meteor.last);
+    meteor.last = now;
+    const k = meteor.t / meteor.dur;
+    if (k >= 1) {
+        meteor.on = false;
+        meteor.next = now + METEOR_GAP_MS[0] + Math.random() * (METEOR_GAP_MS[1] - METEOR_GAP_MS[0]);
+        return;
+    }
+    // Ease out a touch, and swell in and out so it never pops on or off.
+    const along = meteor.dist * (1 - (1 - k) * (1 - k * 0.35));
+    const env = Math.sin(Math.PI * k);
+    const hx = meteor.x0 + meteor.dx * along, hy = meteor.y0 + meteor.dy * along;
+    const len = meteor.tail * (0.4 + 0.6 * env);
+    const tx = hx - meteor.dx * len, ty = hy - meteor.dy * len;
+
+    const grad = ctx.createLinearGradient(tx, ty, hx, hy);
+    grad.addColorStop(0, `hsla(${meteor.hue}, 80%, 80%, 0)`);
+    grad.addColorStop(1, `hsla(${meteor.hue}, 90%, 92%, ${0.85 * env})`);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(hx, hy, 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.9 * env})`;
+    ctx.fill();
+
+    // Light the dots it passes. Their glow decays on its own (see
+    // Particle.update), so a flare is all it takes to leave a wake.
+    const shift = bgParallaxShift();
+    const R = 80;
+    for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        const ddx = p.x - hx;
+        if (ddx > R || ddx < -R) continue;
+        const ddy = p.y + p.bumpOff - shift - hy;
+        if (ddy > R || ddy < -R) continue;
+        const d = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (d < R) p.glow = Math.max(p.glow, (1 - d / R) * env);
+    }
+}
+
 function animate(now) {
     const frameBudget = CANVAS_FRAME_MS_BY_TIER[perfTier];
     if (frameBudget && now - lastCanvasFrame < frameBudget) {
@@ -694,6 +780,7 @@ function animate(now) {
     }
 
     ctx.restore();
+    drawMeteor(now);
     requestAnimationFrame(animate);
 }
 
@@ -1701,8 +1788,6 @@ function showToast(msg) {
     document.addEventListener('shelf:change', () => { if (focusActive) refocus(); });
     syncFocusMode();
 })();
-    </script>
-    <script>
 /* ── Idle delivery ───────────────────────────────────────────────────
    Leave the page alone for a while and a parcel drops onto one of the
    cards in view; a Cargo Lander comes down, lowers its chain, winches the
@@ -1920,8 +2005,6 @@ function showToast(msg) {
 
     arm();
 })();
-    </script>
-    <script>
 /* ── Shelves ─────────────────────────────────────────────────────────
    Each shelf heading folds its grid. What is folded is remembered per
    browser, so someone who only ever comes for the tools can put the
@@ -1996,8 +2079,6 @@ function showToast(msg) {
         });
     });
 })();
-    </script>
-    <script>
 /* ── Surprise me ──────────────────────────────────────────────────────
    The dice chip in the jump bar opens something you have not opened yet.
    "Opened" is remembered per browser: every launch from this page is
@@ -2075,4 +2156,3 @@ function showToast(msg) {
     button.hidden = places.length === 0;
     refresh();
 })();
-    </script>

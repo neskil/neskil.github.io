@@ -125,6 +125,15 @@
         if (eight) s.eight = true;
         return s;
     }
+    // A directional kick strip: accelerates a rolling ball once per pass.
+    function boost(x, y, w, h, dir, kick, speed) {
+        var b = { x: x, y: y, w: w, h: h, dir: dir };
+        if (kick !== undefined) b.kick = kick;
+        if (speed !== undefined) b.speed = speed;
+        return b;
+    }
+    // A one-way check gate between (x, y) and (tx, ty); side (-1 or +1) chooses pass normal.
+    function oneway(x, y, tx, ty, side) { return { x: x, y: y, tx: tx, ty: ty, side: side === -1 ? -1 : 1 }; }
     /* Corners cut round: Chaikin's corner cutting, which replaces every
        corner of a closed outline with two points a quarter of the way along
        its edges. Twice over, a hexagon is a pebble — a bunker or a bed drawn
@@ -204,7 +213,7 @@
             }
         });
         (h.slopes || []).forEach(function (s) { zone(s); s.ax = -s.ax; });
-        (h.avalanches || []).concat(h.belts || []).forEach(function (a) {
+        (h.avalanches || []).concat(h.belts || [], h.boosts || []).forEach(function (a) {
             zone(a);
             if (a.dir === 'left') a.dir = 'right'; else if (a.dir === 'right') a.dir = 'left';
         });
@@ -232,6 +241,13 @@
         (h.blocks || []).forEach(zone);
         (h.bumpers || []).concat(h.vents || [], h.hills || []).forEach(function (b) { b.x = W - b.x; });
         (h.tunnels || []).concat(h.rails || []).forEach(function (t) { t.x = W - t.x; t.tx = W - t.tx; });
+        // Reflecting a one-way gate reverses its chord's x, which flips the
+        // handedness of the left-hand normal; negating `side` preserves pass direction.
+        (h.oneways || []).forEach(function (o) {
+            o.x = W - o.x;
+            o.tx = W - o.tx;
+            o.side = o.side === -1 ? 1 : -1;
+        });
         // A curve's angles turn about the vertical: θ becomes 180° - θ.
         (h.arcs || []).forEach(function (a) {
             var from = a.from;
@@ -246,7 +262,7 @@
        file does — the suite's own test holes among them. */
     GOLF.helpers = { r: r, post: post, tunnel: tunnel, rail: rail, poly: poly, chute: chute, vent: vent,
                      arc: arc, block: block, mound: mound, bowl: bowl, shape: shape, smooth: smooth, oval: oval, ring: ring,
-                     spinner: spinner, belt: belt, turntable: turntable, skater: skater, mirror: mirror };
+                     spinner: spinner, belt: belt, turntable: turntable, skater: skater, boost: boost, oneway: oneway, mirror: mirror };
 
     /* ── The Short Six — a walk through every place on the rack ─────────
 
@@ -2221,6 +2237,293 @@
         }
     ];
 
+    /* ── The Arcade Six — the cabinet ────────────────────────────────────
+
+       Boost pads and one-way check gates, paired with pinball posts and
+       banked curves. A boost fires once as the ball crosses it so an angle
+       cut turns sharply round a corner; a check gate swings open one way
+       and locks behind you so a firm bank into a cup pocket stays inside. */
+
+    var ARCADE = [
+        {
+            name: 'Pinball Alley',
+            blurb: 'Two arcade boost lanes round a bumper diamond into a one-way cup pocket.',
+            par: 2,
+            tee: { x: 110, y: 320 },
+            hole: { x: 835, y: 320 },
+            bumpers: [post(410, 320, 26), post(540, 255, 24), post(540, 385, 24), post(640, 115, 20), post(640, 525, 20)],
+            boosts: [boost(260, 120, 130, 46, 'right'), boost(260, 474, 130, 46, 'right')],
+            walls: [r(700, 180, 260, 24), r(700, 436, 260, 24)],
+            oneways: [oneway(710, 204, 710, 436, -1)],
+            rough: [r(0, 0, 960, 56), r(0, 584, 960, 56)]
+        },
+        {
+            name: 'Flipper Chute',
+            blurb: 'Thread the upper check gate, or fire the lower boost round the neon curve.',
+            par: 3,
+            tee: { x: 120, y: 520 },
+            hole: { x: 830, y: 125 },
+            rails: [rail(270, 420, 640, 210, 24)],
+            arcs: [arc(740, 400, 140, 0, 90, 24)],
+            boosts: [boost(390, 480, 130, 46, 'right'), boost(845, 230, 48, 120, 'up')],
+            walls: [r(438, 0, 24, 50)],
+            oneways: [oneway(450, 50, 450, 180, -1)],
+            bumpers: [post(465, 325, 22), post(670, 165, 24)],
+            sand: [r(220, 75, 130, 110)]
+        },
+        {
+            name: 'Hyperloop',
+            blurb: 'Ride the boost down the straight, bank clean round the hairpin and check into the pocket.',
+            par: 3,
+            tee: { x: 165, y: 95 },
+            hole: { x: 165, y: 545 },
+            walls: [r(0, 308, 700, 24), r(248, 560, 24, 80)],
+            arcs: [arc(720, 320, 190, -90, 90, 24)],
+            boosts: [boost(340, 100, 140, 48, 'right')],
+            belts: [belt(420, 440, 170, 60, 'left', 180)],
+            oneways: [oneway(260, 332, 260, 560, +1)],
+            bumpers: [post(340, 390, 22), post(340, 560, 22)],
+            sand: [r(420, 195, 160, 80)]
+        },
+        {
+            name: 'Ticket Booth',
+            blurb: 'The top booth lets shots through one way onto a boost; the lower conveyor pushes back.',
+            par: 3,
+            tee: { x: 850, y: 320 },
+            hole: { x: 125, y: 320 },
+            walls: [r(468, 0, 24, 130), r(468, 250, 24, 140), r(468, 510, 24, 130)],
+            oneways: [oneway(480, 130, 480, 250, +1)],
+            boosts: [boost(260, 165, 120, 46, 'left')],
+            belts: [belt(350, 415, 220, 65, 'right', 150)],
+            rails: [rail(160, 540, 290, 420, 22)],
+            bumpers: [post(680, 210, 24), post(680, 430, 24), post(220, 320, 25)],
+            sand: [r(190, 25, 130, 80), r(190, 535, 130, 80)]
+        },
+        {
+            name: 'Crossfire',
+            blurb: 'Charge up the left booster highway or brave the right spinner — the green locks behind the bar.',
+            par: 4,
+            tee: { x: 480, y: 555 },
+            hole: { x: 480, y: 85 },
+            blocks: [block('hull', [420, 230, 540, 230, 540, 430, 420, 430])],
+            water: [r(0, 360, 110, 160), r(850, 360, 110, 160)],
+            sand: [r(220, 310, 110, 90), r(630, 310, 110, 90)],
+            boosts: [boost(145, 340, 48, 120, 'up'), boost(145, 105, 130, 46, 'right')],
+            rails: [rail(45, 95, 105, 45, 22)],
+            spinners: [spinner(740, 245, 74, 2, 1.4, 0, 20)],
+            walls: [r(330, 158, 60, 24), r(570, 158, 60, 24)],
+            oneways: [oneway(390, 170, 570, 170, -1)],
+            bumpers: [post(690, 115, 22), post(330, 82, 22)]
+        },
+        {
+            name: 'Multiball Jackpot',
+            blurb: 'Skip the lagoon off the lower rails, ride the up-belt through the check gate to the prize.',
+            par: 4,
+            tee: { x: 110, y: 535 },
+            hole: { x: 850, y: 105 },
+            water: [r(240, 150, 300, 290)],
+            boosts: [boost(190, 490, 120, 46, 'right'), boost(620, 480, 120, 46, 'right')],
+            rails: [rail(830, 580, 910, 490, 24)],
+            belts: [belt(760, 210, 56, 170, 'up', 165)],
+            oneways: [oneway(715, 165, 895, 165, -1)],
+            bumpers: [post(140, 260, 24), post(210, 135, 22), post(490, 85, 24), post(635, 145, 22)],
+            sand: [r(330, 35, 130, 80)],
+            rough: [r(560, 310, 140, 110)]
+        }
+    ];
+
+    /* ── Sunken Temple — the ruins ───────────────────────────────────────
+
+       Flooded limestone courtyards reclaimed by moss and jade water. Ancient
+       one-way floodgates shut behind any bold approach across the pools; stone
+       causeway pads give the pace to skim water clean across the lagoon. */
+
+    var RUINS = [
+        {
+            name: 'Floodgate',
+            blurb: 'Fire across the upper boost terrace or thread the lower bank into the sealed shrine.',
+            par: 2,
+            tee: { x: 115, y: 320 },
+            hole: { x: 835, y: 320 },
+            water: [r(285, 220, 180, 200), r(285, 535, 180, 65)],
+            blocks: [block('rock', [520, 270, 575, 270, 575, 370, 520, 370])],
+            boosts: [boost(175, 120, 110, 44, 'right')],
+            bumpers: [post(625, 150, 22)],
+            walls: [r(670, 156, 290, 24), r(670, 460, 290, 24)],
+            oneways: [oneway(682, 180, 682, 460, -1)]
+        },
+        {
+            name: 'Jade Causeway',
+            blurb: 'Two staggered jade lagoons bridged by dry stone causeways and sunken ruin walls.',
+            par: 3,
+            tee: { x: 120, y: 110 },
+            hole: { x: 835, y: 525 },
+            water: [r(250, 45, 165, 340), r(520, 240, 165, 355)],
+            boosts: [boost(135, 195, 100, 44, 'right'), boost(442, 360, 50, 110, 'down')],
+            blocks: [block('rock', [720, 60, 860, 60, 860, 140, 720, 140])],
+            bumpers: [post(465, 315, 26)],
+            sand: [r(580, 50, 110, 90)]
+        },
+        {
+            name: 'Well of Souls',
+            blurb: 'Split the temple pillar round the breaking earthworks or drop through the buried passage.',
+            par: 3,
+            tee: { x: 845, y: 320 },
+            hole: { x: 135, y: 320 },
+            blocks: [block('rock', [420, 175, 500, 175, 500, 465, 420, 465])],
+            hills: [mound(460, 88, 64, 175), bowl(460, 552, 64, 155)],
+            tunnels: [tunnel(560, 170, 215, 445)],
+            walls: [r(273, 140, 24, 80), r(273, 420, 24, 80)],
+            oneways: [oneway(285, 220, 285, 420, +1)],
+            water: [r(40, 40, 160, 110), r(40, 490, 160, 110)],
+            rough: [r(25, 230, 55, 180)]
+        },
+        {
+            name: 'Step Pyramid',
+            blurb: 'Drop down the boost aqueduct on the left or skim the frozen sluice behind the floodgate.',
+            par: 3,
+            tee: { x: 480, y: 90 },
+            hole: { x: 480, y: 550 },
+            blocks: [block('rock', [280, 255, 680, 255, 680, 385, 280, 385])],
+            water: [r(25, 255, 110, 140), r(825, 255, 110, 140)],
+            boosts: [boost(185, 255, 48, 130, 'down')],
+            rails: [rail(110, 560, 285, 595, 24)],
+            ice: [r(685, 240, 135, 165)],
+            oneways: [oneway(680, 320, 825, 320, +1)],
+            bumpers: [post(365, 485, 24), post(595, 485, 24)],
+            rough: [r(360, 595, 240, 45)]
+        },
+        {
+            name: 'Mossy Sluice',
+            blurb: 'Cross the broken river causeway, clear the check sluice and weave through sunken gardens.',
+            par: 4,
+            tee: { x: 115, y: 530 },
+            hole: { x: 845, y: 105 },
+            water: [poly(290, 0, 405, 0, 540, 390, 425, 390), poly(470, 505, 585, 505, 635, 640, 520, 640)],
+            boosts: [boost(200, 455, 115, 46, 'right')],
+            oneways: [oneway(625, 300, 745, 300, -1)],
+            blocks: [block('bed', [115, 95, 245, 95, 245, 225, 115, 225]), block('rock', [610, 425, 815, 425, 815, 530, 610, 530]), block('rock', [480, 290, 540, 290, 540, 350, 480, 350])],
+            bumpers: [post(560, 215, 24), post(710, 145, 24), post(745, 365, 22)],
+            sand: [r(760, 225, 140, 100)]
+        },
+        {
+            name: 'Sanctum Innermost',
+            blurb: 'Find the eastern floodgate round the moat — or dive down the south vault straight to the altar.',
+            par: 4,
+            tee: { x: 105, y: 120 },
+            hole: { x: 515, y: 295 },
+            walls: [r(370, 220, 220, 24), r(370, 436, 220, 24), r(370, 244, 24, 192)],
+            oneways: [oneway(578, 244, 578, 436, +1)],
+            tunnels: [tunnel(200, 535, 425, 340)],
+            water: [r(225, 25, 210, 125), r(650, 490, 120, 120)],
+            boosts: [boost(815, 190, 46, 130, 'down')],
+            rails: [rail(800, 560, 915, 445, 24)],
+            sand: [r(45, 440, 100, 140)]
+        }
+    ];
+
+    /* ── The Brassworks — clockwork ──────────────────────────────────────
+
+       Inside an enormous pocket-watch bench: counter-rotating platters,
+       meshing brass turnstiles, multi-tier assembly belts, reciprocating
+       pistons and one-way escapement pawls that click shut behind the ball. */
+
+    var CLOCKWORK = [
+        {
+            name: 'Escapement',
+            blurb: 'Step off the brass turntable past the twin pallets and lock through the escapement pawl.',
+            par: 2,
+            tee: { x: 110, y: 320 },
+            hole: { x: 835, y: 320 },
+            turntables: [turntable(420, 320, 82, 1.7)],
+            walls: [r(638, 0, 24, 195), r(638, 445, 24, 195)],
+            oneways: [oneway(650, 195, 650, 445, -1)],
+            bumpers: [post(555, 190, 24), post(555, 450, 24)],
+            rough: [r(730, 0, 230, 85), r(730, 555, 230, 85)]
+        },
+        {
+            name: 'Mainspring',
+            blurb: 'Fire the coiled mainspring round the brass curve onto the lift belt, clear of the upper gear.',
+            par: 3,
+            tee: { x: 115, y: 525 },
+            hole: { x: 830, y: 115 },
+            walls: [r(240, 310, 320, 24)],
+            blocks: [block('bed', [260, 180, 420, 180, 420, 275, 260, 275])],
+            boosts: [boost(260, 495, 135, 46, 'right')],
+            arcs: [arc(725, 410, 140, 0, 90, 24)],
+            belts: [belt(810, 210, 56, 135, 'up', 165)],
+            spinners: [spinner(580, 120, 62, 3, -1.3, 0, 20)]
+        },
+        {
+            name: 'Pendulum Swing',
+            blurb: 'Time the reciprocating pistons down the middle, or lock down the outside check tracks.',
+            par: 3,
+            tee: { x: 480, y: 88 },
+            hole: { x: 480, y: 550 },
+            walls: [
+                { x: 390, y: 215, w: 180, h: 26, move: { axis: 'x', amp: 130, speed: 1.5, phase: 0 } },
+                { x: 390, y: 390, w: 180, h: 26, move: { axis: 'x', amp: 130, speed: 1.5, phase: Math.PI } },
+                r(720, 308, 40, 24)
+            ],
+            boosts: [boost(95, 255, 50, 130, 'down')],
+            oneways: [oneway(760, 320, 880, 320, +1)],
+            bumpers: [post(480, 315, 24), post(195, 180, 24), post(195, 455, 24)],
+            sand: [r(225, 470, 130, 80)],
+            rough: [r(605, 470, 130, 80)]
+        },
+        {
+            name: 'Gear Train',
+            blurb: 'Catch the counter-spin off the brass platter and shoot the boost through the four-arm pinion.',
+            par: 3,
+            tee: { x: 850, y: 440 },
+            hole: { x: 115, y: 200 },
+            turntables: [turntable(675, 415, 85, -1.6)],
+            walls: [r(465, 285, 26, 210)],
+            boosts: [boost(505, 135, 130, 46, 'left')],
+            spinners: [spinner(315, 215, 76, 4, 1.35, 0.3, 20)],
+            belts: [belt(225, 515, 210, 58, 'left', 175)],
+            rails: [rail(45, 55, 195, 55, 22)],
+            bumpers: [post(155, 395, 24), post(565, 555, 22)]
+        },
+        {
+            name: 'Conveyor Foundry',
+            blurb: 'Ride all three belt tiers round the switchback — each drop ratchet seals the floor above.',
+            par: 4,
+            tee: { x: 100, y: 115 },
+            hole: { x: 845, y: 530 },
+            walls: [r(0, 218, 725, 24), r(235, 424, 725, 24)],
+            belts: [belt(260, 85, 340, 62, 'right', 190), belt(325, 300, 310, 62, 'left', 195)],
+            oneways: [oneway(725, 230, 935, 230, +1), oneway(25, 436, 235, 436, +1)],
+            boosts: [boost(90, 260, 48, 125, 'down'), boost(290, 512, 130, 46, 'right')],
+            bumpers: [post(630, 495, 24), post(630, 580, 24)],
+            sand: [r(470, 570, 120, 70)]
+        },
+        {
+            name: 'Grand Horology',
+            blurb: 'Weave past the grand centerpiece platter and twin brass pinions into the locked timepiece cup.',
+            par: 4,
+            tee: { x: 105, y: 535 },
+            hole: { x: 850, y: 110 },
+            turntables: [turntable(480, 320, 108, -1.5)],
+            spinners: [spinner(245, 175, 72, 3, 1.4, 0, 20), spinner(715, 465, 72, 3, 1.4, 0.7, 20)],
+            boosts: [boost(75, 270, 48, 120, 'up'), boost(390, 535, 130, 46, 'right')],
+            rails: [rail(45, 95, 105, 45, 22)],
+            tunnels: [tunnel(235, 390, 665, 180)],
+            walls: [r(760, 196, 200, 22), r(748, 0, 24, 30)],
+            oneways: [oneway(760, 30, 760, 196, -1)],
+            bumpers: [post(480, 115, 25), post(480, 500, 25)],
+            rough: [r(560, 520, 110, 90)]
+        }
+    ];
+
+    /* Category tabs shown by the course picker (`#menu`), mirroring Loft
+       Links' grouped selection while keeping every card on the star ladder. */
+    GOLF.COURSE_GROUPS = [
+        { id: 'classic', name: 'Classic & Wilds', blurb: 'Grass, water, wind, hills and desert sand — pure touch and terrain.' },
+        { id: 'tricks',  name: 'Contraptions',    blurb: 'Boost pads, one-way gates, tunnels, belts, mirrors and clockwork.' },
+        { id: 'wild',    name: 'Extreme Worlds',  blurb: 'Sunken ruins, banked ice, avalanches, lava, gravity and final puzzles.' }
+    ];
+
     /* The rack. `GOLF.COURSE` is whichever card is being played — the first
        one unless something says otherwise — and every consumer downstream
        keeps reading exactly that, so a course is chosen in one place and
@@ -2235,6 +2538,7 @@
     GOLF.COURSES = [
         {
             id: 'short',
+            group: 'classic',
             theme: 'garden',
             name: 'The Short Six',
             blurb: 'Six short holes through every place the game goes — and an ace on every one, if you look.',
@@ -2246,6 +2550,7 @@
         },
         {
             id: 'links',
+            group: 'classic',
             theme: 'parkland',
             name: 'The Old Course',
             blurb: 'Corners, cushions, posts and doors — the classics, with the angles to bank off.',
@@ -2254,6 +2559,7 @@
         },
         {
             id: 'tide',
+            group: 'classic',
             theme: 'seaside',
             name: 'The Tidewater Six',
             blurb: 'Water on every hole. Carry it, skip it, or go the long way round.',
@@ -2261,91 +2567,129 @@
             holes: TIDE
         },
         {
+            id: 'arcade',
+            group: 'tricks',
+            theme: 'arcade',
+            name: 'The Arcade Six',
+            blurb: 'Boost pads that snap you across corners and one-way gates that latch shut behind you.',
+            unlock: 16,
+            holes: ARCADE
+        },
+        {
             id: 'harvest',
+            group: 'classic',
             theme: 'autumn',
             name: 'Harvest Wind',
             blurb: 'A farm where the fans blow the ball about. Aim into the wind.',
-            unlock: 16,
+            unlock: 22,
             holes: HARVEST
         },
         {
             id: 'wild',
+            group: 'classic',
             theme: 'woodland',
             name: 'The Wild Six',
             blurb: 'Hills that break, bars that sweep and a green that sheds everything.',
-            unlock: 22,
+            unlock: 28,
             holes: WILD
         },
         {
             id: 'dunes',
+            group: 'classic',
             theme: 'desert',
             name: 'The Dunes',
             blurb: 'Dunes to curve round, sinkholes to stay out of, and an oasis that drinks.',
-            unlock: 28,
+            unlock: 34,
             holes: DUNES
         },
         {
+            id: 'ruins',
+            group: 'wild',
+            theme: 'ruins',
+            name: 'Sunken Temple',
+            blurb: 'Jade pools to skim, ruined stone causeways and ancient one-way floodgates.',
+            unlock: 40,
+            holes: RUINS
+        },
+        {
             id: 'warren',
+            group: 'tricks',
             theme: 'meadow',
             name: 'The Warren',
             blurb: 'Six holes riddled with tunnels. Go in one, come out another.',
-            unlock: 34,
+            unlock: 46,
             holes: WARREN
         },
         {
             id: 'icerun',
+            group: 'wild',
             theme: 'winter',
             name: 'The Ice Run',
             blurb: 'Banked curves on ice. Hit it firm and ride the turns.',
-            unlock: 40,
+            unlock: 52,
             holes: ICERUN
         },
         {
             id: 'alpine',
+            group: 'wild',
             theme: 'alpine',
             name: 'Avalanche Pass',
             blurb: 'Ice, crevasses and chutes that slide on a clock. Wait for the gap.',
-            unlock: 46,
+            unlock: 58,
             holes: ALPINE
         },
         {
             id: 'funfair',
+            group: 'tricks',
             theme: 'night',
             name: 'Midnight Funfair',
             blurb: 'Turnstiles, travelators, a big wheel and a hall of mirrors, after dark.',
-            unlock: 52,
+            unlock: 64,
             holes: FUNFAIR
         },
         {
             id: 'desk',
+            group: 'tricks',
             theme: 'study',
             name: 'Desk Job',
             blurb: 'Mini golf on a desk: books, an ink spill and a record player that will not stop turning.',
-            unlock: 58,
+            unlock: 70,
             holes: DESK
         },
         {
+            id: 'clockwork',
+            group: 'tricks',
+            theme: 'clockwork',
+            name: 'The Brassworks',
+            blurb: 'Interlocking gears, conveyors, turntables and escapement gates inside an oiled watchcase.',
+            unlock: 76,
+            holes: CLOCKWORK
+        },
+        {
             id: 'ember',
+            group: 'wild',
             theme: 'volcanic',
             name: 'Ember Ridge',
             blurb: 'Lava nothing skips across, and geysers that throw you over it if you time them.',
-            unlock: 64,
+            unlock: 82,
             holes: EMBER
         },
         {
             id: 'orbit',
+            group: 'wild',
             theme: 'space',
             name: 'Orbit',
             blurb: 'Black holes to slingshot round, planets to bank off and a wormhole.',
-            unlock: 70,
+            unlock: 88,
             holes: ORBIT
         },
         {
             id: 'puzzle',
+            group: 'wild',
             theme: 'zen',
             name: 'The Puzzle Garden',
             blurb: 'Six flags shut away, and on every hole the key to an ace. The last card.',
-            unlock: 76,
+            unlock: 94,
             holes: PUZZLE
         }
     ];
@@ -2362,7 +2706,7 @@
        playtest hand-off in index.html fills a drawn hole from the same list. */
     GOLF.HAZARD_KEYS = ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'tunnels', 'rails',
                         'lava', 'avalanches', 'vents', 'arcs', 'blocks', 'hills', 'spinners', 'belts', 'turntables',
-                        'skaters'];
+                        'skaters', 'boosts', 'oneways'];
     GOLF.COURSES.forEach(function (c) {
         c.holes.forEach(function (h) {
             GOLF.HAZARD_KEYS.forEach(function (key) {

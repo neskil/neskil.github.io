@@ -465,6 +465,27 @@
        moment (no flyover, no ball in flight, nothing else building) and
        gives up when the hole changes; prepareNext, at the sink, is what
        is left if it never found one. */
+    /* …and while it is built, it stands still whenever the player is doing
+       something: a finger on the glass (drawing a stroke, turning the view,
+       working the swing card), a swing gate running, a ball moving. It goes
+       on in the gaps — lining up, reading the green, the celebration — which
+       is most of a hole. A finger the phone never said was lifted counts for
+       at most a few seconds after its last move, so a lost release cannot
+       hold a build for ever. */
+    var heldDown = 0, heldAt = 0;
+    function noteHeld(e) {
+        if (e.type === 'pointerdown') heldDown++;
+        else if (e.type === 'pointerup' || e.type === 'pointercancel') heldDown = Math.max(0, heldDown - 1);
+        if (!e.buttons && e.type !== 'pointerdown') heldDown = 0;
+        heldAt = performance.now();
+    }
+    function buildHeld(now) {
+        if (!state || demo) return false;
+        if (heldDown > 0 && now - heldAt < 4000) return true;
+        if (gate || arc || needle) return true;
+        return state.phase === 'rolling';
+    }
+
     var aheadTimer = 0;
     function prepareAhead() {
         clearInterval(aheadTimer);
@@ -4759,9 +4780,11 @@
     }
 
     function syncLive() {
-        var on = R.liveWanted, el = $('menu-live');
-        el.textContent = 'Live worlds: ' + (on ? 'on' : 'off');
-        el.setAttribute('aria-checked', on ? 'true' : 'false');
+        var on = R.liveWanted, el = $('btn-live');
+        if (el) {
+            el.classList.toggle('on', on);
+            el.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
         syncQuality();
     }
 
@@ -5725,10 +5748,21 @@
        them is the whole trick: a caddie that has stopped for *any* reason
        (holed out, out of strokes, no shot it can see, a lie it refused) is
        noticed here without this ever having to ask which. */
+    /* Whether this hole's live world is still on its way: wanted, not yet
+       drawn, not failed, and not waited on past the curtain's own limit
+       (WORLD_WAIT) — a world that never comes must not stall the caddie. */
+    function worldPending(w, beat) {
+        var h = state.course.holes[state.holeIndex], B = G3.backdrop;
+        if (!h || !h.place || !R.liveWanted || R.live || demo) { w.held = 0; return false; }
+        if (B && B.failed(h.place.world)) return false;
+        w.held = (w.held || 0) + beat;
+        return w.held * 1000 < WORLD_WAIT;
+    }
+
     function tickWalk(w, beat, moveOn) {
         if (w.wait > 0) {
             w.wait -= beat;
-            if (w.wait <= 0) moveOn();
+            if (w.wait <= 0) { w.held = 0; moveOn(); }
             return;
         }
         if (state.phase === 'holed' || state.phase === 'finished' ||
@@ -5736,6 +5770,18 @@
             w.wait = C.DEMO_HOLD;
             return;
         }
+        /* A tour hole's world still building behind the curtain (holdForWorld)
+           is not a hole anyone can see yet, and the caddie used to take its
+           first swing back there — the shot was half gone by the time the
+           world opened (the owner: "starts a bit quick on the portals maps").
+           It waits the curtain out, then a beat more once it opens, so the
+           first frames of a fresh world are looked at rather than played
+           through. The curtain alone is not enough: a world prepared ahead
+           (from the menu, say) skips it while it is still a second or two
+           from its first frame, so worldPending asks the renderer itself.
+           A hole with no world, or live worlds off, costs nothing here. */
+        if (curtain.up || portalBusy || worldPending(w, beat)) { w.settle = C.BOT_SETTLE; return; }
+        if (w.settle > 0) { w.settle -= beat; return; }
         // The hole introduces itself first. The flyover is the best thing on
         // the screen and a caddie with nowhere to be can wait it out — and
         // make its plan for the tee shot meanwhile.
@@ -6050,6 +6096,7 @@
            And a frame the game had nothing to do on is still a frame the
            machine drew, which is the kind around a stall. */
         tickFps(raw);
+        if (G3.backdrop && G3.backdrop.hold) G3.backdrop.hold(buildHeld(now));
         if (!state || !state.world) return;
         // The replay draws a world of its own and nothing else moves under it.
         if (replay) { tickReplay(dt); return; }
@@ -6260,6 +6307,9 @@
            a pointer crossing the window is a person in the room, not a person
            asking for anything. */
         window.addEventListener('pointerdown', onActivity, true);
+        ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function (t) {
+            window.addEventListener(t, noteHeld, true);
+        });
         window.addEventListener('keydown', onActivity, true);
         window.addEventListener('wheel', onActivity, { capture: true, passive: true });
         window.addEventListener('pointermove', noteActivity, { passive: true });
@@ -6504,13 +6554,19 @@
         });
         $('menu-portals').addEventListener('click', takeJourney);
         // The live worlds behind the tour's holes, on or off (render.js → setLive).
-        $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
+        // It lives in ⚙ Settings; the tiny link under the World Tour grid it
+        // used to be was too small to find or hit on a phone.
+        if ($('btn-live')) $('btn-live').addEventListener('click', function () {
+            R.setLive(!R.liveWanted); syncLive();
+            toast(R.liveWanted ? 'Live worlds on — each tour hole sits in its world'
+                               : 'Live worlds off — kinder to the frame rate');
+        });
         if ($('menu-quality')) $('menu-quality').addEventListener('click', cycleQuality);
         // render.js gave up on the live world for this machine.
         window.addEventListener('g3-live-off', function (e) {
             toast(e.detail === 'crash'
-                ? 'Live worlds are off for this visit: the last one did not finish loading. Courses switches them back on.'
-                : 'Live worlds are off for this visit: this device was struggling. Courses switches them back on.');
+                ? 'Live worlds are off for this visit: the last one did not finish loading. Settings switches them back on.'
+                : 'Live worlds are off for this visit: this device was struggling. Settings switches them back on.');
             syncLive();
         });
         // Something in the world happened because of the golf (render.js → stepPlace).
@@ -6546,7 +6602,7 @@
         R.setWaterQuality(prettyWaterWanted());
 
         syncSound();
-        syncWater();
+        syncWater(); syncLive();
         syncQuality();
         syncView();
         syncSeat();

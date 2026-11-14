@@ -1151,6 +1151,9 @@ G3.CONFIG = {
        comes back is not shown the same one again (courses.js `demoDraw`). */
     DEMO_SEEN_KEY: 'loftLinks.demoSeen',
     DEMO_HOLD: 2.6,
+    // Seconds Autoplay and the demo wait after a tour world's curtain opens
+    // before the caddie moves (game.js → tickWalk).
+    BOT_SETTLE: 1.2,
     /* The demo caddie's misses, one standard deviation each, drawn on every
        stroke after it has chosen it (game.js `playPlanned`). Looser than
        BOT_HANDS on purpose: the perfect bot aced hole after hole, and a demo

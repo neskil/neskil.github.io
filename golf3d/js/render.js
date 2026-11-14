@@ -6009,8 +6009,19 @@
             var cv = R.renderer.domElement;
             if (R.liveK === undefined) syncLiveScale();
             var k = Math.min(R.liveK, (R.liveMaxW || 1600) / Math.max(1, cv.width));
+            /* How far ahead of the camera the ball is, along the view: the
+               world is drawn from just over half of that, so a bookcase, a
+               pillar or a stair that stands between the camera and the ball
+               is cut away rather than drawn across the shot (the owner's
+               phone, the Orrery: a ball at the table's edge put the seat
+               behind the library's card catalogue and showed only that). */
+            var clear = 0;
+            if (world && world.ball) {
+                var cm = R.camera.matrixWorld.elements;
+                clear = -((world.ball.x - cm[12]) * cm[8] + (world.ball.y - cm[13]) * cm[9] + (world.ball.z - cm[14]) * cm[10]) * 0.55;
+            }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
-                Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
+                Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
         if (live) {
             if (stepGovernor(B)) return;
