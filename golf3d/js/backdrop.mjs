@@ -42,12 +42,28 @@ const mark = (v) => { try { v ? localStorage.setItem(MARK, v) : localStorage.rem
 window.addEventListener('pagehide', () => mark(null));
 const info = { near: 0.1, far: 5000, scale: 1, w: 2, h: 2 };
 
+let lastDepthTex = null;
+
 function boot() {
     if (engine) return engine;
     engine = new Engine(canvas, [], {
         freeze: true, hold: true, single: true, quality: 'medium', pixelRatio: 1,   // one level everywhere: a hole is baked to this level's ground
         samples: 0, checkShaders: false
     });
+    for (const rt of [engine.post.composer.renderTarget1, engine.post.composer.renderTarget2]) {
+        rt.depthTexture = new THREE.DepthTexture(size.w, size.h);
+        rt.depthTexture.minFilter = THREE.NearestFilter;
+        rt.depthTexture.magFilter = THREE.NearestFilter;
+    }
+    engine.post.guard.material.depthTest = engine.post.guard.material.depthWrite = false;
+    engine.post.final.material.depthTest = engine.post.final.material.depthWrite = false;
+    const rpRender = engine.post.renderPass.render.bind(engine.post.renderPass);
+    engine.post.renderPass.render = (renderer, writeBuffer, readBuffer, dt, mask) => {
+        renderer.autoClearDepth = true;
+        rpRender(renderer, writeBuffer, readBuffer, dt, mask);
+        renderer.autoClearDepth = false;
+        lastDepthTex = readBuffer.depthTexture || null;
+    };
     // The engine sizes itself to the window; this one is sized to the stage.
     engine._resize = function () {
         const w = size.w, h = size.h;
@@ -183,9 +199,29 @@ const depthMat = new THREE.ShaderMaterial({
 const blitScene = new THREE.Scene(), blitCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const blitMat = new THREE.ShaderMaterial({
     depthTest: false, depthWrite: false,
-    uniforms: { t: { value: depthRT.texture } },
+    uniforms: {
+        t: { value: depthRT.texture },
+        uNear: { value: 0.1 },
+        uFar: { value: 5000 },
+        uHw: { value: 0 }
+    },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
-    fragmentShader: 'uniform sampler2D t; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(t, vUv).rgb, 1.); }'
+    fragmentShader: `
+        uniform sampler2D t;
+        uniform float uNear, uFar, uHw;
+        varying vec2 vUv;
+        void main() {
+            if (uHw > 0.5) {
+                float d = texture2D(t, vUv).r;
+                if (d >= 0.999999) { gl_FragColor = vec4(1., 1., 0., 1.); return; }
+                float vZ = (uFar * uNear) / max(uFar - d * (uFar - uNear), 1e-6);
+                float n = clamp(log(max(vZ, uNear) / uNear) / log(uFar / uNear), 0., 1.) * 65534.;
+                float hi = floor(n / 256.);
+                gl_FragColor = vec4(hi / 255., floor(n - hi * 256.) / 255., 0., 1.);
+            } else {
+                gl_FragColor = vec4(texture2D(t, vUv).rgb, 1.);
+            }
+        }`
 });
 { const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMat); q.frustumCulled = false; blitScene.add(q); }
 
@@ -198,10 +234,40 @@ function solid(o) {
     if (m.alphaTest > 0 || m.alphaMap) return false;
     return true;
 }
+function markSoftDepth(W) {
+    if (W.softAt !== undefined && (W.softAt = W.softAt + 1) <= 90) return;
+    W.softAt = 0;
+    W.scene.traverse((o) => {
+        if (!o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) {
+            if (!m) continue;
+            if (o.isPoints || o.isLine || o.isSprite || m.side === THREE.BackSide ||
+                (m.transparent && (m.isShaderMaterial || m.isRawShaderMaterial || m.opacity < 0.6 || m.blending !== THREE.NormalBlending || m.alphaMap))) {
+                m.depthWrite = false;
+            }
+        }
+    });
+}
 const _white = new THREE.Color(0xffffff), _keep = new THREE.Color();
 function drawDepth(W, c, w, h) {
     const r = engine.renderer, sc = W.scene;
-    // What is not solid is found now and again, not every frame.
+    if (lastDepthTex) {
+        const ac = r.autoClear;
+        blitMat.uniforms.t.value = lastDepthTex;
+        blitMat.uniforms.uNear.value = c.near;
+        blitMat.uniforms.uFar.value = c.far;
+        blitMat.uniforms.uHw.value = 1;
+        try {
+            r.setRenderTarget(null); r.setViewport(0, 0, w, h); r.autoClear = false;
+            r.render(blitScene, blitCam);
+        } finally {
+            r.autoClear = ac;
+            r.setRenderTarget(null);
+        }
+        return;
+    }
+    // Fallback when hardware depth texture is unavailable.
     if (!W.soft || (W.softAt = (W.softAt || 0) + 1) > 90) {
         W.soft = []; W.softAt = 0;
         sc.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !solid(o)) W.soft.push(o); });
@@ -211,6 +277,7 @@ function drawDepth(W, c, w, h) {
     const bg = sc.background, om = sc.overrideMaterial, ac = r.autoClear, a = r.getClearAlpha();
     r.getClearColor(_keep);
     depthMat.uniforms.uNear.value = c.near; depthMat.uniforms.uFar.value = c.far;
+    blitMat.uniforms.t.value = depthRT.texture; blitMat.uniforms.uHw.value = 0;
     try {
         sc.background = null; sc.overrideMaterial = depthMat;
         r.setRenderTarget(depthRT); r.setClearColor(_white, 1); r.autoClear = true;
@@ -360,6 +427,7 @@ async function want2(id) {
     if (loading === job) loading = null;
     if (!W) { mark(null); return false; }
     learn(id);
+    if (W.ctx) W.ctx.through = true;
     if (W.portal && W.portal.group) W.portal.group.visible = false;
     if (wanted !== id) { try { E._dispose(W); } catch (e) { /* ignore */ } return want2(wanted); }
     if (cur) { try { E._dispose(cur); } catch (e) { /* ignore */ } }
@@ -392,6 +460,7 @@ async function prepare(id) {
     mark(null);
     if (!W) return false;
     learn(id);
+    if (W.ctx) W.ctx.through = true;
     if (W.portal && W.portal.group) W.portal.group.visible = false;
     // Still on its way to being wanted (the hole it is for, or this one still
     // being played, or nothing at all yet — the demo or the menu, before the
@@ -469,14 +538,13 @@ function fitAt(W, u, seat, place) {
     const under = groundUnder(W, _p.x, _p.y, _p.z);
     if (under === null) return A;
     A.height = _p.y - under;
-    A.scale = Math.max(0.4, Math.min(60, A.height / seat.h));
+    A.scale = Math.max(1.2, Math.min(6, A.height / seat.h));
     _yaw.setFromAxisAngle(_up, turn);
     _q.set(seat.cx - seat.x, 0, seat.cz - seat.z).multiplyScalar(A.scale).applyQuaternion(_yaw);
-    const g = groundUnder(W, A.x + _q.x, A.py + 40 * A.scale, A.z + _q.z);
-    A.ground = g === null ? under : g;
-    // The hole's ground is not the seat's: how far apart they are, in golf
-    // units, is how badly the hole would be buried or left in the air.
-    A.step = Math.abs(A.ground - under) / A.scale;
+    const castY = Math.min(A.py, under + Math.max(6, A.height * 0.5));
+    const g = groundUnder(W, A.x + _q.x, castY, A.z + _q.z);
+    A.step = g === null ? 0 : Math.abs(g - under) / A.scale;
+    A.ground = (g !== null && Math.abs(g - under) <= Math.max(4, A.height * 0.6)) ? g : under;
     return A;
 }
 
@@ -570,12 +638,19 @@ function frame(dt, cam, place, seat, w, h) {
     c.position.set(A.x + _p.x, A.y + _p.y, A.z + _p.z);
     _g.set(cam.quaternion.x, cam.quaternion.y, cam.quaternion.z, cam.quaternion.w);
     c.quaternion.copy(_yaw).multiply(_g);
-    c.fov = cam.fov; c.aspect = w / h; c.near = W.cam.near; c.far = W.cam.far;
+    const aspect = cam.aspect || (w / h);
+    c.fov = cam.fov; c.aspect = aspect; c.near = W.cam.near; c.far = W.cam.far;
     c.updateProjectionMatrix();
     c.updateMatrixWorld(true);
     clock += dt; W.time += dt;
+    if (W.ctx) W.ctx.through = true;
     try { if (W.world.update) W.world.update(dt, W.time, c, uNow); }
     catch (e) { if (!W._err) { W._err = 1; console.warn('backdrop update', e); } }
+    if (c.fov !== cam.fov || c.aspect !== aspect) {
+        c.fov = cam.fov; c.aspect = aspect;
+        c.updateProjectionMatrix();
+    }
+    c.updateMatrixWorld(true);
     /* What the world's own flight carries along with its camera (a ship
        flown from behind, a boat ridden) is, from the tee, a hull across the
        bottom of the picture: `place.hide` names it, and after the world has
@@ -585,6 +660,10 @@ function frame(dt, cam, place, seat, w, h) {
         for (const o of place._hid.list) o.visible = false;
     }
     try {
+        markSoftDepth(W);
+        if (engine.post.stylePass && engine.post.stylePass.material) {
+            engine.post.stylePass.material.depthTest = engine.post.stylePass.material.depthWrite = false;
+        }
         engine.renderer.setViewport(0, h, w, h);
         engine.post.render(W.scene, c, W.post, clock, 1);
         // The picture is what matters: if the depth pass cannot be drawn on

@@ -5284,6 +5284,7 @@
         );
         cloth.geometry.translate(FLAG_W / 2, -0.215, 0);   // hoist at the origin
         cloth.castShadow = true;
+        cloth.frustumCulled = false;
         swivel.add(cloth);
         R.flagCloth = cloth;
         R.flagRest = cloth.geometry.attributes.position.array.slice();
@@ -5775,19 +5776,21 @@
                (a `ghost` pad, hidden when the world is live — the ball rolls
                on rough that is only there as the world's picture), keeps
                its whole bounding box instead. */
-            var boxes = [], all = [Infinity, Infinity, -Infinity, -Infinity], ghost = false;
+            var boxes = [], all = [Infinity, Infinity, -Infinity, -Infinity], ghost = false, maxPadY = 0;
             var ghostHole = (hole.pads || []).some(function (p) { return p.ghost; });
             (hole.pads || []).forEach(function (p) {
                 if (p.ghost) ghost = true;
+                var py = (p.y || 0) + Math.max(0, (p.sx || 0) * (p.w || 0)) + Math.max(0, (p.sz || 0) * (p.d || 0));
+                if (!p.ghost && py > maxPadY) maxPadY = py;
                 // A pad is written from its corner; a round inlay from its middle.
-                var m = 0.8, bx = p.w === undefined
+                var m = 1.2, bx = p.w === undefined
                     ? [p.x - p.r - m, p.z - p.r - m, p.x + p.r + m, p.z + p.r + m]
                     : [p.x - m, p.z - m, p.x + p.w + m, p.z + p.d + m];
                 all = [Math.min(all[0], bx[0]), Math.min(all[1], bx[1]), Math.max(all[2], bx[2]), Math.max(all[3], bx[3])];
-                // (a sculpted hole's tee and fairway are paint, not pads: only its green is drawn)
-                if (!p.ghost && !(ghostHole && p.inlay && p.kind !== 'green')) boxes.push(bx);
+                if (!p.ghost) boxes.push(bx);
             });
             R.placeKeep = boxes.length > 8 ? [all] : boxes;
+            R.placeSoftY = ghostHole ? -1e9 : maxPadY + 1.5;
             /* Round the whole of a hole the world is set back a little
                (0.7 of a unit along the eye's line). A placed hole stands on
                the world's ground and a sculpted one's rough *is* that
@@ -5862,6 +5865,7 @@
                 R.liveK = R.liveKMax = R.liveCoarse ? 0.7 : 0.8;
             }
             var k = Math.min(R.liveK, (R.liveCoarse ? 1100 : 1440) / Math.max(1, cv.width));
+            R.camera.updateMatrixWorld();
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
         }
@@ -5910,6 +5914,7 @@
             u.invProj.value.copy(R.camera.projectionMatrixInverse);
             u.camWorld.value.copy(R.camera.matrixWorld);
             u.soft.value.set(R.placeSoft[0], R.placeSoft[1], R.placeSoft[2], R.placeSoft[3]);
+            u.softY.value = R.placeSoftY !== undefined ? R.placeSoftY : -1e9;
             var D = R.placeDecals;
             u.decalOn.value = D ? 1 : 0;
             if (D && D.dirty) {
@@ -5983,7 +5988,7 @@
                 pA: { value: -1 }, pB: { value: -0.2 },
                 invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
                 keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
-                soft: { value: new THREE.Vector4() },
+                soft: { value: new THREE.Vector4() }, softY: { value: -1e9 },
                 decalOn: { value: 0 },
                 decal: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
                 decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector3(); }) },
@@ -6004,7 +6009,7 @@
             ].join('\n'),
             fragmentShader: [
                 'uniform sampler2D map; uniform vec2 size;',
-                'uniform float wNear, wFar, scale, pA, pB;',
+                'uniform float wNear, wFar, scale, pA, pB, softY;',
                 'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
                 'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
                 'uniform float decalOn; uniform vec4 decal[6]; uniform vec3 decalTint[6];',
@@ -6033,8 +6038,9 @@
                    the edge is a line through the texels, not their
                    staircase. */
                 '    vec2 dp = vUv * size - 0.5, df = fract(dp), dt = floor(dp);',
-                '    float iz = mix(mix(inv(dt), inv(dt + vec2(1.0, 0.0)), df.x),',
-                '                   mix(inv(dt + vec2(0.0, 1.0)), inv(dt + vec2(1.0, 1.0)), df.x), df.y);',
+                '    float i00 = inv(dt), i10 = inv(dt + vec2(1.0, 0.0)), i01 = inv(dt + vec2(0.0, 1.0)), i11 = inv(dt + vec2(1.0, 1.0));',
+                '    float minI = min(min(i00, i10), min(i01, i11)), maxI = max(max(i00, i10), max(i01, i11));',
+                '    float iz = minI > maxI * 0.8 ? mix(mix(i00, i10, df.x), mix(i01, i11, df.x), df.y) : inv(floor(vUv * size));',
                 '    float depth = 0.9999995;',
                 '    if (iz > 0.00002) {',
                 '        float z = 1.0 / iz;',
@@ -6072,7 +6078,7 @@
                 '                }',
                 '            }',
                 '        }',
-                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.7;',
+                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) { if (at.y < softY) ours = true; z += 0.7; }',
                 '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
                 '    }',
                 /* The world arrives graded by its own makers, and this
@@ -6999,6 +7005,7 @@
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+        R.camera.updateMatrixWorld();
     }
 
     /* The camera on a loop (physics.js, "the loop").
@@ -7423,7 +7430,6 @@
             g.setY(i, rest[i * 3 + 1] - sag * f * f - Math.abs(ripple) * 0.35);
         }
         g.needsUpdate = true;
-        R.flagCloth.geometry.computeBoundingSphere();
     }
 
     /* ── effects the game asks for ──────────────────────────────────────── */

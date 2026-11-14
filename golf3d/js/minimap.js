@@ -55,8 +55,9 @@
 
     var cache = {};
 
+    var _grad = { x: 0, z: 0 };
     function shade(pad, x, z) {
-        var g = P.padGrad(pad, x, z, { x: 0, z: 0 });
+        var g = P.padGrad(pad, x, z, _grad);
         // Surface normal of a height field is (-dh/dx, 1, -dh/dz), normalised.
         var nx = -g.x, ny = 1, nz = -g.z;
         var inv = 1 / Math.sqrt(nx * nx + 1 + nz * nz);
