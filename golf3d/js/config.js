@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.168.4';
+G3.VERSION = '1.168.5';
 
 G3.CONFIG = {
     BALL_R: 0.16,

@@ -811,7 +811,7 @@
        in the water and it is gone, and the low wall at the back stops only
        the gentle ones.
 
-       Until v1.168.4 it was played at a sixth of a g, and the owner: "no
+       Until v1.168.5 it was played at a sixth of a g, and the owner: "no
        fun", because "you don't know what to expect as a user if the rules
        for the swing you learn suddenly change". Gravity that is not the
        game's belongs on the few holes built round it (the gravity course),
