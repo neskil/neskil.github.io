@@ -250,10 +250,14 @@
        the ones this save has not been to (portals.js → deal). `first` is a
        world to begin in, for the door a player picked out of the gallery.
        Play again is newRound('portals'), the same six. */
-    function newJourney(first) {
+    /* `avoid` is the worlds not to deal again — the tour just finished, when
+       the card's "Six new holes" asks for another. A tour dealt ahead that
+       shares one with it is put back rather than played. */
+    function newJourney(first, avoid) {
         var dealt = !first && nextJourney;
         nextJourney = null;
-        G3.JOURNEY = dealt || G3.portals.deal(null, state && state.save ? state.save : S.load(), first);
+        if (dealt && avoid && dealt.from.some(function (r) { return avoid.indexOf(r.id.slice(6)) >= 0; })) dealt = null;
+        G3.JOURNEY = dealt || G3.portals.deal(null, state && state.save ? state.save : S.load(), first, avoid);
         newRound('portals');
     }
 
@@ -5276,6 +5280,10 @@
            is where the records live and where the categories are. Mid-round
            the same card is just a scorecard, so the button goes away. */
         var next = $('card-next');
+        /* A finished round is not closed into nothing — the course behind it
+           is over, and the card used to leave you standing on it. Its third
+           button is the course list instead (closeCard opens it). */
+        $('card-close').textContent = res ? 'Choose a course' : 'Close';
         if (res) {
             next.hidden = false;
             /* Shuffle is the mode where this button stops naming where you are
@@ -5284,7 +5292,7 @@
             /* And a showcase offers another one. It is a draw already, so it
                outranks the shuffle switch: the deal is the surprise. */
             next.textContent = state.course.isPortals
-                ? '\u25CE Another tour'
+                ? '\u25CE Six new holes'
                 : state.course.isShowcase
                 ? '\u2726 Deal another showcase'
                 : state.course.isChallenge
@@ -5308,7 +5316,13 @@
             : '\uD83E\uDD49 A bronze tour, ' + S.formatVsPar(t.vsPar) + '.';
     }
 
-    function closeCard() { $('scorecard').className = 'modal'; maybeFly(); }
+    /* Closing the card of a finished round — the button or Esc — opens the
+       course list: there is nothing left to play on the course behind it. */
+    function closeCard() {
+        $('scorecard').className = 'modal';
+        if (state && state.phase === 'finished') { openMenu(); return; }
+        maybeFly();
+    }
 
     /* ── the bot plays it ───────────────────────────────────────────────
 
@@ -6345,9 +6359,11 @@
         $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
-            closeCard();
+            $('scorecard').className = 'modal';
             if (state.course.isPortals) {
-                newJourney();
+                // Six worlds this tour did not have, leaning (as every deal
+                // does) to the ones this save has played least.
+                newJourney(null, state.course.from.map(function (r) { return r.id.slice(6); }));
                 return;
             }
             if (state.course.isShowcase) {

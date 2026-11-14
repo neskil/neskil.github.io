@@ -5820,6 +5820,17 @@
             for (k = 0; k < 40; k++) if (PW.deal(lcg(k * 131 + 9), save).worlds.indexOf(fresh) >= 0) got++;
             assert('the one world never played is dealt nearly every time', got >= 36, got + ' of 40');
             assert('a journey can be asked to begin somewhere', PW.deal(lcg(5), null, 'forge').worlds[0] === 'forge');
+            // "Six new holes" on a finished tour's card: none of the last six again.
+            (function () {
+                var clash = 0, k2, was, again;
+                for (k2 = 0; k2 < 30; k2++) {
+                    was = PW.deal(lcg(k2 * 37 + 3));
+                    again = PW.deal(lcg(k2 * 53 + 11), null, null, was.worlds);
+                    if (again.worlds.length !== PW.LENGTH ||
+                        again.worlds.some(function (w) { return was.worlds.indexOf(w) >= 0; })) clash++;
+                }
+                assert('a tour dealt to avoid the last one shares no world with it', clash === 0, clash + ' of 30 clashed');
+            })();
 
             // How the rest of the game reaches them.
             assert('courseById answers to the journey, the library and one world',
