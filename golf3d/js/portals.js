@@ -805,27 +805,41 @@
         })
     });
 
-    /* The moon, in dry dock, and a sixth of a g. From one gantry to another
-       across the dock, with a buoy of a platform half way for the faint of
-       heart. At this weight a wedge hangs for four seconds and a full one
-       leaves the dock altogether: the whole hole is how little to hit it,
-       and the far deck has a wall at the back for the shot that was still a
-       little too much. */
+    /* The moon, in dry dock, and a sixth of a g, played over a canal in the
+       harbour town below it. From the tee box to a green across the street,
+       with a deck half way for the faint of heart. At this weight the
+       flight, the bounce and the roll are all six times as long as at home,
+       and the cup is not: the whole hole is how little to hit it.
+
+       Two ways. The pitch straight at the flag holds a person's ball about
+       one time in three (the green is a shallow dish with a wall at the
+       back, and short is the canal); from dead on line at the right weight
+       it drops a few times in a hundred. Or a half pitch on to the deck,
+       which holds most of them, and a chip from there that holds nearly
+       all and drops one in ten. The deck is long down the line rather than
+       round, because at this weight a person misses by length, not by line:
+       nine units of it hold a half pitch that is a tenth too much or too
+       little, and it is felt like the green, not turf, because a fairway
+       makes the game read the hole as the long game (its metres, its bag).
+
+       Until v1.162.4 the deck half way was wood — the game's slick surface
+       — and held nothing at all (a ball landing on it skated off), and the
+       green was walled on three sides and held two thirds of tee shots:
+       the only way across was the bold one, and it was the safe one too. */
     add({
         id: 'drydock', title: 'Dry Dock', world: 'The Moon in Dry Dock', kind: 'alien', tier: 3,
-        caption: 'A sixth of a g, and one pitch across the dock from gantry to gantry.',
+        caption: 'A sixth of a g, over a canal: one pitch across to the green, or two by the deck half way.',
         theme: 'drydock',
         hole: world({
             name: 'Dry Dock', par: 3, bag: LOFT, gravity: 0.17,
-            blurb: 'A sixth of a g: everything goes six times as far as your hands expect. Across the dock in one — the back wall is there to be used.',
+            blurb: 'A sixth of a g: everything goes six times as far as your hands expect. Straight across to the green, or a half pitch to the deck and a chip from there.',
             pads: [
                 pad(0, 0, 5, 5, 0, 'wood'),
-                disc(2.5, 13, 2.2, 0, 'wood'),
-                pad(-1, 21, 7, 7, 0, 'green')
-            ],
+                rounded(2.5, 13, 4.5, 9, 0, 'green')
+            ].concat(A.dish(2.5, 25.5, 5, 0.8, 0.32, 0)),
             extra: [
                 kerb(0, 0, 5, 0), kerb(0, 0, 0, 5), kerb(5, 0, 5, 5),
-                kerb(-1, 28, 6, 28, 0, 1.8), kerb(-1, 21, -1, 28), kerb(6, 21, 6, 28)
+                kerb(0, 28, 5, 28, 0, 1.8)
             ],
             tee: { x: 2.5, z: 2 }, cup: { x: 2.5, z: 25.5 }
         })
@@ -1006,7 +1020,9 @@
     };
     THEMES.drydock = {
         sky: [0x04060c, 0x1c2430], fog: 0x141a24,
-        sun: 0xe8f0ff, sunPos: [-6, 12, 8], ambient: 0x7a8aa8, ambientI: 0.7,
+        /* Lit for the harbour town in the sun the world is, not the night
+           on the moon the first theme guessed at. */
+        sun: 0xfff0d8, sunPos: [-6, 12, 8], ambient: 0xb8c4d8, ambientI: 0.8,
         grass: ['#8f98a4', '#838c98'], rail: 0xf0b030, machine: 0xf0b030,
         stars: 0.5, cloudLum: 0.1, birds: false,
         surroundY: -60, surround: 'floor', floor: '#141a24',
