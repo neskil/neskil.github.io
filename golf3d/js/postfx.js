@@ -178,6 +178,7 @@
         renderer: null,
         w: 2, h: 2,
         tier: 2, want: 2,          // 2 full, 1 bloom only, 0 grade only
+        forcedTier: null,          // null = auto, 0/1/2 = pinned by quality preset
         acc: 0, accN: 0,           // rolling frame-time average, for the tiers
         last: 0,                   // …measured on our own clock, see tierFor()
         settle: 2                  // seconds of grace before judging anything
@@ -340,10 +341,19 @@
         if (g.lift) u.lift.value.setRGB(g.lift[0], g.lift[1], g.lift[2]);
         if (g.threshold !== undefined) FX.uBright.threshold.value = g.threshold;
         FX.want = g.chain === undefined ? FX.want : g.chain;
+        if (FX.forcedTier !== null) FX.tier = Math.min(FX.want, FX.forcedTier);
         FX.base = {
             bloom: u.bloom.value, rays: u.rays.value,
             aberration: u.aberration.value, grain: u.grain.value
         };
+    }
+
+    function setQuality(q) {
+        var T = G3.CONFIG && G3.CONFIG.QUALITY_TIERS && G3.CONFIG.QUALITY_TIERS[q];
+        FX.forcedTier = T && T.fxTier !== undefined ? T.fxTier : null;
+        FX.acc = 0; FX.accN = 0; FX.settle = 1.5;
+        if (FX.forcedTier !== null) FX.tier = Math.min(FX.want, FX.forcedTier);
+        else FX.tier = FX.want;
     }
 
     /* Frame time decides how much of the chain the machine gets to keep.
@@ -358,9 +368,16 @@
        every shader it uses, and demoting a phone over those would punish it
        for something it does once. */
     function tierFor() {
+        if (FX.forcedTier !== null) {
+            FX.tier = Math.min(FX.want, FX.forcedTier);
+            return FX.tier;
+        }
         var now = (window.performance && performance.now) ? performance.now() : Date.now();
-        var dt = FX.last ? Math.min(0.25, (now - FX.last) / 1000) : 0.016;
+        var raw = FX.last ? (now - FX.last) / 1000 : 0.016;
         FX.last = now;
+        // A tab that was in the background or a one-frame shader compile is not a steady frame time.
+        if (raw > 0.25) return FX.tier;
+        var dt = Math.max(0.001, raw);
 
         if (FX.settle > 0) { FX.settle -= dt; return FX.tier; }
         FX.acc += dt; FX.accN++;
@@ -484,6 +501,7 @@
         resize: resize,
         render: render,
         setGrade: setGrade,
+        setQuality: setQuality,
         lens: lens,
         get ok() { return FX.ok; },
         get tier() { return FX.tier; },

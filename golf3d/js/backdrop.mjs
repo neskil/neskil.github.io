@@ -45,6 +45,18 @@ const MARK = 'golf3d.worldBuilding';
 const mark = (v) => { try { v ? localStorage.setItem(MARK, v) : localStorage.removeItem(MARK); } catch (e) { /* ignore */ } };
 window.addEventListener('pagehide', () => mark(null));
 const info = { near: 0.1, far: 5000, scale: 1, w: 2, h: 2 };
+let qualityTier = 'auto', depthScale = 0.5, worldBloom = true, shadowEvery = 1, frameTick = 0;
+
+function applyQuality() {
+    const T = (G3.CONFIG && G3.CONFIG.QUALITY_TIERS && G3.CONFIG.QUALITY_TIERS[qualityTier]) || null;
+    depthScale = T ? T.depthScale : (qualityTier === 'high' || qualityTier === 'ultra' ? 1.0 : 0.5);
+    worldBloom = T ? T.worldBloom !== false : (qualityTier !== 'low');
+    shadowEvery = T ? (T.shadowEvery || 1) : 1;
+    if (engine) {
+        if (engine.post && engine.post.setBloomEnabled) engine.post.setBloomEnabled(worldBloom);
+        engine._resize();
+    }
+}
 
 let lastDepthTex = null;
 
@@ -75,19 +87,21 @@ function boot() {
         this.w = w; this.h = h;
         // Twice the height: the picture in the top half, its depth below.
         this.renderer.setPixelRatio(1); this.renderer.setSize(w, 2 * h, false);
-        depthRT.setSize(w, h);
+        const dw = Math.max(2, Math.round(w * depthScale)), dh = Math.max(2, Math.round(h * depthScale));
+        depthRT.setSize(dw, dh);
         this.post.setSize(w, h, 1);
         this.portalRT.setSize(w, h);
         this.camera.aspect = this.portalCam.aspect = w / h;
     };
-    engine._resize();
+    applyQuality();
     /* How long a build may hold the page between two frames. The engine is
        made `hold`, which says "as long as it likes" — right for a world
        built behind the closed portal, where nothing else is on screen. A
        world built ahead while a hole is still on screen is built a few
        milliseconds a frame instead, the way Portals builds its next world
-       during a flight. */
-    engine._budget = function () { return early ? (coarse ? 4 : 6) : 1e9; };
+       during a flight — and gentler still when a live world is already
+       being drawn every frame. */
+    engine._budget = function () { return early ? (cur ? 3.5 : (coarse ? 4 : 6)) : 1e9; };
     /* …and none at all while held. A build only goes on when the engine
        hands it the next frame (its waiters, released in `_tick`), so a held
        frame simply does not release them: the build stands where it is,
@@ -283,24 +297,27 @@ function drawDepth(W, c, w, h) {
         return;
     }
     // Fallback when hardware depth texture is unavailable.
-    if (!W.soft || (W.softAt = (W.softAt || 0) + 1) > 90) {
-        W.soft = []; W.softAt = 0;
+    if (!W.soft) {
+        W.soft = [];
         sc.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !solid(o)) W.soft.push(o); });
     }
     const hid = [];
     for (const o of W.soft) if (o.visible) { o.visible = false; hid.push(o); }
     const bg = sc.background, om = sc.overrideMaterial, ac = r.autoClear, a = r.getClearAlpha();
+    const smAuto = r.shadowMap.autoUpdate;
     r.getClearColor(_keep);
     depthMat.uniforms.uNear.value = c.near; depthMat.uniforms.uFar.value = c.far;
     blitMat.uniforms.t.value = depthRT.texture; blitMat.uniforms.uHw.value = 0;
     try {
         sc.background = null; sc.overrideMaterial = depthMat;
+        r.shadowMap.autoUpdate = false;
         r.setRenderTarget(depthRT); r.setClearColor(_white, 1); r.autoClear = true;
         r.render(sc, c);
         r.setRenderTarget(null); r.setViewport(0, 0, w, h); r.autoClear = false;
         r.render(blitScene, blitCam);
     } finally {
         sc.background = bg; sc.overrideMaterial = om; r.autoClear = ac; r.setClearColor(_keep, a);
+        r.shadowMap.autoUpdate = smAuto;
         r.setRenderTarget(null);
         for (const o of hid) o.visible = true;
     }
@@ -689,6 +706,14 @@ function frame(dt, cam, place, seat, w, h, clear) {
         if (engine.post.stylePass && engine.post.stylePass.material) {
             engine.post.stylePass.material.depthTest = engine.post.stylePass.material.depthWrite = false;
         }
+        frameTick++;
+        const sm = engine.renderer.shadowMap;
+        if (shadowEvery > 1 && W.shown) {
+            sm.autoUpdate = false;
+            if (frameTick % shadowEvery === 0) sm.needsUpdate = true;
+        } else {
+            sm.autoUpdate = true;
+        }
         engine.renderer.setViewport(0, h, w, h);
         engine.post.render(W.scene, c, W.post, clock, 1);
         // The picture is what matters: if the depth pass cannot be drawn on
@@ -702,6 +727,8 @@ function frame(dt, cam, place, seat, w, h, clear) {
 
 G3.backdrop = {
     canvas, want, prepare, frame, info,
+    setQuality(t) { qualityTier = t || 'auto'; applyQuality(); },
+    get quality() { return qualityTier; },
     failed(id) { return !!failed[id]; },
     play() { ev.on = true; },
     rewind() { ev.on = false; ev.t = 0; },

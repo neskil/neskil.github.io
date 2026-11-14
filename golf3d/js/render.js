@@ -72,12 +72,35 @@
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
-        clock: 0
+        clock: 0,
+        quality: 'auto'
     };
+
+    function dprFor() {
+        var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
+        var cap = T && T.dprCap ? T.dprCap : 2;
+        return Math.min(window.devicePixelRatio || 1, cap);
+    }
+
+    function shellCountFor() {
+        var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
+        if (T && R.quality !== 'auto' && T.shells) return T.shells;
+        return SHELL_LAYERS;
+    }
+
+    function syncShellLayers() {
+        var want = shellCountFor(), i, sh;
+        for (i = 0; i < R.shells.length; i++) {
+            sh = R.shells[i];
+            if (sh && sh.mesh && sh.layer !== undefined) {
+                sh.mesh.visible = sh.layer < want;
+            }
+        }
+    }
 
     function init(canvas) {
         R.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
-        R.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        R.renderer.setPixelRatio(dprFor());
         R.renderer.shadowMap.enabled = true;
         R.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         if (THREE.sRGBEncoding !== undefined) R.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -87,6 +110,7 @@
            is written so that either is a complete game: the grade is the last
            word on how a hole looks, not the only word. */
         R.fx = G3.postfx ? G3.postfx.init(R.renderer) : false;
+        if (G3.postfx && G3.postfx.setQuality) G3.postfx.setQuality(R.quality);
 
         R.scene = new THREE.Scene();
         R.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
@@ -116,6 +140,7 @@
         if (!R.ready) return;
         var el = R.renderer.domElement;
         var w = el.clientWidth || el.width, h = el.clientHeight || el.height;
+        R.renderer.setPixelRatio(dprFor());
         R.renderer.setSize(w, h, false);
         R.camera.aspect = w / Math.max(1, h);
         R.camera.updateProjectionMatrix();
@@ -805,7 +830,7 @@
                    skyline behind it are the same rock. */
                 rock: new THREE.MeshLambertMaterial({
                     color: new THREE.Color(
-                        (theme.ridge && theme.ridge.cap) || 0x8b8578
+                        theme.rock || (theme.ridge && theme.ridge.cap) || 0x8b8578
                     ).multiplyScalar((1 - wet * 0.22) * 0.86)
                 })
             },
@@ -1102,9 +1127,10 @@
             // shadow is worth on grass this short.
             mesh.receiveShadow = true;
             mesh.renderOrder = 1;
+            mesh.visible = i < shellCountFor();
             group.add(mesh);
             R.shells.push({
-                mesh: mesh, x: cx, z: cz,
+                mesh: mesh, x: cx, z: cz, layer: i,
                 // The lean is cubed in the layer: the roots barely move and
                 // the tips do all of it, which is how a blade actually bends.
                 k: sway * f * f * f,
@@ -4152,10 +4178,13 @@
             m.receiveShadow = true;
             return m;
         }
+        var fBodyCol = R.theme && R.theme.flipperBody ? R.theme.flipperBody : 0xf5f2f7;
+        var fTrimCol = R.theme && R.theme.flipperTrim ? R.theme.flipperTrim : 0xd8283a;
+        var fPinCol = R.theme && R.theme.flipperPin ? R.theme.flipperPin : 0xc9d2da;
         var body = R.surf.flipperBody || (R.surf.flipperBody = new THREE.MeshPhongMaterial({
-            color: 0xf5f2f7, shininess: 70, specular: 0x9a9a9a
+            color: fBodyCol, shininess: 70, specular: 0x9a9a9a
         }));
-        var rubber = R.surf.flipperRubber || (R.surf.flipperRubber = new THREE.MeshLambertMaterial({ color: 0xd8283a }));
+        var rubber = R.surf.flipperRubber || (R.surf.flipperRubber = new THREE.MeshLambertMaterial({ color: fTrimCol }));
         var bat = new THREE.Group();
         // Centred on the box's middle in y, which is where syncMovers puts it.
         bat.add(slab(outline(-0.02), h, -h / 2, body));
@@ -4167,7 +4196,7 @@
 
         var px = sw.hinge ? sw.hinge.x : B.cx, pz = sw.hinge ? sw.hinge.z : B.cz;
         var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
-            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+            color: fPinCol, shininess: 140, specular: 0xffffff
         }));
         var pin = new THREE.Mesh(new THREE.CylinderGeometry(t * 0.32, t * 0.36, h + 0.06, 16), chrome);
         pin.position.set(px, B.base + (h + 0.06) / 2, pz);
@@ -5832,8 +5861,131 @@
     }
     // backdrop.mjs is a module and arrives after the first hole is built.
     window.addEventListener('g3-backdrop', function () {
+        if (G3.backdrop && G3.backdrop.setQuality) G3.backdrop.setQuality(R.quality);
         if (R.place && G3.backdrop) G3.backdrop.want(R.place.world);
     });
+
+    /* Portals-inspired resolution governor (vendor/portals/src/core/quality.js).
+       Instead of a naive wall-clock frame counter — which measured right across
+       `prepareAhead` background shader compiles and slashed the world to a
+       blocky 0.33 without ever checking whether the drop helped — this collects
+       90 frames, trims the slowest 10% hitches, pauses while a background world
+       is building, and reverts a resolution drop if the next window did not
+       speed up by at least 7% (napping for 300s so a CPU-bound or 30Hz-capped
+       device stays crisp). Named quality presets pin their resolution outright. */
+    var gov = {
+        samples: [],
+        lastNow: 0,
+        settle: 3.5,
+        lastDrop: null,
+        napUntil: 0,
+        goodWins: 0,
+        badWins: 0
+    };
+
+    function govReset(settleSecs) {
+        gov.samples.length = 0;
+        gov.lastNow = 0;
+        gov.settle = settleSecs === undefined ? 3.5 : settleSecs;
+        gov.lastDrop = null;
+        gov.goodWins = 0;
+        gov.badWins = 0;
+    }
+
+    function syncLiveScale() {
+        R.liveCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
+        if (T && R.quality !== 'auto') {
+            R.liveK = R.liveKMax = T.liveK;
+            R.liveMaxW = T.liveMaxW || 1600;
+        } else {
+            R.liveKMax = R.liveCoarse ? 0.78 : 0.88;
+            if (R.liveK === undefined || R.liveK < 0.58 || R.liveK > R.liveKMax) R.liveK = R.liveKMax;
+            R.liveMaxW = R.liveCoarse ? 1280 : 1600;
+        }
+    }
+
+    function setQuality(q) {
+        if (!C.QUALITY_TIERS || !C.QUALITY_TIERS[q]) q = 'auto';
+        R.quality = q;
+        gov.napUntil = 0;
+        syncLiveScale();
+        govReset(2.0);
+        if (G3.postfx && G3.postfx.setQuality) G3.postfx.setQuality(q);
+        if (G3.backdrop && G3.backdrop.setQuality) G3.backdrop.setQuality(q);
+        syncShellLayers();
+        if (R.ready) resize();
+        return R.quality;
+    }
+
+    function stepGovernor(B) {
+        var now = performance.now();
+        var rawDt = gov.lastNow ? (now - gov.lastNow) / 1000 : 0.016;
+        gov.lastNow = now;
+        if (R.liveOverride || R.quality !== 'auto') return false;
+        // Never judge steady-state frame rate while a next world is compiling in the background.
+        if (B && B.building) {
+            gov.samples.length = 0;
+            gov.settle = Math.max(gov.settle, 1.5);
+            return false;
+        }
+        // Ignore tab switches or single-frame stalls (> 250ms).
+        if (rawDt <= 0 || rawDt > 0.25) return false;
+        if (gov.settle > 0) {
+            gov.settle -= rawDt;
+            return false;
+        }
+        gov.samples.push(rawDt * 1000);
+        if (gov.samples.length < 90) return false;
+        var sorted = gov.samples.slice().sort(function (a, b) { return a - b; });
+        gov.samples.length = 0;
+        var keep = Math.max(1, Math.floor(sorted.length * 0.9));
+        var sum = 0, i;
+        for (i = 0; i < keep; i++) sum += sorted[i];
+        var ms = sum / keep;
+
+        // Did the last resolution drop actually improve frame time by >= 7%?
+        // If not, the bottleneck is not fragment fill rate — revert it and nap!
+        if (gov.lastDrop) {
+            var prev = gov.lastDrop;
+            gov.lastDrop = null;
+            if (ms >= prev.ms * 0.93) {
+                R.liveK = prev.fromK;
+                gov.napUntil = now + 300000;
+                return false;
+            }
+        }
+
+        var floorK = 0.58;
+        if (ms > 35.7 && R.liveK > floorK + 0.01 && now >= gov.napUntil) {
+            gov.lastDrop = { fromK: R.liveK, ms: ms };
+            R.liveK = Math.max(floorK, Math.round(R.liveK * 0.85 * 100) / 100);
+            gov.goodWins = 0;
+            gov.badWins = 0;
+        } else if (ms > 83) {
+            gov.badWins++;
+            gov.goodWins = 0;
+        } else {
+            gov.badWins = 0;
+            if (ms < 20.5 && R.liveK < R.liveKMax) {
+                gov.goodWins++;
+                if (gov.goodWins >= 2) {
+                    R.liveK = Math.min(R.liveKMax, Math.round((R.liveK / 0.85) * 100) / 100);
+                    gov.goodWins = 0;
+                }
+            } else {
+                gov.goodWins = 0;
+            }
+        }
+        if (gov.badWins >= 3 && R.liveOverride === undefined) {
+            gov.badWins = 0;
+            R.liveSession = false;
+            setPlace(R.hole);
+            window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
+            return true;
+        }
+        return false;
+    }
 
     function stepPlace(dt, world) {
         var B = G3.backdrop, live = false;
@@ -5858,13 +6010,8 @@
         }
         if (R.place && B) {
             var cv = R.renderer.domElement;
-            // Three quarters of the stage's own pixels, and never more than
-            // a 720p frame: it is behind everything and half of it is sky.
-            if (R.liveK === undefined) {
-                R.liveCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-                R.liveK = R.liveKMax = R.liveCoarse ? 0.7 : 0.8;
-            }
-            var k = Math.min(R.liveK, (R.liveCoarse ? 1100 : 1440) / Math.max(1, cv.width));
+            if (R.liveK === undefined) syncLiveScale();
+            var k = Math.min(R.liveK, (R.liveMaxW || 1600) / Math.max(1, cv.width));
             R.camera.updateMatrixWorld();
             /* How far ahead of the camera the ball is, along the view: the
                world is drawn from just over half of that, so a bookcase, a
@@ -5881,41 +6028,7 @@
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
         if (live) {
-            /* How it is going. Two seconds at a time: a poor frame rate
-               takes a quarter off the world's resolution, down to a third of
-               the stage; still poor at the bottom for six seconds and live
-               worlds are switched off, with a line to say so. `?live=1`
-               (R.liveOverride) is somebody asking for it regardless. */
-            var now = performance.now();
-            if (!R.liveT0) { R.liveT0 = now + 6000; R.liveN = 0; R.liveBad = 0; R.liveGood = 0; }
-            /* Nothing is measured for six seconds after a world comes up:
-               it is still compiling its shaders then, and judged on those
-               seconds every world was taken down to a third of the stage
-               and left there (the owner's phone, at sixty frames a second,
-               showing a world made of blocks). And there is a way back up:
-               three good windows running give a step of resolution back. */
-            if (now < R.liveT0) R.liveN = 0;
-            R.liveN++;
-            if (now - R.liveT0 > 2000) {
-                var fps = R.liveN * 1000 / (now - R.liveT0);
-                R.liveT0 = now; R.liveN = 0;
-                if (R.liveOverride) { /* asked for by name: left as it is, for a screenshot */ }
-                else if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; R.liveGood = 0; }
-                else if (fps < 16) { R.liveBad++; R.liveGood = 0; }
-                else {
-                    R.liveBad = 0;
-                    R.liveGood = fps > 48 ? (R.liveGood || 0) + 1 : 0;
-                    if (R.liveGood >= 3 && R.liveK < R.liveKMax) { R.liveK = Math.min(R.liveKMax, R.liveK / 0.75); R.liveGood = 0; }
-                }
-                if (R.liveBad >= 3 && R.liveOverride === undefined) {
-                    R.liveBad = 0;
-                    // This visit only — see LIVE_KEY.
-                    R.liveSession = false;
-                    setPlace(R.hole);
-                    window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
-                    return;
-                }
-            }
+            if (stepGovernor(B)) return;
             if (!R.plate) addWorldPlate(B);
             R.bgTex.needsUpdate = true;
             var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
@@ -5963,7 +6076,7 @@
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
         // …and its tee and fairway, which the world's picture now carries.
         (R.veils || []).forEach(function (top) { top.visible = !live; });
-        if (live) { R.liveT0 = performance.now() + 6000; R.liveN = 0; R.liveBad = 0; R.liveGood = 0; }
+        if (live) govReset(3.5);
         if (live) {
             R.fogKeep = { near: R.fogNear, far: R.fogFar };
             R.fogNear = 400; R.fogFar = 1200;
@@ -6061,6 +6174,10 @@
                 '            vec4 k = keep[i];',
                 '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
                 '        }',
+                // A room pillar or arch that passes right in front of the lens
+                // on a table-in-a-room hole stays behind the table rather than
+                // slicing a dark bar across the ball and club.
+                '        if (decalOn < 0.5 && z < 6.2) ours = true;',
                 /* The mown ground of a sculpted hole is not a sheet laid on
                    the world: it is paint on the world's own picture. This
                    pixel of the world is at `at` in the hole's own
@@ -6103,7 +6220,7 @@
                 '        c = (c - 0.5) / gCon + 0.5;',
                 '        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
                 '        c = mix(vec3(l), c, 1.0 / gSat);',
-                '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.86);',
+                '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.93);',
                 '        c = unaces(c) / max(gExp, 0.05);',
                 '    }',
                 '    gl_FragDepth = depth;',
@@ -7355,14 +7472,14 @@
                spotlight, which are the same everywhere. The course is behind
                the scrim by then and going dark anyway; the sky and the water
                are unlit and keep their colour. */
-            var dim = 1 - (R.fx ? 0 : COURSE_DIM * open01);
+            var dim = (1 - (R.fx ? 0 : COURSE_DIM * open01)) * (R.live ? 0.9 : 1);
             if (R.courseLights) R.courseLights.forEach(function (l) {
                 l.intensity = l.userData.base * dim;
             });
             hideWaterUnderBag(!R.fx && open01 > 0.5);
         }
 
-        if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt, front)) return;
+        if (R.fx && G3.postfx.render(R.scene, R.camera, R.live ? null : sunOnScreen(), dt, front)) return;
         R.renderer.setRenderTarget(null);
         R.renderer.render(R.scene, R.camera);
     }
@@ -7525,6 +7642,8 @@
         viewLabel: viewLabel,
         setLock: setLock,
         setWaterQuality: setWaterQuality,
+        setQuality: setQuality,
+        get quality() { return R.quality; },
         setLive: setLive,
         get liveWanted() { return liveWanted(); },
         get live() { return !!R.live; },

@@ -5841,6 +5841,12 @@
             var rec = S.recordHole(S.load ? { holes: {} } : {}, 'world-turtle', 0, 2, 3, { scored: true });
             assert('a world keeps its stars under its own name', rec.stars === 3 &&
                 S.holeRecord(rec.save, 'world-turtle', 0).plays === 1);
+            assert('every portal hole carries its own theme and QUALITY_TIERS has five tiers',
+                PW.WORLDS.every(function (w) { return w.hole.theme === w.theme; }) &&
+                ['auto', 'low', 'medium', 'high', 'ultra'].every(function (q) {
+                    var t = C.QUALITY_TIERS && C.QUALITY_TIERS[q];
+                    return t && t.liveK > 0 && t.liveMaxW >= 720 && t.dprCap >= 1 && typeof t.says === 'string';
+                }));
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */

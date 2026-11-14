@@ -1159,6 +1159,22 @@ G3.CONFIG = {
     DEMO_HANDS: {
         yaw: 4 * Math.PI / 180, power: 0.12,
         putt: { yaw: 2.5 * Math.PI / 180, power: 0.12 }
+    },
+
+    /* Performance & graphics presets, modelled on Portals' quality tiers
+       (vendor/portals/src/core/quality.js). `auto` measures trimmed frame
+       times and reverts a resolution drop if the next window did not speed up
+       by at least 7% (so a CPU-bound or throttled tab never gets stuck in a
+       blocky background); the named presets pin the resolution and post
+       chain. World build geometry detail stays at `medium` (0.75) on every
+       tier so sculpted holes keep the exact heights they were baked to. */
+    QUALITY_KEY: 'loftLinks.quality',
+    QUALITY_TIERS: {
+        auto:   { label: 'Auto',   liveK: 0.85, liveMaxW: 1600, dprCap: 2.0, shells: 6, fxTier: null, worldBloom: true,  depthScale: 0.5, shadowEvery: 1, says: 'Adapts resolution to hold a steady frame rate; reverts drops that do not help.' },
+        low:    { label: 'Low',    liveK: 0.60, liveMaxW: 1080, dprCap: 1.0, shells: 2, fxTier: 0,    worldBloom: false, depthScale: 0.5, shadowEvery: 3, says: 'Half-res worlds, grade-only post, two grass shells — coolest and fastest.' },
+        medium: { label: 'Medium', liveK: 0.78, liveMaxW: 1360, dprCap: 1.5, shells: 4, fxTier: 1,    worldBloom: true,  depthScale: 0.5, shadowEvery: 2, says: 'Balanced resolution, bloom and four grass shells.' },
+        high:   { label: 'High',   liveK: 1.00, liveMaxW: 1920, dprCap: 2.0, shells: 6, fxTier: 2,    worldBloom: true,  depthScale: 1.0, shadowEvery: 1, says: 'Full native world resolution, full bloom and light shafts, six grass shells.' },
+        ultra:  { label: 'Ultra',  liveK: 1.15, liveMaxW: 2400, dprCap: 2.25, shells: 6, fxTier: 2,   worldBloom: true,  depthScale: 1.0, shadowEvery: 1, says: 'Supersampled worlds, full post chain and crisp full-resolution depth.' }
     }
 };
 
