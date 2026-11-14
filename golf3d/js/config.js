@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.165.0';
+G3.VERSION = '1.166.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -953,13 +953,21 @@ G3.CONFIG = {
         MAX_FRAMES: 6000    // a tape longer than this stops recording
     },
 
+    /* The end of a hole: how long the score is shown before the game goes
+       on by itself (game.js `tickHoleEnd`). There is no Next button — the
+       owner: "why wait?" — but a tap on the score or Enter skips it. */
+    HOLE_END: {
+        SHOW: 2.2,          // the score, then on
+        LAST: 0.8           // a little longer before the card opens
+    },
+
     /* Down the cup, between two worlds of the tour (render.js → startDive,
        game.js → throughPortal). The camera leaves wherever it was watching
        the ball drop, comes over the cup and falls into it, ending at the
        lip looking down, where everything is the inside of the hole; the
        wipe on to the next world's sky starts closing while it falls. */
     DIVE: {
-        DUR: 1.15,          // seat to rim; the wipe closes over the last 0.62 s
+        DUR: 2.0,           // seat to rim; the wipe closes over the last 0.85 s (game.js WIPE_CLOSE)
         OVER: 1.2,          // the top of the arc: this far back from the cup…
         UP_MIN: 2.2,        // …and at least this high over it…
         UP_MAX: 5,          // …and no higher than this

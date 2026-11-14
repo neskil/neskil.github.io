@@ -1531,11 +1531,13 @@ html.page-full body {
     background: rgba(18, 20, 14, 0.55);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s;
+    transition: opacity 0.4s;
     line-height: 1.3;
 }
 
-.banner.show { opacity: 1; pointer-events: auto; }
+/* No Next button: the score goes on by itself, and a tap anywhere on it
+   skips the wait (game.js `tickHoleEnd`). */
+.banner.show { opacity: 1; pointer-events: auto; cursor: pointer; }
 
 .banner.ace {
     border: 2px solid var(--gold);
@@ -4378,11 +4380,11 @@ body.lane-swing .swipe-hint {
 .portal-wipe.closing {
     opacity: 1;
     pointer-events: auto;
-    animation: portal-close 0.62s cubic-bezier(0.6, 0, 0.9, 0.4) both;
+    animation: portal-close 0.85s cubic-bezier(0.6, 0, 0.9, 0.4) both;
 }
 .portal-wipe.opening {
     opacity: 1;
-    animation: portal-open 0.65s cubic-bezier(0.1, 0.6, 0.3, 1) both;
+    animation: portal-open 0.8s cubic-bezier(0.1, 0.6, 0.3, 1) both;
 }
 @keyframes portal-close {
     from { clip-path: circle(0% at 50% 50%); }
