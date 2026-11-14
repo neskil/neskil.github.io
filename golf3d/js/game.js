@@ -348,8 +348,17 @@
         // A world built and already drawn (the breakfast table's second
         // hole) opens at once; one built ahead and not yet drawn waits for
         // its first frames like any other, quietly.
+        /* `wanted` first, and alone: it is the only test that knows the hole
+           has a `place` at all. Reading `hole.place.world` ahead of it threw
+           on every course hole once Portals' module had loaded — which on a
+           fresh visit is the demo's first deal, so boot stopped right there
+           and the loop never started. */
+        if (!wanted) {
+            if (curtain.up) { curtain.up = false; openWipe(); }
+            return;
+        }
         var built = !!(B && B.current === hole.place.world);
-        if (!wanted || (B && ((built && B.shown) || B.failed(hole.place.world)))) {
+        if (B && ((built && B.shown) || B.failed(hole.place.world))) {
             if (curtain.up) { curtain.up = false; openWipe(); }
             return;
         }
@@ -5915,6 +5924,7 @@
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
+        if (!loaderGone) hideLoader();
 
         // The sweep can end on any frame and nothing else would notice.
         syncFlyHint();
@@ -5922,6 +5932,25 @@
         // After the frame, so the inspector's outlines are placed from the
         // same clock the course was just drawn on.
         if (G3.debug && G3.debug.on) G3.debug.frame(state.world, dt);
+    }
+
+    /* ── the loading screen ─────────────────────────────────────────────────
+
+       index.html opens on #loader, a plate over the whole page with a ball
+       chipping into a cup, and it stays up until the first frame of the course
+       has actually been drawn. Before it, the page painted its chrome — the
+       topbar, the meter, the bag's empty corner — while three.js parsed and the
+       shaders compiled, and then the demo arrived and took half of that away
+       again. Lifting the curtain off a frame that already exists is what makes
+       the first thing anybody sees the game, whichever screen boot() chose. */
+    var loaderGone = false;
+
+    function hideLoader() {
+        loaderGone = true;
+        var el = $('loader');
+        if (!el) return;
+        el.classList.add('gone');
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
     }
 
     /* ── boot ───────────────────────────────────────────────────────────── */
@@ -5940,12 +5969,14 @@
         canvas = $('board');
         if (!window.THREE) {
             $('fallback').className = 'fallback show';
+            hideLoader();
             return;
         }
         try {
             R.init(canvas);
         } catch (e) {
             $('fallback').className = 'fallback show';
+            hideLoader();
             return;
         }
 
