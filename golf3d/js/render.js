@@ -5540,6 +5540,7 @@
         R.weather = weather;
         R.loopCam = null;
         R.dive = null;
+        R.lap = null;
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
@@ -6023,6 +6024,15 @@
             if (world && world.ball) {
                 var cm = R.camera.matrixWorld.elements;
                 clear = -((world.ball.x - cm[12]) * cm[8] + (world.ball.y - cm[13]) * cm[9] + (world.ball.z - cm[14]) * cm[10]) * 0.55;
+                /* Except on the world's own line in the intro: Portals keeps
+                   that clear of its things already, and cutting away half the
+                   view to the ball out there would cut away the world the
+                   sweep is there to show. It comes back over the landing. */
+                if (R.fly && R.fly.plan.line) {
+                    var fp = Math.min(1, R.fly.t / R.fly.plan.dur);
+                    var fk = Math.max(0, Math.min(1, (fp - 0.7) / 0.3));
+                    clear *= fk * fk;
+                }
             }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
@@ -6878,7 +6888,17 @@
     function startFlyover(hole, ball) {
         if (!R.ready || !G3.flyover) return false;
         seatFor(hole, ball, _seat);
-        R.fly = { plan: G3.flyover.plan(hole, ball, _seat), t: 0, lift: 0 };
+        /* A tour hole gets the tour's sweep, and — when its world is up and
+           drawn — the world's own flight line (flyover.js → worldLine). */
+        var opts = null;
+        if (hole.worldId) {
+            opts = { tour: true, line: null };
+            var B = G3.backdrop;
+            if (R.place && R.live && B && B.line) {
+                try { opts.line = B.line(R.place, R.placeSeat, 360); } catch (e) { opts.line = null; }
+            }
+        }
+        R.fly = { plan: G3.flyover.plan(hole, ball, _seat, opts), t: 0, lift: 0 };
         return true;
     }
 
@@ -6893,39 +6913,147 @@
 
     function flying() { return !!R.fly; }
 
+    /* ── the victory lap ──────────────────────────────────────────────────
+
+       The ball is down and nobody is aiming any more, so the seat behind it
+       has nothing left to show. The camera lets go of it, backs out and up
+       from the cup to a circle sized off the hole, and goes round — looking
+       at the flag, with the ground round the green and whatever the world is
+       beyond it in the picture. The owner: "a bit slower and a bigger arc,
+       showing a bit more of the surrounding views, like a victory lap".
+
+       It eases towards its pose rather than writing it, so it can start from
+       wherever the camera happened to be (the seat, a replay's cup camera)
+       with nothing to hand over; and it keeps turning until the next hole is
+       built (buildHole clears it) or the dive takes over — which starts from
+       its angle and its pace, so the one move carries on into the other. */
+    var _lp = new THREE.Vector3(), _lt = new THREE.Vector3(), _lf = new THREE.Vector3();
+    function startLap(hole) {
+        if (!R.ready || !hole || !R.camera) return false;
+        if (R.cam.mode === 'demo' || R.cam.mode === 'editor') return false;
+        var L = C.LAP, cup = hole.cup, p = R.camera.position;
+        var top = R.cupTop === undefined ? cup.y : R.cupTop;
+        var dx = p.x - cup.x, dz = p.z - cup.z, r0 = Math.sqrt(dx * dx + dz * dz);
+        if (r0 < 0.05) { dx = hole.tee.x - cup.x; dz = hole.tee.z - cup.z; r0 = 0; }
+        var len = Math.hypot(cup.x - hole.tee.x, cup.z - hole.tee.z);
+        var rad = Math.max(L.R_MIN, Math.min(L.R_MAX, len * L.SHARE));
+        /* Round towards the middle of the hole rather than out past its edge,
+           so the first of the turn is back over the course just played. */
+        var cx = (hole.bounds.minX + hole.bounds.maxX) / 2 - cup.x;
+        var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2 - cup.z;
+        var side = dz * cx - dx * cz;
+        R.lap = {
+            t: 0, w: 0, dir: side < 0 ? -1 : 1, chk: 0, want: 1, frac: 1,
+            th: Math.atan2(dx, dz), r0: Math.max(r0, 1), y0: p.y,
+            rad: rad, top: top,
+            y1: top + Math.max(L.UP_MIN, Math.min(L.UP_MAX, rad * L.UP))
+        };
+        return true;
+    }
+    function lapCamera(hole, dt) {
+        var l = R.lap, L = C.LAP, cup = hole.cup;
+        l.t += dt;
+        var a = Math.min(1, l.t / L.RISE), e = a * a * a * (a * (a * 6 - 15) + 10);
+        var b = Math.min(1, l.t / L.SPIN_IN);
+        l.w = L.SPIN * b * b * (3 - 2 * b);
+        l.th += l.dir * l.w * dt;
+        var r = l.r0 + (l.rad - l.r0) * e;
+        var x = cup.x + Math.sin(l.th) * r, z = cup.z + Math.cos(l.th) * r;
+        var y = l.y0 + (l.y1 - l.y0) * e;
+        var g = P.surfaceTop(hole, x, z);
+        if (g && y < g.y + L.CLEAR) y = g.y + L.CLEAR;
+        _lp.set(x, y, z);
+        _lt.set(cup.x, l.top + L.LOOK_UP * e, cup.z);
+        /* And never behind something. A windmill, a castle or a cliff can
+           stand on the circle, so a ray goes out from over the cup to where
+           the lap wants to be — a few times a second, not every frame — and
+           the camera is drawn in in front of the first thing it meets, quick
+           to come in and slow to go back out, the way a boom camera does. */
+        _lf.set(cup.x, l.top + 0.6, cup.z);
+        l.chk -= dt;
+        if (l.chk <= 0) { l.chk = L.PROBE; l.want = reach(_lf, _lp); }
+        l.frac += (l.want - l.frac) * Math.min(1, dt * (l.want < l.frac ? L.PULL_IN : L.PULL_OUT));
+        if (l.frac < 0.999) _lp.sub(_lf).multiplyScalar(l.frac).add(_lf);
+        var k = 1 - Math.pow(L.EASE, dt);
+        if (!R.smooth.started) { R.smooth.pos.copy(_lp); R.smooth.target.copy(_lt); }
+        R.smooth.pos.lerp(_lp, k);
+        R.smooth.target.lerp(_lt, k);
+        R.smooth.started = true;
+        R.camera.position.copy(R.smooth.pos);
+        R.camera.lookAt(R.smooth.target);
+        R.overDist = R.smooth.pos.distanceTo(R.smooth.target);
+        R.overRadius = l.rad;
+        return true;
+    }
+    function stopLap() { R.lap = null; }
+
+    /* How much of the way from `from` to `to` is clear of the hole: 1 for
+       all of it, else the share up to just short of the first thing in the
+       way. The first stretch is ignored, which is the pin and the flag. */
+    function reach(from, to) {
+        if (!R.holeGroup) return 1;
+        _rayDir.subVectors(to, from);
+        var len = _rayDir.length();
+        if (len < 1) return 1;
+        _rayDir.multiplyScalar(1 / len);
+        _ray.set(from, _rayDir);
+        _ray.far = len + 0.7;
+        var hits = _ray.intersectObject(R.holeGroup, true), i;
+        for (i = 0; i < hits.length; i++) {
+            if (hits[i].distance > 0.9 && solid(hits[i].object)) {
+                return Math.max(0.2, Math.min(1, (hits[i].distance - 0.7) / len));
+            }
+        }
+        return 1;
+    }
+    /* Something a camera would be seen to go through: a drawn mesh, every
+       parent of it shown, that writes depth. Not a particle — a raycaster
+       gives Points a unit of thickness, and a world's bubbles under a
+       hidden parent held the lap a yard off the cup. */
+    function solid(o) {
+        if (!o.isMesh) return false;
+        var m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!m || m.visible === false || m.depthWrite === false || m.colorWrite === false) return false;
+        for (var v = o; v; v = v.parent) if (!v.visible) return false;
+        return true;
+    }
+
     /* ── down the cup ─────────────────────────────────────────────────────
 
        Between two worlds of the tour the cup is the portal: the camera goes
-       from wherever it watched the ball drop, up over the cup and down into
-       it, and ends just over the lip looking straight down, where the whole
-       picture is the dark inside of the hole and the ball lying in it — which is what the wipe on to the next
-       sky (game.js → throughPortal) opens out of. The owner's idea.
+       from wherever the victory lap had got to, on round the cup and up over
+       it, and spirals down into it, ending just over the lip looking straight
+       down, where the whole picture is the dark inside of the hole and the
+       ball lying in it — which is what the wipe on to the next sky
+       (game.js → throughPortal) opens out of. The owner's idea.
 
-       One quadratic curve from the camera as it stands, over a point above
-       and a little behind the cup, to the lip; the eye moves from what it
-       was looking at to just under the cup's floor (a hair forward of it, so
-       the last look is never exactly straight down, where lookAt has no up).
-       Eased in, so it leaves gently and is falling fastest as it goes in.
+       The spiral is round the cup: the angle carries on at the lap's own
+       pace (slowing to a stop as it lands) plus SWEEP more, the radius
+       closes from wherever it stood to nothing, and the height rises by RISE
+       over the first half and falls to the lip — each eased so it leaves at
+       the speed the lap was going and is falling fastest as it goes in. The
+       eye looks from the flag to just under the cup's floor, a hair past the
+       axis on the far side, so the last look is never exactly straight down
+       (where lookAt has no up) and the picture turns with the spiral rather
+       than flicking round at the end.
 
        The flag is in the way, so it goes first — off like a rocket, on a
        trail of sparks (the owner's idea, as the dive was), well before the
        camera comes down where it stood. The pose holds at
        the lip once it gets there, until the next hole is built, which
        clears it (buildHole). */
-    var _dv = new THREE.Vector3();
+    var _dv = new THREE.Vector3(), _dt = new THREE.Vector3();
     function startDive(hole, ball) {
         if (!R.ready || !hole || !R.camera) return false;
         var D = C.DIVE, cup = hole.cup, top = R.cupTop === undefined ? cup.y : R.cupTop;
         var p0 = R.camera.position.clone();
         var t0 = R.smooth.started ? R.smooth.target.clone() : new THREE.Vector3(cup.x, cup.y, cup.z);
-        var hx = cup.x - p0.x, hz = cup.z - p0.z, hl = Math.sqrt(hx * hx + hz * hz);
-        if (hl < 1e-3) {
+        var dx = p0.x - cup.x, dz = p0.z - cup.z, r0 = Math.sqrt(dx * dx + dz * dz);
+        if (r0 < 1e-3) {
             // Already over it: come in along the line of play.
-            hx = cup.x - hole.tee.x; hz = cup.z - hole.tee.z;
-            hl = Math.sqrt(hx * hx + hz * hz) || 1;
+            dx = hole.tee.x - cup.x; dz = hole.tee.z - cup.z; r0 = 0;
         }
-        hx /= hl; hz /= hl;
-        var up = Math.max(D.UP_MIN, Math.min(D.UP_MAX, p0.y - top));
+        var lap = R.lap;
         /* Where it stops: as high over the lip as puts the wider half of the
            picture just inside the cup's wall there, so the cup fills a
            phone held either way. Not right down at the lip — the ball is
@@ -6936,25 +7064,30 @@
         var end = Math.max(D.END_MIN, Math.min(D.END_MAX, D.LIP_FILL / tanW));
         R.dive = {
             t: 0,
-            p0: p0, t0: t0,
-            c: new THREE.Vector3(cup.x - hx * D.OVER, top + up, cup.z - hz * D.OVER),
-            p1: new THREE.Vector3(cup.x, top + end, cup.z),
-            t1: new THREE.Vector3(cup.x + hx * 0.06, top - 1, cup.z + hz * 0.06),
+            p0: p0, t0: t0, top: top,
+            th0: Math.atan2(dx, dz), r0: r0, y0: p0.y, y1: top + end,
+            dir: lap ? lap.dir : 1,
+            w0: lap ? lap.dir * lap.w : 0,
             pinY: R.pin ? R.pin.position.y : 0
         };
+        R.lap = null;
         return true;
     }
     function diveCamera(hole, dt) {
-        var d = R.dive, D = C.DIVE;
+        var d = R.dive, D = C.DIVE, cup = hole.cup;
         d.t = Math.min(D.DUR, d.t + dt);
-        var u = d.t / D.DUR, s = u * u * (3 - u) / 2, k = 1 - s;
-        _dv.set(0, 0, 0)
-            .addScaledVector(d.p0, k * k)
-            .addScaledVector(d.c, 2 * k * s)
-            .addScaledVector(d.p1, s * s);
+        var u = d.t / D.DUR, s = u * u * (3 - u) / 2;
+        var e5 = u * u * u * (u * (u * 6 - 15) + 10);
+        var th = d.th0 + d.w0 * D.DUR * (u - u * u / 2) + d.dir * D.SWEEP * e5;
+        var r = d.r0 * (1 - s);
+        var hump = Math.sin(Math.PI * u);
+        var y = d.y0 + (d.y1 - d.y0) * s + D.RISE * hump * hump;
+        var sx = Math.sin(th), cz = Math.cos(th);
+        _dv.set(cup.x + sx * r, y, cup.z + cz * r);
         var a = Math.min(1, s / 0.6), e = a * a * (3 - 2 * a);
+        _dt.set(cup.x - sx * 0.06, d.top - 1, cup.z - cz * 0.06);
         R.smooth.pos.copy(_dv);
-        R.smooth.target.copy(d.t0).lerp(d.t1, e);
+        R.smooth.target.copy(d.t0).lerp(_dt, e);
         R.smooth.started = true;
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
@@ -7102,6 +7235,7 @@
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
+        if (R.lap && lapCamera(hole, dt)) return;
 
         var px = _seat.px, py = _seat.py, pz = _seat.pz;
         var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
@@ -7453,7 +7587,7 @@
            that there is nobody there to pick a club out of it. */
         var front = null;
         if (G3.bag) {
-            G3.bag.setVisible(!R.fly && !R.dive && !R.replay && R.cam.mode !== 'demo');
+            G3.bag.setVisible(!R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo');
             // With the post chain the course behind the open row is blurred
             // (postfx.js `backdrop`) and the bag lit on its own layer, so the
             // course keeps its light and its water; without it, the scrim.
@@ -7461,7 +7595,7 @@
             G3.bag.update(dt, R.camera, R.camera.aspect);
             // And the club in hand, behind the ball (bag.js `address`).
             G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
-                !R.fly && !R.dive && !R.replay && R.cam.mode !== 'demo', world.ball, aim ? aim.yaw : 0, R.camera);
+                !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo', world.ball, aim ? aim.yaw : 0, R.camera);
             var open01 = G3.bag.state.open01;
             if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
             /* And the course's own light goes down as the clubs come out.
@@ -7630,6 +7764,8 @@
         punch: punch,
         setCam: setCam,
         startDive: startDive,
+        startLap: startLap,
+        stopLap: stopLap,
         diving: diving,
         startFlyover: startFlyover,
         skipFlyover: skipFlyover,

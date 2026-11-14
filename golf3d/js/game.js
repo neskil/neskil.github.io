@@ -2198,6 +2198,10 @@
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
+        /* The victory lap: the camera leaves the seat and goes round the cup
+           while the score is up (render.js → startLap). Not for a ball picked
+           up, which won nothing, and not in the demo, which has its own orbit. */
+        if (!pickedUp && !demo && R.startLap) R.startLap(hole);
         var noted = noteHole(hole);
 
         var t = S.term(state.strokes, hole.par);

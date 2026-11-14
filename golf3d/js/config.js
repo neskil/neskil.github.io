@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.169.0';
+G3.VERSION = '1.170.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -902,10 +902,10 @@ G3.CONFIG = {
            Half a second more run and a camera a third further out both cut how
            far the picture moves between two frames, without changing anything
            about the path — which was never the problem. */
-        BASE_SECONDS: 3.0,
-        PER_UNIT: 0.05,
-        MIN_SECONDS: 3.4,
-        MAX_SECONDS: 7.2,
+        BASE_SECONDS: 3.4,
+        PER_UNIT: 0.055,
+        MIN_SECONDS: 3.8,
+        MAX_SECONDS: 8.0,
         PACE: 0.6,          // how far the time follows the chord lengths
         LIFT: 0.66,         // apex, as a fraction of the hole's length…
         LIFT_MIN: 9,        // …with a floor and a ceiling in world units
@@ -927,7 +927,44 @@ G3.CONFIG = {
            should still look like a hole in mist. */
         AIR_FROM: 6,
         AIR_SPAN: 18,
-        AIR_MAX: 0.85
+        AIR_MAX: 0.85,
+        /* The tour's sweep (flyover.js → knobs): laid over the numbers above
+           for a hole played in a Portals world, where the world is the thing
+           to show off. Slower, further out, higher and wider of the line.
+
+           And where the live world is up, its own flight line instead
+           (flyover.js → worldLine): the intro starts LINE_PAST units down the
+           world's line beyond the cup and flies back along it, a key every
+           KEY_STEP units, looking LOOK_AHEAD along the way it goes and
+           LOOK_DROP below that, until it is LINE_STOP of the way back down
+           the hole, then lands on the seat as above. LINE_NEAR is how close
+           the line must pass to both the cup and the tee to be this hole's
+           line at all. Its length is LINE_BASE + LINE_PER_UNIT a unit flown,
+           clamped. */
+        TOUR: {
+            BASE_SECONDS: 5.2,
+            PER_UNIT: 0.09,
+            MIN_SECONDS: 6.5,
+            MAX_SECONDS: 11,
+            LIFT: 0.95,
+            LIFT_MIN: 14,
+            LIFT_MAX: 40,
+            BOW: 0.32,
+            BOW_MAX: 14,
+            PAST_CUP: 0.7,
+            PAST_MIN: 11,
+            PAST_MAX: 28,
+            LINE_PAST: 55,
+            LINE_STOP: 0.45,
+            LINE_NEAR: 9,
+            KEY_STEP: 9,
+            LOOK_AHEAD: 16,
+            LOOK_DROP: 1.5,
+            LINE_BASE: 3.5,
+            LINE_PER_UNIT: 0.075,
+            LINE_MIN: 7,
+            LINE_MAX: 12
+        }
     },
 
     /* The ace replay (replay.js). The shot is played back off the tape the
@@ -957,25 +994,49 @@ G3.CONFIG = {
        on by itself (game.js `tickHoleEnd`). There is no Next button — the
        owner: "why wait?" — but a tap on the score or Enter skips it. */
     HOLE_END: {
-        SHOW: 2.2,          // the score, then on
+        SHOW: 3.4,          // the score, then on — long enough for some of the lap (LAP, below)
         LAST: 0.8           // a little longer before the card opens
     },
 
+    /* The victory lap (render.js → startLap): from the moment a ball drops
+       the camera lets go of the seat, backs out and up from the cup and
+       circles it, looking at the flag with the ground round the green in the
+       picture — the owner: "like a victory lap". Every hole, every course;
+       on the tour the dive into the cup (DIVE, below) carries straight on
+       out of it. Seconds, world units and radians a second. */
+    LAP: {
+        RISE: 2.2,          // how long it takes to back out to its circle
+        SPIN: 0.38,         // its pace round the cup once it is going…
+        SPIN_IN: 1.4,       // …reached over this long, from standing
+        SHARE: 0.4,         // the circle's radius, as a share of the hole's length…
+        R_MIN: 10,          // …but at least this…
+        R_MAX: 18,          // …and no more than this
+        UP: 0.7,            // how high it rides, as a share of that radius…
+        UP_MIN: 5,          // …clamped
+        UP_MAX: 12,
+        LOOK_UP: 0.9,       // what it looks at: this far above the cup
+        CLEAR: 2.2,         // never nearer than this to whatever is underneath
+        EASE: 0.06,         // what share of the way to its pose is left after a second (the follow lag)
+        PROBE: 0.15,        // seconds between looks for something standing between it and the cup…
+        PULL_IN: 6,         // …how fast it comes in in front of one…
+        PULL_OUT: 1.2       // …and how slowly it goes back out once it is past
+    },
+
     /* Down the cup, between two worlds of the tour (render.js → startDive,
-       game.js → throughPortal). The camera leaves wherever it was watching
-       the ball drop, comes over the cup and falls into it, ending at the
-       lip looking down, where everything is the inside of the hole; the
-       wipe on to the next world's sky starts closing while it falls. */
+       game.js → throughPortal). The camera leaves the victory lap where it
+       has got to and spirals in — on round the cup at the lap's pace, up over
+       it and down into it — ending at the lip looking down, where everything
+       is the inside of the hole; the wipe on to the next world's sky starts
+       closing while it falls. */
     DIVE: {
-        DUR: 2.0,           // seat to rim; the wipe closes over the last 0.85 s (game.js WIPE_CLOSE)
-        OVER: 1.2,          // the top of the arc: this far back from the cup…
-        UP_MIN: 2.2,        // …and at least this high over it…
-        UP_MAX: 5,          // …and no higher than this
+        DUR: 3.2,           // lap to rim; the wipe closes over the last 0.85 s (game.js WIPE_CLOSE)
+        SWEEP: 1.9,         // how much further round the cup it goes on the way in (radians)
+        RISE: 2.6,          // how far over its starting height the arc tops out
         LIP_FILL: 0.36,     // it stops where the picture's wider half reaches this far across the lip…
         END_MIN: 0.3,       // …but no lower over it than this…
         END_MAX: 1.2,       // …and no higher
         PIN_LIFT: 30,       // the flag launches this far straight up…
-        PIN_BY: 0.5,        // …in this share of the dive, then is gone
+        PIN_BY: 0.4,        // …in this share of the dive, then is gone
         PREPARE_AFTER: 1.2, // the next world starts building this long after the sink, if it has not already…
         PREPARE_AHEAD: 6    // …which it does once a hole has been open this long, at the first quiet moment
     },
