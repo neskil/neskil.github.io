@@ -401,8 +401,8 @@
         // What each landing is standing on.
         hole.pads.forEach(function (p) {
             if (p.inlay) return;
-            var r = p.w / 2;
-            cloud(p.x + r, (p.y || 0) - 1.9 - r * 0.25, p.z + r, r * 0.95);
+            var r = Math.min(p.w, p.d) / 2;
+            cloud(p.x + p.w / 2, (p.y || 0) - 1.9 - r * 0.25, p.z + p.d / 2, Math.max(p.w, p.d) / 2 * 0.95);
         });
         var far = [], farM = mat(0xffffff, { far: true, emissive: 0x40424a });
         for (i = 0; i < 22; i++) {

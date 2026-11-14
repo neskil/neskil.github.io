@@ -47,6 +47,13 @@
         return p;
     }
 
+    // A deck with its ends rounded right off: an oval, near enough.
+    function rounded(cx, cz, w, d, y, kind) {
+        var p = pad(cx - w / 2, cz - d / 2, w, d, y || 0, kind || 'fairway'), r = Math.min(w, d) / 2;
+        p.round = { sw: r, se: r, nw: r, ne: r };
+        return p;
+    }
+
     // A kerb: a low rail along a segment, for the few edges a world closes.
     function kerb(x0, z0, x1, z1, y, h) {
         var len = Math.hypot(x1 - x0, z1 - z0);
@@ -470,25 +477,36 @@
         })
     });
 
-    /* An armada of airships at sunset, and a par five flown from deck to
-       deck: three carries of a drive each at seven tenths of a g, where
-       everything carries half as far again as it does at home. Each deck is
-       smaller than the last and the last is the green. Short is the sky. */
+    /* A sunset among a hundred hot-air balloons, and a par five flown from
+       deck to deck at seven tenths of a g, where everything carries half as
+       far again as it does at home. Two ways across. The long way is three
+       easy carries round to the left: a peanut-shaped deck, a long oval,
+       then the green's deck, each a full five-iron and each wide enough to
+       hold one. The short way is straight down the middle: a driver on to a
+       plank barely four wide, and a second driver from it the length of the
+       green's deck — two strokes, if both hold. From the plank the oval is a
+       short way back to the long way. Short is the sky.
+
+       Until v1.162.3 it was four round decks in a row, each smaller than the
+       last, and one way to play it (the owner: "quite nice", but make the
+       shapes more interesting, lose a disc, and give it two paths). */
     add({
         id: 'clouds', title: 'Deck to Deck', world: 'The Cloud Armada', kind: 'sky', tier: 3,
-        caption: 'A par five across four decks in the sky, at seven tenths of a g.',
+        caption: 'A par five across the decks in the sky, at seven tenths of a g: three easy carries round, or two big ones straight.',
         theme: 'clouds',
         hole: world({
             name: 'Deck to Deck', par: 5, long: true, gravity: 0.7,
-            blurb: 'Three carries and a putt. Everything flies half as far again up here — pick the club for the gap, not for the yardage you know.',
+            blurb: 'Everything flies half as far again up here. Three five-irons round the left, or a driver on to the plank and another at the flag.',
             pads: [
-                disc(8, 6, 6, 0, 'fairway'),
-                disc(3, 40, 9, 0, 'fairway'),
-                disc(17, 74, 8, 0, 'fairway'),
-                disc(8, 106, 7.5, 0, 'fairway'),
-                circle(8, 106, 4.8, 'green')
+                disc(8, 4, 5.5, 0, 'fairway'),
+                A.road({ x: 8, z: 46, w: 4.4, dir: 0, y: -1.5, kind: 'fairway', caps: true }, [['line', 22]]),
+                disc(-9, 31, 7.5, 0.6, 'fairway'),
+                disc(-13, 40, 6.5, 0.6, 'fairway'),
+                rounded(-13, 70, 15, 22, 1.2, 'fairway'),
+                rounded(8, 100, 14, 24, 1.8, 'fairway'),
+                circle(8, 102, 5, 'green', 1.8)
             ],
-            tee: { x: 8, z: 4 }, cup: { x: 8, z: 107 }
+            tee: { x: 8, z: 3 }, cup: { x: 8, z: 102 }
         })
     });
 

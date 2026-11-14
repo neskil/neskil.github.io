@@ -199,3 +199,17 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   and the hole turned (`place.turn` -0.5) so the cover's own black hole
   stands behind the flag, and the chrome ship the world parks at its camera
   is hidden (`place.hide`, new). Play unchanged. **Not yet seen by him.**
+- **Deck to Deck** (`clouds`), v1.162.3: the owner's first word on it was
+  "quite nice", then: make the shapes more interesting, lose a disc, and
+  give it two paths, a two-shot one narrow and hard and a three-shot one
+  wider. Now one disc fewer, and two routes from the tee. The safe one goes
+  round the left: a peanut deck, a long oval, then the green's deck. Each is
+  a full five-iron, and each is held by about 80%, 80% and 65% of shots
+  with a person's misses (`CONFIG.BOT_HANDS`). The old hole's three were
+  67%, 48% and 35%. The bold one is straight down the middle: a driver on
+  to a plank 4.4 wide and 22 long (about 32% hold), then a driver the
+  length of the green's long deck (about 60% on the deck, 28% on the
+  green). The perfect caddie holes it in two, so the albatross is there.
+  The bot with misses averages 7.45 (the old hole was 7.75). From the plank
+  the oval is a short bail-out. Look unchanged otherwise. **Not yet seen
+  by him.**
