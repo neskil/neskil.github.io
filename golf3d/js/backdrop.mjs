@@ -556,7 +556,7 @@ function groundUnder(W, x, y, z, any) {
 /* One frame: `cam` is the golf camera (r128 — only its numbers are read),
    `seat` the pose behind the ball on the tee. Returns false when there is
    nothing to show. */
-function frame(dt, cam, place, seat, w, h) {
+function frame(dt, cam, place, seat, w, h, clear) {
     const W = cur;
     if (!W || !engine || engine.lost || !place || W.def.id !== place.world) return false;
     if (w !== size.w || h !== size.h) { size.w = w; size.h = h; engine._resize(); }
@@ -589,7 +589,11 @@ function frame(dt, cam, place, seat, w, h) {
     c.position.set(A.x + _p.x, A.y + _p.y, A.z + _p.z);
     _g.set(cam.quaternion.x, cam.quaternion.y, cam.quaternion.z, cam.quaternion.w);
     c.quaternion.copy(_yaw).multiply(_g);
-    c.fov = cam.fov; c.aspect = w / h; c.near = W.cam.near; c.far = W.cam.far;
+    // `clear`, in golf units, is how much in front of the camera is left
+    // out of the world (render.js: just over half the way to the ball), so
+    // nothing of the world's stands between the player and the shot.
+    c.fov = cam.fov; c.aspect = w / h; c.far = W.cam.far;
+    c.near = Math.min(c.far * 0.5, Math.max(W.cam.near, (clear > 0 ? clear : 0) * A.scale));
     c.updateProjectionMatrix();
     c.updateMatrixWorld(true);
     clock += dt; W.time += dt;
