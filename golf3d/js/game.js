@@ -6397,8 +6397,8 @@
         // render.js gave up on the live world for this machine.
         window.addEventListener('g3-live-off', function (e) {
             toast(e.detail === 'crash'
-                ? 'Live worlds are off: the last one did not finish loading. Switch them back on in Courses.'
-                : 'Live worlds switched off: this device was struggling. Switch them back on in Courses.');
+                ? 'Live worlds are off for this visit: the last one did not finish loading. Courses switches them back on.'
+                : 'Live worlds are off for this visit: this device was struggling. Courses switches them back on.');
             syncLive();
         });
         // Something in the world happened because of the golf (render.js → stepPlace).
