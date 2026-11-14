@@ -96,7 +96,7 @@
        round (backdrop.mjs → anchorFor). */
     var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"lift": 95}], "abyss": ["kelp-cathedral"], "carnival": ["carnival-on-the-frozen-river"], "mushroom": ["spore-rain", {"u": 0.9}], "orrery": ["long-library"], "stairs": ["stairway-everywhere", {"u": 0.55}], "attic": ["the-toppling", {"event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada"], "forge": ["obsidian-forge"], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8}], "railway": ["attic-railway", {"u": 0.6}], "custard": ["islands-in-custard", {"u": 0.5}], "pyramid": ["pyramid-of-khufu", {"u": 0.1}], "drydock": ["moon-in-dry-dock", {"u": 0.1}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
-        w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
+        w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
         if (q) { w.place = { world: q[0] };
             if (q[1]) for (var k in q[1]) w.place[k] = q[1][k]; w.hole.place = w.place; }
@@ -881,10 +881,10 @@
         abyss: {
             sky: [0x021420, 0x0b4f66], fog: 0x0a4358,
             sun: 0x9fe8ff, sunPos: [3, 18, 4], ambient: 0x2a8aa0, ambientI: 0.85,
-            grass: ['#1f8f7a', '#1a806d'], rail: 0x3fe0b0, machine: 0x8dfcff,
+            grass: ['#14453d', '#103832'], rail: 0x1f7a68, machine: 0x5cd8e6,
             cloudLum: 0.08, birds: false,
             surroundY: -0.42, surround: 'rock', ground: '#0c3440',
-            water: 0x0d5f78, side: '#0e4a52'
+            water: 0x0d5f78, side: '#09282e'
         },
         // The same sea, for the hole that lies on its bed: sand, not a mat.
         // The green is the bed's own weed-dark green, a shade lighter so it
@@ -909,19 +909,20 @@
         },
         mushroom: {
             sky: [0x0c1a14, 0x2f5a3c], fog: 0x26492f,
-            sun: 0xd8ffc0, sunPos: [-6, 14, 5], ambient: 0x5fae7a, ambientI: 0.8,
-            grass: ['#3b8f45', '#327e3c'], rail: 0xf2e6c8, machine: 0xff5d5d,
+            sun: 0xd8ffc0, sunPos: [-6, 14, 5], ambient: 0x5fae7a, ambientI: 0.78,
+            grass: ['#1e4d26', '#183f1f'], rail: 0x8c7b5c, machine: 0xd94848,
             stars: 0.3, cloudLum: 0.15, birds: false,
             surroundY: -0.42, surround: 'floor', floor: '#14301c',
-            water: 0x2b6f8f, side: '#3a2a1a'
+            water: 0x2b6f8f, side: '#24180d'
         },
         orrery: {
-            sky: [0x0a0c1c, 0x2a2440], fog: 0x241f38,
-            sun: 0xffe4b0, sunPos: [5, 15, -5], ambient: 0x8a7a9c, ambientI: 0.8,
-            grass: ['#1f4f4a', '#1a4540'], rail: 0xd9a441,
-            stars: 1, cloudLum: 0.08, birds: false,
-            surroundY: -0.42, surround: 'floor', floor: '#2a1c16',
-            water: 0x2b6f8f, side: '#8a6a2a'
+            sky: [0x140c08, 0x2c1b12], fog: 0x24160e,
+            sun: 0xffcfa0, sunPos: [5, 13, -5], ambient: 0x8f6542, ambientI: 0.68,
+            grass: ['#0a1f16', '#081912'], rail: 0x4a2c11, machine: 0x7a5020,
+            rock: 0x6e481f, flipperBody: 0x6e481f, flipperTrim: 0x241408, flipperPin: 0x8a5a24,
+            stars: 0.4, cloudLum: 0.08, birds: false,
+            surroundY: -0.42, surround: 'floor', floor: '#24150d',
+            water: 0x2b6f8f, side: '#1c0e06'
         },
         /* The world is pale rose stone under a periwinkle evening, not the
            white Escher print the first theme guessed at: the landings are
@@ -936,11 +937,11 @@
         },
         attic: {
             sky: [0x3a2a1e, 0xc98f58], fog: 0xb07d4c,
-            sun: 0xffd9a0, sunPos: [-10, 9, 4], ambient: 0xb98a5c, ambientI: 0.75,
-            grass: ['#5d8f8a', '#52807b'], rail: 0xe9c48a,
+            sun: 0xffd9a0, sunPos: [-10, 9, 4], ambient: 0xa87c50, ambientI: 0.72,
+            grass: ['#2b4a48', '#243f3d'], rail: 0x7a542e,
             cloudLum: 0.3, birds: false, motes: true,
-            surroundY: -0.42, surround: 'floor', floor: '#5a3d26',
-            water: 0x2b6f8f, side: '#8a5f38'
+            surroundY: -0.42, surround: 'floor', floor: '#3d2817',
+            water: 0x2b6f8f, side: '#4a3019'
         },
         /* The world is a 1970s paperback cover in seven inks (ink black,
            ultramarine, magenta, cadmium orange, cream, teal, ice), flat and
@@ -1002,11 +1003,11 @@
     };
     THEMES.railway = {
         sky: [0x2e2218, 0xb98a58], fog: 0xa07448,
-        sun: 0xffe0b0, sunPos: [-8, 10, 6], ambient: 0xb08a60, ambientI: 0.75,
-        grass: ['#4f8a4a', '#467c42'], rail: 0x8a2f24, machine: 0xd0342c,
+        sun: 0xffe0b0, sunPos: [-8, 10, 6], ambient: 0xa07a52, ambientI: 0.72,
+        grass: ['#244a22', '#1e3f1c'], rail: 0x5c1c14, machine: 0xb02820,
         cloudLum: 0.3, birds: false, motes: true,
-        surroundY: -0.42, surround: 'floor', floor: '#6a4a2e',
-        water: 0x2b6f8f, side: '#7a5534'
+        surroundY: -0.42, surround: 'floor', floor: '#4a321e',
+        water: 0x2b6f8f, side: '#4a321e'
     };
     THEMES.custard = {
         sky: [0xf6dc8a, 0xfff6d8], fog: 0xfff0c0,

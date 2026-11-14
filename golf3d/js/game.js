@@ -1263,6 +1263,7 @@
     function toggleStylePad(open) {
         var pad = $('style-pad');
         if (open === undefined) open = pad.hidden;
+        if (open && $('quality-pad') && !$('quality-pad').hidden) toggleQualityPad(false);
         pad.hidden = !open;
         $('btn-style').setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) syncStyle();
@@ -3852,6 +3853,7 @@
         if (k === 'j' || k === 'J') { toggleMusic(); return; }
         if (k === 'o' || k === 'O') { toggleWater(); return; }
         if (k === 'p' || k === 'P') { toggleFps(); return; }
+        if (k === 'q' || k === 'Q') { toggleQualityPad(); return; }
         if (k === 't' || k === 'T') { newRound('range'); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { cycleSeat(); return; }
@@ -3862,6 +3864,8 @@
             if (auto) { stopAuto('Your club again'); return; }
             if (sim) { stopSim('Your club again'); return; }
             if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); return; }
+            toggleStylePad(false);
+            toggleQualityPad(false);
             closeHowTo();
             closeTopMenu();
             hideHoleCard();
@@ -4272,6 +4276,76 @@
         $('water-icon').textContent = on ? '≈' : '~';
         $('btn-water').setAttribute('aria-label',
             on ? 'Turn the fancy water off' : 'Turn the fancy water on');
+        syncQuality();
+    }
+
+    /* ── graphics and performance presets ───────────────────────────────── */
+
+    var QUALITY_ORDER = ['auto', 'low', 'medium', 'high', 'ultra'];
+
+    function qualityWanted() {
+        try {
+            var q = localStorage.getItem(C.QUALITY_KEY);
+            if (q && C.QUALITY_TIERS && C.QUALITY_TIERS[q]) return q;
+        } catch (e) { /* ignore */ }
+        return 'auto';
+    }
+
+    function setQuality(q, quiet) {
+        if (!C.QUALITY_TIERS || !C.QUALITY_TIERS[q]) q = 'auto';
+        try { localStorage.setItem(C.QUALITY_KEY, q); } catch (e) { /* ignore */ }
+        if (R.setQuality) R.setQuality(q);
+        syncQuality();
+        if (!quiet) {
+            A.tick(0.4);
+            toast('Graphics: ' + C.QUALITY_TIERS[q].label + ' — ' + C.QUALITY_TIERS[q].says);
+        }
+    }
+
+    function cycleQuality() {
+        var cur = R.quality || qualityWanted();
+        var next = QUALITY_ORDER[(QUALITY_ORDER.indexOf(cur) + 1) % QUALITY_ORDER.length];
+        setQuality(next);
+    }
+
+    function toggleQualityPad(open) {
+        var pad = $('quality-pad');
+        if (!pad) return;
+        if (open === undefined) open = pad.hidden;
+        if (open && $('style-pad') && !$('style-pad').hidden) toggleStylePad(false);
+        pad.hidden = !open;
+        if ($('btn-quality')) $('btn-quality').setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) syncQuality();
+    }
+
+    function syncQuality() {
+        var q = R.quality || qualityWanted();
+        var tier = (C.QUALITY_TIERS && C.QUALITY_TIERS[q]) || { label: 'Auto', says: '' };
+        if ($('quality-now')) $('quality-now').textContent = tier.label;
+        if ($('btn-quality')) $('btn-quality').classList.toggle('on', q !== 'auto');
+        if ($('menu-quality')) $('menu-quality').textContent = 'Graphics: ' + tier.label;
+        if ($('quality-says')) $('quality-says').textContent = tier.says;
+        Array.prototype.forEach.call(document.querySelectorAll('#quality-seg button'), function (b) {
+            var on = b.dataset.quality === q;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#qp-live-seg button'), function (b) {
+            var on = (b.dataset.live === '1') === R.liveWanted;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#qp-water-seg button'), function (b) {
+            var on = (b.dataset.water === '1') === R.prettyWater;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        var fpsOn = !$('fps').hidden;
+        Array.prototype.forEach.call(document.querySelectorAll('#qp-fps-seg button'), function (b) {
+            var on = (b.dataset.fps === '1') === fpsOn;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
     }
 
     /* ── the frame-rate readout ─────────────────────────────────────────── */
@@ -4305,6 +4379,7 @@
         $('btn-fps').setAttribute('aria-pressed', on ? 'true' : 'false');
         $('btn-fps').setAttribute('aria-label', on ? 'Hide the frame rate' : 'Show the frame rate');
         if (!on) { fpsAcc = 0; fpsFrames = 0; fpsShown = -1; }
+        syncQuality();
     }
 
     function tickFps(dt) {
@@ -4687,6 +4762,7 @@
         var on = R.liveWanted, el = $('menu-live');
         el.textContent = 'Live worlds: ' + (on ? 'on' : 'off');
         el.setAttribute('aria-checked', on ? 'true' : 'false');
+        syncQuality();
     }
 
     function takeJourney() {
@@ -6234,6 +6310,34 @@
         SW.setAssist(tune.assist === 'on');
         $('btn-style').addEventListener('click', function () { toggleStylePad(); });
         $('style-close').addEventListener('click', function () { toggleStylePad(false); });
+        if ($('btn-quality')) $('btn-quality').addEventListener('click', function () { toggleQualityPad(); });
+        if ($('quality-close')) $('quality-close').addEventListener('click', function () { toggleQualityPad(false); });
+        Array.prototype.forEach.call(document.querySelectorAll('#quality-seg button'), function (b) {
+            b.addEventListener('click', function () { setQuality(b.dataset.quality); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#qp-live-seg button'), function (b) {
+            b.addEventListener('click', function () {
+                var want = b.dataset.live === '1';
+                if (want !== R.liveWanted) {
+                    R.setLive(want);
+                    syncLive();
+                    A.tick(0.4);
+                    toast(want ? 'Live 3D worlds on' : 'Live 3D worlds off — classic sky & backdrop');
+                }
+            });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#qp-water-seg button'), function (b) {
+            b.addEventListener('click', function () {
+                var want = b.dataset.water === '1';
+                if (want !== R.prettyWater) toggleWater();
+            });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('#qp-fps-seg button'), function (b) {
+            b.addEventListener('click', function () {
+                var want = b.dataset.fps === '1';
+                if (want !== !$('fps').hidden) toggleFps();
+            });
+        });
         $('arc').addEventListener('pointerdown', function (e) {
             if (e.button !== undefined && e.button > 0) return;
             e.preventDefault();
@@ -6253,9 +6357,16 @@
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);
         document.addEventListener('pointerdown', function (e) {
-            if ($('style-pad').hidden) return;
-            if (e.target.closest && (e.target.closest('#style-pad') || e.target.closest('#btn-style'))) return;
-            toggleStylePad(false);
+            if (!$('style-pad').hidden) {
+                if (!(e.target.closest && (e.target.closest('#style-pad') || e.target.closest('#btn-style')))) {
+                    toggleStylePad(false);
+                }
+            }
+            if ($('quality-pad') && !$('quality-pad').hidden) {
+                if (!(e.target.closest && (e.target.closest('#quality-pad') || e.target.closest('#btn-quality')))) {
+                    toggleQualityPad(false);
+                }
+            }
         }, true);
         holdToRepeat('btn-aim-left', function () { nudgeAim(0.035); }, 60);
         holdToRepeat('btn-aim-right', function () { nudgeAim(-0.035); }, 60);
@@ -6332,7 +6443,7 @@
                 t.setAttribute('aria-expanded', o ? 'true' : 'false');
                 return;
             }
-            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-style') return;
+            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-style' && t.id !== 'btn-quality') return;
             closeTopMenu();
         });
         // A press anywhere else shuts it, the way a menu should.
@@ -6394,6 +6505,7 @@
         $('menu-portals').addEventListener('click', takeJourney);
         // The live worlds behind the tour's holes, on or off (render.js → setLive).
         $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
+        if ($('menu-quality')) $('menu-quality').addEventListener('click', cycleQuality);
         // render.js gave up on the live world for this machine.
         window.addEventListener('g3-live-off', function (e) {
             toast(e.detail === 'crash'
@@ -6427,16 +6539,18 @@
         $('sc-load').addEventListener('click', function () { this.blur(); loadForLesson(); });
         syncFsSwitch();
 
-        // Before the first buildHole, so the sea is compiled once, the way the
-        // player left it.
+        // Before the first buildHole, so the sea and turf shells are compiled
+        // once, the way the player left them.
+        var q = params();
+        if (R.setQuality) R.setQuality(q.quality && C.QUALITY_TIERS[q.quality] ? q.quality : qualityWanted());
         R.setWaterQuality(prettyWaterWanted());
 
         syncSound();
         syncWater();
+        syncQuality();
         syncView();
         syncSeat();
 
-        var q = params();
         state = { save: S.load() };
         loadShuffle();
         // ?weather=rain holds for the whole round, the same as picking it with
@@ -6508,6 +6622,8 @@
         newRound: newRound,
         restartHole: restartHole,
         pickClub: pickClub,
+        setQuality: setQuality,
+        toggleQualityPad: toggleQualityPad,
         toggleFullscreen: toggleFullscreen,
         openHowTo: openHowTo,
         get state() { return state; },

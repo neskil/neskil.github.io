@@ -36,6 +36,7 @@
         sand:    [222, 204, 154],
         wood:    [176, 132,  80],
         ice:     [188, 218, 234],
+        glass:   [ 26,  32,  56],
         cup:     [ 24,  32,  20]
     };
     /* And the machinery, which is not a surface at all — a belt is a board and
@@ -49,6 +50,76 @@
     var BEYOND = [30, 44, 36];        // ground outside the boundary
     var RAIL = [232, 236, 230];
     var TREE = [46, 84, 44];
+
+    function rgbOf(c) {
+        if (typeof c === 'number') return [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+        if (typeof c === 'string' && c.charAt(0) === '#') {
+            var n = parseInt(c.slice(1), 16);
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+        }
+        return [128, 128, 128];
+    }
+
+    function mixRgb(a, b, t) {
+        return [
+            Math.round(a[0] + (b[0] - a[0]) * t),
+            Math.round(a[1] + (b[1] - a[1]) * t),
+            Math.round(a[2] + (b[2] - a[2]) * t)
+        ];
+    }
+
+    function liftRgb(c, minLum) {
+        var lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+        if (lum >= minLum) return c;
+        var add = minLum - lum;
+        return [
+            Math.min(255, Math.round(c[0] + add)),
+            Math.min(255, Math.round(c[1] + add)),
+            Math.min(255, Math.round(c[2] + add))
+        ];
+    }
+
+    /* Each world or themed course tints the diagram towards its own palette
+       while keeping surface types distinct and legible on a dark card. */
+    function paletteFor(hole, themeName) {
+        var key = (hole && (hole.theme || hole.scene)) || themeName;
+        var T = key && G3.THEMES ? G3.THEMES[key] : null;
+        if (!T) {
+            return {
+                green: INK.green, fairway: INK.fairway, rough: INK.rough, ghost: [52, 88, 48],
+                sand: INK.sand, wood: INK.wood, ice: INK.ice, glass: INK.glass, cup: INK.cup,
+                machine: MACHINE, water: WATER, beyond: BEYOND, rail: RAIL,
+                wellHot: [255, 106, 20], wellCool: [212, 34, 107], grid: null, key: key
+            };
+        }
+        var t = hole && hole.portal ? 0.74 : 0.42;
+        var g0 = T.grass && T.grass[0] ? rgbOf(T.grass[0]) : INK.green;
+        var g1 = T.grass && T.grass[1] ? rgbOf(T.grass[1]) : g0;
+        var env = rgbOf(T.ground || T.floor || T.side || (T.sky && T.sky[1]) || 0x24342a);
+        var green = liftRgb(mixRgb(INK.green, g0, t), 54);
+        var fairway = liftRgb(mixRgb(INK.fairway, g1, t), 44);
+        var rough = liftRgb(mixRgb(INK.rough, env, t * 0.85), 32);
+        var ghost = liftRgb(mixRgb(rough, env, 0.55), 28);
+        return {
+            green: green,
+            fairway: fairway,
+            rough: rough,
+            ghost: ghost,
+            sand: T.sand ? mixRgb(INK.sand, rgbOf(T.sand), 0.78) : INK.sand,
+            wood: T.side || T.floor ? mixRgb(INK.wood, rgbOf(T.side || T.floor), hole && hole.portal ? 0.38 : 0.18) : INK.wood,
+            ice: INK.ice,
+            glass: T.glass && T.glass.color !== undefined ? liftRgb(rgbOf(T.glass.color), 22) : INK.glass,
+            cup: INK.cup,
+            machine: T.machine !== undefined ? liftRgb(mixRgb(MACHINE, rgbOf(T.machine), 0.7), 85) : MACHINE,
+            water: T.water !== undefined ? liftRgb(mixRgb(WATER, rgbOf(T.water), hole && hole.portal ? 0.78 : 0.5), 42) : WATER,
+            beyond: liftRgb(mixRgb(BEYOND, env, 0.5), 22),
+            rail: T.rail !== undefined ? liftRgb(mixRgb(RAIL, rgbOf(T.rail), hole && hole.portal ? 0.78 : 0.45), 72) : RAIL,
+            wellHot: rgbOf(T.wellHot || 0xff6a14),
+            wellCool: rgbOf(T.wellCool || 0xd4226b),
+            grid: T.grid ? rgbOf(T.grid.colour || 0xffb347) : null,
+            key: key
+        };
+    }
 
     // Light from the north-west, the way every map in the world is lit.
     var LX = -0.55, LY = 0.66, LZ = -0.51;
@@ -119,15 +190,17 @@
     /* One hole, drawn to fit `w` by `h`. The scale is the same on both axes —
        a plan that stretched a hole to fill its frame would be lying about the
        one thing a plan is for. */
-    function render(hole, w, h) {
+    function render(hole, w, h, themeName) {
         var cv = document.createElement('canvas');
         cv.width = w; cv.height = h;
         var g = cv.getContext('2d');
         var img = g.createImageData(w, h);
         var d = img.data;
 
+        var pal = paletteFor(hole, themeName);
         var tf = transform(hole, w, h);
         var scale = tf.scale, ox = tf.ox, oz = tf.oz;
+        var baseY = hole.tee && isFinite(hole.tee.y) ? hole.tee.y : 0;
 
         var px, py, i, x, z, surf, col, lit, pond, outside;
         for (py = 0; py < h; py++) {
@@ -142,12 +215,27 @@
 
                 if (!surf) {
                     if (!pond) continue;                  // nothing here: transparent
-                    col = WATER; lit = 1;
+                    col = pal.water; lit = 1;
                 } else {
-                    col = (surf.pad.push || surf.pad.spring)
-                        ? MACHINE
-                        : (INK[surf.pad.kind] || INK.green);
-                    lit = shade(surf.pad, x, z);
+                    if (surf.pad.push || surf.pad.spring) {
+                        col = pal.machine;
+                    } else if (surf.pad.ghost) {
+                        // Sculpted world ground (turtle, ironriver, nave, table).
+                        // On The Sugar Gate (`table`), baked objects standing up
+                        // off the cloth (sugar cubes, plate, teapot) read as cream.
+                        col = (pal.key === 'table' && surf.y > 0.36) ? [238, 230, 214] : pal.ghost;
+                    } else {
+                        col = pal[surf.pad.kind] || pal.green;
+                    }
+                    lit = shade(surf.pad, x, z) *
+                        (1 + Math.max(-0.10, Math.min(0.16, (surf.y - baseY) * 0.024)));
+                    if (surf.pad.ghost && Math.abs(surf.y - Math.round(surf.y / 1.25) * 1.25) < 0.07) {
+                        lit *= 0.88;
+                    }
+                    if (surf.pad.kind === 'glass' && pal.grid &&
+                        (Math.abs(x - Math.round(x)) < 0.07 || Math.abs(z - Math.round(z)) < 0.07)) {
+                        col = mixRgb(col, pal.grid, 0.38);
+                    }
                 }
 
                 // Beyond the stakes the ground is still ground, and still has
@@ -155,9 +243,9 @@
                 // the golf course, so it loses its colour rather than its light.
                 outside = P.outOfBounds(hole, x, z);
                 if (outside) {
-                    d[i] = (col[0] * 0.35 + BEYOND[0] * 0.65) * lit;
-                    d[i + 1] = (col[1] * 0.35 + BEYOND[1] * 0.65) * lit;
-                    d[i + 2] = (col[2] * 0.35 + BEYOND[2] * 0.65) * lit;
+                    d[i] = (col[0] * 0.35 + pal.beyond[0] * 0.65) * lit;
+                    d[i + 1] = (col[1] * 0.35 + pal.beyond[1] * 0.65) * lit;
+                    d[i + 2] = (col[2] * 0.35 + pal.beyond[2] * 0.65) * lit;
                 } else {
                     d[i] = Math.min(255, col[0] * lit);
                     d[i + 1] = Math.min(255, col[1] * lit);
@@ -175,6 +263,56 @@
            are looking at from above. */
         function toX(v) { return (v - ox) * scale; }
         function toY(v) { return (v - oz) * scale; }
+
+        // Currents and conveyor belts: show which way the belt carries the ball.
+        var pi, pd;
+        for (pi = 0; pi < (hole.pads || []).length; pi++) {
+            pd = hole.pads[pi];
+            if (!pd.push || (!pd.push.x && !pd.push.z)) continue;
+            var pYaw = Math.atan2(pd.push.x, pd.push.z);
+            var pcx = toX(pd.x + pd.w / 2), pcy = toY(pd.z + pd.d / 2);
+            var step = Math.max(8, 3.2 * scale), span = Math.max(pd.w, pd.d) * scale;
+            var nArr = Math.max(1, Math.min(4, Math.floor(span / step)));
+            g.save();
+            g.strokeStyle = 'rgba(255,255,255,0.55)';
+            g.lineWidth = Math.max(1, 0.14 * scale);
+            for (var ai = 0; ai < nArr; ai++) {
+                var off = (ai - (nArr - 1) / 2) * step * 0.75;
+                var ax = pcx + Math.sin(pYaw) * off, ay = pcy + Math.cos(pYaw) * off;
+                var sz = Math.max(2, 0.42 * scale);
+                g.beginPath();
+                g.moveTo(ax - Math.cos(pYaw) * sz - Math.sin(pYaw) * sz * 0.6,
+                         ay + Math.sin(pYaw) * sz - Math.cos(pYaw) * sz * 0.6);
+                g.lineTo(ax + Math.sin(pYaw) * sz * 0.6, ay + Math.cos(pYaw) * sz * 0.6);
+                g.lineTo(ax + Math.cos(pYaw) * sz - Math.sin(pYaw) * sz * 0.6,
+                         ay - Math.sin(pYaw) * sz - Math.cos(pYaw) * sz * 0.6);
+                g.stroke();
+            }
+            g.restore();
+        }
+
+        // Gravity wells (The Three-Body Problem, Apogee): accretion ring + dark core.
+        var wells = hole.wells || [], wi, wl0;
+        for (wi = 0; wi < wells.length; wi++) {
+            wl0 = wells[wi];
+            var wx = toX(wl0.x), wy = toY(wl0.z);
+            var wr = Math.max(2.2, (wl0.core || 0.75) * scale);
+            g.strokeStyle = 'rgba(' + pal.wellCool.join(',') + ',0.55)';
+            g.lineWidth = Math.max(1.2, wr * 0.55);
+            g.beginPath();
+            g.arc(wx, wy, wr * 2.1, 0, 6.283);
+            g.stroke();
+            g.strokeStyle = 'rgb(' + pal.wellHot.join(',') + ')';
+            g.lineWidth = Math.max(1.2, wr * 0.45);
+            g.beginPath();
+            g.arc(wx, wy, wr * 1.35, 0, 6.283);
+            g.stroke();
+            g.fillStyle = '#05050a';
+            g.beginPath();
+            g.arc(wx, wy, wr, 0, 6.283);
+            g.fill();
+        }
+
         var k, wl, B;
         for (k = 0; k < hole.walls.length; k++) {
             wl = hole.walls[k];
@@ -185,7 +323,7 @@
             // A bumper and a rubber post are round (physics.isPost), and the
             // plan says so rather than drawing the box nobody plays.
             if (P.isPost && P.isPost(wl)) {
-                g.fillStyle = wl.kind === 'post' ? '#e8e8ee' : '#f0409a';
+                g.fillStyle = wl.kind === 'post' ? '#e8e8ee' : 'rgb(' + pal.machine.join(',') + ')';
                 g.beginPath();
                 g.arc(toX(B.cx), toY(B.cz), Math.max(1.4, B.hw * scale), 0, 6.283);
                 g.fill();
@@ -223,7 +361,8 @@
                 : wl.kind === 'gate' ? '#e0a13a'
                 : wl.kind === 'beam' || wl.kind === 'sails' ? '#9a6a3c'
                 : wl.kind === 'mill' ? '#ebe4d3'
-                : 'rgb(' + RAIL.join(',') + ')';
+                : wl.kind === 'meteor' ? (pal.key === 'breakfast' ? '#f7f3e8' : pal.key === 'orrery' ? '#c8963e' : '#6e645e')
+                : 'rgb(' + pal.rail.join(',') + ')';
             g.fillRect(-B.hw * scale, -B.hd * scale,
                 Math.max(1, B.hw * 2 * scale), Math.max(1, B.hd * 2 * scale));
             g.restore();
@@ -330,12 +469,13 @@
        and index rather than by the hole object, so a page that never opens the
        picker never pays for it and one that opens it twice pays once. */
     function map(courseId, index, w, h) {
-        var key = courseId + '/' + index + '/' + w + 'x' + h;
-        if (cache[key]) return cache[key];
         var course = G3.courseById(courseId);
         var hole = course.holes[index];
         if (!hole) return null;
-        cache[key] = render(hole, w, h);
+        var theme = hole.theme || (course.themes && course.themes[index]) || course.theme || '';
+        var key = (hole.worldId ? 'world-' + hole.worldId : courseId + '/' + index) + '/' + theme + '/' + w + 'x' + h;
+        if (cache[key]) return cache[key];
+        cache[key] = render(hole, w, h, theme);
         return cache[key];
     }
 

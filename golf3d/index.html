@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.168.3">
+    <link rel="stylesheet" href="style.css?v=1.169.0">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -170,6 +170,7 @@
                     <div class="tm-group" id="tm-settings" data-group>
                         <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
                         <button class="chip" id="btn-style" title="Touch swing settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Touch swing</span></span></button>
+                        <button class="chip" id="btn-quality" title="Graphics and performance settings (Q)" aria-haspopup="dialog" aria-expanded="false" aria-controls="quality-pad">✦<span class="chip-text"> Graphics: <span id="quality-now">Auto</span></span></button>
                         <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
                         <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                         <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
@@ -457,6 +458,50 @@
                     <div class="tn-rows" id="tune-rows"></div>
                     <p class="tn-says" id="tune-says" aria-live="polite">Pick a setting to see what it does.</p>
                 </div>
+            </div>
+
+            <!-- Graphics and performance settings, inspired by Portals' quality
+                 bar: Auto, Low, Medium, High, Ultra + quick switches for Live 3D
+                 worlds, Fancy water, and the FPS readout. -->
+            <div class="style-pad quality-pad" id="quality-pad" hidden role="dialog" aria-label="Graphics and performance">
+                <div class="st-head">
+                    <span><b>Graphics &amp; performance</b><small id="qp-sub">World resolution, bloom, turf detail, and post-processing.</small></span>
+                    <button type="button" class="st-close" id="quality-close" aria-label="Close">✕</button>
+                </div>
+                <div class="tn-rows" id="quality-rows">
+                    <div class="tn-row">
+                        <span class="tn-label">Quality</span>
+                        <div class="tn-seg" id="quality-seg" role="group" aria-label="Graphics preset">
+                            <button type="button" data-quality="auto" class="on">Auto</button>
+                            <button type="button" data-quality="low">Low</button>
+                            <button type="button" data-quality="medium">Med</button>
+                            <button type="button" data-quality="high">High</button>
+                            <button type="button" data-quality="ultra">Ultra</button>
+                        </div>
+                    </div>
+                    <div class="tn-row">
+                        <span class="tn-label">3D worlds</span>
+                        <div class="tn-seg" id="qp-live-seg" role="group" aria-label="Live 3D worlds">
+                            <button type="button" data-live="1" class="on">On</button>
+                            <button type="button" data-live="0">Off</button>
+                        </div>
+                    </div>
+                    <div class="tn-row">
+                        <span class="tn-label">Water</span>
+                        <div class="tn-seg" id="qp-water-seg" role="group" aria-label="Water reflections">
+                            <button type="button" data-water="1" class="on">Fancy</button>
+                            <button type="button" data-water="0">Fast</button>
+                        </div>
+                    </div>
+                    <div class="tn-row">
+                        <span class="tn-label">Frame rate</span>
+                        <div class="tn-seg" id="qp-fps-seg" role="group" aria-label="Frame rate readout">
+                            <button type="button" data-fps="1">Show</button>
+                            <button type="button" data-fps="0" class="on">Hide</button>
+                        </div>
+                    </div>
+                </div>
+                <p class="tn-says" id="quality-says" aria-live="polite">Adapts resolution automatically; ignores background loading spikes.</p>
             </div>
 
             <div class="controls">
@@ -809,6 +854,7 @@
                 <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
                 <p class="tour-credit">
                     <button type="button" class="linkish" id="menu-live" role="switch" aria-checked="true">Live worlds: on</button>
+                    <button type="button" class="linkish" id="menu-quality" title="Cycle graphics quality preset">Graphics: Auto</button>
                     <button type="button" class="linkish" id="menu-draw-settings">What Surprise me draws from</button></p>
             </div>
             <!-- One card's page: what it is, how you have done, its holes
@@ -915,35 +961,35 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.168.3"></script>
-    <script src="js/themes.js?v=1.168.3"></script>
-    <script src="js/physics.js?v=1.168.3"></script>
-    <script src="js/courses.js?v=1.168.3"></script>
-    <script src="js/tour-ground.js?v=1.168.3"></script>
-    <script src="js/portals.js?v=1.168.3"></script>
-    <script src="js/audit.js?v=1.168.3"></script>
-    <script src="js/custom.js?v=1.168.3"></script>
-    <script src="js/scoring.js?v=1.168.3"></script>
-    <script src="js/swing.js?v=1.168.3"></script>
-    <script src="js/school.js?v=1.168.3"></script>
-    <script src="js/audio.js?v=1.168.3"></script>
-    <script src="js/music.js?v=1.168.3"></script>
-    <script src="js/bag.js?v=1.168.3"></script>
-    <script src="js/textures.js?v=1.168.3"></script>
-    <script src="js/shaders.js?v=1.168.3"></script>
-    <script src="js/postfx.js?v=1.168.3"></script>
-    <script src="js/weather.js?v=1.168.3"></script>
-    <script src="js/flyover.js?v=1.168.3"></script>
-    <script src="js/replay.js?v=1.168.3"></script>
-    <script src="js/bot.js?v=1.168.3"></script>
-    <script src="js/models.js?v=1.168.3"></script>
-    <script src="js/life.js?v=1.168.3"></script>
-    <script src="js/worlds.js?v=1.168.3"></script>
-    <script src="js/sandfx.js?v=1.168.3"></script>
-    <script src="js/render.js?v=1.168.3"></script>
-    <script src="js/minimap.js?v=1.168.3"></script>
-    <script src="js/debug.js?v=1.168.3"></script>
-    <script src="js/game.js?v=1.168.3"></script>
+    <script src="js/config.js?v=1.169.0"></script>
+    <script src="js/themes.js?v=1.169.0"></script>
+    <script src="js/physics.js?v=1.169.0"></script>
+    <script src="js/courses.js?v=1.169.0"></script>
+    <script src="js/tour-ground.js?v=1.169.0"></script>
+    <script src="js/portals.js?v=1.169.0"></script>
+    <script src="js/audit.js?v=1.169.0"></script>
+    <script src="js/custom.js?v=1.169.0"></script>
+    <script src="js/scoring.js?v=1.169.0"></script>
+    <script src="js/swing.js?v=1.169.0"></script>
+    <script src="js/school.js?v=1.169.0"></script>
+    <script src="js/audio.js?v=1.169.0"></script>
+    <script src="js/music.js?v=1.169.0"></script>
+    <script src="js/bag.js?v=1.169.0"></script>
+    <script src="js/textures.js?v=1.169.0"></script>
+    <script src="js/shaders.js?v=1.169.0"></script>
+    <script src="js/postfx.js?v=1.169.0"></script>
+    <script src="js/weather.js?v=1.169.0"></script>
+    <script src="js/flyover.js?v=1.169.0"></script>
+    <script src="js/replay.js?v=1.169.0"></script>
+    <script src="js/bot.js?v=1.169.0"></script>
+    <script src="js/models.js?v=1.169.0"></script>
+    <script src="js/life.js?v=1.169.0"></script>
+    <script src="js/worlds.js?v=1.169.0"></script>
+    <script src="js/sandfx.js?v=1.169.0"></script>
+    <script src="js/render.js?v=1.169.0"></script>
+    <script src="js/minimap.js?v=1.169.0"></script>
+    <script src="js/debug.js?v=1.169.0"></script>
+    <script src="js/game.js?v=1.169.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
@@ -951,6 +997,6 @@
     <script type="importmap">
     { "imports": { "three": "./vendor/portals/vendor/three/three.module.min.js", "three/addons/": "./vendor/portals/vendor/three/addons/" } }
     </script>
-    <script type="module" src="js/backdrop.mjs?v=1.168.3"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.169.0"></script>
 </body>
 </html>
