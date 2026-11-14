@@ -4174,7 +4174,7 @@ each played **inside a world from Ethan Mollick's
 [Portals](https://github.com/emollick/ai-portals)** — the owner asked for its
 worlds to be borrowed, for courses pushed further than the fifteen had gone,
 and for a way into a round that did not have to be figured out. It is golf
-all the way through: a tee, a flag, a card, "Next hole →". What is borrowed
+all the way through: a tee, a flag, a card, the next hole. What is borrowed
 is the place.
 
 | Hole | Played in | What it is |
@@ -4447,8 +4447,10 @@ progress… it's also very slow"). Three moves:
 
 ### Down the cup
 
-Between two worlds the cup is the portal (the owner's idea, v1.162.0). On
-*Next hole* after a hole is holed, the flag goes off like a rocket on a trail
+Between two worlds the cup is the portal (the owner's idea, v1.162.0). Once a
+hole is holed the score is shown for `C.HOLE_END.SHOW` and the game goes on by
+itself — there is no Next button since v1.166.0, and a tap on the score or
+Enter skips the wait (`game.js → tickHoleEnd`). Then the flag goes off like a rocket on a trail
 of sparks, and the camera leaves wherever it watched the drop, arcs up over
 the cup and falls into it (`render.js → startDive`, `diveCamera`, `C.DIVE`),
 stopping just over the lip where the cup fills the picture — the height

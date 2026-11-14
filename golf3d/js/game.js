@@ -319,7 +319,7 @@
        first thing seen of the next is the sky the wipe is painted in. The
        swap waits for both: the dive has reached the rim by the time the
        wipe is shut. */
-    var WIPE_CLOSE = 620;
+    var WIPE_CLOSE = 850;
     function throughPortal(themeName, then, dive) {
         var el = $('portal-wipe');
         if (!el || reducedMotion()) { then(); return; }
@@ -348,7 +348,7 @@
         var el = $('portal-wipe');
         if (A.warpOpen) A.warpOpen();
         el.className = 'portal-wipe opening';
-        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 650);
+        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 800);
     }
 
     /* The wait for a world.
@@ -2182,9 +2182,9 @@
             $('banner-detail').textContent = state.players[state.turn].name + ' · ' +
                 $('banner-detail').textContent;
         }
-        $('banner-next').textContent = up >= 0 ? state.players[up].name + ' to play →'
-            : last ? 'See the card →'
-            : 'Next hole →';
+        /* No button to press: the score is shown for a beat and the game
+           walks on by itself (tickHoleEnd). A tap or Enter skips the wait. */
+        endWait = C.HOLE_END.SHOW + (last ? C.HOLE_END.LAST : 0);
         /* An ace gets shown again, at once: an instant replay, the moment
            the drop has landed, with the banner held back until it is over —
            Autoplay included, since the replay holds the frame and the walk
@@ -2320,7 +2320,25 @@
         R.frame(dt * rate, r.world, replayIntent);
     }
 
+    /* ── on to the next hole by itself ───────────────────────────────────
+
+       The banner used to wait on "Next hole →" — a press that only ever
+       meant "yes, go on". Now the score holds for HOLE_END.SHOW and the game
+       goes on to the next hole, the next player, or the card. The clock only
+       runs while the score is actually on screen: not under the ace replay
+       (which holds the banner back), a menu, or the portal. Autoplay and the
+       demo keep their own walk (tickWalk), so they are left alone here. */
+    var endWait = 0;
+    function tickHoleEnd(beat) {
+        if (!endWait || demo || auto) return;
+        if (state.phase !== 'holed') { endWait = 0; return; }
+        if (!$('banner').classList.contains('show') || modalUp() || portalBusy) return;
+        endWait -= beat;
+        if (endWait <= 0) { endWait = 0; nextHole(); }
+    }
+
     function nextHole() {
+        endWait = 0;
         hideBanner();
         // Pass and play: the same hole again for whoever has not played it,
         // and only then on — with player one teeing off first.
@@ -3894,7 +3912,7 @@
             return;
         }
         if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) {
-            // Enter on "Watch again" is a press of that button, not of Next.
+            // Enter on "Watch again" is a press of that button, not a skip.
             if (e.target === $('banner-replay')) return;
             e.preventDefault(); nextHole(); return;
         }
@@ -5936,6 +5954,7 @@
         // would not, and the demo taking a screen somebody is watching play
         // itself is the one interruption nobody asked for.
         else tickIdle(now);
+        tickHoleEnd(Math.min(0.25, raw));
         if (sim) tickSim(Math.min(0.25, raw));
 
         if (state.phase === 'rolling') {
@@ -6152,7 +6171,11 @@
             placeSwingCard();
         });
 
-        $('banner-next').addEventListener('click', nextHole);
+        // The whole banner is the skip: a tap anywhere on the score goes on.
+        $('banner').addEventListener('click', function (e) {
+            if (e.target === $('banner-replay') || !state || state.phase !== 'holed') return;
+            nextHole();
+        });
         $('banner-replay').addEventListener('click', playReplay);
         window.addEventListener('pointerdown', skipReplay, true);
         window.addEventListener('keydown', skipReplay, true);
