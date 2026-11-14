@@ -3815,9 +3815,10 @@ body.compact-ui .picker { padding-top: 52px; }
     width: min(72%, 300px);
     transform: translateX(-50%);
     /* A light grey panel, so the place to swipe is somewhere you can see
-       rather than somewhere you have to remember. */
-    background: rgba(18, 20, 14, 0.22);
-    border: 1px dashed rgba(232, 225, 203, 0.32);
+       rather than somewhere you have to remember — but faint (the owner,
+       v1.168.2: "a bit more subtle"), so the hole still reads through it. */
+    background: rgba(18, 20, 14, 0.1);
+    border: 1px dashed rgba(232, 225, 203, 0.18);
     border-radius: 6px;
     box-shadow: none;
     touch-action: none;
@@ -3827,7 +3828,7 @@ body.compact-ui .picker { padding-top: 52px; }
     -webkit-user-select: none;
 }
 .swipe[hidden] { display: none; }
-.swipe.held { cursor: grabbing; background: rgba(18, 20, 14, 0.32); border-color: rgba(201, 163, 82, 0.55); }
+.swipe.held { cursor: grabbing; background: rgba(18, 20, 14, 0.2); border-color: rgba(201, 163, 82, 0.55); }
 .swipe-svg {
     position: absolute;
     inset: 0;
