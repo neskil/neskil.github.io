@@ -4446,6 +4446,29 @@ progress… it's also very slow"). Three moves:
   step's name and a percentage, never moving backwards, filled by `scaleX`
   so the compositor can draw it while the build holds the page's thread.
 
+**And out of the way of a stroke** (v1.168.4; the owner: "freezes after a
+couple of portal levels… it came back after perhaps 10 s"). Two faults, and
+one throttle:
+
+- *A restart un-sliced the build.* `want` turned the slices off for any
+  world asked for, and a hole restarted (or the live switch flicked) asks
+  again for the world it already has — so a next world half built aside
+  finished at full speed, holding the page for seconds mid-hole. `want` now
+  leaves the slices alone when the world asked for is the current one.
+- *A place held a dead world.* `place.hide`'s list of objects was cached on
+  the place, which outlives its world, so the thrown-away world's whole scene
+  stayed in memory until that place came round again. It is kept on the
+  world now (`W.hid`).
+- *Held while the player is busy.* game.js calls `backdrop.hold()` every
+  frame: true while a finger is on the glass (a stroke, the view, the swing
+  card — a lost release counts for 4 s at most), a swing gate is running, or
+  the ball is moving. A held build gets no frames at all: backdrop wraps the
+  engine's `_tick` so its waiters are not released, and the build stands
+  mid-step until the next free frame. Only a build aside is held, never one
+  somebody waits for behind the portal. A slice is 4 ms on a touch screen
+  rather than 6. `backdrop.stats()` reports the world renderer's geometries,
+  textures and programs, for a driver watching memory across a tour.
+
 ### Down the cup
 
 Between two worlds the cup is the portal (the owner's idea, v1.162.0). Once a
