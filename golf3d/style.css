@@ -339,6 +339,13 @@ canvas {
 
 canvas:active { cursor: grabbing; }
 
+/* The rule above is for the board, which is dragged; these are pictures. A
+   course card's plan fills most of the card, so with `touch-action: none` a
+   swipe that began on it was swallowed and the picker scrolled only from the
+   gutters. The minimap and the hole card's plan sit in scrolling panels too. */
+.cc-map, .hc-map, .mm-canvas { touch-action: manipulation; cursor: inherit; }
+.cc-map:active, .hc-map:active, .mm-canvas:active { cursor: inherit; }
+
 /* ── clubs and power ────────────────────────────────────────────────────── */
 
 /* The bar along the bottom of the stage is where a shot is loaded and played:
@@ -4661,6 +4668,9 @@ body.lane-swing .swipe-hint {
 /* Back to the round, always in reach. */
 #menu .modal-actions {
     position: sticky; bottom: -1.4rem;
+    /* Above the cards' WORLD and NEW tags, which are z-index 1 and otherwise
+       slide over the bar as the grid scrolls under it. */
+    z-index: 2;
     margin: 1rem -1.4rem -1.4rem; padding: 0.7rem 1.4rem;
     background: rgb(28, 31, 22);
     border-top: 1px solid var(--panel-border);
