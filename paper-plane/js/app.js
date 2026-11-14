@@ -402,7 +402,7 @@ function want3D() {
     three = new Promise((resolve) => {
         if (window.THREE) { resolve(true); return; }
         const tag = document.createElement('script');
-        tag.src = 'vendor/three.min.js';
+        tag.src = '../vendor/three.min.js';
         tag.onload = () => resolve(true);
         tag.onerror = () => resolve(false);
         document.head.appendChild(tag);

@@ -29,7 +29,11 @@ let engine = null, cur = null, wanted = null, loading = null, failed = {};
 /* The next world, built ahead (prepare, below): kept beside `cur` and never
    drawn until it is asked for, and `early` while its build may only take a
    slice of each frame because a hole is still being played in front of it. */
-let spare = null, early = false;
+let spare = null, early = false, aside = null;
+/* Held: the player is in the middle of something (a stroke being drawn, a
+   ball in the air) and a world being built aside gets no time at all until
+   they are done. game.js says so every frame (`hold`). */
+let held = false, slices = 0;   // frames a build aside has been given, for stats()
 let clock = 0;
 const ev = { on: false, t: 0 };
 const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
@@ -83,7 +87,18 @@ function boot() {
        world built ahead while a hole is still on screen is built a few
        milliseconds a frame instead, the way Portals builds its next world
        during a flight. */
-    engine._budget = function () { return early ? 6 : 1e9; };
+    engine._budget = function () { return early ? (coarse ? 4 : 6) : 1e9; };
+    /* …and none at all while held. A build only goes on when the engine
+       hands it the next frame (its waiters, released in `_tick`), so a held
+       frame simply does not release them: the build stands where it is,
+       mid-step, and picks up again on the first frame after. Only a build
+       aside is held — one somebody is waiting behind the portal for is not. */
+    const tick = engine._tick;
+    engine._tick = function (now) {
+        if (held && early) { requestAnimationFrame(engine._tick); return; }
+        if (early) slices++;
+        tick(now);
+    };
     // The engine names each step of a build as it starts it; that is what
     // the loading bar follows (track, below).
     const perf = engine.perf, setPhase = perf.setPhase.bind(perf);
@@ -402,8 +417,12 @@ async function want(id) {
     wanted = id;
     // Whatever is asked for now is wanted on screen: no more slices. (A hole
     // with no world wants nothing built, so a world being built aside for
-    // later keeps to its slices under it.)
-    if (id) early = false;
+    // later keeps to its slices under it — and so does a hole asking again
+    // for the world it already has: a restart, the live switch. That used to
+    // take the slices off the next world's build half way through it, and
+    // the rest of it then held the page for seconds while the hole was
+    // being played.)
+    if (id && !(cur && cur.def.id === id)) early = false;
     // A hole with no world (a demo hole, a drawn course) keeps the spare:
     // nothing else is being built for it, and it is the tour's next world.
     if (spare && id && spare.def.id !== id) dropSpare();
@@ -449,14 +468,14 @@ async function prepare(id) {
     const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
     // One world kept aside at a time.
     dropSpare();
-    early = true;
+    early = true; aside = id;
     mark(id);
     const was = wanted;
     const job = loading = E._load(def, seedOf(id));
     let W = null;
     try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
     if (loading === job) loading = null;
-    early = false;
+    early = false; aside = null;
     mark(null);
     if (!W) return false;
     learn(id);
@@ -605,7 +624,7 @@ function groundUnder(W, x, y, z, any) {
 /* One frame: `cam` is the golf camera (r128 — only its numbers are read),
    `seat` the pose behind the ball on the tee. Returns false when there is
    nothing to show. */
-function frame(dt, cam, place, seat, w, h) {
+function frame(dt, cam, place, seat, w, h, clear) {
     const W = cur;
     if (!W || !engine || engine.lost || !place || W.def.id !== place.world) return false;
     if (w !== size.w || h !== size.h) { size.w = w; size.h = h; engine._resize(); }
@@ -638,8 +657,12 @@ function frame(dt, cam, place, seat, w, h) {
     c.position.set(A.x + _p.x, A.y + _p.y, A.z + _p.z);
     _g.set(cam.quaternion.x, cam.quaternion.y, cam.quaternion.z, cam.quaternion.w);
     c.quaternion.copy(_yaw).multiply(_g);
+    // `clear`, in golf units, is how much in front of the camera is left
+    // out of the world (render.js: just over half the way to the ball), so
+    // nothing of the world's stands between the player and the shot.
     const aspect = cam.aspect || (w / h);
-    c.fov = cam.fov; c.aspect = aspect; c.near = W.cam.near; c.far = W.cam.far;
+    c.fov = cam.fov; c.aspect = aspect; c.far = W.cam.far;
+    c.near = Math.min(c.far * 0.5, Math.max(W.cam.near, (clear > 0 ? clear : 0) * A.scale));
     c.updateProjectionMatrix();
     c.updateMatrixWorld(true);
     clock += dt; W.time += dt;
@@ -656,8 +679,10 @@ function frame(dt, cam, place, seat, w, h) {
        bottom of the picture: `place.hide` names it, and after the world has
        posed it for the frame it is put away. */
     if (place.hide) {
-        if (!place._hid || place._hid.W !== W) place._hid = { W, list: place.hide.map((n) => W.scene.getObjectByName(n)).filter(Boolean) };
-        for (const o of place._hid.list) o.visible = false;
+        // Kept on the world, not the place: a place outlives its world, and
+        // a list kept on it held a thrown-away world's whole scene in memory.
+        if (!W.hid || W.hid.place !== place) W.hid = { place, list: place.hide.map((n) => W.scene.getObjectByName(n)).filter(Boolean) };
+        for (const o of W.hid.list) o.visible = false;
     }
     try {
         markSoftDepth(W);
@@ -689,6 +714,19 @@ G3.backdrop = {
     get ahead() { return spare ? spare.def.id : null; },
     drop() { dropSpare(); },
     get building() { return !!loading; },
+    // The world being built aside, if one is.
+    get aside() { return aside; },
+    /* Hold a build aside where it is (true) or let it go on (false): see
+       `held`. Cheap enough to be said every frame. */
+    hold(on) { held = !!on; },
+    get held() { return held && early; },
+    // What the world renderer holds, for a driver watching memory over a tour.
+    stats() {
+        if (!engine) return null;
+        const i = engine.renderer.info;
+        return { geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0,
+            current: cur ? cur.def.id : null, spare: spare ? spare.def.id : null, aside, slices };
+    },
     progress,
     /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):
        the height under a point in world coordinates, or null over nothing. */

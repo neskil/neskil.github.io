@@ -17,7 +17,8 @@ import { startServer, ROOT } from './serve.mjs';
 import { dumpDom } from './chrome.mjs';
 
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'surprise', 'assets']);
-const CONCURRENCY = Number(process.env.TEST_CONCURRENCY) || 3;
+const CONCURRENCY = Number(process.env.TEST_CONCURRENCY) || 4;
+const HEAVY_SUITES = ['golf3d/tests.html', 'golf/tests.html', 'golf3d/shader-tests.html', 'golf/ui-tests.html'];
 
 async function findSuites(dir = ROOT, out = []) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -25,12 +26,21 @@ async function findSuites(dir = ROOT, out = []) {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) {
             await findSuites(full, out);
-        } else if (/tests\.html$/.test(entry.name)) {
+        } else if (/(?:tests|-check)\.html$/.test(entry.name)) {
             const text = await readFile(full, 'utf8');
             if (text.includes('id="summary"')) out.push(relative(ROOT, full));
         }
     }
-    return out.sort();
+    return out.sort((a, b) => {
+        const na = a.replace(/\\/g, '/');
+        const nb = b.replace(/\\/g, '/');
+        const ia = HEAVY_SUITES.indexOf(na);
+        const ib = HEAVY_SUITES.indexOf(nb);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return na.localeCompare(nb);
+    });
 }
 
 /**

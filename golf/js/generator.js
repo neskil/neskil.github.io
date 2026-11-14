@@ -897,6 +897,57 @@
             });
         });
 
+        /* Boost pads. A directional kick strip: min 20px, on the field, pointing
+           somewhere real, clear of anything solid overlapping the pad itself, off
+           lava/water/belts/avalanches, and off the tee and the cup. */
+        (h.boosts || []).forEach(function (bp) {
+            if (['down', 'up', 'left', 'right'].indexOf(bp.dir) < 0) { bad.push('a boost pad pointing nowhere'); return; }
+            if (Math.min(bp.w, bp.h) < 20) bad.push('a boost pad thinner than 20px');
+            if (bp.x < -1 || bp.y < -1 || bp.x + bp.w > C.WORLD_W + 1 || bp.y + bp.h > C.WORLD_H + 1) bad.push('a boost pad off the field');
+            var solidOn = (h.walls || []).some(function (w) { return overlaps(travelEnvelope(w), bp); }) ||
+                posts.some(function (b) { return P.circleRect(b.x, b.y, b.r, bp) !== null; }) ||
+                rails.some(function (r) { return railTouches(r, bp); }) ||
+                spins.some(function (sp) { return P.circleRect(sp.x, sp.y, P.sweepOf(sp), bp) !== null; });
+            if (solidOn) bad.push('a boost pad under something solid');
+            var layered = false;
+            for (var gx = bp.x + 4; gx < bp.x + bp.w && !layered; gx += 8) {
+                for (var gy = bp.y + 4; gy < bp.y + bp.h && !layered; gy += 8) {
+                    layered = !!(P.zoneAt(h.water, gx, gy) || P.zoneAt(h.lava, gx, gy) || P.zoneAt(h.belts, gx, gy) || P.zoneAt(h.avalanches, gx, gy));
+                }
+            }
+            if (layered) bad.push('a boost pad laid over water, lava, a belt or a chute');
+            if (P.circleRect(h.tee.x, h.tee.y, C.BALL_R + 4, bp)) bad.push('the tee is on a boost pad');
+            if (P.circleRect(h.hole.x, h.hole.y, C.HOLE_R + 10, bp)) bad.push('the cup is on a boost pad');
+        });
+
+        /* One-way check gates. Both posts on the field, a doorway wider than a
+           ball between the posts, clear of wet/lava/belts/mouths/spins, and off
+           the tee and cup. End posts may abut a wall or rail to seal a pocket. */
+        (h.oneways || []).forEach(function (ow) {
+            var b = P.onewayBasis(ow);
+            if (b.len < C.ONEWAY_POST_R * 2 + C.BALL_R * 2 + 12) bad.push('a one-way gate too narrow for a ball');
+            [[ow.x, ow.y], [ow.tx, ow.ty]].forEach(function (pt) {
+                if (pt[0] < C.ONEWAY_POST_R - 1 || pt[0] > C.WORLD_W - C.ONEWAY_POST_R + 1 ||
+                    pt[1] < C.ONEWAY_POST_R - 1 || pt[1] > C.WORLD_H - C.ONEWAY_POST_R + 1) {
+                    bad.push('a one-way gate off the field');
+                }
+            });
+            var seg = { x: ow.x, y: ow.y, tx: ow.tx, ty: ow.ty, w: C.ONEWAY_HALF_W * 2 };
+            if (P.circleRail(h.tee.x, h.tee.y, C.BALL_R + 8, seg)) bad.push('the tee is on a one-way gate');
+            if (P.circleRail(h.hole.x, h.hole.y, C.HOLE_R + 10, seg)) bad.push('the cup is on a one-way gate');
+            var badMid = false;
+            for (var s = 0.2; s <= 0.8 + 1e-6; s += 0.2) {
+                var mx = ow.x + (ow.tx - ow.x) * s, my = ow.y + (ow.ty - ow.y) * s;
+                if (P.zoneAt(h.water, mx, my) || P.zoneAt(h.lava, mx, my) || P.zoneAt(h.belts, mx, my) ||
+                    mouths.some(function (m) { return Math.hypot(m.x - mx, m.y - my) < TR + C.BALL_R; }) ||
+                    (h.vents || []).some(function (v) { return Math.hypot(v.x - mx, v.y - my) < VR + C.BALL_R; }) ||
+                    spins.some(function (sp) { return Math.hypot(sp.x - mx, sp.y - my) < P.sweepOf(sp) + C.BALL_R; })) {
+                    badMid = true;
+                }
+            }
+            if (badMid) bad.push('a one-way gate across water, lava, a belt, mouth, vent or spinner');
+        });
+
         if (strict) {
             (h.slopes || []).forEach(function (s) {
                 if (s.pts) return;   // reported above

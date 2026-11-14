@@ -301,20 +301,17 @@ horizon the way maintenance climbs across it.
   and down, which is arguably what the scenario toggle should have been doing
   all along.
 
-## 6. Regenerate the Open Graph image
+## 6. ~~Regenerate the Open Graph image~~ (done — `assets/og/car.png`)
 
-`assets/og/car.png` shows the old glassmorphism styling and a "$555 per month"
-headline that no longer matches anything. `og:image:alt` in `index.html`
-repeats that stale number in text. Both need redoing after the restyle.
+`assets/og/car.png` and `og:image:alt` in `car/index.html` now match the
+warm-paper/clay restyle.
 
-## 7. A committed test harness
+## 7. ~~A committed test harness~~ (done — `car/tests.html`)
 
-The break-even fix was verified with a throwaway Playwright script asserting
-that all four routes agree between the bars and the curve across horizons,
-scenarios, disposal channels, mileages and a typed resale override. That check
-is worth keeping — `supply-chain/tests.html` is the repo's existing pattern for
-a page that self-tests over `file://`, and this page's model is now in its own
-module and directly exercisable.
+`car/tests.html` exercises `js/model.js` directly in headless Chrome (67
+assertions covering route consistency between bars and curves across horizons,
+scenarios, disposal channels, mileages, typed resale overrides, and the budget
+explorer).
 
 ## 8. All-pairs colourblind separation
 

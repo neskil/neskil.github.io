@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.22.0';
+GOLF.VERSION = '1.23.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -183,6 +183,22 @@ GOLF.CONFIG = {
     VENT_R: 20,
     VENT_AIR: 0.7,
     VENT_WARN: 0.9,
+
+    /* Boost pads. A ground strip pointing 'up', 'down', 'left' or 'right' that
+       kicks a passing ball once per pass along its arrows, fast enough to skip
+       cleanly across water off a calm putt without gambling on the overswing,
+       capped safely under MAX_POWER so wall substeps always hold. */
+    BOOST_SPEED: 820,
+    BOOST_KICK: 460,
+    BOOST_MAX: 1380,
+    BOOST_COOLDOWN: 0.45,
+    BOOST_SHOT_MAX: 2,
+
+    /* One-way check gates. Saloon doors hung between two hinge posts: open in
+       the pass direction with zero bounce, then latch shut once cleared so
+       overshoots rebound off the inside back towards the cup. */
+    ONEWAY_POST_R: 8,
+    ONEWAY_HALF_W: 4,
 
     /* The pick-up. A hole gives you par plus this many strokes; if the ball
        is not down after the last of them you pick it up and write down one

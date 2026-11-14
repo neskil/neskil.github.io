@@ -1301,6 +1301,129 @@
             assert('two laps that meet are caught', bad(meet).some(function (m) { return /laps that meet/.test(m); }));
         })();
 
+        /* ── boost pads and one-way gates ──────────────────────────────── */
+        section('Boost pads and one-way gates');
+
+        (function () {
+            var Hs = GOLF.helpers;
+            function field(extra) {
+                var h = { par: 3, tee: { x: 100, y: 320 }, hole: { x: 880, y: 320 } };
+                GOLF.HAZARD_KEYS.forEach(function (k) { h[k] = []; });
+                Object.keys(extra || {}).forEach(function (k) { h[k] = extra[k]; });
+                return h;
+            }
+            function bad(hole) { return GOLF.validateHole(hole); }
+
+            function runShot(h, start, angle, power) {
+                var w = P.createWorld(h, start, 0);
+                P.launch(w, angle, power);
+                var ev = {}, steps = 0, events = { boost: 0, oneway: 0 };
+                var maxSpeed = P.speedOf(w.ball);
+                var maxSteps = Math.ceil(C.MAX_SHOT_SECONDS / C.SIM_DT);
+                while (w.moving && steps < maxSteps) {
+                    ev = P.advance(w, C.SIM_DT, {});
+                    if (ev.boost) events.boost++;
+                    if (ev.oneway) events.oneway++;
+                    maxSpeed = Math.max(maxSpeed, P.speedOf(w.ball));
+                    steps++;
+                }
+                return { w: w, ev: ev, steps: steps, events: events, maxSpeed: maxSpeed, hung: w.moving };
+            }
+
+            // Boost pad accelerates ball along pad direction and clears a water carry
+            var openPadHole = field({
+                boosts: [Hs.boost(260, 290, 110, 60, 'right')],
+                hole: { x: 840, y: 120 }
+            });
+            var plain = runShot(field({ hole: { x: 840, y: 120 } }), { x: 160, y: 320 }, 0, 280);
+            var boosted = runShot(openPadHole, { x: 160, y: 320 }, 0, 280);
+            assert('a boost pad accelerates the ball over flat ground and carries it further',
+                boosted.events.boost === 1 && boosted.maxSpeed > 750 && boosted.w.ball.x > plain.w.ball.x + 150,
+                'boost=' + boosted.events.boost + ' maxV=' + boosted.maxSpeed.toFixed(0) +
+                ' x=' + boosted.w.ball.x.toFixed(1) + ' plainX=' + plain.w.ball.x.toFixed(1));
+
+            var skipHole = field({
+                boosts: [Hs.boost(260, 290, 130, 60, 'right')],
+                water: [Hs.r(398, 250, 24, 140)],
+                hole: { x: 840, y: 120 }
+            });
+            var plainWet = runShot(field({ water: [Hs.r(398, 250, 24, 140)], hole: { x: 840, y: 120 } }), { x: 160, y: 320 }, 0, 420);
+            var boostedSkip = runShot(skipHole, { x: 160, y: 320 }, 0, 420);
+            assert('a boost pad gives enough speed to skip safely across a water hazard',
+                plainWet.w.splash && !boostedSkip.w.splash && boostedSkip.w.skips >= 1 && boostedSkip.w.ball.x > 422,
+                'wet=' + boostedSkip.w.splash + ' skips=' + boostedSkip.w.skips + ' x=' + boostedSkip.w.ball.x.toFixed(1));
+
+            // Boost loop termination guarantee: facing cushions terminates strictly inside MAX_SHOT_SECONDS
+            var pingpong = field({
+                boosts: [Hs.boost(430, 290, 100, 60, 'right')],
+                walls: [Hs.r(604, 220, 14, 200), Hs.r(304, 220, 14, 200)],
+                hole: { x: 840, y: 140 }
+            });
+            var bounceRes = runShot(pingpong, { x: 350, y: 320 }, 0, 600);
+            assert('a boosted ball rebounding across its pad caps at BOOST_SHOT_MAX and stops',
+                !bounceRes.hung && bounceRes.events.boost <= C.BOOST_SHOT_MAX &&
+                bounceRes.maxSpeed <= C.BOOST_MAX + 1e-6,
+                'hung=' + bounceRes.hung + ' boosts=' + bounceRes.events.boost + ' maxV=' + bounceRes.maxSpeed.toFixed(0));
+
+            // One-way check gate: vertical bar down (480,240)->(480,400) with side=-1 passes right (+x)
+            var ow = Hs.oneway(480, 240, 480, 400, -1);
+            var basis = P.onewayBasis(ow);
+            assert('onewayBasis normal points along expected positive side',
+                Math.abs(basis.nx - 1) < 1e-6 && Math.abs(basis.ny) < 1e-6,
+                'nx=' + basis.nx + ' ny=' + basis.ny);
+
+            var gateHole = field({ oneways: [ow], hole: { x: 800, y: 320 } });
+            var forward = runShot(gateHole, { x: 360, y: 320 }, 0, 620);
+            assert('a ball entering from the chevron side clears the one-way gate and latches it shut',
+                forward.events.oneway === 1 && forward.w.ball.x > 520 && forward.w.gateState[0] === 1,
+                'x=' + forward.w.ball.x.toFixed(1) + ' gate=' + forward.w.gateState[0]);
+
+            var backward = runShot(gateHole, { x: 560, y: 320 }, Math.PI, 620);
+            assert('a ball hitting the back of a one-way gate is reflected back',
+                backward.w.ball.x > 480 && backward.events.oneway === 0,
+                'x=' + backward.w.ball.x.toFixed(1));
+
+            var reboundHole = field({
+                oneways: [ow],
+                walls: [Hs.r(610, 220, 14, 200)],
+                hole: { x: 820, y: 120 }
+            });
+            var trapped = runShot(reboundHole, { x: 360, y: 320 }, 0, 950);
+            assert('a shot that rebounds off a backstop is kept in the pocket by the latched gate',
+                !trapped.hung && trapped.w.gateState[0] === 1 && trapped.w.ball.x > 480 && trapped.w.ball.x < 610,
+                'x=' + trapped.w.ball.x.toFixed(1));
+
+            // Launch resets gateState from latched (+1) back to armed (-1) on the entry side
+            var wReset = P.createWorld(gateHole, { x: 360, y: 320 }, 0);
+            wReset.gateState[0] = 1;
+            P.launch(wReset, 0, 400);
+            assert('each new stroke unlatches the one-way gates', wReset.gateState[0] === -1);
+
+            // Mirror invariants
+            var origBoost = Hs.boost(250, 180, 100, 60, 'right');
+            var mirBoost = Hs.mirror(field({ boosts: [origBoost] })).boosts[0];
+            assert('a mirrored boost flips horizontally and reverses left/right direction',
+                mirBoost.x === C.WORLD_W - 250 - 100 && mirBoost.dir === 'left');
+
+            var mirOw = Hs.mirror(field({ oneways: [Hs.oneway(300, 220, 300, 420, -1)] })).oneways[0];
+            var mirBasis = P.onewayBasis(mirOw);
+            assert('a mirrored one-way gate reflects its outward normal',
+                mirOw.x === C.WORLD_W - 300 && Math.abs(mirBasis.nx + basis.nx) < 1e-6,
+                'nx=' + mirBasis.nx.toFixed(2));
+
+            // Validation rules in generator.js
+            var goodCombo = field({
+                boosts: [Hs.boost(280, 280, 100, 60, 'right')],
+                oneways: [Hs.oneway(520, 230, 520, 410, -1)],
+                hole: { x: 760, y: 320 }
+            });
+            assert('valid boost pad and one-way gate pass the rule book', bad(goodCombo).length === 0, bad(goodCombo).join('; '));
+            var wetBoost = field({ boosts: [Hs.boost(300, 290, 100, 60, 'right')], water: [Hs.r(320, 260, 100, 120)] });
+            assert('a boost pad placed over water is caught', bad(wetBoost).some(function (m) { return /laid over water/i.test(m); }));
+            var badPost = field({ oneways: [Hs.oneway(780, 260, 780, 380, 1)], hole: { x: 780, y: 260 } });
+            assert('a one-way post sitting on the cup is caught', bad(badPost).some(function (m) { return /cup|post|oneway/i.test(m); }));
+        })();
+
         /* ── scenery ───────────────────────────────────────────────────── */
         section('Scenery');
 
@@ -1461,7 +1584,7 @@
                deliberate one made here as well as in courses.js. Pinned by
                id rather than by rack position, because the order of the rack
                is a matter of taste and the length of a card is not. */
-            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, funfair: 6, desk: 6, ember: 6, orbit: 6, puzzle: 6 };
+            var counts = { short: 6, links: 6, tide: 6, harvest: 6, wild: 6, arcade: 6, dunes: 6, warren: 6, icerun: 6, alpine: 6, ruins: 6, funfair: 6, desk: 6, clockwork: 6, ember: 6, orbit: 6, puzzle: 6 };
             Object.keys(counts).forEach(function (id) {
                 var c = byId(id);
                 assert(id + ' is on the rack', !!c);
@@ -1598,6 +1721,22 @@
             var alpine = byId('alpine');
             assert('alpine: most of its holes have a chute', alpine &&
                 alpine.holes.filter(function (h) { return h.avalanches.length > 0; }).length >= 4);
+            var arcade = byId('arcade'), ruins = byId('ruins'), clockwork = byId('clockwork');
+            assert('arcade: brings boost pads and one-way gates onto the circuit',
+                arcade && arcade.theme === 'arcade' &&
+                arcade.holes.some(function (h) { return h.boosts.length > 0; }) &&
+                arcade.holes.some(function (h) { return h.oneways.length > 0; }));
+            assert('ruins: floods its temple with water and check gates',
+                ruins && ruins.theme === 'ruins' &&
+                ruins.holes.some(function (h) { return h.water.length > 0; }) &&
+                ruins.holes.some(function (h) { return h.oneways.length > 0; }));
+            assert('clockwork: gears, spinners, boosts and check gates in brass',
+                clockwork && clockwork.theme === 'clockwork' &&
+                clockwork.holes.some(function (h) { return h.turntables.length > 0 || h.spinners.length > 0; }) &&
+                clockwork.holes.some(function (h) { return h.boosts.length > 0 || h.oneways.length > 0; }));
+            var groupIds = (GOLF.COURSE_GROUPS || []).map(function (g) { return g.id; });
+            assert('every course on the rack belongs to a picker group',
+                GOLF.COURSES.every(function (c) { return groupIds.indexOf(c.group) >= 0; }));
         })();
 
         /* A force with no cause in sight reads as the game cheating, so a

@@ -126,6 +126,22 @@
         g.restore();
     }
 
+    /* Ghost trace of the previous stroke while lining up the next putt: lets a
+       player read the break or bank they missed by instead of guessing twice. */
+    function drawPrevTrail(g, trail) {
+        if (!trail || trail.length < 2) return;
+        g.save();
+        g.strokeStyle = 'rgba(241, 245, 249, 0.28)';
+        g.lineWidth = 1.6;
+        g.lineCap = 'round';
+        g.setLineDash([4, 6]);
+        g.beginPath();
+        g.moveTo(trail[0].x, trail[0].y);
+        for (var i = 1; i < trail.length; i++) g.lineTo(trail[i].x, trail[i].y);
+        g.stroke();
+        g.restore();
+    }
+
     /* The ball rolls. `spin` is its orientation — a rotation from the
        ball's own frame to the world's, x and y on the green and z up out of
        it — turned every frame about the axis a ball rolling without
@@ -906,6 +922,16 @@
             burst(tx, ty, { count: 14, color: [ink || '#a78bfa', '#ffffff'], speed: 140, life: 0.45, size: 2.2, gravity: 0 });
             addRing(tx, ty, C.TUNNEL_R, { life: 0.4 });
         },
+        // Across a boost pad: cyan-white plasma sparks and a shock ring.
+        boost: function (x, y) {
+            burst(x, y, { count: 16, color: ['#38bdf8', '#bae6fd', '#ffffff'], speed: 210, life: 0.38, size: 2.3, gravity: 0 });
+            addRing(x, y, 22, { life: 0.32 });
+        },
+        // Through a one-way check gate: crisp amber-emerald latch sparks.
+        oneway: function (x, y) {
+            burst(x, y, { count: 10, color: ['#4ade80', '#fde68a', '#ffffff'], speed: 130, life: 0.34, size: 2.1, gravity: 0 });
+            addRing(x, y, 16, { life: 0.28 });
+        },
         // A best on a hole: gold, and upward.
         stars: function (x, y) {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -996,7 +1022,7 @@
             if (course.walls[i].move) L.drawWall(g, course.walls[i], t, theme, v);
         }
         for (i = 0; i < course.bumpers.length; i++) L.drawBumper(g, course.bumpers[i], t, theme, v);
-        if (GOLF.props) GOLF.props.machines(g, course, still ? 0 : clock, t, theme, v);
+        if (GOLF.props) GOLF.props.machines(g, course, still ? 0 : clock, t, theme, v, state.world);
         // After dark, the dark: over the course, under the ball.
         if (AMB) AMB.light(g, course, theme, v, ball, scene.decor, { key: state.sceneKey, res: state.res || 1 });
 
@@ -1008,6 +1034,7 @@
         var pose = poseOf(state.world, dt || 0);
         if (GOLF.props) GOLF.props.skaters(g, state.world, v);
         if (!state.world.sunk) {
+            if (!state.world.moving) drawPrevTrail(g, state.prevTrail);
             drawTrail(g, state.trail, state.ballColor);
             drawBall(g, state.world.ball, spin, state.ballColor, v, pose, course.hole);
         }

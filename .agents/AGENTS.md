@@ -12,6 +12,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 | **[CLAUDE.md](../CLAUDE.md)** | A root pointer to this file, plus how the owner works (phone only: a change is done when it is merged to `master` and pushed). Claude Code loads a root `CLAUDE.md` automatically but does not look in `.agents/`, so without it these rules are only found by someone going to look. |
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
 | **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server, and the `tools/` checks (what they enforce and why). |
+| **[PLAN.md](../PLAN.md)** | Repo-wide cleanup & efficiency backlog (shared `/vendor/`, remaining media optimization, `index.html` split, `run-tests.mjs` scheduling, remaining stale branches). |
 | `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md`, `golf3d/CLAUDE.md`, `viz-poc/CLAUDE.md`, `cargo-packer/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
 | `bil/README.md` | The Swedish car calculator: US→Sweden parameter map, the formulas, which figures are sourced and which are estimates, and what is left to do. |
 | `orbit/README.md` | Pocket Orbit: units, the physics and the autopilot, how the star thresholds were set, and where the Earth texture comes from. |
@@ -36,7 +37,11 @@ Folder-based routing — each major page or app is fully isolated with its own
   `/name-song/` (Sound of Your Name), `/bil/` (Leasa · Hyra · Köpa, the
   Swedish car calculator), `/orbit/` (Pocket Orbit), `/black-hole/` (Pocket
   Black Hole), `/gait/` (Gait Lab) and `/erosion/` (Rainmaker) each own their HTML, logic, assets, and
-  styling — see the doc map above before working in any of them. The last
+  styling — see the doc map above before working in any of them. For both
+  `/golf/` and `/golf3d/`, compatibility with `level-editor.html` is **not
+  required**: keeping editor-built holes playable is nice-to-have when easy,
+  but never let editor parity or round-tripping slow down or restrict new map
+  designs or game mechanics. The last
   eleven keep their rules in DOM-free modules (`js/sim.js`, `js/flight.js`,
   `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`,
   `orbit/`'s `js/sim.js` with its autopilot `js/pilot.js`, `js/geodesic.js`,
@@ -47,7 +52,7 @@ Folder-based routing — each major page or app is fully isolated with its own
   tested, and approved. While a project is under active development, an
   "Under Construction" flip card (`#card-wip`, class `.flip-card`) can go in
   `<main class="grid">` on `index.html` to preview it — its CSS
-  (`#card-wip`, `.flip-card`, `.wip-body`) stays defined in `index.html`
+  (`#card-wip`, `.flip-card`, `.wip-body`) stays defined in `style.css`
   even when unused, so a WIP card can be dropped back in without rebuilding
   the styles.
 

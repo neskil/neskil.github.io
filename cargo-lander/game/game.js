@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.30.0';
+    static VERSION = '0.30.1';
 
     constructor() {
         this.canvas = null;
@@ -48,6 +48,9 @@ class CargoGame {
         };
         if (this.career.hasUsedDrone === undefined) {
             this.career.hasUsedDrone = false;
+        }
+        if (this.career.portrait) {
+            this.career.portrait = this.career.portrait.replace(/\.jpg$/i, '.webp');
         }
         this.highscores = JSON.parse(localStorage.getItem('cargoLanderHighscores')) || {};
 

@@ -2972,8 +2972,8 @@
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Select a pilot profile card below to set your portrait. Your choice comes with an optional callsign suggestion!</p>
             
             <div class="portrait-grid">
-                <div id="p-card-driver1" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver1.jpg', 'Rusty')">
-                    <img class="portrait-card-img" src="assets/portraits/driver1.jpg" alt="Rusty">
+                <div id="p-card-driver1" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver1.webp', 'Rusty')">
+                    <img class="portrait-card-img" src="assets/portraits/driver1.webp" alt="Rusty">
                     <div class="portrait-card-info">
                         <div class="portrait-card-name">Rusty Henderson</div>
                         <div class="portrait-card-vibe">Diesel-Head</div>
@@ -2981,8 +2981,8 @@
                         <div class="portrait-card-stat">✨ +5% Max Fuel</div>
                     </div>
                 </div>
-                <div id="p-card-driver2" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver2.jpg', 'Gabby')">
-                    <img class="portrait-card-img" src="assets/portraits/driver2.jpg" alt="Gabby">
+                <div id="p-card-driver2" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver2.webp', 'Gabby')">
+                    <img class="portrait-card-img" src="assets/portraits/driver2.webp" alt="Gabby">
                     <div class="portrait-card-info">
                         <div class="portrait-card-name">Gear-Head Gabby</div>
                         <div class="portrait-card-vibe">Hyper-Tinkerer</div>
@@ -2990,8 +2990,8 @@
                         <div class="portrait-card-stat">✨ +5% Thrust Power</div>
                     </div>
                 </div>
-                <div id="p-card-driver3" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver3.jpg', 'Mac')">
-                    <img class="portrait-card-img" src="assets/portraits/driver3.jpg" alt="Mac">
+                <div id="p-card-driver3" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver3.webp', 'Mac')">
+                    <img class="portrait-card-img" src="assets/portraits/driver3.webp" alt="Mac">
                     <div class="portrait-card-info">
                         <div class="portrait-card-name">Captain Mac Sterling</div>
                         <div class="portrait-card-vibe">Self-Certified Legend</div>
@@ -2999,8 +2999,9 @@
                         <div class="portrait-card-stat">✨ +5% Hull Integrity</div>
                     </div>
                 </div>
-                <div id="p-card-driver4" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver4.jpg', 'Bo')">
-                    <img class="portrait-card-img" src="assets/portraits/driver4.jpg" alt="Bo">
+                <div id="p-card-driver4" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver4.webp', 'Bo')">
+                    <img class="portrait-card-img" src="assets/portraits/driver4.webp" alt="Bo">
+                    <img class="portrait-card-img" src="assets/portraits/driver4.webp" alt="Bo">
                     <div class="portrait-card-info">
                         <div class="portrait-card-name">Bubblegum Bo</div>
                         <div class="portrait-card-vibe">Open-Mic Cowboy</div>
@@ -3020,60 +3021,60 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.30.0"></script>
-    <script src="levels/levels.js?v=0.30.0"></script>
-    <script src="levels/levelGenerator.js?v=0.30.0"></script>
+    <script src="game/upgrades.js?v=0.30.1"></script>
+    <script src="levels/levels.js?v=0.30.1"></script>
+    <script src="levels/levelGenerator.js?v=0.30.1"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.30.0"></script>
-    <script src="levels/level2.js?v=0.30.0"></script>
-    <script src="levels/level3.js?v=0.30.0"></script>
-    <script src="levels/level4.js?v=0.30.0"></script>
-    <script src="levels/level5.js?v=0.30.0"></script>
-    <script src="levels/level6.js?v=0.30.0"></script>
-    <script src="levels/level7.js?v=0.30.0"></script>
-    <script src="levels/level8.js?v=0.30.0"></script>
-    <script src="levels/level9.js?v=0.30.0"></script>
-    <script src="levels/level10.js?v=0.30.0"></script>
-    <script src="levels/level11.js?v=0.30.0"></script>
-    <script src="levels/level12.js?v=0.30.0"></script>
-    <script src="levels/level13.js?v=0.30.0"></script>
-    <script src="levels/levelTest.js?v=0.30.0"></script>
+    <script src="levels/level1.js?v=0.30.1"></script>
+    <script src="levels/level2.js?v=0.30.1"></script>
+    <script src="levels/level3.js?v=0.30.1"></script>
+    <script src="levels/level4.js?v=0.30.1"></script>
+    <script src="levels/level5.js?v=0.30.1"></script>
+    <script src="levels/level6.js?v=0.30.1"></script>
+    <script src="levels/level7.js?v=0.30.1"></script>
+    <script src="levels/level8.js?v=0.30.1"></script>
+    <script src="levels/level9.js?v=0.30.1"></script>
+    <script src="levels/level10.js?v=0.30.1"></script>
+    <script src="levels/level11.js?v=0.30.1"></script>
+    <script src="levels/level12.js?v=0.30.1"></script>
+    <script src="levels/level13.js?v=0.30.1"></script>
+    <script src="levels/levelTest.js?v=0.30.1"></script>
     <!-- Field descriptors + defaults for level configs. Was editor/tests-only
          until the renderer started reading LEVEL_SCHEMA.facade for terrainDecor
          defaults, so the game now loads it too — keeping one home for defaults
          rather than mirroring them into render/terrain.js. -->
-    <script src="levels/levelSchema.js?v=0.30.0"></script>
-    <script src="levels/collectibleTypes.js?v=0.30.0"></script>
+    <script src="levels/levelSchema.js?v=0.30.1"></script>
+    <script src="levels/collectibleTypes.js?v=0.30.1"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.30.0"></script>
-    <script src="render/shaders.js?v=0.30.0"></script>
-    <script src="physics/physics.js?v=0.30.0"></script>
-    <script src="physics/collision.js?v=0.30.0"></script>
-    <script src="physics/mechanics.js?v=0.30.0"></script>
-    <script src="physics/entities.js?v=0.30.0"></script>
-    <script src="physics/atmosphere.js?v=0.30.0"></script>
-    <script src="game/game.js?v=0.30.0"></script>
-    <script src="game/input.js?v=0.30.0"></script>
-    <script src="game/perf.js?v=0.30.0"></script>
-    <script src="game/menu.js?v=0.30.0"></script>
-    <script src="game/hud.js?v=0.30.0"></script>
-    <script src="game/cargo.js?v=0.30.0"></script>
-    <script src="game/bot.js?v=0.30.0"></script>
-    <script src="render/render.js?v=0.30.0"></script>
-    <script src="render/background.js?v=0.30.0"></script>
-    <script src="render/terrain.js?v=0.30.0"></script>
-    <script src="render/entities.js?v=0.30.0"></script>
-    <script src="render/pads.js?v=0.30.0"></script>
-    <script src="render/lander.js?v=0.30.0"></script>
-    <script src="render/creatures.js?v=0.30.0"></script>
-    <script src="render/decals.js?v=0.30.0"></script>
-    <script src="render/effects.js?v=0.30.0"></script>
-    <script src="render/night.js?v=0.30.0"></script>
-    <script src="render/fog.js?v=0.30.0"></script>
-    <script src="render/ui.js?v=0.30.0"></script>
+    <script src="audio.js?v=0.30.1"></script>
+    <script src="render/shaders.js?v=0.30.1"></script>
+    <script src="physics/physics.js?v=0.30.1"></script>
+    <script src="physics/collision.js?v=0.30.1"></script>
+    <script src="physics/mechanics.js?v=0.30.1"></script>
+    <script src="physics/entities.js?v=0.30.1"></script>
+    <script src="physics/atmosphere.js?v=0.30.1"></script>
+    <script src="game/game.js?v=0.30.1"></script>
+    <script src="game/input.js?v=0.30.1"></script>
+    <script src="game/perf.js?v=0.30.1"></script>
+    <script src="game/menu.js?v=0.30.1"></script>
+    <script src="game/hud.js?v=0.30.1"></script>
+    <script src="game/cargo.js?v=0.30.1"></script>
+    <script src="game/bot.js?v=0.30.1"></script>
+    <script src="render/render.js?v=0.30.1"></script>
+    <script src="render/background.js?v=0.30.1"></script>
+    <script src="render/terrain.js?v=0.30.1"></script>
+    <script src="render/entities.js?v=0.30.1"></script>
+    <script src="render/pads.js?v=0.30.1"></script>
+    <script src="render/lander.js?v=0.30.1"></script>
+    <script src="render/creatures.js?v=0.30.1"></script>
+    <script src="render/decals.js?v=0.30.1"></script>
+    <script src="render/effects.js?v=0.30.1"></script>
+    <script src="render/night.js?v=0.30.1"></script>
+    <script src="render/fog.js?v=0.30.1"></script>
+    <script src="render/ui.js?v=0.30.1"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.30.0"></script>
+    <script src="game/tutorial.js?v=0.30.1"></script>
 
     <script>
         // Start the game!

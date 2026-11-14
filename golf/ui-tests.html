@@ -350,65 +350,90 @@
 
             section('the course picker');
 
+            var courseBtn = $('hole-course-btn');
+            assert('scoreboard shows the active course & biome button',
+                shown(courseBtn) && courseBtn.textContent.indexOf(G.COURSES.filter(function (c) { return c.id === G.COURSE_ID; })[0].name) >= 0,
+                courseBtn && courseBtn.textContent);
+
+            courseBtn.click();
+            assert('tapping the scoreboard course pill opens the picker', $('menu').classList.contains('show'));
+            $('menu-close').click();
+
             $('btn-courses').click();
             assert('the Courses chip opens the picker', $('menu').classList.contains('show'));
+            assert('the overview is shown first and detail is hidden',
+                !$('menu-overview').hidden && $('menu-detail').hidden);
+            assert('the star progress bar renders', /\d+ \/ \d+ ★/.test($('menu-progress-nums').textContent),
+                $('menu-progress-nums').textContent);
+            assert('the featured strip offers Continue, Random Draw and Surprise me',
+                $('menu-featured').querySelectorAll('.mf-card').length === 3);
 
-            var cards = doc().querySelectorAll('#menu-list .course-card');
-            assert('one card per course on the rack', cards.length === G.COURSES.length,
+            var cards = doc().querySelectorAll('#menu-list .world');
+            assert('one world card per course on the rack under All', cards.length === G.COURSES.length,
                 cards.length + ' cards for ' + G.COURSES.length + ' courses');
             note(G.COURSES.map(function (c) { return c.id; }).join(', '));
 
-            var plansOk = true, headsOk = true;
-            for (var i = 0; i < cards.length; i++) {
-                if (cards[i].querySelectorAll('.cc-hole').length !== G.COURSES[i].holes.length) plansOk = false;
-                if (!cards[i].querySelector('.cc-head')) headsOk = false;
-            }
-            assert('every hole of every course has a plan of its own', plansOk);
-            assert('every card is a button in its own right', headsOk);
-
-            var here = doc().querySelector('#menu-list .course-card.playing');
+            var here = doc().querySelector('#menu-list .world.playing');
             assert('the card being played is marked', !!here);
-            assert('…and it is the one the game is on',
-                here && here.querySelector('.cc-head').textContent.indexOf(
-                    G.COURSES.filter(function (c) { return c.id === G.COURSE_ID; })[0].name) === 0);
+            assert('…and it matches the active course',
+                here && here.getAttribute('data-course') === G.COURSE_ID);
 
-            var redraws = doc().querySelectorAll('#menu-list .cc-redraw');
-            assert('only the draw can be re-dealt', redraws.length === 1,
-                redraws.length + ' re-deal buttons');
-            assert('…and it is on the draw’s own card',
-                redraws.length === 1 &&
-                redraws[0].closest('.course-card').querySelector('.cc-head')
-                    .textContent.indexOf('Random Draw') === 0);
+            var redraws = doc().querySelectorAll('#menu .cc-redraw, #md-redraw');
+            assert('re-deal buttons appear only for Random Draw (featured + detail)',
+                redraws.length === 2, redraws.length + ' re-deal buttons');
 
-            var meta = doc().querySelector('#menu-list .course-card .cc-meta').textContent;
-            assert('a card prices itself: holes, par and the record',
-                /\d+ holes/.test(meta) && /par \d+/.test(meta) && /best/.test(meta), meta);
-            var drawMeta = redraws[0].closest('.course-card').querySelector('.cc-meta').textContent;
-            assert('the draw says it holds no record rather than showing an empty one',
-                /not recorded/.test(drawMeta), drawMeta);
+            var firstMeta = cards[0].querySelector('.world-foot').textContent + ' ' + cards[0].querySelector('.world-par').textContent;
+            assert('a card summarises holes, par and stars',
+                /\d+H/.test(firstMeta) && /P\d+/.test(firstMeta) && /★ \d+\/\d+/.test(firstMeta), firstMeta);
+            var drawCard = doc().querySelector('#menu-list .world[data-course="' + G.generator.DRAW_ID + '"]');
+            assert('the draw card shows its seed label rather than a star quota',
+                drawCard && /Seed #/.test(drawCard.textContent), drawCard && drawCard.textContent);
 
-            // The picker prices every card at once, which means reading four
-            // other courses' save keys. None of that may move the pointer the
-            // ball is rolling on.
+            // Filtering by shelf tabs.
+            var tabs = doc().querySelectorAll('#menu-tabs .menu-tab');
+            assert('category shelf tabs are offered', tabs.length >= 4);
+            var tricksTab = doc().querySelector('#menu-tabs .menu-tab[data-tab="tricks"]');
+            tricksTab.click();
+            var trickCards = doc().querySelectorAll('#menu-list .world');
+            assert('Contraptions tab filters the grid cleanly',
+                trickCards.length > 0 && trickCards.length < G.COURSES.length &&
+                Array.prototype.every.call(trickCards, function (el) {
+                    var cid = el.getAttribute('data-course');
+                    return G.COURSES.filter(function (c) { return c.id === cid; })[0].group === 'tricks';
+                }));
+            doc().querySelector('#menu-tabs .menu-tab[data-tab="all"]').click();
+            cards = doc().querySelectorAll('#menu-list .world');
+
             assert('pricing the rack did not move the course being played',
                 G.COURSE_ID === startedOn, G.COURSE_ID + ' was ' + startedOn);
 
             return tick(function () {
-                var first = doc().querySelector('#menu-list .cc-hole .cc-map');
-                var last = cards[cards.length - 1].querySelector('.cc-map');
+                var first = cards[0].querySelector('.world-plan');
+                var last = cards[cards.length - 1].querySelector('.world-plan');
                 return painted(first) && painted(last);
             }).then(function () {
                 section('the hole plans');
 
-                var cells = doc().querySelectorAll('#menu-list .cc-hole');
-                assert('a plan canvas is sized from its laid-out box',
+                assert('the first and last world cards paint their Hole 1 preview',
+                    painted(cards[0].querySelector('.world-plan')) &&
+                    painted(cards[cards.length - 1].querySelector('.world-plan')));
+
+                // Open a course's detail view to inspect all of its holes.
+                var second = G.COURSES[1];
+                G.progress.grant(second.id);
+                cards[1].click();
+                assert('clicking a world card opens its detail view',
+                    $('menu-overview').hidden && !$('menu-detail').hidden &&
+                    $('md-title').textContent === second.name);
+                var cells = doc().querySelectorAll('#md-holes .cc-hole');
+                assert('detail view lays out every hole on the course',
+                    cells.length === second.holes.length, cells.length + ' of ' + second.holes.length);
+                assert('every plan canvas is sized from its laid-out box',
                     cells[0].querySelector('.cc-map').width > 40,
                     'width ' + cells[0].querySelector('.cc-map').width);
                 assert('and something was actually drawn on it',
-                    painted(cells[0].querySelector('.cc-map')));
-                var lastCard = cards[cards.length - 1];
-                assert('the last card’s plans are drawn too, not just the first’s',
-                    painted(lastCard.querySelector('.cc-map')));
+                    painted(cells[0].querySelector('.cc-map')) &&
+                    painted(cells[cells.length - 1].querySelector('.cc-map')));
                 assert('every plan carries its number and its par',
                     cells[0].querySelector('.cc-num').textContent === '1' &&
                     /^\d+$/.test(cells[0].querySelector('.cc-par').textContent));
@@ -424,18 +449,13 @@
                 assert('a hole that is not there draws nothing rather than throwing',
                     G.plan.plan('links', 999, 64, 43, null) === null);
 
+                $('md-back').click();
+                assert('Back returns to the overview grid', !$('menu-overview').hidden && $('menu-detail').hidden);
+
                 section('picking with it');
 
-                // Second course on the rack, third hole: a plan press is a new
-                // round teeing off there, not a resumed one. On a first visit
-                // that card waits for stars, so it is granted the way a link
-                // would grant it, and the picker opened again to show it so.
-                var second = G.COURSES[1];
-                G.progress.grant(second.id);
-                $('menu-close').click();
-                $('btn-courses').click();
-                cards = doc().querySelectorAll('#menu-list .course-card');
-                cards[1].querySelectorAll('.cc-hole')[2].click();
+                doc().querySelector('#menu-list .world[data-course="' + second.id + '"]').click();
+                doc().querySelectorAll('#md-holes .cc-hole')[2].click();
                 assert('pressing a plan takes you to that course', G.COURSE_ID === second.id);
                 assert('…and starts you on that hole',
                     frame().GOLF.game.getState().holeIndex === 2);
@@ -446,10 +466,10 @@
                 assert('choosing shuts the picker', !$('menu').classList.contains('show'));
 
                 $('btn-courses').click();
-                var first = G.COURSES[0];
-                doc().querySelectorAll('#menu-list .course-card')[0]
-                    .querySelector('.cc-head').click();
-                assert('pressing a card head takes you to that course', G.COURSE_ID === first.id);
+                var firstC = G.COURSES[0];
+                doc().querySelector('#menu-list .world[data-course="' + firstC.id + '"]').click();
+                $('md-play').click();
+                assert('pressing Play starts that course', G.COURSE_ID === firstC.id);
                 assert('…from the first tee when there is no round waiting',
                     frame().GOLF.game.getState().holeIndex === 0);
 
@@ -474,37 +494,21 @@
                 })());
                 $('menu-close').click();
 
-                section('folded strips on a phone');
+                section('compact phone picker');
 
                 compact(true);
                 $('btn-courses').click();
-                var open = doc().querySelectorAll('#menu-list .course-card.expanded');
-                assert('only the card you are standing on starts open', open.length === 1,
-                    open.length + ' cards open');
-                assert('…and it is the one being played', open[0].classList.contains('playing'));
-                var shut = doc().querySelector('#menu-list .course-card:not(.expanded)');
-                assert('a folded strip lays nothing out',
-                    shut.querySelector('.cc-holes').clientHeight === 0);
-                assert('its head is still a one-tap start', shown(shut.querySelector('.cc-head')));
-
-                shut.querySelector('.cc-toggle').click();
-                assert('the toggle unfolds it', shut.classList.contains('expanded'));
-                assert('…and says so', shut.querySelector('.cc-toggle')
-                    .getAttribute('aria-expanded') === 'true');
-
-                return tick(function () {
-                    return painted(shut.querySelector('.cc-map'));
-                }).then(function () {
-                    /* The second bug: a plan drawn while its strip was folded
-                       is drawn at a zero-width box and cached there. */
-                    assert('the plans in an unfolded strip are drawn at full size',
-                        painted(shut.querySelector('.cc-map')),
-                        'width ' + shut.querySelector('.cc-map').width);
-                    $('menu-close').click();
-                    compact(false);
-                    return more(G);
-                }).then(done);
-            });
+                var phoneCards = doc().querySelectorAll('#menu-list .world');
+                assert('the phone overview lists all course cards in a compact grid',
+                    phoneCards.length === G.COURSES.length);
+                phoneCards[0].click();
+                var phoneHoles = doc().querySelectorAll('#md-holes .cc-hole');
+                assert('opening detail on a phone reveals full-size hole plans',
+                    phoneHoles.length > 0 && phoneHoles[0].clientHeight > 0 && painted(phoneHoles[0].querySelector('.cc-map')));
+                $('menu-close').click();
+                compact(false);
+                return more(G);
+            }).then(done);
         }
 
         /* ── what came with the stars ───────────────────────────────────── */
@@ -515,20 +519,24 @@
             section('locks');
 
             $('btn-courses').click();
-            var cards = doc().querySelectorAll('#menu-list .course-card');
-            var locked = doc().querySelectorAll('#menu-list .course-card.locked');
+            var cards = doc().querySelectorAll('#menu-list .world');
+            var locked = doc().querySelectorAll('#menu-list .world.locked');
             assert('on a first visit the later cards are locked', locked.length >= 3, locked.length + ' locked');
-            assert('…and the starter at the top is not', !cards[0].classList.contains('locked') && cards[0].querySelector('.cc-hole').getAttribute('data-course') === 'short');
+            assert('…and the starter at the top is not', !cards[0].classList.contains('locked') && cards[0].getAttribute('data-course') === 'short');
             var lk = locked[0];
-            var lockedId = lk.querySelector('.cc-hole').getAttribute('data-course');
-            assert('a locked card says what it costs', /opens at \d+ ★, \d+ to go/.test(lk.querySelector('.cc-meta').textContent),
-                lk.querySelector('.cc-meta').textContent);
-            assert('a locked card still shows its holes', lk.querySelectorAll('.cc-hole').length > 0);
-            assert('…but none of them can be pressed', Array.prototype.every.call(lk.querySelectorAll('.cc-hole'), function (c) { return c.disabled; }));
+            var lockedId = lk.getAttribute('data-course');
+            assert('a locked card says what it costs', /\d+ ★ away/.test(lk.querySelector('.world-best').textContent),
+                lk.querySelector('.world-best').textContent);
+            lk.click();
+            var mdCells = doc().querySelectorAll('#md-holes .cc-hole');
+            assert('a locked course detail still previews all its holes', mdCells.length > 0);
+            assert('…and locks both its Play CTA and every hole plan',
+                $('md-play').disabled && Array.prototype.every.call(mdCells, function (c) { return c.disabled; }));
             var was = G.COURSE_ID;
-            lk.querySelector('.cc-head').click();
-            assert('pressing a locked head does not take you there', G.COURSE_ID === was && $('menu').classList.contains('show'));
-            assert('…it says why instead', /opens at/.test($('toast').textContent), $('toast').textContent);
+            mdCells[0].click();
+            assert('pressing a locked hole plan does not take you there', G.COURSE_ID === was && $('menu').classList.contains('show'));
+            $('md-back').click();
+
             var dealt = {};
             for (var i = 0; i < 60; i++) dealt[G.game.randomCourseId()] = true;
             assert('the die only deals what is open', Object.keys(dealt).every(function (id) {
@@ -536,15 +544,21 @@
             }), Object.keys(dealt).join(', '));
             assert('the way past the ladder is offered', !$('menu-unlock').hidden);
             $('menu-unlock').click();
-            assert('one press only arms it', doc().querySelectorAll('#menu-list .course-card.locked').length === locked.length &&
+            assert('one press only arms it', doc().querySelectorAll('#menu-list .world.locked').length === locked.length &&
                 $('menu-unlock').classList.contains('armed'));
             $('menu-unlock').click();
-            assert('the second opens every course', doc().querySelectorAll('#menu-list .course-card.locked').length === 0);
+            assert('the second opens every course', doc().querySelectorAll('#menu-list .world.locked').length === 0);
             assert('…and the offer goes away', $('menu-unlock').hidden);
             $('menu-close').click();
             assert('a course that was locked can now be played', G.game.playCourse(lockedId, null) && G.COURSE_ID === lockedId);
 
             section('stars');
+
+            G.game.playCourse('arcade', null, 0);
+            var arcLeg = $('legend');
+            assert('playing a hole highlights its active hazards in the legend',
+                arcLeg.classList.contains('has-active') &&
+                !!arcLeg.querySelector('span[data-hazard="boosts"].active'));
 
             G.game.playCourse('short', null, 0);
             var st = G.game.getState();
@@ -554,13 +568,28 @@
                 $('banner-stars').textContent);
             assert('…and three on the scoreboard', $('hole-stars').textContent === '★★★');
             assert('the hole best is written down at once', G.scoring.load('short').holes[0] === G.COURSE[0].par - 1);
+            assert('the banner offers Replay hole for solo rounds', !$('banner-replay').hidden);
+            $('banner-replay').click();
+            assert('pressing Replay hole restarts on the same hole with zero strokes',
+                G.COURSE_ID === 'short' && G.game.getState().holeIndex === 0 && G.game.getState().strokes === 0 &&
+                !$('banner').classList.contains('show'));
+
+            st = G.game.getState();
+            st.strokes = G.COURSE[0].par - 1;
+            G.game.holeComplete(false);
             G.game.advanceHole();
             $('btn-courses').click();
-            var shortCard = doc().querySelector('#menu-list .cc-hole[data-course="short"]').closest('.course-card');
-            assert('the plan carries the stars it gave', shortCard.querySelector('.cc-stars').textContent === '★★★',
-                shortCard.querySelector('.cc-stars').textContent);
-            assert('the card head counts them', /★ 3\/18/.test(shortCard.querySelector('.cc-meta').textContent),
-                shortCard.querySelector('.cc-meta').textContent);
+            doc().querySelector('#menu-list .world[data-course="short"]').click();
+            assert('the plan in detail carries the stars it gave',
+                doc().querySelector('#md-holes .cc-hole[data-hole="0"] .cc-stars').textContent === '★★★',
+                doc().querySelector('#md-holes .cc-hole[data-hole="0"] .cc-stars').textContent);
+            assert('the detail stats summarize earned stars',
+                /3 \/ 18 ★/.test($('md-stats').textContent), $('md-stats').textContent);
+            $('md-back').click();
+            var shortCard = doc().querySelector('#menu-list .world[data-course="short"]');
+            assert('the overview world card counts the earned stars',
+                /★ 3\/18/.test(shortCard.querySelector('.world-stars').textContent),
+                shortCard.querySelector('.world-stars').textContent);
             $('menu-close').click();
             st = G.game.getState();
             st.strokes = G.scoring.strokeLimit(G.COURSE[1].par);

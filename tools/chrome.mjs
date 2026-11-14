@@ -56,6 +56,7 @@ const BASE_FLAGS = [
     '--use-angle=swiftshader',
     '--hide-scrollbars',
     '--mute-audio',
+    '--autoplay-policy=no-user-gesture-required',
     '--no-first-run',
     '--disable-extensions',
     // Keep the browser off the network except for the page under test. Chrome

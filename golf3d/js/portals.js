@@ -94,7 +94,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8}], "mushroom": ["spore-rain", {"u": 0.9, "scale": 1.8}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "scale": 1.6, "turn": 0.65, "ground": false, "drop": 3.6}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "scale": 1.6, "turn": 0.65, "ground": false, "drop": 3.6}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id;
         var q = PLACES[w.id];
@@ -805,43 +805,33 @@
         })
     });
 
-    /* The moon, in dry dock, and a sixth of a g, played over a canal in the
-       harbour town below it. From the tee box to a green across the street,
-       with a deck half way for the faint of heart. At this weight the
-       flight, the bounce and the roll are all six times as long as at home,
-       and the cup is not: the whole hole is how little to hit it.
+    /* The moon, in dry dock, over a canal in the harbour town below it, at
+       the game's own weight. A pitch across the water from the tee box: land
+       it on the deck short of the green and it runs on to the cup, land it
+       in the water and it is gone, and the low wall at the back stops only
+       the gentle ones.
 
-       Two ways. The pitch straight at the flag holds a person's ball about
-       one time in three (the green is a shallow dish with a wall at the
-       back, and short is the canal); from dead on line at the right weight
-       it drops a few times in a hundred. Or a half pitch on to the deck,
-       which holds most of them, and a chip from there that holds nearly
-       all and drops one in ten. The deck is long down the line rather than
-       round, because at this weight a person misses by length, not by line:
-       nine units of it hold a half pitch that is a tenth too much or too
-       little, and it is felt like the green, not turf, because a fairway
-       makes the game read the hole as the long game (its metres, its bag).
-
-       Until v1.167.1 the deck half way was wood — the game's slick surface
-       — and held nothing at all (a ball landing on it skated off), and the
-       green was walled on three sides and held two thirds of tee shots:
-       the only way across was the bold one, and it was the safe one too. */
+       Until v1.168.5 it was played at a sixth of a g, and the owner: "no
+       fun", because "you don't know what to expect as a user if the rules
+       for the swing you learn suddenly change". Gravity that is not the
+       game's belongs on the few holes built round it (the gravity course),
+       not on a tour hole you meet once. */
     add({
         id: 'drydock', title: 'Dry Dock', world: 'The Moon in Dry Dock', kind: 'alien', tier: 3,
-        caption: 'A sixth of a g, over a canal: one pitch across to the green, or two by the deck half way.',
+        caption: 'The moon in dry dock overhead, and a pitch across the canal below it.',
         theme: 'drydock',
         hole: world({
-            name: 'Dry Dock', par: 3, bag: LOFT, gravity: 0.17,
-            blurb: 'A sixth of a g: everything goes six times as far as your hands expect. Straight across to the green, or a half pitch to the deck and a chip from there.',
+            name: 'Dry Dock', par: 3, bag: LOFT,
+            blurb: 'Pitch across the canal. Land it on the deck and let it run on to the flag; short is wet.',
             pads: [
                 pad(0, 0, 5, 5, 0, 'wood'),
-                rounded(2.5, 13, 4.5, 9, 0, 'green')
-            ].concat(A.dish(2.5, 25.5, 5, 0.65, 0.48, 0)),
+                rounded(2.5, 10.5, 4.5, 5, 0, 'green')
+            ].concat(A.dish(2.5, 15.5, 5, 0.8, 0.12, 0)),
             extra: [
                 kerb(0, 0, 5, 0), kerb(0, 0, 0, 5), kerb(5, 0, 5, 5),
-                kerb(0, 28, 5, 28, 0, 1.8)
+                kerb(0, 18, 5, 18, 0, 0.6)
             ],
-            tee: { x: 2.5, z: 2 }, cup: { x: 2.5, z: 25.5 }
+            tee: { x: 2.5, z: 2 }, cup: { x: 2.5, z: 15.5 }
         })
     });
 
