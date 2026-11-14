@@ -42,13 +42,13 @@ const CargoPhysicsEntitiesMixin = {
 
         // Apply portrait stat boosts
         if (portrait) {
-            if (portrait.includes('driver1.jpg')) { // Rusty: +5% Max Fuel
+            if (portrait.includes('driver1')) { // Rusty: +5% Max Fuel
                 maxFuel *= 1.05;
-            } else if (portrait.includes('driver2.jpg')) { // Gabby: +5% Thrust
+            } else if (portrait.includes('driver2')) { // Gabby: +5% Thrust
                 thrustMult *= 1.05;
-            } else if (portrait.includes('driver3.jpg')) { // Mac: +5% Hull Integrity
+            } else if (portrait.includes('driver3')) { // Mac: +5% Hull Integrity
                 maxIntegrity *= 1.05;
-            } else if (portrait.includes('driver4.jpg')) { // Bo: +5% Top Speed (drag reduction handled in physics.js)
+            } else if (portrait.includes('driver4')) { // Bo: +5% Top Speed (drag reduction handled in physics.js)
                 // Drag reduction is handled in physics.js
             }
         }
