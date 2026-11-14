@@ -1,4 +1,3 @@
-<script>
 const canvas = document.getElementById('networkCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -1701,8 +1700,6 @@ function showToast(msg) {
     document.addEventListener('shelf:change', () => { if (focusActive) refocus(); });
     syncFocusMode();
 })();
-    </script>
-    <script>
 /* ── Idle delivery ───────────────────────────────────────────────────
    Leave the page alone for a while and a parcel drops onto one of the
    cards in view; a Cargo Lander comes down, lowers its chain, winches the
@@ -1920,8 +1917,6 @@ function showToast(msg) {
 
     arm();
 })();
-    </script>
-    <script>
 /* ── Shelves ─────────────────────────────────────────────────────────
    Each shelf heading folds its grid. What is folded is remembered per
    browser, so someone who only ever comes for the tools can put the
@@ -1996,8 +1991,6 @@ function showToast(msg) {
         });
     });
 })();
-    </script>
-    <script>
 /* ── Surprise me ──────────────────────────────────────────────────────
    The dice chip in the jump bar opens something you have not opened yet.
    "Opened" is remembered per browser: every launch from this page is
@@ -2075,4 +2068,3 @@ function showToast(msg) {
     button.hidden = places.length === 0;
     refresh();
 })();
-    </script>
