@@ -286,6 +286,18 @@ async function main() {
         }
     }
 
+    // ── No leftover HTML wrapper tags in extracted .js / .css files ──────
+    // Moving an inline <script>/<style> block out to its own file but keeping
+    // the tags makes the browser reject the whole file — the home page shipped
+    // with no JS at all that way, and every suite stayed green.
+    for (const f of files) {
+        const tag = f.endsWith('.js') ? 'script' : f.endsWith('.css') ? 'style' : null;
+        if (!tag || f.startsWith('vendor/') || f.includes('/vendor/')) continue;
+        const text = await readFile(join(ROOT, f), 'utf8');
+        const m = text.match(new RegExp(`^\\s*</?${tag}\\b[^>]*>\\s*$`, 'im'));
+        if (m) fail(f, `stray ${m[0].trim()} line — a ${tag} file cannot contain its own HTML tags`);
+    }
+
     // ── Report ───────────────────────────────────────────────────────────
     if (!problems.length) {
         console.log(`OK — ${htmlFiles.length} pages, ${sitemapUrls.length} sitemap entries, no problems`);
