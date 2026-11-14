@@ -1,0 +1,3038 @@
+:root {
+    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    --card-bg: rgba(30, 41, 80, 0.55);
+    --card-hover-bg: rgba(40, 55, 105, 0.72);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: #6366f1;
+    --accent-hover: #4f46e5;
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@property --bg-color-1 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #0f172a;
+}
+
+@property --bg-color-2 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #1e1b4b;
+}
+
+/* The accent hue each card's theme pulls the background towards. Registered
+   so it interpolates: the tints below are derived from it, so one animated
+   number swings every variant's palette at once. Keep in sync with the
+   themeHues map in the canvas script. */
+@property --hue {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 232;
+}
+
+html {
+    overflow-x: hidden;
+    --bg-color-1: #0f172a;
+    --bg-color-2: #1e1b4b;
+    --hue: 232;
+    background-color: #0f172a;
+    background-image: linear-gradient(135deg, var(--bg-color-1) 0%, var(--bg-color-2) 100%);
+    background-attachment: fixed;
+    transition: --bg-color-1 0.8s ease-in-out, --bg-color-2 0.8s ease-in-out, --hue 0.8s ease-in-out;
+}
+
+/* ── The three palettes ─────────────────────────────────────────────
+   A background variant is a colour, not a structure: the ruled grid is on
+   whatever the page is wearing (see #bg-grid). So switching one swings
+   --hue and the two base colours, and everything derived from them
+   follows — the drifting lights, Dawn's sweep, and the grid's own ink.
+   All three are registered @property values carrying the 0.8s transition
+   on html above, so a switch is a slow colour turn rather than a cut.
+
+   These sit below the base html rule and above the card themes on
+   purpose. An attribute selector outranks the bare `html`, and the card
+   themes match at the same specificity further down the sheet, so
+   hovering a card still pulls the palette to that card's colour and
+   releasing it falls back to whichever variant is showing. */
+html[data-bg="blueprint"] {
+    --bg-color-1: #0f172a;
+    --bg-color-2: #1e1b4b;
+    --hue: 232;
+    --lights: 0.55;
+}
+
+html[data-bg="aurora"] {
+    --bg-color-1: #06171c;
+    --bg-color-2: #0c2438;
+    --hue: 168;
+    --lights: 1;
+}
+
+html[data-bg="dawn"] {
+    --bg-color-1: #16101f;
+    --bg-color-2: #2b1330;
+    --hue: 340;
+    --lights: 0.5;
+}
+
+html[data-theme="card-supply-chain"] {
+    --bg-color-1: #15110a;
+    --bg-color-2: #20170c;
+    --hue: 45;
+}
+
+html[data-theme="card-cargo-lander"] {
+    --bg-color-1: #0e1428;
+    --bg-color-2: #1a1642;
+    --hue: 245;
+}
+
+html[data-theme="card-converter"] {
+    --bg-color-1: #091a24;
+    --bg-color-2: #0f2634;
+    --hue: 190;
+}
+
+html[data-theme="card-about"] {
+    --bg-color-1: #1e0d16;
+    --bg-color-2: #2e1220;
+    --hue: 345;
+}
+
+html[data-theme="card-car"] {
+    --bg-color-1: #0b1a1a;
+    --bg-color-2: #102a2c;
+    --hue: 160;
+}
+
+html[data-theme="card-golf-hub"] {
+    --bg-color-1: #08190f;
+    --bg-color-2: #102c1b;
+    --hue: 140;
+}
+
+html[data-theme="card-cv"] {
+    --bg-color-1: #0f1724;
+    --bg-color-2: #1a2332;
+    --hue: 215;
+}
+
+html[data-theme="card-math"] {
+    --bg-color-1: #160e24;
+    --bg-color-2: #241436;
+    --hue: 270;
+}
+
+html[data-theme="card-math-game"] {
+    --bg-color-1: #1c130d;
+    --bg-color-2: #2c1a0e;
+    --hue: 25;
+}
+
+html[data-theme="card-cargo-packer"] {
+    --bg-color-1: #180d08;
+    --bg-color-2: #24120a;
+    --hue: 28;
+}
+
+html[data-theme="card-3d-poc"] {
+    --bg-color-1: #091a26;
+    --bg-color-2: #0f283a;
+    --hue: 199;
+}
+
+html[data-theme="card-viz"] {
+    --bg-color-1: #081824;
+    --bg-color-2: #0d2436;
+    --hue: 200;
+}
+
+html[data-theme="card-sand"] {
+    --bg-color-1: #17130b;
+    --bg-color-2: #241c0e;
+    --hue: 40;
+}
+
+html[data-theme="card-terrarium"] {
+    --bg-color-1: #0a1718;
+    --bg-color-2: #0f2526;
+    --hue: 170;
+}
+
+html[data-theme="card-elevator"] {
+    --bg-color-1: #15120a;
+    --bg-color-2: #221b0d;
+    --hue: 38;
+}
+
+html[data-theme="card-paper-plane"] {
+    --bg-color-1: #14140c;
+    --bg-color-2: #212011;
+    --hue: 52;
+}
+
+html[data-theme="card-orbit"] {
+    --bg-color-1: #14100e;
+    --bg-color-2: #211714;
+    --hue: 8;
+}
+
+html[data-theme="card-fika"] {
+    --bg-color-1: #171009;
+    --bg-color-2: #24180e;
+    --hue: 30;
+}
+
+html[data-theme="card-bil"] {
+    --bg-color-1: #08162a;
+    --bg-color-2: #0c2440;
+    --hue: 205;
+}
+
+html[data-theme="card-black-hole"] {
+    --bg-color-1: #0b0906;
+    --bg-color-2: #1c1408;
+    --hue: 40;
+}
+
+html[data-theme="card-gait"] {
+    --bg-color-1: #08161a;
+    --bg-color-2: #0c2622;
+    --hue: 158;
+}
+
+html[data-theme="card-erosion"] {
+    --bg-color-1: #081824;
+    --bg-color-2: #0c2a3c;
+    --hue: 199;
+}
+
+html[data-theme="card-name-song"] {
+    --bg-color-1: #120c1e;
+    --bg-color-2: #1d1230;
+    --hue: 275;
+}
+
+/* ── Background variants ──────────────────────────────────────────────
+   The 135° ramp above stays as the floor; each variant is one fixed layer
+   that cross-fades in over it, so switching costs an opacity change and
+   nothing reflows.
+
+   Every accent field is mixed INTO the current theme colours rather than
+   painted over them. That matters because the card themes are near-black:
+   hovering Supply Chain drops the base to #15110a, and a raw
+   hsl(45 60% 25%) field would blaze on top of it. color-mix keeps each
+   field a nudge away from whatever the base currently is.
+
+   A variant is a palette (above) plus one layer for its character — a
+   wash, a vignette, a sweep. The drifting lights, the ruled grid and the
+   grain sit outside all of that and show over every one of them, which is
+   what lets the colours rotate without the page appearing to rebuild
+   itself. A new variant is one palette rule, one layer here and one entry
+   in BG_VARIANTS. */
+html {
+    --tint-a: color-mix(in oklab, hsl(var(--hue) 70% 45%) 26%, var(--bg-color-1));
+    --tint-b: color-mix(in oklab, hsl(calc(var(--hue) + 55) 60% 45%) 22%, var(--bg-color-2));
+    --tint-c: color-mix(in oklab, hsl(calc(var(--hue) - 45) 60% 42%) 22%, var(--bg-color-2));
+    --tint-top: color-mix(in oklab, hsl(var(--hue) 65% 50%) 24%, var(--bg-color-1));
+    /* How strongly the moving lights read in the current variant */
+    --lights: 1;
+}
+
+.bg-variant {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    opacity: 0;
+    /* Matches the 0.8s on html's --bg-color-*/--hue above. It used to be
+       1.4s, which meant a palette change arrived in two stages: the
+       colours landed, then half a second later the vignette or the sweep
+       caught up behind them. */
+    transition: opacity 0.8s ease-in-out;
+}
+
+html[data-bg="aurora"] [data-bg-layer="aurora"],
+html[data-bg="blueprint"] [data-bg-layer="blueprint"],
+html[data-bg="dawn"] [data-bg-layer="dawn"] {
+    opacity: 1;
+}
+
+/* ── the lights ──────────────────────────────────────────────────────
+   Three blurred fields on minute-long loops, under every variant. They
+   are the reason the background is never quite the same twice; the
+   variant layers on top only decide how much of them shows through.
+   transform only, so the compositor owns the animation. */
+#bg-lights {
+    opacity: var(--lights);
+    overflow: hidden;
+    transition: opacity 0.8s ease-in-out;
+}
+
+.bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    will-change: transform;
+}
+
+.bg-blob-a {
+    width: 60vw;
+    height: 60vw;
+    top: -18vw;
+    left: -12vw;
+    background: var(--tint-a);
+    animation: bg-drift-a 62s ease-in-out infinite alternate;
+}
+
+.bg-blob-b {
+    width: 50vw;
+    height: 50vw;
+    top: 10vh;
+    right: -14vw;
+    background: var(--tint-b);
+    animation: bg-drift-b 78s ease-in-out infinite alternate;
+}
+
+.bg-blob-c {
+    width: 70vw;
+    height: 55vw;
+    bottom: -22vw;
+    left: 20vw;
+    background: var(--tint-c);
+    animation: bg-drift-c 70s ease-in-out infinite alternate;
+}
+
+@keyframes bg-drift-a {
+    to { transform: translate(14vw, 10vh) scale(1.18); }
+}
+
+@keyframes bg-drift-b {
+    to { transform: translate(-16vw, 14vh) scale(0.86); }
+}
+
+@keyframes bg-drift-c {
+    to { transform: translate(10vw, -12vh) scale(1.12); }
+}
+
+/* ── 1. Aurora — the lights, focused by a vignette ── */
+[data-bg-layer="aurora"] {
+    background: radial-gradient(115% 100% at 50% 40%, transparent 42%, rgba(2, 4, 12, 0.78) 100%);
+}
+
+/* ── 2. Blueprint — the house palette. Cool indigo, lights turned down,
+      and a wash that deepens towards the bottom so the grid over it reads
+      as a plane lit from above rather than a flat pattern ── */
+[data-bg-layer="blueprint"] {
+    background: linear-gradient(180deg, rgba(2, 4, 12, 0) 28%, rgba(2, 4, 12, 0.5) 100%);
+}
+
+/* ── 3. Dawn — a slow sweep rising from below the fold. The gradient is
+      centred past the bottom edge and the whole disc turns once every
+      four minutes, so the viewport only ever sees a moving slice of it.
+      Deliberately washed out: two tints and a lot of base. ── */
+[data-bg-layer="dawn"] {
+    overflow: hidden;
+    /* The sweep is opaque, so it goes under the lights rather than over
+       them — everything else in the stack paints on top of them. */
+    z-index: -3;
+}
+
+.bg-sweep {
+    /* Centred a little below the bottom edge and just big enough to cover
+       the viewport from there — a bigger disc would only cost texture
+       memory, and this one is already thousands of pixels across. */
+    position: absolute;
+    top: 115%;
+    left: 50%;
+    width: 320vh;
+    height: 320vh;
+    margin: -160vh 0 0 -160vh;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+            color-mix(in oklab, hsl(calc(var(--hue) - 35) 55% 45%) 14%, var(--bg-color-1)) 0deg,
+            color-mix(in oklab, hsl(var(--hue) 60% 48%) 16%, var(--bg-color-2)) 90deg,
+            color-mix(in oklab, hsl(calc(var(--hue) + 45) 45% 45%) 12%, var(--bg-color-1)) 190deg,
+            color-mix(in oklab, hsl(calc(var(--hue) - 35) 55% 45%) 14%, var(--bg-color-1)) 360deg);
+    transform-origin: 50% 50%;
+    animation: bg-sweep-turn 240s linear infinite;
+}
+
+@keyframes bg-sweep-turn {
+    to { transform: rotate(360deg); }
+}
+
+/* The sweep belongs to Dawn, but it was turning under all three palettes:
+   the layer it lives on is `opacity: 0` on Blueprint and Aurora, and an
+   opacity of nothing still leaves a running compositor animation on a
+   2661x2661 conic gradient — 7.1 megapixels turning forever behind a page
+   that never shows it, on two loads out of every three.
+
+   Paused rather than removed, and keyed off the same attribute the layer's
+   opacity is: switching to Dawn from the vault picks the rotation back up
+   where it left off, which for a disc turning once every four minutes is
+   indistinguishable from having run the whole time. */
+html:not([data-bg="dawn"]) .bg-sweep {
+    animation-play-state: paused;
+}
+
+/* ── The ruled plane ──
+   Always on, over whichever palette is showing — the one piece of the
+   background that does not rotate, and the reason a colour change reads as
+   the light moving rather than the page being swapped out. The ink is
+   hsl(var(--hue) …), so the grid turns with the palette while the lines
+   themselves stay exactly where they were. Masked so it fades out before
+   it reaches the edges. */
+#bg-grid {
+    opacity: 1;
+    background:
+        repeating-linear-gradient(0deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px),
+        repeating-linear-gradient(90deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px);
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+    mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+}
+
+/* Grain — texture, and it hides the banding dark gradients get on 8-bit
+   panels. Always on, over whichever variant is showing. */
+#bg-grain {
+    opacity: 1;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+/* Touch as well as narrow: an iPad is too wide for the phone rules but has
+   a phone's GPU, and its blobs are 60vw of a much wider screen. */
+@media (max-width: 600px), (hover: none), (pointer: coarse) {
+    /* Big blurs are the expensive part on a phone — shrink the radius */
+    .bg-blob {
+        filter: blur(60px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bg-blob,
+    .bg-sweep {
+        animation: none;
+    }
+}
+
+body {
+    background: transparent;
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+}
+
+#networkCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    pointer-events: none;
+}
+
+header {
+    text-align: center;
+    margin-top: auto;
+    margin-bottom: 3rem;
+    animation: fadeInDown 1s ease-out;
+    position: relative;
+}
+
+h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    margin-bottom: 0.5rem;
+    /* The glyphs are transparent and the gradient shows through them, so the
+       title exists only as long as that background paints. With nothing behind
+       it, a dropped paint doesn't dim the title — it deletes it, which is what
+       was happening during fast scrolling on Android: the compositor, already
+       behind, skipped the layer and the header went blank while still taking up
+       its space.
+
+       background-clip applies to the background *colour* as well, so a solid
+       colour underneath is clipped to the same glyphs and acts as a free
+       fallback: invisible whenever the gradient paints, and the title in near
+       white whenever it doesn't. Sampled from the middle of the ramp, which is
+       where the centred text sits. */
+    background-color: #e9eef4;
+    background-image: linear-gradient(to right, #ffffff, #cbd5e1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+p.subtitle {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    opacity: 0.75;
+    /* A line this long would otherwise run the full width of a desktop
+       window; hold it to a readable measure and let it wrap. */
+    max-width: 40rem;
+    margin-inline: auto;
+}
+
+/* auto-fill rather than auto-fit: each shelf is its own grid now, and
+   auto-fit would stretch a two-card shelf to half-page cards beside a
+   shelf of thirds. auto-fill keeps one column width down the page. */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 2rem;
+    width: 100%;
+    animation: fadeInUp 1s ease-out 0.2s both;
+}
+
+/* ── Shelves ──────────────────────────────────────────────────────────
+   The cards are grouped into shelves — games, labs, tools, about — each
+   a heading that folds its grid away. The fold is a 1fr -> 0fr grid row,
+   so it animates to the content's real height without anyone measuring
+   it. The clip only goes on while folding or folded: an always-on
+   overflow:hidden would shear off the cards' tilt lift and shadows. */
+.shelves {
+    width: 100%;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    gap: 2.4rem;
+}
+
+.shelf-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: -1.4rem 0 2.4rem;
+    animation: fadeInDown 1s ease-out;
+    position: relative;
+    z-index: 1;
+}
+
+.shelf-chip {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+/* The one chip that is a button: it sends you somewhere you have not been. */
+.shelf-chip-random {
+    cursor: pointer;
+    line-height: inherit;
+    color: #fde68a;
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.35);
+}
+
+.shelf-chip-random:hover,
+.shelf-chip-random:focus-visible {
+    color: #fef3c7;
+    background: rgba(251, 191, 36, 0.2);
+    border-color: rgba(251, 191, 36, 0.6);
+}
+
+.random-count {
+    margin-left: 0.45rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    background: rgba(251, 191, 36, 0.22);
+}
+
+.random-count:empty {
+    display: none;
+}
+
+.shelf-chip:hover,
+.shelf-chip:focus-visible {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.shelf {
+    position: relative;
+    z-index: 1;
+    scroll-margin-top: 1.2rem;
+}
+
+.shelf-heading {
+    margin: 0 0 1.1rem;
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.shelf-head {
+    all: unset;
+    box-sizing: border-box;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.35rem 0.25rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: border-color 0.25s ease;
+}
+
+.shelf-head:hover {
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.shelf-head:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+.shelf-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+    width: 2.3rem;
+    height: 2.3rem;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex: none;
+}
+
+.shelf-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.shelf-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.shelf-blurb {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.shelf-count {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 1.8rem;
+    padding: 0.15rem 0.5rem;
+    text-align: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    flex: none;
+}
+
+.shelf-chevron {
+    width: 1.3rem;
+    height: 1.3rem;
+    flex: none;
+    fill: none;
+    stroke: var(--text-secondary);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.35s ease;
+}
+
+.shelf.is-collapsed .shelf-chevron {
+    transform: rotate(-90deg);
+}
+
+.shelf-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+}
+
+.shelf.is-collapsed .shelf-body {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+.shelf-clip {
+    min-height: 0;
+}
+
+.shelf.is-collapsed .shelf-clip,
+.shelf.is-folding .shelf-clip {
+    overflow: hidden;
+}
+
+/* Folded means gone: no tab stops into it, and once the fold has
+   finished nothing in it paints. */
+.shelf.is-collapsed:not(.is-folding) .shelf-clip {
+    visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shelf-body,
+    .shelf-chevron {
+        transition: none;
+    }
+}
+
+/* ── The six tilt variables, declared up front ────────────────────────
+   An unregistered custom property is an inherited string: setting one on
+   a card marks the card *and every element inside it* for style recalc,
+   and re-parses the value from text each time. The tilt loop writes these
+   every frame, so on a phone that was ~100 elements of recalc per frame
+   just to move a card a fraction of a degree.
+
+   Registering them fixes both halves. They become typed, so the engine
+   validates once and keeps a number rather than a string; and the three
+   that drive nothing but .card's own transform are marked inherits:false,
+   which confines their invalidation to the card itself.
+
+   --mx/--my/--mag must keep inheriting: the glare and holo layers are
+   pseudo-elements on .card and on .card-face, and .card-face is a child
+   of .flip-card, so the values have to reach down to it. Typing them
+   still buys the cheaper parse.
+
+   Values are unchanged — this is purely how the engine stores them. */
+@property --rx {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@property --ry {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@property --ty {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+/* The mobile focus scale, and the same reasoning as --rx/--ry/--ty: it
+   feeds nothing but .card's own transform, so it stays out of the
+   inheritance chain and the invalidation stops at the card. Registering
+   it is also what makes it animatable at all — an unregistered custom
+   property is a string, and a string interpolates by snapping. */
+@property --focus-scale {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 1;
+}
+
+@property --mx {
+    syntax: '<percentage>';
+    inherits: true;
+    initial-value: 50%;
+}
+
+@property --my {
+    syntax: '<percentage>';
+    inherits: true;
+    initial-value: 50%;
+}
+
+@property --mag {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 0;
+}
+
+.card {
+    --accent-rgb: 99, 102, 241;
+    --rx: 0deg;
+    --ry: 0deg;
+    --ty: 0px;
+    --mx: 50%;
+    --my: 50%;
+    --mag: 0;
+    --focus-scale: 1;
+    /* Stacked flat layers underneath give the card a slight physical edge/thickness. */
+    --edge-shadow:
+        0 1px 0 rgba(4, 6, 16, 0.5),
+        0 2px 0 rgba(4, 6, 16, 0.38),
+        0 3px 0 rgba(4, 6, 16, 0.26);
+    background: var(--card-bg-gradient, var(--card-bg));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border, var(--glass-border));
+    border-radius: 24px;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    height: 100%;
+    transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--focus-scale));
+    transition: border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.42s ease,
+        --focus-scale 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.card-bg-hover {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--card-hover-gradient, var(--card-hover-bg));
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.card:hover .card-bg-hover {
+    opacity: 1;
+}
+
+/* Glare that tracks the pointer/tilt, tinted per card category (see accent-rgb rules below). */
+.card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%);
+    opacity: calc(0.05 + var(--mag) * 0.3);
+    pointer-events: none;
+}
+
+.card:hover {
+    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+    box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
+}
+
+.card-icon {
+    margin-bottom: 1.5rem;
+    background: rgba(var(--accent-rgb), 0.14);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    color: rgb(var(--accent-rgb));
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 1.8;
+    stroke: currentColor;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.4s ease, filter 0.3s ease;
+}
+
+.card:hover .card-icon {
+    transform: scale(1.1) rotate(5deg);
+    background: rgba(var(--accent-rgb), 0.24);
+    border-color: rgba(var(--accent-rgb), 0.5);
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.3);
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+.card-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 2rem;
+}
+
+.card-stat-chip {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    max-width: calc(100% - 100px);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.725rem;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.card:hover .card-stat-chip {
+    background: rgba(var(--accent-rgb), 0.22);
+    border-color: rgba(var(--accent-rgb), 0.45);
+    color: var(--text-primary);
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
+}
+
+.card-stat-chip .stat-val {
+    color: rgb(var(--accent-rgb));
+    font-weight: 800;
+}
+
+.card-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.card:hover .card-link {
+    color: var(--text-primary);
+}
+
+.card-link svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.card:hover .card-link svg {
+    transform: translateX(4px);
+}
+
+/* ── Differentiated Card Background Themes ── */
+#card-supply-chain {
+    --accent-rgb: 245, 158, 11;
+    --card-bg-gradient: linear-gradient(135deg, rgba(28, 24, 16, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(44, 36, 22, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(245, 158, 11, 0.22);
+    --card-hover-border: rgba(251, 191, 36, 0.50);
+}
+
+#card-supply-chain .card-link {
+    color: rgb(251, 191, 36);
+}
+
+#card-cargo-lander {
+    --accent-rgb: 99, 102, 241;
+    --card-bg-gradient: linear-gradient(135deg, rgba(22, 28, 44, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(32, 42, 68, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(99, 102, 241, 0.22);
+    --card-hover-border: rgba(129, 140, 248, 0.45);
+}
+
+#card-converter {
+    --accent-rgb: 6, 182, 212;
+    --card-bg-gradient: linear-gradient(135deg, rgba(14, 30, 38, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(20, 48, 60, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(6, 182, 212, 0.22);
+    --card-hover-border: rgba(34, 211, 238, 0.48);
+}
+
+#card-converter .card-link {
+    color: rgb(34, 211, 238);
+}
+
+#card-golf-hub {
+    --accent-rgb: 74, 222, 128;
+    --card-bg-gradient: linear-gradient(135deg, rgba(16, 36, 24, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(24, 56, 36, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(74, 222, 128, 0.22);
+    --card-hover-border: rgba(134, 239, 172, 0.48);
+}
+
+#card-golf-hub .card-link {
+    color: rgb(134, 239, 172);
+}
+
+/* ── The dimension picker: the flip side of #card-golf-hub ───────────
+   Two options, each carrying its own accent and its own record, so the
+   blue one reads as the 3D game without a word saying so. --accent-rgb
+   is a plain inherited property, which is exactly what is wanted here:
+   setting it on the option re-tints the badge, the arrow and the score
+   inside it in one go. ── */
+#card-golf-hub .card-face-back {
+    gap: 0.65rem;
+    /* .card-face packs to the start; the options want the full width.
+       They happen to get it today because the 3D blurb is long enough to
+       push them there, which is not a thing to rely on. */
+    align-items: stretch;
+}
+
+/* ── The picker on a short screen ────────────────────────────────────
+   This is the tallest panel on the site — two games, each with a picture
+   — and it is sized to its content, so on a short viewport it is the one
+   that runs out of room and starts scrolling inside itself. Both steps
+   below buy height back from the pictures rather than from the copy,
+   because a cropped screenshot still says which game it is and a
+   truncated sentence does not.
+
+   object-fit: cover means the shorter frames crop rather than squash;
+   both shots have their subject through the middle band. ── */
+@media (max-height: 680px) {
+    #card-golf-hub .dim-shot {
+        aspect-ratio: 800 / 280;
+    }
+
+    .dim-desc {
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+
+    .dim-option {
+        padding: 0.5rem;
+        gap: 0.45rem;
+    }
+}
+
+/* Two of everything is what makes this panel the tall one, so it is also
+   the one that cannot spend a wider panel on taller pictures: at 820
+   wide, two stacked 16:9 shots want more height than a 1080p screen has.
+   Side by side, the extra width goes into the pictures instead — which
+   is what you want when the whole panel is a choice between two of them.
+
+   The landscape rule below does the same thing for the opposite reason:
+   a phone on its side has barely 350px of panel, which no amount of
+   cropping fits two stacked options into. */
+@media (min-width: 760px), (max-height: 480px) {
+    #card-golf-hub .card-face-back {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-content: start;
+    }
+
+    #card-golf-hub .dim-head {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-height: 480px) {
+    /* Undo the short-screen crop from the rule above: side by side the
+       shots are half as wide, so they fit at their natural shape. */
+    #card-golf-hub .dim-shot {
+        aspect-ratio: 800 / 420;
+    }
+}
+
+.dim-head {
+    padding-right: 2.5rem; /* clear of the close button */
+}
+
+.dim-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dim-sub {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.dim-option {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.6rem;
+    border-radius: 14px;
+    text-decoration: none;
+    color: inherit;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(var(--accent-rgb), 0.22);
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease,
+        transform 0.25s ease;
+}
+
+.dim-option:hover,
+.dim-option:focus-visible {
+    background: rgba(var(--accent-rgb), 0.12);
+    border-color: rgba(var(--accent-rgb), 0.55);
+    box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.18);
+    transform: translateY(-2px);
+}
+
+.dim-2d {
+    --accent-rgb: 74, 222, 128;
+}
+
+.dim-3d {
+    --accent-rgb: 56, 189, 248;
+}
+
+/* Same frame, same aspect-ratio trick and same lazy load as .peek-shot:
+   the picker is a card back too, it just has two games on it. */
+.dim-shot {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 800 / 420;
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+}
+
+.dim-shot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.45s ease;
+}
+
+.dim-shot img.is-loaded {
+    opacity: 1;
+}
+
+/* The dimension is a stamp on the picture rather than a tile beside it —
+   the two shots already say flat and lofted before you read anything. */
+.dim-badge {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    padding: 2px 8px;
+    border-radius: 7px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: rgb(var(--accent-rgb));
+    background: rgba(6, 8, 16, 0.72);
+    border: 1px solid rgba(var(--accent-rgb), 0.45);
+}
+
+.dim-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+.dim-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dim-desc {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    /* Two options plus their pictures have to fit one phone panel, and
+       the 3D blurb is the longest copy on the page. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+.dim-stat {
+    margin-top: 0.15rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.dim-stat .stat-val {
+    color: rgb(var(--accent-rgb));
+    font-weight: 800;
+}
+
+
+/* ── The back of the box ─────────────────────────────────────────────
+   Every card in the grid is a flip card now: the front is the spine you
+   read while scrolling, and turning it over gets you a screenshot of the
+   thing actually running, plus the button that starts it. The picture is
+   the point — it is the one thing a paragraph of description cannot do,
+   and it is why the launch moved back here rather than staying on the
+   front. ── */
+/* .card-face is declared below this block and packs its children to the
+   start, which is right for the About card's ragged copy and wrong here:
+   the shot, the text and the launch button all want the panel's full
+   width. Two classes to outrank it rather than moving the rule. */
+.card-face.peek-back {
+    padding: 1rem;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+/* The frame holds its shape before the image arrives: the aspect ratio
+   is declared, so the panel is measured and sized correctly on the very
+   first flip, while the file is still in flight. Without it the panel
+   opens short and jumps taller the moment the image decodes. */
+.peek-shot {
+    width: 100%;
+    aspect-ratio: 800 / 420;
+    flex-shrink: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+}
+
+/* A single shot sits in the flow; a stack of them is laid one on top of
+   another so the frame keeps its aspect-ratio height either way. */
+.peek-shot {
+    position: relative;
+}
+
+.peek-shot img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.45s ease;
+}
+
+.peek-shot img.is-loaded {
+    opacity: 1;
+}
+
+/* ── More than one shot: a slow deal of the deck ─────────────────────
+   One screenshot of a game with ten missions in it undersells the game.
+   Where a card has several, they cross-fade in place — the frame never
+   moves, only what is inside it — and the one on top drifts very
+   slightly while it holds, which is what stops three still images from
+   reading as a broken carousel. Only the visible one is opaque, so the
+   stack costs one composited layer and no layout at all.
+
+   Cheap enough to run for as long as the panel is open, and it stops
+   dead the moment it closes: see startPeekShow. */
+.peek-shot-multi img {
+    position: absolute;
+    inset: 0;
+    transition: opacity 0.7s ease;
+}
+
+.peek-shot-multi img.is-loaded {
+    opacity: 0;
+}
+
+.peek-shot-multi img.is-current {
+    opacity: 1;
+    animation: peekDrift 6s ease-in-out both;
+}
+
+@keyframes peekDrift {
+    from { transform: scale(1.045) translate3d(0.6%, -0.4%, 0); }
+    to   { transform: scale(1.0)   translate3d(-0.6%, 0.4%, 0); }
+}
+
+/* Dots, so it reads as three pictures rather than one that keeps
+   changing its mind. */
+.peek-dots {
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 5px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.peek-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+    transition: background 0.4s ease;
+}
+
+.peek-dot.is-current {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* No deal, no drift — the first shot and nothing else moving. */
+    .peek-shot-multi img.is-current {
+        animation: none;
+    }
+}
+
+.peek-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.peek-title {
+    font-size: 1.08rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.peek-text {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.peek-stat {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.peek-stat:empty {
+    display: none;
+}
+
+.peek-stat .stat-val {
+    color: rgb(var(--accent-rgb));
+    font-weight: 800;
+}
+
+.peek-launch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.72rem 1rem;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: rgb(var(--accent-rgb));
+    background: rgba(var(--accent-rgb), 0.14);
+    border: 1px solid rgba(var(--accent-rgb), 0.42);
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.peek-launch:hover,
+.peek-launch:focus-visible {
+    background: rgba(var(--accent-rgb), 0.24);
+    border-color: rgba(var(--accent-rgb), 0.72);
+    box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.24);
+}
+
+.peek-launch svg {
+    width: 17px;
+    height: 17px;
+    transition: transform 0.2s ease;
+}
+
+.peek-launch:hover svg {
+    transform: translateX(3px);
+}
+
+/* ── The back of the box, on a phone held sideways ───────────────────
+   A landscape phone has around 350px of panel to give, and a stacked
+   back face wants closer to 470: the screenshot alone is a third of the
+   height at full width. Every preview panel overflowed, and on the
+   taller ones the launch button was below the fold of a panel most
+   people would not think to scroll.
+
+   Side by side it fits with room over — the shot takes one column and
+   spans both rows, the copy and the button take the other. This is the
+   one layout on the site where a landscape screen is the better shape
+   for the job rather than the awkward one. */
+@media (max-height: 480px) {
+    .card-face.peek-back {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-content: start;
+    }
+
+    .peek-shot {
+        grid-column: 1;
+        grid-row: 1 / -1;
+        align-self: start;
+    }
+
+    .peek-body,
+    .peek-launch {
+        grid-column: 2;
+    }
+
+    /* In this layout the copy runs to the panel's right edge, where the
+       close button is — in portrait it sits over the screenshot instead
+       and needs no help. */
+    .peek-body {
+        padding-right: 2.6rem;
+    }
+}
+
+/* The close button sits on the screenshot rather than on card felt, so
+   it needs a ground of its own to stay legible over whatever the shot
+   happens to be. */
+.peek-back .card-close {
+    background: rgba(6, 8, 16, 0.62);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+/* Backdrop for the expanded About card. Blurs and dims the grid behind it
+   so the panel reads as a layer above the page rather than a bigger card. */
+#about-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 8, 20, 0.62);
+    backdrop-filter: blur(4.5px);
+    -webkit-backdrop-filter: blur(4.5px);
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    /* `opacity: 0` does not get you out of a backdrop-filter. The element
+       is still painted, so the blur is still computed — over the whole
+       viewport, on both of these, on every frame, for a panel that is
+       shut. Measured on the grid at 1280x900 that was 1.95 of the page's
+       3.42 megapixels of blurred surface: more than half the per-frame
+       blur went on two things nobody could see, and the canvas behind
+       them re-dirtied it constantly.
+
+       `visibility: hidden` is not painted at all, so the blur goes with
+       it. The cross-fade is unchanged: visibility flips to visible at the
+       start of the opening transition and back only after the closing one
+       has run, so opacity still carries both directions. */
+    visibility: hidden;
+    transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
+
+#about-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+    visibility: visible;
+    transition: opacity 0.45s ease, visibility 0s linear 0s;
+}
+
+/* Opening lifts the card out of the grid (a placeholder holds its cell) and
+   animates top/left/width/height to a centred panel. Geometry is set inline
+   by JS; the transition that carries it lives here. The tilt handlers bail
+   out while .is-open, so nothing fights these values. */
+.flip-card.is-open {
+    position: fixed;
+    z-index: 301;
+    margin: 0;
+    cursor: default;
+    --rx: 0deg;
+    --ry: 0deg;
+    --ty: 0px;
+    --focus-scale: 1;
+}
+
+.flip-card.is-open .card-face {
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
+}
+
+.flip-placeholder {
+    visibility: hidden;
+}
+
+.flip-card.is-open .card-close,
+.flip-card.is-open .about-close {
+    opacity: 1;
+}
+
+/* ── About: the one card that doesn't navigate. Clicking spins it over to
+      a back face with the short version of why this site exists. The flip
+      lives on an inner wrapper rather than on .card itself, because .card carries
+      backdrop-filter and overflow:hidden, both of which flatten a 3D
+      rendering context, so a two-faced flip has to happen one level down.
+      The outer card keeps its pointer tilt and glare throughout. ── */
+/* The card itself is only a stage: transparent, no border, no clipping. Its
+   surface (background, border, radius, shadow) moves onto the two faces,
+   which is what makes the flip read as a card turning over. Left on .card
+   the rectangle stayed put while the text skewed inside it. overflow must be
+   visible too, or the rotating faces get clipped at the card's bounds. */
+.flip-card {
+    padding: 0;
+    font-family: inherit;
+    font-size: 1rem;
+    text-align: left;
+    width: 100%;
+    height: 100%;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+    perspective: 1400px;
+}
+
+#card-about {
+    --accent-rgb: 251, 113, 133;
+    --card-bg-gradient: linear-gradient(135deg, rgba(38, 20, 28, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(58, 28, 42, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(251, 113, 133, 0.22);
+    --card-hover-border: rgba(253, 164, 175, 0.48);
+}
+
+.flip-card::before {
+    content: none;
+}
+
+#card-about .card-link {
+    color: rgb(253, 164, 175);
+}
+
+.card-flip-inner {
+    position: relative;
+    align-self: stretch;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flip-card.is-flipped .card-flip-inner {
+    transform: rotateY(180deg);
+}
+
+.card-face {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 2.5rem;
+    height: 100%;
+    background: var(--card-bg-gradient, var(--card-bg));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--card-border, var(--glass-border));
+    border-radius: 24px;
+    box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
+    overflow: hidden;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: background 0.4s ease-in-out, border-color 0.4s ease, box-shadow 0.4s ease,
+        opacity 0s linear 0.09s, visibility 0s linear 0.09s;
+}
+
+/* backface-visibility is not enough on its own. A face carries
+   backdrop-filter, which makes it a grouping element, and Firefox responds by
+   flattening the 3D context on .card-flip-inner: both faces then paint in
+   document order and the front shows through the translucent back, mirrored.
+   So hide the face that should not be visible outright, swapping at the moment
+   the card is edge-on, where the change cannot be seen. That moment is NOT the
+   midpoint in time: cubic-bezier(0.22, 1, 0.36, 1) is heavily front-loaded, so
+   the rotation passes 90deg at ~13% of the 0.72s flip, i.e. 0.09s. Swapping at
+   0.36s left the card blank from 0.09s to 0.36s — past 90deg the front's own
+   backface is culled while the back face was still hidden. Chrome, which culls
+   correctly, sees the same swap at the same moment, so both browsers show one
+   face at a time. visibility also keeps the hidden face's button out of the
+   tab order. */
+.flip-card.is-flipped .card-face-front,
+.flip-card:not(.is-flipped) .card-face-back {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Pointer-tracking glare for flip card faces (matches standard .card::before) */
+.card-face::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%);
+    opacity: calc(0.05 + var(--mag) * 0.3);
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+
+/* Hover feedback now belongs to the front face, since .card:hover styles a
+   surface that is no longer visible. */
+.flip-card:hover .card-face-front,
+.flip-card .card-face-front:focus-visible {
+    background: var(--card-hover-gradient, var(--card-hover-bg));
+    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+    box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
+}
+
+/* Front stays in flow so the card still has an intrinsic height; only the
+   back is taken out of it and laid over the top. */
+.card-face-front {
+    position: relative;
+    min-height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.flip-card.is-flipped .card-face-front {
+    pointer-events: none;
+}
+
+.flip-card.is-flipped .card-face-back {
+    pointer-events: auto;
+}
+
+.card-face-back {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transform: rotateY(180deg);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    padding: 1.75rem 2rem;
+    gap: 1.1rem;
+    justify-content: flex-start;
+    overflow-y: auto;
+}
+
+.card-face-back .card-link {
+    margin-top: 0.35rem;
+}
+
+.about-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding-right: 2.25rem; /* keeps the name clear of the close button */
+}
+
+.about-portrait {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(var(--accent-rgb), 0.45);
+    box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.22);
+}
+
+.about-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.about-role {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.about-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.about-text {
+    font-size: 0.83rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+/* Front face is a real <button> now (the back face holds links, which cannot
+   be nested inside a button), so the UA styles need clearing. */
+.card-face-front {
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+}
+
+.card-face-back .card-link {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.about-text a {
+    color: rgb(253, 164, 175);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(253, 164, 175, 0.4);
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.about-text a:hover {
+    color: #fff;
+    border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+
+.about-close,
+.card-close {
+    position: absolute;
+    top: 0.9rem;
+    right: 0.9rem;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    opacity: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: opacity 0.35s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.about-close svg,
+.card-close svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+}
+
+.flip-card:hover .about-close,
+.flip-card:hover .card-close {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 640px) {
+    .card-face {
+        padding: 1.35rem 1.25rem;
+        border-radius: 18px;
+    }
+
+    .card-face-front {
+        height: auto;
+        min-height: auto;
+        justify-content: flex-start;
+    }
+
+    .card-face-back {
+        padding: 1.25rem;
+        border-radius: 18px;
+    }
+}
+
+/* Landscape phones: ~360px of height can't hold the copy at full size, and
+   the panel would top out at the viewport and scroll its close link out of
+   reach. Tightening type and padding lets it fit outright. */
+@media (max-height: 480px) {
+    .flip-card.is-open .card-face {
+        padding: 1.3rem 1.6rem;
+    }
+
+    .flip-card.is-open .about-portrait {
+        width: 46px;
+        height: 46px;
+    }
+
+    .flip-card.is-open .about-name {
+        font-size: 1.08rem;
+    }
+
+    .flip-card.is-open .about-role {
+        font-size: 0.8rem;
+    }
+
+    .flip-card.is-open .about-text {
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .flip-card.is-open .card-face-back {
+        gap: 0.7rem;
+    }
+
+    .flip-card.is-open .about-body {
+        gap: 0.6rem;
+    }
+}
+
+#card-viz {
+    --accent-rgb: 56, 189, 248;
+    --card-bg-gradient: linear-gradient(135deg, rgba(12, 32, 48, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(16, 50, 74, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(56, 189, 248, 0.22);
+    --card-hover-border: rgba(125, 211, 252, 0.50);
+}
+
+#card-viz .card-link {
+    color: rgb(125, 211, 252);
+}
+
+/* Kept even though no #card-wip is in the grid: AGENTS.md wants a WIP
+   card droppable back in without rebuilding its styles. */
+#card-wip {
+    --accent-rgb: 161, 161, 170;
+    --card-bg-gradient: linear-gradient(135deg, rgba(28, 28, 32, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(44, 44, 50, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(161, 161, 170, 0.20);
+    --card-hover-border: rgba(212, 212, 216, 0.42);
+}
+
+#card-wip .card-link {
+    color: rgb(212, 212, 216);
+}
+
+#card-wip .about-text a {
+    color: rgb(212, 212, 216);
+    border-bottom: 1px solid rgba(212, 212, 216, 0.4);
+    text-decoration: none;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+#card-wip .about-text a:hover {
+    color: #fff;
+    border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+
+.wip-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    text-align: center;
+}
+
+.wip-emoji {
+    font-size: 2.6rem;
+    line-height: 1;
+}
+
+#card-car {
+    --accent-rgb: 16, 185, 129;
+    --card-bg-gradient: linear-gradient(135deg, rgba(12, 34, 30, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(16, 54, 46, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(16, 185, 129, 0.22);
+    --card-hover-border: rgba(52, 211, 153, 0.48);
+}
+
+#card-car .card-link {
+    color: rgb(52, 211, 153);
+}
+
+#card-cv {
+    --accent-rgb: 148, 163, 184;
+    --card-bg-gradient: linear-gradient(135deg, rgba(22, 28, 40, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(32, 40, 58, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(148, 163, 184, 0.18);
+    --card-hover-border: rgba(203, 213, 225, 0.40);
+}
+
+#card-cv .card-link {
+    color: #94a3b8;
+}
+
+/* CV keeps a quieter glare — "dry" on purpose. */
+#card-cv::before,
+#card-cv .card-face-front::before {
+    opacity: calc(0.03 + var(--mag) * 0.12);
+}
+
+#card-math {
+    --accent-rgb: 168, 85, 247;
+    --card-bg-gradient: linear-gradient(135deg, rgba(28, 20, 40, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(44, 28, 64, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(168, 85, 247, 0.22);
+    --card-hover-border: rgba(192, 132, 252, 0.48);
+}
+
+#card-math .card-link {
+    color: rgb(192, 132, 252);
+}
+
+#card-math-game {
+    --accent-rgb: 249, 115, 22;
+    --card-bg-gradient: linear-gradient(135deg, rgba(38, 24, 18, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(60, 36, 26, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(249, 115, 22, 0.22);
+    --card-hover-border: rgba(251, 146, 60, 0.48);
+}
+
+#card-math-game .card-link {
+    color: rgb(251, 146, 60);
+}
+
+#card-3d-poc {
+    --accent-rgb: 56, 189, 248;
+    --card-bg-gradient: linear-gradient(135deg, rgba(14, 38, 54, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(20, 58, 80, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(56, 189, 248, 0.22);
+    --card-hover-border: rgba(125, 211, 252, 0.48);
+}
+
+#card-3d-poc .card-link {
+    color: rgb(125, 211, 252);
+}
+
+#card-cargo-packer {
+    --accent-rgb: 249, 115, 22;
+    --card-bg-gradient: linear-gradient(135deg, rgba(38, 20, 10, 0.70) 0%, rgba(18, 16, 26, 0.65) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(58, 28, 12, 0.85) 0%, rgba(28, 22, 38, 0.80) 100%);
+    --card-border: rgba(249, 115, 22, 0.28);
+    --card-hover-border: rgba(251, 146, 60, 0.60);
+}
+
+#card-cargo-packer .card-link {
+    color: rgb(251, 146, 60);
+}
+
+#card-sand {
+    --accent-rgb: 226, 192, 122;
+    --card-bg-gradient: linear-gradient(135deg, rgba(40, 32, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(62, 48, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(226, 192, 122, 0.22);
+    --card-hover-border: rgba(240, 210, 150, 0.50);
+}
+
+#card-sand .card-link {
+    color: rgb(240, 210, 150);
+}
+
+#card-terrarium {
+    --accent-rgb: 125, 211, 192;
+    --card-bg-gradient: linear-gradient(135deg, rgba(14, 36, 38, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(20, 56, 58, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(125, 211, 192, 0.22);
+    --card-hover-border: rgba(153, 230, 212, 0.50);
+}
+
+#card-terrarium .card-link {
+    color: rgb(153, 230, 212);
+}
+
+#card-elevator {
+    --accent-rgb: 245, 158, 11;
+    --card-bg-gradient: linear-gradient(135deg, rgba(38, 30, 14, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(60, 44, 18, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(245, 158, 11, 0.22);
+    --card-hover-border: rgba(252, 211, 77, 0.50);
+}
+
+#card-elevator .card-link {
+    color: rgb(252, 211, 77);
+}
+
+#card-paper-plane {
+    --accent-rgb: 250, 204, 21;
+    --card-bg-gradient: linear-gradient(135deg, rgba(36, 34, 20, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(56, 52, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(250, 204, 21, 0.22);
+    --card-hover-border: rgba(253, 224, 71, 0.50);
+}
+
+#card-paper-plane .card-link {
+    color: rgb(253, 224, 71);
+}
+
+#card-orbit {
+    --accent-rgb: 216, 72, 56;
+    --card-bg-gradient: linear-gradient(135deg, rgba(40, 24, 20, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(64, 32, 26, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(216, 72, 56, 0.24);
+    --card-hover-border: rgba(255, 181, 63, 0.50);
+}
+
+#card-orbit .card-link {
+    color: rgb(255, 181, 63);
+}
+
+#card-fika {
+    --accent-rgb: 224, 164, 88;
+    --card-bg-gradient: linear-gradient(135deg, rgba(40, 26, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(62, 40, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(224, 164, 88, 0.22);
+    --card-hover-border: rgba(236, 181, 113, 0.50);
+}
+
+#card-fika .card-link {
+    color: rgb(236, 181, 113);
+}
+
+/* The Swedish edition of Lease, Rent or Buy: flag blue, with the cross
+   drawn faintly in yellow across the face — off-centre towards the hoist,
+   as on the flag — and a Swedish number plate where other cards keep a
+   stat chip. The cross is one SVG shape with one fill in the face's own
+   background, so the yellow is even where the arms meet, drawn at a
+   fixed size in the flag's proportions (hoist 5u, arms 2u, top 4u,
+   u = 20px) so both arms keep the same thickness whatever the card's
+   shape. It tilts and flips with the card. */
+#card-bil {
+    --accent-rgb: 254, 204, 2;
+    --card-bg-gradient:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M100 0H140V80H2000V120H140V2000H100V120H0V80H100Z' fill='rgb(254,204,2)' fill-opacity='0.075'/%3E%3C/svg%3E") 0 0 no-repeat,
+        linear-gradient(135deg, rgba(0, 74, 130, 0.62) 0%, rgba(12, 24, 44, 0.62) 100%);
+    --card-hover-gradient:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M100 0H140V80H2000V120H140V2000H100V120H0V80H100Z' fill='rgb(254,204,2)' fill-opacity='0.12'/%3E%3C/svg%3E") 0 0 no-repeat,
+        linear-gradient(135deg, rgba(0, 92, 160, 0.80) 0%, rgba(14, 30, 56, 0.78) 100%);
+    --card-border: rgba(254, 204, 2, 0.24);
+    --card-hover-border: rgba(254, 204, 2, 0.55);
+}
+
+#card-bil .card-link {
+    color: rgb(254, 214, 64);
+}
+
+/* The icon is a road sign rather than a line drawing: it keeps its own
+   colours instead of taking the accent. */
+#card-bil .card-icon {
+    background: rgba(0, 106, 167, 0.32);
+    border-color: rgba(254, 204, 2, 0.35);
+}
+
+#card-bil .card-icon svg {
+    width: 34px;
+    height: 34px;
+}
+
+/* A Swedish plate: white, the blue EU band with an S, black characters. */
+.plate-chip {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    display: inline-flex;
+    align-items: stretch;
+    height: 22px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #f4f6f9;
+    border: 1.5px solid #1b2230;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    font-family: 'Outfit', sans-serif;
+    line-height: 1;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.plate-chip .pc-eu {
+    width: 13px;
+    background: #0b47a8;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 700;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 2px;
+}
+
+.plate-chip .pc-chars {
+    color: #10141c;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    padding: 0 7px;
+    display: flex;
+    align-items: center;
+}
+
+.card:hover .plate-chip {
+    transform: rotate(-3deg) scale(1.06);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 14px rgba(254, 204, 2, 0.25);
+}
+
+#card-black-hole {
+    --accent-rgb: 251, 191, 36;
+    --card-bg-gradient: linear-gradient(135deg, rgba(44, 32, 10, 0.66) 0%, rgba(15, 18, 28, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(70, 50, 14, 0.82) 0%, rgba(24, 24, 36, 0.75) 100%);
+    --card-border: rgba(251, 191, 36, 0.22);
+    --card-hover-border: rgba(253, 224, 138, 0.50);
+}
+
+#card-black-hole .card-link {
+    color: rgb(253, 224, 138);
+}
+
+#card-gait {
+    --accent-rgb: 52, 211, 153;
+    --card-bg-gradient: linear-gradient(135deg, rgba(12, 44, 38, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(16, 68, 56, 0.82) 0%, rgba(20, 30, 46, 0.75) 100%);
+    --card-border: rgba(52, 211, 153, 0.22);
+    --card-hover-border: rgba(134, 239, 201, 0.50);
+}
+
+#card-gait .card-link {
+    color: rgb(134, 239, 201);
+}
+
+#card-erosion {
+    --accent-rgb: 56, 189, 248;
+    --card-bg-gradient: linear-gradient(135deg, rgba(12, 38, 58, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(16, 58, 88, 0.82) 0%, rgba(20, 30, 48, 0.75) 100%);
+    --card-border: rgba(56, 189, 248, 0.22);
+    --card-hover-border: rgba(150, 220, 252, 0.50);
+}
+
+#card-erosion .card-link {
+    color: rgb(150, 220, 252);
+}
+
+#card-name-song {
+    --accent-rgb: 192, 132, 252;
+    --card-bg-gradient: linear-gradient(135deg, rgba(34, 22, 52, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(52, 32, 80, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(192, 132, 252, 0.22);
+    --card-hover-border: rgba(216, 180, 254, 0.50);
+}
+
+#card-name-song .card-link {
+    color: rgb(216, 180, 254);
+}
+
+/* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
+   overlay blend so bright texture only lifts already-light pixels instead of
+   flatly washing out the (already fairly low-contrast) body text underneath. ── */
+
+/* Metal: brushed-texture stripes plus a tighter specular highlight that rides the glare position. */
+.card-metal::before,
+.card-metal .card-face-front::before {
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%),
+        repeating-linear-gradient(95deg,
+            rgba(255, 255, 255, 0.05) 0px,
+            rgba(255, 255, 255, 0.05) 1px,
+            rgba(255, 255, 255, 0) 2px,
+            rgba(255, 255, 255, 0) 5px),
+        radial-gradient(ellipse 55% 35% at var(--mx) var(--my), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 70%);
+    mix-blend-mode: overlay;
+}
+
+/* Paper: faint ruled lines + uneven fiber-like light/shadow patches, minimal shine. */
+.card-paper::before,
+.card-paper .card-face-front::before {
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.35), rgba(var(--accent-rgb), 0) 58%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 22px),
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 55%),
+        radial-gradient(circle at 78% 82%, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0) 60%);
+    mix-blend-mode: overlay;
+}
+
+
+
+/* ── Dynamic tracking shine overlay for Supply Chain Tycoon (modeled on CargoLander) ── */
+#card-supply-chain .card-face-front::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border-radius: inherit;
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%),
+        repeating-linear-gradient(115deg,
+            rgba(251, 191, 36, 0.25) 0%,
+            rgba(245, 158, 11, 0.25) 15%,
+            rgba(253, 224, 71, 0.25) 30%,
+            rgba(234, 179, 8, 0.25) 45%,
+            rgba(251, 191, 36, 0.25) 60%);
+    background-size: 200% 200%, 420% 420%;
+    background-position: var(--mx) var(--my), var(--mx) var(--my);
+    mix-blend-mode: overlay;
+    opacity: calc(0.18 + var(--mag) * 0.55);
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* ── Holo shine (CargoLander card) — layers on top of the standard glare above ── */
+#card-cargo-lander .card-face-front::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border-radius: inherit;
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%),
+        repeating-linear-gradient(115deg,
+            rgba(255, 0, 150, 0.32) 0%,
+            rgba(255, 231, 0, 0.32) 12%,
+            rgba(0, 255, 163, 0.32) 24%,
+            rgba(0, 199, 255, 0.32) 36%,
+            rgba(184, 0, 255, 0.32) 48%,
+            rgba(255, 0, 150, 0.32) 60%);
+    background-size: 200% 200%, 420% 420%;
+    background-position: var(--mx) var(--my), var(--mx) var(--my);
+    mix-blend-mode: overlay;
+    opacity: calc(0.18 + var(--mag) * 0.55);
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* Animations */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.new-badge,
+.beta-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    z-index: 10;
+}
+
+.new-badge {
+    background: rgba(99, 102, 241, 0.16);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: #a5b4fc;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    box-shadow: none;
+    backdrop-filter: blur(4px);
+}
+
+.beta-badge {
+    background: linear-gradient(135deg, #2dd4bf, #0d9488);
+    box-shadow: 0 0 10px rgba(45, 212, 191, 0.5), 0 0 20px rgba(13, 148, 136, 0.3);
+    animation: pulse-glow-teal 2s infinite;
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 0 20px rgba(99, 102, 241, 0.3);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.8), 0 0 30px rgba(99, 102, 241, 0.6);
+    }
+}
+
+@keyframes pulse-glow-teal {
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(45, 212, 191, 0.5), 0 0 20px rgba(13, 148, 136, 0.3);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(45, 212, 191, 0.8), 0 0 30px rgba(13, 148, 136, 0.6);
+    }
+}
+
+footer {
+    margin-top: auto;
+    padding-top: 3rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* The colophon is a footnote about a name change, not a heading: small
+   enough to sit under the links without competing with them. */
+footer p.colophon {
+    font-size: 0.72rem;
+    line-height: 1.55;
+    opacity: 0.7;
+}
+
+/* Phone savings that are about the GPU, not the layout, so they key off
+   touch as well as width: an iPad is wider than 640px, missed both of
+   these, and with three columns of cards on screen it pays for them more
+   than a phone does. */
+@media (max-width: 640px), (hover: none), (pointer: coarse) {
+    /* A 4px blur behind a chip that is already sitting on a blurred card —
+       visually almost nothing, and worth ~2.6ms a frame. */
+    .card-stat-chip {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    /* The grain texture stays, since it is what keeps the dark gradients from
+       banding. Only its blend mode goes: soft-light makes the compositor read
+       back everything underneath, and this layer sits inside the backdrop that
+       the cards then blur, so it was being read back constantly — ~5.5ms a
+       frame, the largest single cost left after the script fixes. Plain
+       low-opacity noise over a background this dark reads almost identically. */
+    #bg-grain {
+        mix-blend-mode: normal;
+        opacity: 0.28;
+    }
+}
+
+@media (max-width: 640px) {
+    html {
+        background-attachment: scroll;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    body {
+        padding: 24px 16px;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    #networkCanvas {
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+    }
+
+    header {
+        margin-bottom: 1.75rem;
+    }
+
+    h1 {
+        font-size: 2.15rem;
+    }
+
+    p.subtitle {
+        font-size: 1.05rem;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+        grid-auto-rows: auto;
+        gap: 0.75rem;
+    }
+
+    .shelves {
+        gap: 1.4rem;
+    }
+
+    .shelf-nav {
+        margin: -0.6rem 0 1.4rem;
+        gap: 0.4rem;
+    }
+
+    .shelf-chip {
+        font-size: 0.78rem;
+        padding: 0.35rem 0.7rem;
+    }
+
+    .shelf-heading {
+        margin-bottom: 0.7rem;
+    }
+
+    .shelf-title {
+        font-size: 1.15rem;
+    }
+
+    .shelf-blurb {
+        font-size: 0.78rem;
+    }
+
+    .shelf-icon {
+        width: 2rem;
+        height: 2rem;
+        font-size: 1.1rem;
+    }
+
+    /* ── Resting size ──
+       These cards were drawn for a desktop grid and then simply
+       narrowed, which on a phone came out at roughly two and a half of
+       them per screen: eleven cards took most of a minute to scroll
+       past, and every one of them was shouting at full size the whole
+       way. So the front of a card is now a spine: an icon, a name, and
+       two lines of description. Everything that wants room — the
+       screenshot, the full description, the record, the button that
+       actually starts the thing — lives on the flip side, where there
+       is a whole panel for it. */
+    .card,
+    .card-face-front {
+        padding: 1rem 1.05rem;
+        border-radius: 16px;
+        height: auto;
+        min-height: auto;
+        justify-content: flex-start;
+    }
+
+    /* The card blur is left at its full 20px on purpose. Measuring a radius
+       sweep while scrolling (390x844, DPR 3, CPU throttled 6x) showed the cost
+       is in having a backdrop-filter at all, not in how wide it is — 4px, 8px,
+       14px and 20px all landed within noise of each other, while removing it
+       outright saved ~7ms a frame. So dropping the radius would have cost the
+       glass look and bought nothing. Two cheaper things go instead: */
+
+    /* Two cheaper things go instead — in the touch block below, so a
+       tablet gets them too. */
+
+    /* A flip card is only a transparent stage — its visible surface is the
+       faces, which carry their own padding. The .card rule above matches it
+       too and wins on source order, so without this reset both flip cards
+       sit inset by that padding and read smaller than their neighbours. */
+    .flip-card {
+        padding: 0;
+    }
+
+    .card-icon {
+        font-size: 1.5rem;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        margin-bottom: 0.6rem;
+    }
+
+    .card-icon svg {
+        width: 21px;
+        height: 21px;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-desc {
+        font-size: 0.79rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.45;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+    }
+
+    .card-stat-chip {
+        top: 11px;
+        right: 11px;
+        padding: 2px 8px;
+        font-size: 0.68rem;
+        max-width: calc(100% - 70px);
+    }
+
+    .card-link {
+        margin-top: auto;
+        font-size: 0.8rem;
+    }
+
+    /* ── The card you are on ─────────────────────────────────────────
+       A phone has no hover, so nothing in this grid was ever singled
+       out: ten cards at identical weight, and you picked one by
+       reading all of them. The card nearest the middle of the screen
+       now comes forward while the rest sit back.
+
+       Transform and opacity only, and that limit is the whole design.
+       An earlier version also unclamped the card's copy once the
+       scroll stopped, which meant re-laying-out the column under a
+       finger that had just let go — and no amount of pinning the
+       card's top edge made that read as anything but a lurch, arriving
+       a beat after you had stopped. Scroll snap went with it: a detent
+       every 150px fought the flick more than it helped it land. What
+       is left costs no layout, so it can track the scroll frame for
+       frame with nothing to lag behind.
+
+       Gated on .mobile-focus, set by the script, so with JS off the
+       grid is a grid of small cards rather than a grid permanently
+       dimmed for a focus that never arrives. */
+    .mobile-focus .card {
+        opacity: 0.86;
+        --focus-scale: 0.98;
+    }
+
+    .mobile-focus .card.is-focused {
+        opacity: 1;
+        --focus-scale: 1.02;
+        z-index: 2;
+        border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+        box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.28),
+            0 0 24px rgba(var(--accent-rgb), 0.20);
+    }
+
+    .mobile-focus .card.is-focused .card-bg-hover {
+        opacity: 1;
+    }
+
+    .mobile-focus .card.is-focused .card-icon {
+        background: rgba(var(--accent-rgb), 0.24);
+        border-color: rgba(var(--accent-rgb), 0.5);
+    }
+
+    .mobile-focus .card.is-focused .card-stat-chip {
+        background: rgba(var(--accent-rgb), 0.22);
+        border-color: rgba(var(--accent-rgb), 0.45);
+        color: var(--text-primary);
+    }
+
+    /* An open panel is its own layer over a blurred page; it is not a
+       card in a column any more, so it takes none of this. The z-index
+       is the one that matters: .flip-card.is-open lifts the panel to 301,
+       above the backdrop at 300, and the focus rule above is a class
+       more specific than it. Without this line a card that was focused
+       when you tapped it opens *behind* its own backdrop, visible and
+       entirely unclickable. Declared after the focus rule so it wins on
+       source order rather than on a specificity race. */
+    .mobile-focus .card.is-open {
+        opacity: 1;
+        --focus-scale: 1;
+        z-index: 301;
+    }
+
+}
+
+/* Shrinking every card you are not looking at is exactly the kind of
+   ambient movement this setting is asking us to stop. Emphasis falls
+   back to opacity and the border, which move once and hold. */
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+    .mobile-focus .card,
+    .mobile-focus .card.is-focused {
+        --focus-scale: 1;
+    }
+}
+
+/* ── Secret Vault ── */
+#vault-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    /* Same as #about-backdrop: hidden rather than merely transparent, so a
+       shut vault stops blurring the viewport. See the note there. */
+    visibility: hidden;
+    transition: opacity 0.35s ease, visibility 0s linear 0.35s;
+}
+
+#vault-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+    visibility: visible;
+    transition: opacity 0.35s ease, visibility 0s linear 0s;
+}
+
+#vault-panel {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(110%);
+    width: min(500px, 94vw);
+    background: linear-gradient(160deg, #0d1526 0%, #150f2e 100%);
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-bottom: none;
+    border-radius: 22px 22px 0 0;
+    padding: 1.5rem 1.75rem 2.5rem;
+    z-index: 201;
+    transition: transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1);
+    /* Four links and three switches outgrow a phone screen. Anchored to
+       the bottom with no cap, the top — the close button included —
+       slid off the screen, and with the page locked behind it nothing
+       could bring it back. Cap it under the viewport and let it scroll
+       itself; contain keeps the fling from chaining to the page. */
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#vault-panel.open {
+    transform: translateX(-50%) translateY(0);
+}
+
+.vault-drag {
+    width: 36px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    margin: 0 auto 1.5rem;
+}
+
+.vault-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #6366f1;
+    opacity: 0.7;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.vault-close {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.vault-close:hover {
+    color: #f1f5f9;
+}
+
+.vault-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.vault-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    padding: 0.9rem 1.1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    text-decoration: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.vault-row:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+    transform: translateX(4px);
+}
+
+.vault-row-icon {
+    font-size: 1.3rem;
+    background: rgba(255, 255, 255, 0.06);
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.vault-row-body {
+    flex: 1;
+}
+
+.vault-row-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 0.1rem;
+}
+
+.vault-row-desc {
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.vault-row-arrow {
+    color: #334155;
+    font-size: 0.95rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.vault-row:hover .vault-row-arrow {
+    color: #6366f1;
+    transform: translateX(3px);
+}
+
+/* Option blocks — same row furniture as a link, but with chips under it */
+.vault-opt {
+    margin-top: 0.4rem;
+    padding: 0.9rem 1.1rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+}
+
+.vault-opt-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.vault-opt-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+}
+
+.vault-opt-chip {
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.vault-opt-chip:hover {
+    background: rgba(255, 255, 255, 0.11);
+    color: #f1f5f9;
+}
+
+.vault-opt-chip[aria-pressed="true"] {
+    background: rgba(99, 102, 241, 0.26);
+    border-color: rgba(129, 140, 248, 0.55);
+    color: #e0e7ff;
+}
+
+/* The one currently on screen while Shuffle is running */
+.vault-opt-chip[data-live="true"][aria-pressed="false"] {
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #cbd5e1;
+}
+
+/* secret hint dots */
+.secret-hint {
+    position: absolute;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: #1e293b;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    user-select: none;
+    pointer-events: none;
+}
+
+.secret-hint.show {
+    opacity: 1;
+}
+
+/* ── Secret toast ── */
+#secret-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: #f8fafc;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    white-space: nowrap;
+}
+
+#secret-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ── Idle delivery (see the script of the same name) ──
+   Everything here moves by transform and opacity only, so the whole
+   show runs on the compositor and costs the canvas nothing. The layer is
+   as tall as the document, so what is in it scrolls with the card it is
+   standing on, and it clips, so a lander parked off the edge cannot add
+   a horizontal scrollbar. */
+#idle-egg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 60;
+    contain: layout paint;
+    transition: opacity 0.3s ease;
+}
+
+#idle-egg.is-leaving {
+    opacity: 0;
+}
+
+#idle-egg > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+}
+
+.egg-parcel {
+    width: 26px;
+    height: 22px;
+    pointer-events: auto;
+    cursor: pointer;
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+}
+
+.egg-parcel svg,
+.egg-lander svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.egg-puff {
+    width: 44px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(226, 232, 240, 0.45), rgba(226, 232, 240, 0));
+    opacity: 0;
+}
+
+.egg-lander {
+    width: 64px;
+    height: 60px;
+}
+
+.egg-lander .egg-ship {
+    position: absolute;
+    inset: 0;
+    animation: egg-bob 1.6s ease-in-out infinite alternate;
+}
+
+.egg-lander .egg-flame {
+    transform-origin: 32px 36px;
+    animation: egg-flicker 0.09s steps(2) infinite alternate;
+}
+
+.egg-lander .egg-nav {
+    animation: egg-blink 1.4s steps(1) infinite;
+}
+
+/* The chain hangs from the magnet plate and is unrolled by scaleY, so
+   its length never touches layout. */
+.egg-chain {
+    position: absolute;
+    left: 30.5px;
+    top: 37px;
+    width: 3px;
+    height: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+    background: repeating-linear-gradient(to bottom, #f97316 0 4px, #c2410c 4px 6px, transparent 6px 8px);
+}
+
+.egg-lander .egg-parcel {
+    position: absolute;
+    left: 19px;
+    top: 38px;
+    pointer-events: none;
+}
+
+.egg-note {
+    font: 600 0.8rem 'Inter', sans-serif;
+    color: #fde68a;
+    white-space: nowrap;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes egg-bob {
+    from { transform: translateY(-1.5px); }
+    to { transform: translateY(1.5px); }
+}
+
+@keyframes egg-flicker {
+    from { transform: scaleY(0.85); opacity: 0.85; }
+    to { transform: scaleY(1.1); opacity: 1; }
+}
+
+@keyframes egg-blink {
+    50% { opacity: 0.25; }
+}
+
+/* spark particles */
+.spark {
+    position: fixed;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    animation: spark-fly 0.7s ease-out forwards;
+}
+
+@keyframes spark-fly {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(var(--dx), var(--dy)) scale(0);
+        opacity: 0;
+    }
+}
+
+/* ── Quality tiers ───────────────────────────────────────────────────
+   The governor in the head script writes the current tier to
+   <html data-quality>; these are the parts it can only buy back in CSS.
+   They are ordered by cost-per-pixel, worst first, so each step down
+   gives up the most expensive thing still running.
+
+   Everything here is a surface effect. Nothing moves, nothing
+   disappears, no content changes — a degraded page is the same page
+   with less glass on it. */
+
+/* ── reduced ── */
+
+/* The tracking shine on the two holo cards is the most expensive thing a
+   mouse can do on this page: a 420%-wide repeating gradient whose
+   background-position follows the cursor, blended in `overlay`, over a
+   20px backdrop-filter. Every mousemove frame repaints and re-blurs the
+   whole card. The plain glare underneath survives, so the cards still
+   track the cursor — they just stop doing it through a second gradient. */
+html[data-quality="reduced"] #card-cargo-lander .card-face-front::after,
+html[data-quality="reduced"] #card-supply-chain .card-face-front::after,
+html[data-quality="minimal"] #card-cargo-lander .card-face-front::after,
+html[data-quality="minimal"] #card-supply-chain .card-face-front::after {
+    display: none;
+}
+
+/* A blur behind a chip that already sits on a blurred card. */
+html[data-quality="reduced"] .card-stat-chip,
+html[data-quality="minimal"] .card-stat-chip {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* soft-light makes the compositor read back everything under the grain,
+   and the grain is inside the backdrop nine cards blur. Plain low-opacity
+   noise over a background this dark reads almost the same. */
+html[data-quality="reduced"] #bg-grain,
+html[data-quality="minimal"] #bg-grain {
+    mix-blend-mode: normal;
+    opacity: 0.28;
+}
+
+/* ── minimal ── */
+
+/* The big one: ~7ms a frame on a mid phone, and it is charged again every
+   time anything behind a card changes — which, with a canvas back there,
+   is every frame. Losing it costs the glass look and nothing else, so it
+   goes last and only when the page has already proven it can't cope. */
+html[data-quality="minimal"] .card,
+html[data-quality="minimal"] .card-face {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* Nothing left to track: the glare is pinned to the middle of the card, so
+   pointer moves stop repainting it. The tilt loop writes --mx/--my inline,
+   and an inline declaration is author-normal — !important here is what
+   outranks it without having to stop the loop from writing at all. */
+html[data-quality="minimal"] .card {
+    --mx: 50% !important;
+    --my: 50% !important;
+}
+
+html[data-quality="minimal"] .card::before,
+html[data-quality="minimal"] .card-face-front::before {
+    opacity: 0.25;
+}
+
+/* A 90px blur over 60vw of screen, three times over. */
+html[data-quality="minimal"] .bg-blob {
+    filter: blur(44px);
+}
+
+/* ── FPS readout ─────────────────────────────────────────────────────
+   Bottom-right, deliberately easy to ignore: it is a diagnostic, not
+   chrome. `contain` keeps its half-second text change from touching
+   anything else's layout or paint — a meter that costs frames to read
+   would be telling you about itself. */
+#fps-meter {
+    position: fixed;
+    right: 10px;
+    bottom: 10px;
+    z-index: 10000;
+    padding: 3px 7px;
+    border-radius: 7px;
+    font: 600 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.02em;
+    color: rgba(226, 232, 240, 0.72);
+    background: rgba(2, 6, 23, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    pointer-events: none;
+    user-select: none;
+    contain: layout paint style;
+}
+
+#fps-meter[hidden] {
+    display: none;
+}
+
+#fps-meter[data-state="fair"] {
+    color: rgba(251, 191, 36, 0.85);
+}
+
+#fps-meter[data-state="poor"] {
+    color: rgba(248, 113, 113, 0.9);
+}

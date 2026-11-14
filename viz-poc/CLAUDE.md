@@ -12,8 +12,8 @@ rules; this file owns what is specific to this folder.
 | `style.css` | All of the chrome. There is no per-scene CSS. |
 | `js/app.js` | The shell — renderer, loop, scene registry, HUD, orbit controller, quality ladder, control widgets. |
 | `js/scene-*.js` | One self-contained scene each. |
-| `js/data/*.js` | Baked data: the land mask, the port table, the repo stats. |
-| `vendor/three.min.js` | three.js r128, UMD global. Do not upgrade casually — the scenes use r128 shader-chunk names and `sRGBEncoding`. |
+| `js/data/*.js` | Baked data: the land mask, the port table, the repo stats (refresh with `node tools/update-city.mjs`). |
+| `../vendor/three.min.js` | Shared three.js r128, UMD global. Do not upgrade casually — the scenes use r128 shader-chunk names and `sRGBEncoding`. |
 
 ## The scene contract
 
@@ -71,7 +71,13 @@ the root `index.html` to match. They are all one number on purpose.
 
 ## Verifying a change
 
-There is no test harness here yet (see "Open items"). Verify headless:
+Run the headless suite (`viz-poc/tests.html` covers datasets, scene registration, and `init`/`resize`/`update`/`dispose` lifecycle across all eight scenes):
+
+```
+node tools/run-tests.mjs viz-poc
+```
+
+For visual verification in headless Chrome:
 
 ```
 python -m http.server 8000
@@ -89,15 +95,9 @@ viewport.
 
 ## Open items
 
-- **No test harness.** Every other project of this size in the repo has a
-  `tests.html`. This should get one, plus the `robots.txt` Disallow and
-  `noindex` that go with a test page. Nothing needs wiring up beyond that:
-  `tools/run-tests.mjs` discovers any `*tests.html` with a `<div id="summary">`,
-  and `tools/check-site.mjs` fails until the Disallow and the `noindex` are
-  both there.
-- **`js/data/city.js` is measured by hand** and was accurate on 2026-09-03. It
-  drifts from the day it is written. Nothing breaks as it ages — a building is
-  the wrong height — but regenerate it when it starts to look wrong.
+- **`js/data/city.js` is a point-in-time snapshot.** Nothing breaks as it ages
+  — a building is the wrong height — and `node tools/update-city.mjs`
+  regenerates it from git when the shape of the site changes.
 - **The land mask is coarse and hand-drawn.** Good enough for a dot the size of
   a dot; it will look wrong to anyone who knows a coastline well.
 - **Port throughput is rounded 2023 figures.** Close enough to size a dot

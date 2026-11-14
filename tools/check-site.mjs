@@ -242,6 +242,50 @@ async function main() {
         }
     }
 
+    // ── Cache-busting version sync ───────────────────────────────────────
+    const VERSIONED = [
+        {
+            dir: 'cargo-lander',
+            src: 'cargo-lander/game/game.js',
+            re: /(?:CargoGame\.|static\s+)VERSION\s*=\s*['"]([^'"]+)['"]/,
+            pages: ['cargo-lander/index.html', 'cargo-lander/level-editor.html', 'cargo-lander/tests.html'],
+        },
+        {
+            dir: 'golf',
+            src: 'golf/js/config.js',
+            re: /GOLF\.VERSION\s*=\s*['"]([^'"]+)['"]/,
+            pages: ['golf/index.html', 'golf/level-editor.html'],
+        },
+        {
+            dir: 'golf3d',
+            src: 'golf3d/js/config.js',
+            re: /G3\.VERSION\s*=\s*['"]([^'"]+)['"]/,
+            pages: ['golf3d/index.html', 'golf3d/level-editor.html', 'golf3d/turntable.html', 'golf3d/hole-lab.html'],
+        },
+    ];
+    const rootHtml = await readFile(join(ROOT, 'index.html'), 'utf8');
+    for (const v of VERSIONED) {
+        const srcText = await readFile(join(ROOT, v.src), 'utf8');
+        const ver = srcText.match(v.re)?.[1];
+        if (!ver) {
+            fail(v.src, 'could not parse version constant');
+            continue;
+        }
+        const rootLinkRe = new RegExp(`href="${v.dir}/index\\.html\\?v=([^"]+)"`);
+        const rootVer = rootHtml.match(rootLinkRe)?.[1];
+        if (rootVer !== ver) {
+            fail('index.html', `${v.dir}/index.html?v=${rootVer ?? '(missing)'} does not match ${v.src} (${ver})`);
+        }
+        for (const page of v.pages) {
+            const pageText = await readFile(join(ROOT, page), 'utf8');
+            for (const m of pageText.matchAll(/(?:href|src)="([^"?]+\.(?:js|css))\?v=([^"]+)"/g)) {
+                if (m[2] !== ver) {
+                    fail(page, `${m[1]}?v=${m[2]} does not match ${v.src} (${ver})`);
+                }
+            }
+        }
+    }
+
     // ── Report ───────────────────────────────────────────────────────────
     if (!problems.length) {
         console.log(`OK — ${htmlFiles.length} pages, ${sitemapUrls.length} sitemap entries, no problems`);

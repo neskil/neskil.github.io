@@ -1665,6 +1665,8 @@ is not under the Old Course's key.
 
 ## The editor
 
+> **Compatibility policy:** Maintaining `level-editor.html` parity or round-tripping for every shipped hole is **not required**. Keeping editor-created holes playable is nice-to-have when effortless, but never let editor compatibility slow down or restrict future map design or game mechanics.
+
 `level-editor.html` builds a hole by dragging rectangles about, and is linked
 from the game's top bar. It runs on `config.js`, `physics.js` and `render.js`
 directly, which is the whole design:

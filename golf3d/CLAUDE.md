@@ -58,12 +58,15 @@ point at them.
   commit that added it — its workers load `js/` by the page's own version, so
   a stale string there measures an old build. If a fifth page ever loads
   `js/`, it goes in this list on the same commit.
-- **The hole editor does not have to keep up** (the owner's call, v1.135.0).
-  A new wall kind, pad, decor kind or hole shape is not taught to the editor
-  on the same change, and no test holds the editor to every drawn hole.
-  Catching it up is one job of its own, done when the owner asks for it — it
-  waits in PLAN.md §2. The `?v=` bump above still covers `level-editor.html`:
-  that is the browser cache, not a feature.
+- **Level-editor compatibility is not required** (owner's call, updated
+  2026-11). Do not let `level-editor.html` slow down development or restrict
+  map design, new mechanics, wall/pad/decor kinds, or hole shapes: no new
+  feature needs editor support, and no test holds the editor to every shipped
+  hole. Keeping editor-created designs playable (`Playtest`) is nice-to-have
+  when it works effortlessly, never a constraint on game or course
+  innovation. (Still bump `?v=` in `level-editor.html` when touching shared
+  `js/` modules so cached pages don't mix builds, unless the editor is
+  explicitly retired.)
 
 ## Verification
 
