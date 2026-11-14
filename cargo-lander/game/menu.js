@@ -121,7 +121,7 @@ Object.assign(CargoGame.prototype, {
         if (avatarEl) {
             const portrait = this.career.portrait;
             if (portrait) {
-                const licensePortrait = portrait.replace('.jpg', '_license.jpg');
+                const licensePortrait = portrait.replace(/\.(jpg|webp)$/i, '_license.webp');
                 avatarEl.innerHTML = `
                     <img src="${licensePortrait}" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;">
                 `;
@@ -254,7 +254,7 @@ Object.assign(CargoGame.prototype, {
         for (let i = 1; i <= 4; i++) {
             const card = document.getElementById(`p-card-driver${i}`);
             if (card) {
-                if (currentPortrait && currentPortrait.includes(`driver${i}.jpg`)) {
+                if (currentPortrait && currentPortrait.includes(`driver${i}.`)) {
                     card.classList.add('selected');
                 } else {
                     card.classList.remove('selected');

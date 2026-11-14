@@ -89,7 +89,7 @@ class CargoPhysics {
             baseDrag = 1.0 - levelConfig.airResistance;
         }
         this.LANDER_DRAG = baseDrag + (upgrades.aerodynamics || 0) * 0.003;
-        if (portrait && portrait.includes('driver4.jpg')) {
+        if (portrait && portrait.includes('driver4')) {
             // Bo: +5% Top Speed (achieved by reducing air resistance drag force by 5%)
             const dragForce = 1.0 - this.LANDER_DRAG;
             this.LANDER_DRAG = 1.0 - (dragForce * 0.95);
