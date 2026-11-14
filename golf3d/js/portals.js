@@ -887,10 +887,14 @@
             water: 0x0d5f78, side: '#0e4a52'
         },
         // The same sea, for the hole that lies on its bed: sand, not a mat.
+        // The green is the bed's own weed-dark green, a shade lighter so it
+        // still reads. The hex is very dark because this sea's cyan light
+        // more than doubles it: the old #378c7d glowed like a turquoise sheet
+        // laid on the trench.
         nave: {
             sky: [0x021420, 0x0b4f66], fog: 0x0a4358,
             sun: 0x9fe8ff, sunPos: [3, 18, 4], ambient: 0x2a8aa0, ambientI: 0.85,
-            grass: ['#3f9c8c', '#378c7d'], rail: 0x3fe0b0, machine: 0x8dfcff,
+            grass: ['#142a1f', '#11241a'], rail: 0x3fe0b0, machine: 0x8dfcff,
             cloudLum: 0.08, birds: false,
             surroundY: -0.42, surround: 'rock', ground: '#0c3440',
             water: 0x0d5f78, side: '#0e4a52'
