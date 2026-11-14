@@ -4705,9 +4705,9 @@
     }
 
     function syncLive() {
-        var on = R.liveWanted, el = $('menu-live');
-        el.textContent = 'Live worlds: ' + (on ? 'on' : 'off');
-        el.setAttribute('aria-checked', on ? 'true' : 'false');
+        var on = R.liveWanted, el = $('btn-live');
+        el.classList.toggle('on', on);
+        el.setAttribute('aria-pressed', on ? 'true' : 'false');
     }
 
     function takeJourney() {
@@ -6418,12 +6418,18 @@
         });
         $('menu-portals').addEventListener('click', takeJourney);
         // The live worlds behind the tour's holes, on or off (render.js → setLive).
-        $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
+        // It lives in ⚙ Settings; the tiny link under the World Tour grid it
+        // used to be was too small to find or hit on a phone.
+        $('btn-live').addEventListener('click', function () {
+            R.setLive(!R.liveWanted); syncLive();
+            toast(R.liveWanted ? 'Live worlds on — each tour hole sits in its world'
+                               : 'Live worlds off — kinder to the frame rate');
+        });
         // render.js gave up on the live world for this machine.
         window.addEventListener('g3-live-off', function (e) {
             toast(e.detail === 'crash'
-                ? 'Live worlds are off for this visit: the last one did not finish loading. Courses switches them back on.'
-                : 'Live worlds are off for this visit: this device was struggling. Courses switches them back on.');
+                ? 'Live worlds are off for this visit: the last one did not finish loading. Settings switches them back on.'
+                : 'Live worlds are off for this visit: this device was struggling. Settings switches them back on.');
             syncLive();
         });
         // Something in the world happened because of the golf (render.js → stepPlace).
@@ -6457,7 +6463,7 @@
         R.setWaterQuality(prettyWaterWanted());
 
         syncSound();
-        syncWater();
+        syncWater(); syncLive();
         syncView();
         syncSeat();
 
