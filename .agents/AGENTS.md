@@ -9,7 +9,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 
 | Doc | Owns |
 | --- | --- |
-| **[CLAUDE.md](../CLAUDE.md)** | A root pointer to this file, nothing more. Claude Code loads a root `CLAUDE.md` automatically but does not look in `.agents/`, so without it these rules are only found by someone going to look. |
+| **[CLAUDE.md](../CLAUDE.md)** | A root pointer to this file, plus how the owner works (phone only: a change is done when it is merged to `master` and pushed). Claude Code loads a root `CLAUDE.md` automatically but does not look in `.agents/`, so without it these rules are only found by someone going to look. |
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
 | **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server, and the `tools/` checks (what they enforce and why). |
 | `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md`, `golf3d/CLAUDE.md`, `viz-poc/CLAUDE.md`, `cargo-packer/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
