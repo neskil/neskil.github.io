@@ -1542,9 +1542,13 @@
        that was forgiven, and a line for each thing that was read.
 
        It is the lesson, so it waits to be read: no timer. It goes when it is
-       tapped, when the next swing starts, or when the hole changes. It used
-       to be a small corner card gone after five seconds, which was usually
-       before the ball had stopped and always before anyone had read it. */
+       tapped, when the next swing starts, or when the hole changes — and it
+       fades (`fadeSwingCard`) the moment the ball drops or the player starts
+       aiming the next one, a drag on the course or a nudge of ‹ ›. By then it
+       has been read or it is not going to be, and left up it sat over the
+       flag for the whole of the next putt. It used to be a small corner card
+       gone after five seconds, which was usually before the ball had stopped
+       and always before anyone had read it. */
 
     function showSwingCard(read, frac, drawn, sw, cross) {
         var card = $('swing-card');
@@ -1553,8 +1557,9 @@
         $('sc2-grade').textContent = gr.word;
         $('sc2-grade').className = 'sc2-grade ' + gr.tier;
         drawCardSwipe(drawn, sw, cross, read);
+        clearTimeout(cardFade);
         card.hidden = false;
-        card.classList.remove('show');
+        card.classList.remove('show', 'fading');
         void card.offsetWidth;
         card.classList.add('show');
         placeSwingCard();
@@ -1602,8 +1607,22 @@
     }
 
     function hideSwingCard() {
+        clearTimeout(cardFade);
         $('swing-card').hidden = true;
+        $('swing-card').classList.remove('fading');
         $('stage').classList.remove('card-up');
+    }
+
+    /* The same, eased out rather than cut. The toast's place under the card
+       is given back straight away, so a message said during the fade does not
+       land where the card was. */
+    var cardFade = 0;
+    function fadeSwingCard() {
+        var card = $('swing-card');
+        if (card.hidden || card.classList.contains('fading')) return;
+        card.classList.add('fading');
+        $('stage').classList.remove('card-up');
+        cardFade = setTimeout(hideSwingCard, 400);
     }
 
     // The swipe, scaled into the card's little box (60 × 100), with the
@@ -2132,6 +2151,8 @@
 
     function holeComplete(pickedUp) {
         var hole = state.course.holes[state.holeIndex];
+        // In the cup: the stroke that put it there needs no explaining.
+        fadeSwingCard();
         if (state.course.isRange) {
             /* Out of 'rolling' at once: a holed ball stays done, and left in
                that phase the frame loop asks again every frame until the reset
@@ -3337,6 +3358,8 @@
                 if (Math.abs(e.clientX - look.x) < look.slop &&
                     Math.abs(e.clientY - look.y) < look.slop) return;
                 look.live = true;
+                // Aiming the next one: the last one's card has had its turn.
+                if (state.phase === 'aim') fadeSwingCard();
                 look.x = e.clientX;
                 look.y = e.clientY;
             }
@@ -3490,6 +3513,7 @@
 
     function nudgeAim(by) {
         if (!state || state.phase !== 'aim' || gate) return;
+        fadeSwingCard();
         state.aim.yaw += by;
     }
 
