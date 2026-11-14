@@ -72,7 +72,7 @@ them.
 | `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, the hills on the horizon, and the two splices into three.js's own — the turf and the ground beyond the course. |
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
-| `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
+| `js/flyover.js` | The intro sweep's path: four keys (or, on the tour, the world's own flight line in front of them), a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
 | `js/replay.js` | The ace replay's tape: every shot recorded a physics step at a time, read back for a hole in one with the cut to the cup and the slow motion timed off it. Pure — `render.js` places the camera, `game.js` plays the tape. |
 | `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. And the caddie's [plan](#the-plan-v11280) over it: a graph of where shots come to rest, searched for a route to the cup. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
@@ -4469,22 +4469,47 @@ one throttle:
   rather than 6. `backdrop.stats()` reports the world renderer's geometries,
   textures and programs, for a driver watching memory across a tour.
 
+### The victory lap
+
+Once a ball drops the seat behind it has nothing left to show, so the camera
+lets go of it and goes round the cup while the score is up (the owner,
+v1.170.0: "a bit slower and a bigger arc, showing a bit more of the
+surrounding views, like a victory lap"). Every hole on every course, not just
+the tour; not a ball picked up, and not the demo, which has its own orbit
+(`game.js → holeComplete` → `render.js → startLap`, `lapCamera`, `C.LAP`). It
+backs out and up to a circle sized off the hole's length and turns round the
+flag, easing towards its pose rather than writing it, so it starts from
+wherever the camera was — the seat, or the ace replay's cup camera — with no
+hand-off to write. Two things keep it out of the scenery: the ground under it
+(`physics.surfaceTop`, as everywhere), and a ray from over the cup out to
+where it wants to be, a few times a second, that draws it in in front of a
+windmill, a castle or a cliff and lets it back out slowly once past — solid
+meshes only (`solid`): a raycaster gives `Points` a unit of thickness, and a
+world's bubbles under a hidden parent held the first version a yard off the
+cup. `C.HOLE_END.SHOW` was lengthened to give it time. It keeps turning until
+`buildHole` clears `R.lap`, or the dive takes over.
+
 ### Down the cup
 
 Between two worlds the cup is the portal (the owner's idea, v1.162.0). Once a
 hole is holed the score is shown for `C.HOLE_END.SHOW` and the game goes on by
 itself — there is no Next button since v1.166.0, and a tap on the score or
 Enter skips the wait (`game.js → tickHoleEnd`). Then the flag goes off like a rocket on a trail
-of sparks, and the camera leaves wherever it watched the drop, arcs up over
-the cup and falls into it (`render.js → startDive`, `diveCamera`, `C.DIVE`),
-stopping just over the lip where the cup fills the picture — the height
+of sparks, and the camera carries on out of the victory lap: round the cup at
+the lap's own pace and `SWEEP` further, up over it by `RISE` and spiralling
+down into it (`render.js → startDive`, `diveCamera`, `C.DIVE`), each part eased
+so it leaves at the speed the lap was going and is falling fastest as it goes
+in. It looks just past the cup's axis on the far side, so the last look is
+never exactly straight down and the picture turns with the spiral instead of
+flicking round. It stops just over the lip where the cup fills the picture — the height
 worked out from the field of view, so a phone held either way ends on the
 inside of the hole and the ball lying in it, never on the ball's dimples.
 The wipe on to the next sky starts closing while it falls (`throughPortal`'s
 `dive`), so it opens out of the cup. The pose holds at the lip until the
 next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
-is over (`phase === 'holed'`, a picked-up ball included); reduced motion
-gets neither the dive nor the wipe.
+is over (`phase === 'holed'`, a picked-up ball included — then with no lap
+to carry on from, so it starts from standing); reduced motion gets neither
+the dive nor the wipe.
 
 ### The picker: everything side by side
 
@@ -5577,6 +5602,26 @@ the last of the run: the arrival is a camera standing on the course, and it is
 the one point in the path that may not move. All of it is pure arithmetic over
 `physics.surfaceTop`, which is why [the logic suite](#tests) can assert that
 every one of the sixty holes is flown *over* rather than through.
+
+**On the tour it is slower, wider, and the world's own line.** A tour hole
+is there to show its world off (the owner, v1.170.0: "showcase the cool
+portal maps"), so its sweep takes `FLY.TOUR` laid over `FLY` — longer, higher,
+further past the cup and further off the line (`flyover.js → knobs`). And
+when the live world is up it flies the line Portals itself flies its camera
+along (`vendor/portals → makePath`), which its makers keep clear of the
+world's things and which the hole is laid out on — the seat on the tee
+stands on it, and the hole runs the way it runs (`backdrop.mjs → fitAt`).
+`backdrop.line` hands it over in golf units, through the inverse of the
+anchor the world camera is carried out by; `flyover.js → worldLine` starts
+`LINE_PAST` units down it beyond the cup, flies back along it a key every
+`KEY_STEP` units looking the way it goes, and leaves it part way down the hole
+for the ordinary approach and seat. A line that does not pass near both the
+cup and the tee (`LINE_NEAR`) is not that hole's line — a world whose hole
+was placed by hand need not have one — and the tour sweep is flown instead.
+While it is on the line the world is drawn with no near cut (`stepPlace`'s
+`clear`, which otherwise drops everything nearer than half way to the ball),
+coming back over the landing: cut there, the near half of the world the sweep
+exists to show would be missing.
 
 While it runs, everything that is an answer to a question about the shot steps
 aside — the meter, the dial, the club chip, the bag in the corner, the aiming

@@ -725,6 +725,27 @@ function frame(dt, cam, place, seat, w, h, clear) {
     return true;
 }
 
+/* The world's own flight, in golf units: the line Portals flies its camera
+   along, brought back through the same anchor `frame` carries the golf
+   camera out by (the inverse of it). Portals keeps that line clear of its
+   world's things, so it is the one path through a world a camera is known
+   to fit down — which is what the tour's intro flies (flyover.js → plan,
+   `line`). `n` + 1 samples from u = 0 to 1, as [x, y, z], and `u`, where on
+   it the hole stands. Null without a built world for this place. */
+function line(place, seat, n) {
+    const W = cur;
+    if (!W || !engine || !place || !seat || W.def.id !== place.world || !W.path) return null;
+    if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
+    const A = W.anchor, N = Math.max(8, n || 240), pts = [];
+    _yaw.setFromAxisAngle(_up, -A.turn);
+    for (let i = 0; i <= N; i++) {
+        W.path.pointAt(i / N, _p);
+        _p.set(_p.x - A.x, _p.y - A.y, _p.z - A.z).applyQuaternion(_yaw).multiplyScalar(1 / A.scale);
+        pts.push([_p.x + A.sx, _p.y + A.sy, _p.z + A.sz]);
+    }
+    return { pts, u: A.u, scale: A.scale, at: !!place.at };
+}
+
 G3.backdrop = {
     canvas, want, prepare, frame, info,
     setQuality(t) { qualityTier = t || 'auto'; applyQuality(); },
@@ -759,6 +780,7 @@ G3.backdrop = {
        the height under a point in world coordinates, or null over nothing. */
     groundAt(x, z, from, any) { return cur ? groundUnder(cur, x, from === undefined || from === null ? 2000 : from, z, any) : null; },
     pathAt(u) { if (!cur) return null; const v = cur.path.pointAt(u, new THREE.Vector3()); return [v.x, v.y, v.z]; },
+    line,
     // A place edited by hand (the console, a tuning script): work it out again.
     reanchor() { if (cur) cur.anchor = null; },
     // For placing a hole: what the world is and where the hole ended up in it.
