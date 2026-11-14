@@ -278,37 +278,79 @@ html[data-bg="dawn"] [data-bg-layer="dawn"] {
     transition: opacity 0.8s ease-in-out;
 }
 
+/* No `filter: blur()` on these. A blur on an animated layer is not baked
+   into its texture — the compositor re-runs it every frame, and at 90px
+   over three half-screen discs that was most of the page's frame time
+   (headless: 4.75 frames/s with it, 11.75 without; 36 → 60 at phone
+   size). The soft edge is painted into the gradient instead, so the
+   animation is a static texture sliding about, which is free.
+
+   The gradient traces what the old blur did to a disc. The box is padded
+   by two of the blur's standard deviations (--blob-pad) so the falloff
+   has room to land, and the stops --s0…--s6 are that blurred disc's
+   radial profile, sampled at sevenths of the padded radius. The profile
+   depends only on how wide the disc is against the blur, and the discs
+   are vw while the blur was px, so the stops change with the viewport —
+   the media queries below. */
 .bg-blob {
+    --blob-pad: 180px;
+    --s0: 100%; --s1: 100%; --s2: 100%; --s3: 98%; --s4: 85%; --s5: 49%; --s6: 15%;
     position: absolute;
     border-radius: 50%;
-    filter: blur(90px);
     will-change: transform;
+    background: radial-gradient(closest-side,
+            color-mix(in oklab, var(--blob) var(--s0), transparent) 0%,
+            color-mix(in oklab, var(--blob) var(--s1), transparent) 14.3%,
+            color-mix(in oklab, var(--blob) var(--s2), transparent) 28.6%,
+            color-mix(in oklab, var(--blob) var(--s3), transparent) 42.9%,
+            color-mix(in oklab, var(--blob) var(--s4), transparent) 57.1%,
+            color-mix(in oklab, var(--blob) var(--s5), transparent) 71.4%,
+            color-mix(in oklab, var(--blob) var(--s6), transparent) 85.7%,
+            transparent 100%);
+}
+
+/* Disc radius / blur σ ≈ 4, 2.7 and 2 (mouse, 90px blur) */
+@media (max-width: 1400px) {
+    .bg-blob { --s0: 100%; --s1: 100%; --s2: 98%; --s3: 90%; --s4: 67%; --s5: 34%; --s6: 10%; }
+}
+@media (max-width: 1000px) {
+    .bg-blob { --s0: 97%; --s1: 95%; --s2: 86%; --s3: 68%; --s4: 43%; --s5: 20%; --s6: 7%; }
+}
+@media (max-width: 600px) {
+    .bg-blob { --s0: 86%; --s1: 82%; --s2: 69%; --s3: 50%; --s4: 30%; --s5: 14%; --s6: 5%; }
+}
+/* Touch had a 60px blur, so the same width is a crisper disc */
+@media (hover: none) and (min-width: 1001px), (pointer: coarse) and (min-width: 1001px) {
+    .bg-blob { --s0: 100%; --s1: 100%; --s2: 100%; --s3: 98%; --s4: 85%; --s5: 49%; --s6: 15%; }
+}
+@media (hover: none) and (min-width: 601px) and (max-width: 1000px), (pointer: coarse) and (min-width: 601px) and (max-width: 1000px) {
+    .bg-blob { --s0: 100%; --s1: 100%; --s2: 98%; --s3: 90%; --s4: 67%; --s5: 34%; --s6: 10%; }
 }
 
 .bg-blob-a {
-    width: 60vw;
-    height: 60vw;
-    top: -18vw;
-    left: -12vw;
-    background: var(--tint-a);
+    --blob: var(--tint-a);
+    width: calc(60vw + calc(2 * var(--blob-pad)));
+    height: calc(60vw + calc(2 * var(--blob-pad)));
+    top: calc(-18vw - var(--blob-pad));
+    left: calc(-12vw - var(--blob-pad));
     animation: bg-drift-a 62s ease-in-out infinite alternate;
 }
 
 .bg-blob-b {
-    width: 50vw;
-    height: 50vw;
-    top: 10vh;
-    right: -14vw;
-    background: var(--tint-b);
+    --blob: var(--tint-b);
+    width: calc(50vw + calc(2 * var(--blob-pad)));
+    height: calc(50vw + calc(2 * var(--blob-pad)));
+    top: calc(10vh - var(--blob-pad));
+    right: calc(-14vw - var(--blob-pad));
     animation: bg-drift-b 78s ease-in-out infinite alternate;
 }
 
 .bg-blob-c {
-    width: 70vw;
-    height: 55vw;
-    bottom: -22vw;
-    left: 20vw;
-    background: var(--tint-c);
+    --blob: var(--tint-c);
+    width: calc(70vw + calc(2 * var(--blob-pad)));
+    height: calc(55vw + calc(2 * var(--blob-pad)));
+    bottom: calc(-22vw - var(--blob-pad));
+    left: calc(20vw - var(--blob-pad));
     animation: bg-drift-c 70s ease-in-out infinite alternate;
 }
 
@@ -402,19 +444,28 @@ html:not([data-bg="dawn"]) .bg-sweep {
 }
 
 /* Grain — texture, and it hides the banding dark gradients get on 8-bit
-   panels. Always on, over whichever variant is showing. */
+   panels. Always on, over whichever variant is showing.
+
+   Plain alpha, not a blend mode. It used to be gray noise under
+   `mix-blend-mode: soft-light`, which looked the same but made the
+   compositor re-blend the whole animated stack beneath it every frame
+   (headless 1600x1000: 11.75 → 15.75 frames/s without it). This tile
+   carries the noise as white specks over black specks — the light and
+   dark halves of what soft-light did to these dark grounds — plus a
+   faint white floor for the lift the blend used to give. Matched by
+   measurement against the old blend at 800 and 1600 wide: grain amplitude
+   within 0.3 levels, mean brightness within ~1 on all three palettes. */
 #bg-grain {
     opacity: 1;
-    mix-blend-mode: soft-light;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' result='t'/%3E%3CfeColorMatrix in='t' result='w' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.080 0 0 0 -0.004'/%3E%3CfeColorMatrix in='t' result='k' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -0.350 0 0 0 0.175'/%3E%3CfeMerge%3E%3CfeMergeNode in='w'/%3E%3CfeMergeNode in='k'/%3E%3C/feMerge%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23n%29'/%3E%3C/svg%3E");
 }
 
 /* Touch as well as narrow: an iPad is too wide for the phone rules but has
    a phone's GPU, and its blobs are 60vw of a much wider screen. */
 @media (max-width: 600px), (hover: none), (pointer: coarse) {
-    /* Big blurs are the expensive part on a phone — shrink the radius */
+    /* The old blur was 60px here rather than 90 */
     .bg-blob {
-        filter: blur(60px);
+        --blob-pad: 120px;
     }
 }
 
@@ -2310,14 +2361,13 @@ footer p.colophon {
         -webkit-backdrop-filter: none;
     }
 
-    /* The grain texture stays, since it is what keeps the dark gradients from
-       banding. Only its blend mode goes: soft-light makes the compositor read
-       back everything underneath, and this layer sits inside the backdrop that
-       the cards then blur, so it was being read back constantly — ~5.5ms a
-       frame, the largest single cost left after the script fixes. Plain
-       low-opacity noise over a background this dark reads almost identically. */
+    /* Phones have always had their own grain: the soft-light tile without
+       the blend, at 0.28. That is lighter and greyer than the desktop
+       grain above — ~10 levels on these grounds — and it is the look the
+       phone page has, so it keeps it. Plain alpha either way, so it costs
+       the same. */
     #bg-grain {
-        mix-blend-mode: normal;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
         opacity: 0.28;
     }
 }
@@ -2961,15 +3011,6 @@ html[data-quality="reduced"] .card-stat-chip,
 html[data-quality="minimal"] .card-stat-chip {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-}
-
-/* soft-light makes the compositor read back everything under the grain,
-   and the grain is inside the backdrop nine cards blur. Plain low-opacity
-   noise over a background this dark reads almost the same. */
-html[data-quality="reduced"] #bg-grain,
-html[data-quality="minimal"] #bg-grain {
-    mix-blend-mode: normal;
-    opacity: 0.28;
 }
 
 /* ── minimal ── */

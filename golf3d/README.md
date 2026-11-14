@@ -84,7 +84,7 @@ them.
 | `js/game.js` | Loop, input, and what a shot means. |
 | `js/custom.js` | The hole the editor is playtesting, read out of `localStorage` and filed as a one-hole course. Does nothing unless the URL asks for `?course=custom`. |
 | `level-editor.html` + `editor/` | The [hole editor](#the-hole-editor): a plan you draw on and the game's own renderer showing what you drew. |
-| `vendor/three.min.js` | three.js r128, vendored. |
+| `../vendor/three.min.js` | three.js r128, vendored once at the repo root and shared with the other 3D pages. |
 | `tests.html` | Headless test harness — pure logic, no WebGL. Open it; green is green. |
 | `shader-tests.html` | The other half: compiles every shader for real against a live context. Green is green there too. |
 | `ui-tests.html` | Headless CSS/UI test harness: checks custom property definitions and active control states. |
