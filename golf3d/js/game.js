@@ -251,8 +251,46 @@
        world to begin in, for the door a player picked out of the gallery.
        Play again is newRound('portals'), the same six. */
     function newJourney(first) {
-        G3.JOURNEY = G3.portals.deal(null, state && state.save ? state.save : S.load(), first);
+        var dealt = !first && nextJourney;
+        nextJourney = null;
+        G3.JOURNEY = dealt || G3.portals.deal(null, state && state.save ? state.save : S.load(), first);
         newRound('portals');
+    }
+
+    /* The tour, dealt before anyone asks for it. What a new game plays is the
+       World Tour, and its first world is the long wait — fetched and built
+       after the press, with the player looking at a card. So while the demo
+       runs or the picker is up, the next tour is dealt ahead and its first
+       world is fetched, then built aside in slices (backdrop.mjs → prepare)
+       so the demo keeps its frames; Start then opens on a world that is
+       already there, or part way there. Retried while something else is
+       building (a demo hole's own world), and dropped the moment a round
+       is under way: newJourney takes this deal, anything else ignores it. */
+    var nextJourney = null, warmTimer = 0;
+    function warmTour() {
+        clearInterval(warmTimer);
+        if (!R.liveWanted || !G3.portals || !G3.portals.deal) return;
+        if (!nextJourney) {
+            try { nextJourney = G3.portals.deal(null, state && state.save ? state.save : S.load()); } catch (e) { return; }
+        }
+        var h = nextJourney && nextJourney.holes[0], id = h && h.place && h.place.world;
+        if (!id) return;
+        var fetched = false;
+        warmTimer = setInterval(function () {
+            var B = G3.backdrop;
+            if (!nextJourney) { clearInterval(warmTimer); return; }
+            // The demo was left some way other than into the tour: the deal
+            // and the world built for it are not wanted.
+            if (!demo) {
+                clearInterval(warmTimer);
+                nextJourney = null;
+                if (B && B.ahead === id && B.drop) B.drop();
+                return;
+            }
+            if (!B || B.failed(id) || B.current === id || B.ahead === id) return;
+            if (!fetched) { fetched = true; B.fetch(id); }
+            if (!B.building) B.prepare(id);
+        }, 1500);
     }
 
     /* One world on its own, out of the gallery: a round of one hole. */
@@ -335,6 +373,33 @@
        — a fraction of a second — and a card saying "building" would be a
        flash of something untrue, so the wipe holds on its colour alone. */
     function curtainClass() { return 'portal-wipe holding' + (curtain.built ? ' quiet' : ''); }
+    /* The bar under the card: how far the world's build has got, as
+       backdrop.mjs estimates it from the step the engine is on and how long
+       each step took on this device before. Never moves backwards — a step
+       that runs over its estimate holds the bar, it does not take it back. */
+    var STEP_SAYS = {
+        queue: 'Getting ready\u2026', fetch: 'Fetching the world\u2026',
+        leaf: 'Building the world\u2026', build: 'Building the world\u2026',
+        compile: 'Preparing the shaders\u2026', warm: 'Warming up the graphics\u2026',
+        show: 'Opening the portal\u2026'
+    };
+    function curtainBar(id) {
+        var B = G3.backdrop, pr = B && B.progress ? B.progress(id) : null;
+        var bar = $('pw-bar'), fill = bar && bar.firstElementChild;
+        if (!fill) return;
+        if (!pr) {
+            bar.classList.remove('known');
+            fill.style.transform = '';
+            $('pw-note').textContent = STEP_SAYS.queue;
+            return;
+        }
+        // A sliver to begin with, so a bar at nought still reads as a bar.
+        var p = Math.max(curtain.shown || 0, 0.03 + pr.p * 0.97);
+        curtain.shown = p;
+        bar.classList.add('known');
+        fill.style.transform = 'scaleX(' + p.toFixed(3) + ')';
+        $('pw-note').textContent = (STEP_SAYS[pr.step] || STEP_SAYS.build) + ' ' + Math.round(p * 100) + '%';
+    }
     function holdForWorld(hole, i) {
         var el = $('portal-wipe'), B = G3.backdrop;
         clearInterval(curtain.timer);
@@ -343,13 +408,17 @@
         // played, so the next wait is the building and not the download.
         var nx = state.course.holes[i + 1];
         if (wanted && nx && nx.place) {
-            setTimeout(function () { if (G3.backdrop) G3.backdrop.fetch(nx.place.world); }, 4000);
+            setTimeout(function () { if (G3.backdrop) G3.backdrop.fetch(nx.place.world); }, 1500);
         }
         // A world built and already drawn (the breakfast table's second
         // hole) opens at once; one built ahead and not yet drawn waits for
         // its first frames like any other, quietly.
+        if (!wanted) {
+            if (curtain.up) { curtain.up = false; openWipe(); }
+            return;
+        }
         var built = !!(B && B.current === hole.place.world);
-        if (!wanted || (B && ((built && B.shown) || B.failed(hole.place.world)))) {
+        if (B && ((built && B.shown) || B.failed(hole.place.world))) {
             if (curtain.up) { curtain.up = false; openWipe(); }
             return;
         }
@@ -358,18 +427,21 @@
         $('pw-kicker').textContent = state.course.single ? 'World Tour' : 'Hole ' + (i + 1) + ' of ' + state.course.holes.length;
         $('pw-title').textContent = hole.name || (w ? w.title : '');
         $('pw-world').textContent = w ? 'in ' + w.world : '';
-        $('pw-note').textContent = 'Building the world\u2026';
+        curtain.shown = 0;
+        curtainBar(hole.place.world);
         wipeSkies(el, themeAt(i));
         curtain.up = true; curtain.t0 = Date.now();
         if (!/closing/.test(el.className)) el.className = curtainClass();
         curtain.timer = setInterval(function () {
             var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
+            curtainBar(hole.place.world);
             var live = R.live, lost = (B2 && B2.failed(hole.place.world)) || (!B2 && waited > 6000);
             if (portalBusy || (!live && !lost && waited < WORLD_WAIT)) return;
             // Two frames of the world on screen before it is shown.
             if (live && waited < 350) return;
             clearInterval(curtain.timer);
             curtain.up = false;
+            if (live) curtainBar(hole.place.world);
             if (!live) toast('This world is taking its time \u2014 playing on without it');
             openWipe();
             maybeFly();
@@ -383,6 +455,29 @@
        is built a few milliseconds a frame, so the frame rate dips a little
        here rather than the wait between the worlds being the whole build.
        Pass and play is left out: the same hole is played again first. */
+    /* …and sooner than that: once a hole is open and its intro has played,
+       the next world is built aside in slices while this one is played, so
+       the dive into the cup opens straight on to it. Waits for a quiet
+       moment (no flyover, no ball in flight, nothing else building) and
+       gives up when the hole changes; prepareNext, at the sink, is what
+       is left if it never found one. */
+    var aheadTimer = 0;
+    function prepareAhead() {
+        clearInterval(aheadTimer);
+        if (!state.course.isPortals || demo || !R.liveWanted) return;
+        var at = state.holeIndex, course = state.course, nx = course.holes[at + 1];
+        if (!nx || !nx.place) return;
+        var id = nx.place.world, since = Date.now();
+        aheadTimer = setInterval(function () {
+            var B = G3.backdrop;
+            if (!state || state.course !== course || state.holeIndex !== at || demo) { clearInterval(aheadTimer); return; }
+            if (!B || B.failed(id) || B.ahead === id || B.current === id) { clearInterval(aheadTimer); return; }
+            if (Date.now() - since < C.DIVE.PREPARE_AHEAD * 1000 || curtain.up || R.flying() ||
+                state.phase !== 'aim' || B.building || !B.shown) return;
+            B.prepare(id);
+        }, 1000);
+    }
+
     function prepareNext() {
         if (!state.course.isPortals || demo || !R.liveWanted) return;
         var at = state.holeIndex, course = state.course, nx = course.holes[at + 1];
@@ -482,6 +577,7 @@
         state.flyPending = !again;
         showHoleCard();
         holdForWorld(hole, i);
+        prepareAhead();
         maybeFly();
     }
 
@@ -5695,6 +5791,7 @@
         document.body.classList.add('demo');
         $('demo').hidden = false;
         demoRound();
+        warmTour();
     }
 
     /* One hole at a time, out of any course, and never one this machine has
