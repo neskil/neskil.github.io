@@ -194,6 +194,17 @@ really have the game play feeling"). What that has meant in practice:
 
 ## Things that will bite
 
+- **Live worlds are on by default, everywhere, and only the player turns them
+  off** (the owner, v1.155.0 and again v1.167.1: "on by default"). The switch
+  in Courses is the one thing that writes `golf3d.live`. The safety nets in
+  `render.js` — a build left unfinished last visit, a frame rate that will not
+  come up — switch them off **for that visit only** (`R.liveSession`) and try
+  again next time. Twice a safety net wrote the stored setting instead and
+  turned the worlds off for good, the second time on every new phone: the
+  "unfinished build" mark is *this* visit's while a world builds, so it is read
+  once at load (`crashedLast`) and never again. Don't make an automatic
+  switch-off persistent, and don't read that mark after load.
+
 - **A tour hole is not a course hole, and the course rules are not its
   rules.** `portals.js → world()` builds every one open, unrailed and
   unstaked, and `tests.html` holds them to their own short list. The hole

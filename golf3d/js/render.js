@@ -5701,14 +5701,32 @@
        worlds switched off, `stepPlace` does nothing and the hole stands in
        its theme's own sky with worlds.js's simple set piece — a complete
        hole either way. */
-    var LIVE_KEY = 'golf3d.liveWorlds';
+    /* Only the switch in Courses writes this. The two safety nets below — a
+       build that did not finish last visit, a frame rate that would not come
+       up — turn live worlds off for this visit alone (R.liveSession) and try
+       again on the next. They used to write '0' here, which read as the
+       player's own choice from then on: on a phone a tab closed while a world
+       was building looks just like a crash, and one of those turned the
+       worlds off for good (the owner: "should be on by default — why is it
+       not?"). The key is new with that change, so a '0' a safety net wrote
+       under the old one is not carried over. */
+    var LIVE_KEY = 'golf3d.live';
+    /* Whether the last visit left a build unfinished — read once, here, as
+       the page loads. backdrop.mjs (a module, so it runs after this) sets the
+       mark while *this* visit's world builds, and liveWanted used to read it
+       on every call: asked during the first world's build, it found its own
+       visit's mark, called it a crash and turned live worlds off. That was
+       every new phone, whose first world builds while the demo or the
+       picker is up and something is asking. */
+    var crashedLast = (function () {
+        try {
+            if (!localStorage.getItem('golf3d.worldBuilding')) return false;
+            localStorage.removeItem('golf3d.worldBuilding');
+            return true;
+        } catch (e) { return false; }
+    })();
     function liveWanted() {
         if (R.liveOverride !== undefined) return R.liveOverride;
-        try {
-            var v = localStorage.getItem(LIVE_KEY);
-            if (v === '0') return false;
-            if (v === '1') return true;
-        } catch (e) { /* ignore */ }
         /* On by default, everywhere — a phone too. It used to be a
            desktop's job only, and the owner's phone, which runs the game at
            sixty frames, was shown the stand-in scenery and wondered where
@@ -5718,19 +5736,23 @@
            that is not enough (stepPlace), and a build that killed the page
            last time is not tried again (backdrop.mjs leaves a mark while it
            builds). */
+        if (crashedLast) {
+            crashedLast = false;
+            R.liveSession = false;
+            setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
+        }
+        if (R.liveSession === false) return false;
         try {
-            if (localStorage.getItem('golf3d.worldBuilding')) {
-                localStorage.removeItem('golf3d.worldBuilding');
-                localStorage.setItem(LIVE_KEY, '0');
-                setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
-                return false;
-            }
+            var v = localStorage.getItem(LIVE_KEY);
+            if (v === '0') return false;
+            if (v === '1') return true;
         } catch (e) { /* ignore */ }
         return !(navigator.deviceMemory && navigator.deviceMemory <= 2);
     }
     function setLive(on) {
         try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
         R.liveOverride = undefined;
+        R.liveSession = undefined;   // the player's word outranks a safety net
         if (R.hole) setPlace(R.hole);
         return liveWanted();
     }
@@ -5872,7 +5894,9 @@
                 }
                 if (R.liveBad >= 3 && R.liveOverride === undefined) {
                     R.liveBad = 0;
-                    setLive(false);
+                    // This visit only — see LIVE_KEY.
+                    R.liveSession = false;
+                    setPlace(R.hole);
                     window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
                     return;
                 }
