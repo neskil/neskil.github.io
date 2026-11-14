@@ -182,7 +182,12 @@
            far end of a par five, and the whole of that hole's plan in the
            picker, into a white rectangle. Fog is a function of distance, and
            these are the longest holes on the card. */
-        canyon: ['clear', 'golden', 'fair', 'overcast', 'clear', 'golden']
+        canyon: ['clear', 'golden', 'fair', 'overcast', 'clear', 'golden'],
+        /* High country, and the air up there is the point: clear and fair
+           all round, with a golden hour on the snow. No mist, dust or grey
+           day — a haze is exactly what clear high air is not, and it would
+           take the range off the horizon the course is built under. */
+        alpine: ['clear', 'fair', 'golden', 'clear', 'fair', 'clear']
     };
 
     // Skies a course is happy to open on.
@@ -241,7 +246,10 @@
         return h;
     }
 
-    function listFor(theme) { return BY_THEME[theme] || BY_THEME.seaside; }
+    // A portal world brings its own list (portals.js → PORTAL_SKIES).
+    function listFor(theme) {
+        return BY_THEME[theme] || (G3.PORTAL_SKIES && G3.PORTAL_SKIES[theme]) || BY_THEME.seaside;
+    }
 
     /* A shuffle, not a hash per hole. Hashing the hole number and taking it
        modulo the list was the obvious thing and it was wrong: six samples of a

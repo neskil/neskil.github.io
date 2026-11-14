@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loft Links — 3D Mini Golf, Seventeen Courses | Niklas Billgren</title>
-    <meta name="description" content="A 3D golf game in the browser: seventeen six-hole courses in four kinds — mini golf over ramps, ledges and water carries; crazy golf past sliding gates, windmill blades, a waterwheel over the millrace and a bell loft where the machines are geared to each other; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard where the ball weighs something different on every hole; and the long game over parkland, heath, an open links of rolling dunes and a canyon country built out of ground that is missing. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.">
-    <meta name="theme-color" content="#0b1c2c">
+    <title>Loft Links — 3D Mini Golf, Fifteen Courses | Niklas Billgren</title>
+    <meta name="description" content="A 3D golf game in the browser: fifteen six-hole courses in four kinds — mini golf over ramps, ledges, banks and water carries; crazy golf past sliding gates, windmill blades, pinball bumpers and a clockwork court of bars, bells and a mill race; adventure golf on ice, launch pads, belts, pipes and a loop on the side of a volcano, and a moon yard where the ball weighs something different on every hole; and the long game over parkland, heath, an open links of rolling dunes, a canyon country built out of ground that is missing and a mountain pass under the snow. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.">
+    <meta name="theme-color" content="#1c1f17">
+    <!-- Safari on an iPhone will not take a page fullscreen; launched from the
+         Home Screen it opens without its bars, which is the nearest thing. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Loft Links">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/golf3d/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Loft Links — 3D Mini Golf">
-    <meta property="og:description" content="Seventeen courses of 3D golf in four kinds: mini golf on seaside greens, a quarry of ramps and ledges, a lagoon you have to fly and a hillside you have to climb; crazy golf in a workshop where everything moves, a pinball parlour of bumpers, a clockwork court you have to time, a mill where every machine stands over water and a belfry where they are geared to each other; adventure golf where the floor itself is the obstacle — ice, travelators, pipes, a volcano whose vents are the only way up it, and a moon yard played at six different gravities; and the long game over parkland, heath, an open links of rolling dunes and a canyon you have to carry, skirt or climb out of. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
+    <meta property="og:description" content="Fifteen courses of 3D golf in four kinds: mini golf on seaside greens, a quarry of ramps, ledges and banks, and a lagoon you have to fly; crazy golf in a workshop where everything moves, a pinball parlour of bumpers and a clockwork court of bars, bells and a mill race you have to time; adventure golf where the floor itself is the obstacle — ice, launch pads, belts, a pipe and a loop on a volcano, and a moon yard played at six different gravities; and the long game over parkland, heath, an open links of rolling dunes, a canyon you have to carry, skirt or climb and a mountain pass of crags, tarns and glacier streams. Every hole has weather of its own — read the flag for the wind. Drag to aim, pick a club, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf3d/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
@@ -23,7 +29,7 @@
     <link rel="icon" href="../favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -32,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.109.1">
+    <link rel="stylesheet" href="style.css?v=1.168.3">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -40,7 +46,7 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/golf3d/",
-                "description": "A 3D golf game in the browser: seventeen six-hole courses in four kinds — mini golf over ramps, ledges and water carries; crazy golf past sliding gates, windmill blades, a waterwheel over the millrace and a bell loft where the machines are geared to each other; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard where the ball weighs something different on every hole; and the long game over parkland, heath, an open links of rolling dunes and a canyon country built out of ground that is missing. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.",
+                "description": "A 3D golf game in the browser: fifteen six-hole courses in four kinds — mini golf over ramps, ledges, banks and water carries; crazy golf past sliding gates, windmill blades, pinball bumpers and a clockwork court of bars, bells and a mill race; adventure golf on ice, launch pads, belts, pipes and a loop on the side of a volcano, and a moon yard where the ball weighs something different on every hole; and the long game over parkland, heath, an open links of rolling dunes, a canyon country built out of ground that is missing and a mountain pass under the snow. Each hole under weather of its own. Drag to aim, pick a club, read the flag for the wind. No install, no account, works on a phone.",
                 "image": "https://neskil.github.io/assets/og/golf3d.png",
                 "name": "Loft Links — 3D Mini Golf",
                 "author": {
@@ -74,6 +80,23 @@
     </script>
 </head>
 <body>
+    <!-- Up until the first frame of the course is drawn (game.js → hideLoader),
+         so nobody sees the chrome before the game it belongs to. Plain markup
+         and style.css only: it has to paint before a line of script has run. -->
+    <div class="loader" id="loader" role="status" aria-label="Loading Loft Links">
+        <svg class="ld-scene" viewBox="0 0 200 84" aria-hidden="true">
+            <rect class="ld-cup" x="143" y="64" width="14" height="8"/>
+            <g class="ld-ball-x">
+                <ellipse class="ld-shadow" cx="24" cy="64" rx="4.5" ry="1.1"/>
+                <g class="ld-ball-y"><circle class="ld-ball" cx="24" cy="60" r="4"/></g>
+            </g>
+            <path class="ld-ground" d="M0 64 H143 V71 H157 V64 H200 V84 H0 Z"/>
+            <line class="ld-pole" x1="152" y1="68" x2="152" y2="20"/>
+            <path class="ld-flag" d="M152.6 20 L176 26.5 L152.6 33 Z"/>
+        </svg>
+        <p class="ld-title">Loft <span>Links</span></p>
+        <p class="ld-note">Raking the bunkers<span class="ld-dots"><i>.</i><i>.</i><i>.</i></span></p>
+    </div>
     <div class="wrap">
       <!-- Topbar, scoreboard and stage together: on a phone this block is the
            whole viewport, so the course starts full screen and the rest of the
@@ -88,7 +111,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">Seventeen courses in four kinds. A hundred and two holes. Not every one lends you the whole bag.</p>
+                <p class="tagline">A World Tour of twenty holes in seventeen worlds, beside fifteen courses of every kind of golf.</p>
             </div>
 
             <!-- Six figures on one line is a paragraph; the four that change
@@ -123,30 +146,40 @@
                      the screen, and there is nothing on the course to say so. -->
                 <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶<span class="chip-text"> Full</span></button>
                 <div class="topbar-menu" id="topbar-menu">
-                    <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
-                    <button class="chip" id="btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Range</span></button>
-                    <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
-                    <button class="chip" id="btn-card" title="Scorecard">Card</button>
-                    <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
-                    <!-- The caddie, and an ordinary control: it plays the hole
-                         out from wherever your ball is standing and then keeps
-                         going — the next hole, and at the end of a course the
-                         next course. Pressing it again, or Esc, takes the club
-                         back. It sits with the things you do to a round rather
-                         than with the settings, and it costs the session's
-                         records: see game.js → finishRound. -->
-                    <!-- Pass and play: 1 to 4 players sharing the device, a turn
-                         each per hole and a ball of their own (game.js). -->
-                    <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false">👥<span class="chip-text"> Players</span> <span id="players-count">1</span></button>
-                    <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
-                    <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
-                    <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
-                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
-                    <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
-                    <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
-                    <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
-                    <button class="chip" id="btn-style" title="How you swing on the long game (trial)" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Meter</span></span></button>
-                    <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
+                    <!-- Compact layout: three big things you reach for, a row of
+                         quick tiles, then two folds. Desktop ignores the
+                         grouping (display: contents) and shows every chip in
+                         the bar as before. Ids are unchanged: game.js binds
+                         them by name. -->
+                    <div class="tm-primary">
+                        <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
+                        <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
+                        <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                    </div>
+                    <div class="tm-quick">
+                        <button class="chip" id="btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Range</span></button>
+                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false">More <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-more" data-group>
+                        <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false">👥<span class="chip-text"> Players</span> <span id="players-count">1</span></button>
+                        <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
+                        <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-settings" aria-expanded="false">⚙ Settings &amp; help <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-settings" data-group>
+                        <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
+                        <button class="chip" id="btn-style" title="Touch swing settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Touch swing</span></span></button>
+                        <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
+                        <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
+                        <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
+                        <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
+                        <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-about" aria-expanded="false">ⓘ About <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-about" data-group>
+                        <p class="tm-about">Loft Links, by Niklas Billgren. The tour's worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.</p>
+                    </div>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
                         aria-expanded="false" aria-controls="topbar-menu">☰</button>
@@ -322,7 +355,7 @@
             <div class="demo-screen" id="demo" hidden>
                 <div class="dm-panel">
                     <p class="dm-eyebrow">Demo</p>
-                    <p class="dm-title">Loft <span>Links</span></p>
+                    <p class="dm-title"><span class="dm-said">Loft Links</span><span aria-hidden="true"><span class="dm-word dm-chalk"><i style="--i:0">L</i><i style="--i:1">o</i><i style="--i:2">f</i><i style="--i:3">t</i></span> <span class="dm-word dm-brass"><i style="--i:4">L</i><i style="--i:5">i</i><i style="--i:6">n</i><i style="--i:7">k</i><i style="--i:8">s</i></span></span></p>
                     <p class="dm-sub" id="dm-sub">The caddie is playing —</p>
                     <button type="button" class="dm-start" id="dm-start">Start game</button>
                     <p class="dm-hint">or press anything at all</p>
@@ -348,6 +381,8 @@
                     <line class="sw-full" id="sw-full"/>
                     <polygon class="sw-cone" id="sw-cone"/>
                     <polyline class="sw-trail" id="sw-trail"/>
+                    <line class="sw-spin" id="sw-spin"/>
+                    <text class="sw-spin-label" id="sw-spin-label">spin</text>
                     <circle class="sw-ball" id="sw-ball" r="15"/>
                 </svg>
                 <span class="swipe-cue" id="swipe-cue">Pull down, swipe up</span>
@@ -388,15 +423,18 @@
 
             <!-- After a touch swing: why the ball went where it did (game.js
                  `showSwingCard`) — the swipe drawn small, and a line for each
-                 thing swing.js read off it. -->
+                 thing swing.js read off it. Up until it is tapped away. -->
             <div class="swing-card" id="swing-card" hidden aria-live="polite">
                 <svg class="sc2-svg" id="sc2-svg" viewBox="0 0 60 100" aria-hidden="true">
                     <polygon class="sc2-cone" id="sc2-cone"/>
                     <line class="sc2-ideal" id="sc2-ideal"/>
+                    <polyline class="sc2-case" id="sc2-case"/>
                     <polyline class="sc2-trail" id="sc2-trail"/>
+                    <circle class="sc2-end" id="sc2-end" r="4.5"/>
                 </svg>
                 <div class="sc2-body">
                     <span class="sc2-grade" id="sc2-grade"></span>
+                    <span class="sc2-close" aria-hidden="true">tap to close ✕</span>
                     <ul class="sc2-rows" id="sc2-rows"></ul>
                 </div>
             </div>
@@ -408,16 +446,16 @@
                  four on trial, built from STYLE_INFO. -->
             <div class="style-pad" id="style-pad" hidden role="dialog" aria-label="Swing style">
                 <div class="st-head">
-                    <span><b>Swing style</b><small>pick one, then tune the touch swing below</small></span>
+                    <span><b>Swing</b><small id="st-sub">Settings for the touch swing.</small></span>
                     <button type="button" class="st-close" id="style-close" aria-label="Close">✕</button>
                 </div>
                 <div class="st-list" id="style-list"></div>
                 <!-- What the touch swing reads, and how hard; plus where any
                      style applies. game.js `buildTune` from TUNE_ROWS. -->
                 <div class="tune">
-                    <p class="tn-title">Touch swing settings <small>try them and say which is fun</small></p>
+                    <p class="tn-title">Touch swing</p>
                     <div class="tn-rows" id="tune-rows"></div>
-                    <p class="tn-says" id="tune-says" aria-live="polite">Each one says what it does when you pick it.</p>
+                    <p class="tn-says" id="tune-says" aria-live="polite">Pick a setting to see what it does.</p>
                 </div>
             </div>
 
@@ -438,30 +476,7 @@
                              about any of them: 60% is nine units with a putter
                              and nineteen with a driver, and it is the nine and
                              the nineteen you are aiming with. -->
-                        <!-- Shot shape, on the clubs that bend (js/swing.js
-                             `shape`). A ball with a dot where the club will
-                             meet it: dead centre is straight, and pressing it
-                             opens the pad below to move the dot. Floated into
-                             the label's line because on a phone this column
-                             is two hundred pixels wide and there is no second
-                             row to spare. -->
-                        <!-- Where the club meets the ball, picked on the ball itself:
-                             hit the top of it and it is topped, get under it for
-                             backspin, either side to bend it that way. A cycle of
-                             five words through one chip said none of that. Built by
-                             game.js (`buildShapePad`) from SHAPE_INFO. -->
-                        <div class="shape-pad" id="shape-pad" hidden role="dialog" aria-label="Shot shape">
-                            <p class="sp-title">Where do you hit it?</p>
-                            <div class="sp-ball" id="sp-ball"></div>
-                        </div>
-                        <button type="button" class="shape-btn" id="btn-shape" hidden
-                                title="Shot shape: draw Z, fade X, backspin Q, topped E"
-                                aria-haspopup="dialog" aria-expanded="false" aria-controls="shape-pad"
-                                aria-label="Shot shape: Straight. Press to change.">
-                            <span class="shape-ball" aria-hidden="true"><i class="shape-dot" id="shape-dot"></i></span>
-                            <span id="shape-val">Straight</span>
-                        </button>
-                        <span class="ctl-label">Power <b id="power-val">0.0</b><span class="power-of" id="power-of">/ 32</span></span>
+                        <span class="ctl-label"><span class="power-word">Power </span><b id="power-val">0.0</b><span class="power-of" id="power-of">/ 32</span><span class="power-dist" id="power-dist"></span></span>
                         <!-- The meter has always been a slider you can press
                              and drag; what it did not have was anything that
                              said so. The grip is the handle you reach for, the
@@ -513,12 +528,27 @@
 
             <div class="banner" id="banner">
                 <div class="banner-term" id="banner-term">Par</div>
+                <!-- What the hole was worth: three stars for under par, two for
+                     par, one for holing out. Hidden when nothing is kept. -->
+                <div class="banner-stars" id="banner-stars" role="img" hidden></div>
                 <div class="banner-detail" id="banner-detail"></div>
-                <button id="banner-next" type="button">Next hole →</button>
                 <button id="banner-replay" class="banner-replay" type="button" hidden>↺ Watch the replay</button>
             </div>
 
             <div class="toast" id="toast"></div>
+
+            <!-- Between two holes of the World Tour: the next world's sky
+                 closing over the stage, and opening again on its tee.
+                 game.js → throughPortal. -->
+            <div class="portal-wipe" id="portal-wipe" role="status">
+                <div class="pw-card">
+                    <span class="pw-kicker" id="pw-kicker"></span>
+                    <b class="pw-title" id="pw-title"></b>
+                    <span class="pw-world" id="pw-world"></span>
+                    <span class="pw-bar" id="pw-bar" aria-hidden="true"><i></i></span>
+                    <span class="pw-note" id="pw-note"></span>
+                </div>
+            </div>
 
             <div class="fs-prompt" id="fs-prompt">
                 <span>Play fullscreen for the full course view</span>
@@ -586,16 +616,11 @@
                     rather than runs, the <b>pitch</b> goes up steep and stops where it lands,
                     and the <b>wedge</b> is the lob — straight up over water, sand and trees.
                     Each one has its own ceiling on power, so a full swing means something different in every hand.
-                    Most clubs can also <b>shape</b> the shot — the chip above the meter steps through
-                    what the club in hand can play. A <b>draw</b> (<kbd>Z</kbd>) starts out right of your
-                    aim and curves back left onto it, a <b>fade</b> (<kbd>X</kbd>) the other way round and
-                    lands softer: aim at the target and bend the ball round whatever is in between.
-                    <b>Backspin</b> (<kbd>Q</kbd>) stops it where it lands; <b>topped</b> (<kbd>E</kbd>)
-                    keeps it low under the branches and lets it run. The preview shows the shot as
-                    asked for — but a shape has to be <b>struck</b>: Swing starts a marker along the
-                    meter, and you press again on the white line. Early over-cooks it and pulls it
-                    left, late leaves it short of the shape and pushes it right. The shape is for one
-                    shot, and goes back to straight after it.
+                    The <b>driver</b> is for the tee: after the drive it goes back in the bag for the club that
+                    fits what is left, and swung off the fairway it is harder to strike straight.
+                    On the touch swing you can still bend it: bow the swipe to the right for a
+                    <b>draw</b> that starts right and curves back left, to the left for a <b>fade</b>,
+                    and let go about three quarters of the way back up for <b>backspin</b>.
                 </li>
                 <li>
                     <b>The hole introduces itself.</b> Every new hole opens with a flyover: it
@@ -690,7 +715,7 @@
             <p class="sub kb-help">
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power ·
                 <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> tenths of a full swing ·
-                <kbd>home</kbd><kbd>end</kbd> empty or full · <kbd>Z</kbd><kbd>X</kbd><kbd>Q</kbd><kbd>E</kbd> draw, fade, backspin, topped ·
+                <kbd>home</kbd><kbd>end</kbd> empty or full ·
                 <kbd>space</kbd> swing · <kbd>shift</kbd> fine control · <kbd>,</kbd><kbd>.</kbd> view round the ball ·
                 <kbd>L</kbd> lock it · <kbd>0</kbd> straighten · <kbd>V</kbd> seat ·
                 <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · <kbd>P</kbd> frame rate
@@ -705,10 +730,11 @@
     <div class="modal" id="menu">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="menu-title">
             <div class="menu-head-row">
-                <h2 id="menu-title">Pick a course</h2>
+                <h2 id="menu-title">Where to?</h2>
                 <button type="button" class="chip chip-range" id="menu-btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Driving Range</span></button>
             </div>
-            <p class="sub">Records are kept per course — tap a plan to start on that hole.</p>
+            <!-- How much of all of it is done: every star there is, as one bar. -->
+            <p class="menu-progress"><span class="mp-bar" aria-hidden="true"><i id="menu-progress-bar"></i></span><span id="menu-progress-text"></span></p>
             <!-- On a desktop the round starts fullscreen: a browser only lets a
                  page go fullscreen off a press, and Start and a pick in this
                  list are both presses, so the switch is the place the game
@@ -723,36 +749,73 @@
                 </span>
                 <span class="sh-mark" aria-hidden="true"></span>
             </button>
-            <!-- The showcase: two holes from every kind of golf, eight in all,
-                 and what a new game plays — it is the round loaded behind
-                 this list when it first opens, so "Keep playing" is this too.
-                 Above the tabs rather than in one, because it is every kind
-                 at once. courses.js → dealShowcase. -->
-            <button type="button" class="sh-go showcase-go" id="menu-showcase">
-                <span class="sh-die" aria-hidden="true">&#x2726;</span>
-                <span class="sh-go-text">
-                    <b>Showcase</b>
-                    <span class="sh-sub" id="menu-showcase-sub">Two holes from every kind of golf, eight in all. A new deal every round.</span>
-                </span>
-            </button>
-            <!-- Challenge mode: six mathematical surfaces drawn in neon, and a
-                 new cup on every one each round. Beside the showcase rather
-                 than in a tab for the same reason — it is no kind of golf in
-                 the list. courses.js → dealChallenge. -->
-            <button type="button" class="sh-go challenge-go" id="menu-challenge">
-                <span class="sh-die" aria-hidden="true">&#x223F;</span>
-                <span class="sh-go-text">
-                    <b>Challenge</b>
-                    <span class="sh-sub" id="menu-challenge-sub">Six mathematical surfaces in a grid world, and a new cup on every one each round.</span>
-                </span>
-            </button>
-            <!-- One tab per kind of golf. Seventeen courses shown flat is a list
+            <!-- One picker, and everything in it side by side.
+
+                 Three ways to be dealt a round sit on top: the World Tour
+                 (six holes, each inside a different world — portals.js), the
+                 showcase and the challenge. Under them one row of tabs files
+                 every hole and course there is — the tour's worlds first,
+                 then the four kinds of drawn course, then the draw. The tour
+                 used to be a front page and the courses a second page behind
+                 a door (the owner: "I want the new and old style maps next
+                 to each other"). game.js → drawMenu. -->
+            <div class="menu-featured" id="menu-featured">
+                <button type="button" class="door" id="menu-portals">
+                    <span class="door-eye" aria-hidden="true"></span>
+                    <span class="door-text">
+                        <b id="menu-portals-title">Play the World Tour</b>
+                        <span class="door-sub" id="menu-portals-sub">Six holes, each in a different world, and a new six every round.</span>
+                    </span>
+                    <span class="door-go" aria-hidden="true">&#x2192;</span>
+                </button>
+                <!-- The showcase: two holes from every kind of golf, eight in
+                     all. courses.js → dealShowcase. -->
+                <button type="button" class="sh-go showcase-go" id="menu-showcase">
+                    <span class="sh-die" aria-hidden="true">&#x2726;</span>
+                    <span class="sh-go-text">
+                        <b>Showcase</b>
+                        <span class="sh-sub" id="menu-showcase-sub">Two holes from every kind of golf, eight in all. A new deal every round.</span>
+                    </span>
+                </button>
+                <!-- Challenge mode: six mathematical surfaces drawn in neon,
+                     and a new cup on every one each round.
+                     courses.js → dealChallenge. -->
+                <button type="button" class="sh-go challenge-go" id="menu-challenge">
+                    <span class="sh-die" aria-hidden="true">&#x223F;</span>
+                    <span class="sh-go-text">
+                        <b>Challenge</b>
+                        <span class="sh-sub" id="menu-challenge-sub">Six mathematical surfaces in a grid world, and a new cup on every one each round.</span>
+                    </span>
+                </button>
+                <!-- …and the draw: a course picked for you, straight away.
+                     What it may pick from is behind the link under the row
+                     (#shuffle). courses.js → shuffleDraw. -->
+                <button type="button" class="sh-go surprise-go" id="menu-surprise">
+                    <span class="sh-die" aria-hidden="true">&#x1F3B2;</span>
+                    <span class="sh-go-text">
+                        <b>Surprise me</b>
+                        <span class="sh-sub">A course drawn for you, leaning towards the ones you have played least.</span>
+                    </span>
+                </button>
+            </div>
+            <!-- One tab per kind of golf. Fifteen courses shown flat is a list
                  nobody reads; shown a kind at a time it is three or four. -->
             <div class="menu-tabs" id="menu-tabs" role="tablist"
                  aria-label="Kind of course"></div>
             <p class="menu-tab-blurb" id="menu-tab-blurb"></p>
-            <div id="menu-list" class="course-list" role="tabpanel"></div>
-            <!-- Shuffle: the other way through seventeen courses, for when the
+            <!-- The tour's holes, each to play by itself: the first tab. -->
+            <div class="worlds-panel" id="menu-worlds-panel" role="tabpanel" hidden>
+                <p class="sh-label" id="menu-worlds-label">Pick a hole</p>
+                <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
+                <p class="tour-credit">
+                    <button type="button" class="linkish" id="menu-live" role="switch" aria-checked="true">Live worlds: on</button>
+                    <button type="button" class="linkish" id="menu-draw-settings">What Surprise me draws from</button></p>
+            </div>
+            <!-- One card's page: what it is, how you have done, its holes
+                 and the button that plays it. game.js → drawDetail. -->
+            <div class="menu-detail" id="menu-detail" hidden></div>
+            <div id="menu-list" class="course-list" role="tabpanel" hidden></div>
+            <!-- Shuffle: the other way through fifteen courses, for when the
                  list has stopped being a choice and started being a menu you
                  scroll past. It is the last tab on the row rather than a block
                  under whichever list is open, so it trades places with
@@ -824,7 +887,7 @@
             <span><b>The View dial</b> along the top of the course walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole. The <b>🔓</b> beside it locks the camera where it is, so aiming stops swinging the view round; handy on the overview, where a drag to aim otherwise turns the whole hole under you.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>5</kbd> club
                 · <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> tenths of a full swing · <kbd>home</kbd><kbd>end</kbd> empty or full
-                · <kbd>Z</kbd><kbd>X</kbd><kbd>Q</kbd><kbd>E</kbd> draw, fade, backspin, topped · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
+                · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>V</kbd> seat: follow, side on, overview · <kbd>,</kbd><kbd>.</kbd> walk round · <kbd>L</kbd> lock the camera · <kbd>0</kbd> straighten · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · <kbd>O</kbd> fancy water · <kbd>P</kbd> frame rate · scroll to zoom</span>
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera — a tap on its own leaves the aim where it was. Drag the View dial along the top to look at the shot from the side, and hold a nudge button to keep it moving. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
@@ -852,30 +915,42 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.109.1"></script>
-    <script src="js/themes.js?v=1.109.1"></script>
-    <script src="js/physics.js?v=1.109.1"></script>
-    <script src="js/courses.js?v=1.109.1"></script>
-    <script src="js/audit.js?v=1.109.1"></script>
-    <script src="js/custom.js?v=1.109.1"></script>
-    <script src="js/scoring.js?v=1.109.1"></script>
-    <script src="js/swing.js?v=1.109.1"></script>
-    <script src="js/school.js?v=1.109.1"></script>
-    <script src="js/audio.js?v=1.109.1"></script>
-    <script src="js/music.js?v=1.109.1"></script>
-    <script src="js/bag.js?v=1.109.1"></script>
-    <script src="js/textures.js?v=1.109.1"></script>
-    <script src="js/shaders.js?v=1.109.1"></script>
-    <script src="js/postfx.js?v=1.109.1"></script>
-    <script src="js/weather.js?v=1.109.1"></script>
-    <script src="js/flyover.js?v=1.109.1"></script>
-    <script src="js/replay.js?v=1.109.1"></script>
-    <script src="js/bot.js?v=1.109.1"></script>
-    <script src="js/models.js?v=1.109.1"></script>
-    <script src="js/life.js?v=1.109.1"></script>
-    <script src="js/render.js?v=1.109.1"></script>
-    <script src="js/minimap.js?v=1.109.1"></script>
-    <script src="js/debug.js?v=1.109.1"></script>
-    <script src="js/game.js?v=1.109.1"></script>
+    <script src="js/config.js?v=1.168.3"></script>
+    <script src="js/themes.js?v=1.168.3"></script>
+    <script src="js/physics.js?v=1.168.3"></script>
+    <script src="js/courses.js?v=1.168.3"></script>
+    <script src="js/tour-ground.js?v=1.168.3"></script>
+    <script src="js/portals.js?v=1.168.3"></script>
+    <script src="js/audit.js?v=1.168.3"></script>
+    <script src="js/custom.js?v=1.168.3"></script>
+    <script src="js/scoring.js?v=1.168.3"></script>
+    <script src="js/swing.js?v=1.168.3"></script>
+    <script src="js/school.js?v=1.168.3"></script>
+    <script src="js/audio.js?v=1.168.3"></script>
+    <script src="js/music.js?v=1.168.3"></script>
+    <script src="js/bag.js?v=1.168.3"></script>
+    <script src="js/textures.js?v=1.168.3"></script>
+    <script src="js/shaders.js?v=1.168.3"></script>
+    <script src="js/postfx.js?v=1.168.3"></script>
+    <script src="js/weather.js?v=1.168.3"></script>
+    <script src="js/flyover.js?v=1.168.3"></script>
+    <script src="js/replay.js?v=1.168.3"></script>
+    <script src="js/bot.js?v=1.168.3"></script>
+    <script src="js/models.js?v=1.168.3"></script>
+    <script src="js/life.js?v=1.168.3"></script>
+    <script src="js/worlds.js?v=1.168.3"></script>
+    <script src="js/sandfx.js?v=1.168.3"></script>
+    <script src="js/render.js?v=1.168.3"></script>
+    <script src="js/minimap.js?v=1.168.3"></script>
+    <script src="js/debug.js?v=1.168.3"></script>
+    <script src="js/game.js?v=1.168.3"></script>
+
+    <!-- The live worlds behind the tour's holes: Portals' own engine and its
+         own three.js (r170, a module), drawing into a canvas render.js uses as
+         the background. Last, a module, and nothing waits for it. -->
+    <script type="importmap">
+    { "imports": { "three": "./vendor/portals/vendor/three/three.module.min.js", "three/addons/": "./vendor/portals/vendor/three/addons/" } }
+    </script>
+    <script type="module" src="js/backdrop.mjs?v=1.168.3"></script>
 </body>
 </html>

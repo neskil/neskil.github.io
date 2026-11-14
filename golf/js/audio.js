@@ -171,6 +171,17 @@
             noise(0.012, amb.tock ? 2600 : 3200, 9, 0.035, 'bandpass', out, 0);
             amb.timers.push(setTimeout(function () { if (amb.on) call(); }, 1000));
         },
+        // The zen garden's wind chime: a few notes of a pentatonic scale
+        // when the air moves, each a bell with its overtone.
+        chimes: function call() {
+            var out = placed(rnd(-0.5, 0.5)), scale = [784, 880, 1047, 1175, 1319, 1568];
+            for (var i = 0, n = 2 + (Math.random() * 4 | 0); i < n; i++) {
+                var f = scale[(Math.random() * scale.length) | 0], at = i * rnd(0.2, 0.45);
+                tone(f, 1.8, 'sine', 0.012, null, out, at);
+                tone(f * 2.76, 0.6, 'sine', 0.003, null, out, at);
+            }
+            later(call, 7, 16);
+        },
         // The ship: the hum of the air plant, and now and then the radio.
         hum: function () { bed(110, 4, 'bandpass', 0.05, 0.02, 0.09); },
         beeps: function call() {

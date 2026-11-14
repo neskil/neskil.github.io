@@ -53,7 +53,9 @@
     var cache = {};
 
     var BLOCK_INK = { bed: '#3d6b2c', tree: '#2f5f2a', hedge: '#2f6d33', rock: '#8d8f88', windmill: '#c9c2b4', fan: '#1f2731', castle: '#e3c98f',
-                      tent: '#dc2626', carousel: '#fbbf24', wheel: '#5b2a6e', mirror: '#b8c4d4', hut: '#8b6b4a', pyramid: '#d9a066', palm: '#4d8c2b', snowman: '#f8fafc', lighthouse: '#ef4444' };
+                      tent: '#dc2626', carousel: '#fbbf24', wheel: '#5b2a6e', mirror: '#b8c4d4', hut: '#8b6b4a', pyramid: '#d9a066', palm: '#4d8c2b', snowman: '#f8fafc', lighthouse: '#ef4444',
+                      book: '#1f4e79', pencil: '#f4c430', tonearm: '#3a3f47', mug: '#f1f5f9', inkpot: '#1e293b', planet: '#7c3aed',
+                      igloo: '#eef4fa', parasol: '#e11d48', scarecrow: '#5b3a22', rocket: '#9ca3af' };
 
     // A zone list in one colour, rectangles and polygons alike.
     function rects(g, list, fill) {

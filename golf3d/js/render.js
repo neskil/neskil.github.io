@@ -90,6 +90,9 @@
 
         R.scene = new THREE.Scene();
         R.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
+        // The bag draws on a layer of its own (bag.js LAYER); the camera looks
+        // at it as well as the course, except in the picker's split pass.
+        R.camera.layers.enable(1);
 
         // The surface textures are shared and live in textures.js; this is
         // the point where the context is known, and the anisotropy limit with
@@ -101,6 +104,7 @@
         buildMarkers();
         buildTrail();
         buildParticles();
+        if (G3.sandfx) G3.sandfx.build(R.scene);
         if (G3.bag) G3.bag.build(R.scene);
 
         R.ready = true;
@@ -115,6 +119,7 @@
         R.renderer.setSize(w, h, false);
         R.camera.aspect = w / Math.max(1, h);
         R.camera.updateProjectionMatrix();
+        if (G3.sandfx) G3.sandfx.resize(h * R.renderer.getPixelRatio());
         if (R.fx) {
             var dpr = R.renderer.getPixelRatio();
             G3.postfx.resize(w * dpr, h * dpr);
@@ -491,6 +496,51 @@
             shader.fragmentShader.replace('#include <alphatest_fragment>', SH.TURF_FS_BODY);
     }
 
+    /* Strata: the cut earth banded by height, for a theme that names its beds
+       (`theme.strata`, the canyon's). A canyon wall is the one face on the
+       card that is the whole picture, and one flat colour on it read as a
+       wall painted red; the eye knows the Grand Canyon by its beds running
+       level across every butte. So the colour is a function of *world*
+       height, not of the face — the same bed comes out at the same level on
+       every cliff on the hole, which is exactly what makes it read as rock
+       laid down rather than paint put on. Each stop is [y, colour], the
+       colour from that height up; the boundaries wander a little with x and
+       z, every bed carries finer bedding inside it, and a faint vertical
+       streak (the desert varnish a wall wears) breaks the bands up. The
+       colours are baked into the source — one program, keyed by the palette
+       and how wet it is — so there is no uniform to keep in step. */
+    function strataOn(mat, stops, damp) {
+        function f(n) { return n.toFixed(4); }
+        function col(hex) {
+            var c = new THREE.Color(hex).multiplyScalar(damp);
+            return 'vec3(' + f(c.r) + ', ' + f(c.g) + ', ' + f(c.b) + ')';
+        }
+        var src = [
+            'varying vec3 vStrata;',
+            'vec3 strataAt(vec3 p) {',
+            '    float h = p.y + 0.22 * sin(p.x * 0.21 + p.z * 0.09) + 0.16 * sin(p.z * 0.33 - p.x * 0.12);',
+            '    vec3 c = ' + col(stops[0][1]) + ';'
+        ], i;
+        for (i = 1; i < stops.length; i++) {
+            src.push('    c = mix(c, ' + col(stops[i][1]) + ', smoothstep(' +
+                f(stops[i][0] - 0.12) + ', ' + f(stops[i][0] + 0.12) + ', h));');
+        }
+        src.push(
+            '    float bed = 0.95 + 0.05 * sin(h * 7.0 + sin(p.x * 0.6 + p.z * 0.4) * 1.4);',
+            '    float streak = 0.93 + 0.07 * sin(p.x * 2.7 + p.z * 1.9 + sin(p.x * 0.5 - p.z * 0.7) * 2.0);',
+            '    return c * bed * streak;',
+            '}', '');
+        var key = 'strata:' + damp.toFixed(3) + ':' + JSON.stringify(stops);
+        mat.onBeforeCompile = function (sh) {
+            sh.vertexShader = 'varying vec3 vStrata;\n' + sh.vertexShader.replace('#include <project_vertex>',
+                '#include <project_vertex>\n    vStrata = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+            sh.fragmentShader = src.join('\n') + sh.fragmentShader.replace('#include <color_fragment>',
+                '#include <color_fragment>\n    diffuseColor.rgb = strataAt(vStrata);');
+        };
+        mat.customProgramCacheKey = function () { return key; };
+        return mat;
+    }
+
     function buildSurfaces(theme) {
         var wet = R.weather ? (R.weather.wet || 0) : 0;
         var tex = TX.surfaces(theme);
@@ -514,6 +564,7 @@
             color: new THREE.Color(theme.side).multiplyScalar(1 - wet * 0.20),
             side: THREE.DoubleSide
         });
+        if (theme.strata) strataOn(side, theme.strata, 1 - wet * 0.20);
 
         function tops(map, shine, dry, soaked) {
             return new THREE.MeshPhongMaterial({
@@ -563,9 +614,9 @@
             /* Glass, for the grid world: dark, glossy and faintly lit from
                inside, with no texture and no blades — and the grid is part of
                it (gridGlass), so the lines lie exactly on the surface. */
-            glass: gridGlass(new THREE.MeshPhongMaterial({
+            glass: gridGlass(new THREE.MeshPhongMaterial(Object.assign({
                 color: 0x05030f, emissive: 0x10032e, shininess: 260, specular: 0x1c0c38
-            }), theme),
+            }, theme.glass)), theme),
             rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
@@ -719,7 +770,13 @@
                 fairway: shells('fairway', TX.shellFor('fairway'),
                     new THREE.Color(theme.grass[1]).multiplyScalar(0.84).getStyle(),
                     SHELL_LAYERS, TX.MOW_WIDE),
-                rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS)
+                /* And none on the rough. It was mown in the same stripes as
+                   the fairway until v1.134.1, which on the long game striped
+                   every rectangle of property from stake to stake, so the one
+                   shape a hole is played on — the fairway's mown edge,
+                   wandering through the rough (courses `mow`) — was the one
+                   shape you could not see from anywhere. */
+                rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS, 0)
             },
             walls: {
                 rail: theme.glow ? glow(paint(theme.rail), theme.rail) : paint(theme.rail),
@@ -756,6 +813,10 @@
             // below, which is most of what tells a round tree from a blob.
             leafWarm: new THREE.MeshLambertMaterial({
                 color: new THREE.Color(0x6aa43f).multiplyScalar(1 - wet * 0.22)
+            }),
+            // A fir's needles, darker and bluer than any broadleaf (addTree).
+            fir: new THREE.MeshLambertMaterial({
+                color: new THREE.Color(0x2c5638).multiplyScalar(1 - wet * 0.22)
             }),
             // Two leaf greens, so a treeline is not one colour repeated.
             leaf: [
@@ -902,6 +963,7 @@
        that the rail standing on the curve hides the facets. A pad with no
        rounding comes out as the four corners it always was. */
     function slabShape(pad) {
+        if (pad.lane) return laneShape(pad);
         var shape = new THREE.Shape();
         var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
         // Counter-clockwise in shape space, each corner as [x, y, its world
@@ -926,6 +988,22 @@
                 else shape.lineTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
                 first = false;
             }
+        }
+        shape.closePath();
+        return shape;
+    }
+
+    /* A road's outline (courses.road) in the same shape space: its box is
+       only its bounds, so the slab, its grass and the hole punched for a cup
+       all come off the curve physics.laneOutline walks — the one the ball
+       rolls off. A chord of a tenth keeps a two-metre road round to the eye
+       at any distance the camera gets to. */
+    function laneShape(pad) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        var pts = P.laneOutline(pad.lane, 0.1), shape = new THREE.Shape(), i;
+        for (i = 0; i < pts.length; i++) {
+            if (i) shape.lineTo(pts[i][0] - cx, -(pts[i][1] - cz));
+            else shape.moveTo(pts[i][0] - cx, -(pts[i][1] - cz));
         }
         shape.closePath();
         return shape;
@@ -961,7 +1039,7 @@
 
        Every shell is registered with R.shells, because the wind moves them
        (see `swayShells`) and a mat that does not move is a carpet. */
-    function addShells(group, pad, cup, holed, cx, cy, cz, shape) {
+    function addShells(group, pad, cup, holed, cx, cy, cz, shape, bare) {
         var set = R.surf.shells[pad.kind];
         if (!set) return;
         var sx = pad.sx || 0, sz = pad.sz || 0;
@@ -983,9 +1061,9 @@
                 for (t = 0; t < tp.count; t++) tp.setY(t, tp.getY(t) + height * f);
                 tp.needsUpdate = true;
             } else if (holed) {
-                geo = shellShape(pad, cup);
-            } else if (pad.r || pad.round) {
-                geo = shellShape(pad, null);
+                geo = shellShape(pad, cup, bare);
+            } else if (pad.r || pad.round || pad.lane || (bare && bare.length)) {
+                geo = shellShape(pad, null, bare);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
                 geo.rotateX(-Math.PI / 2);
@@ -1067,20 +1145,92 @@
         return shape;
     }
 
-    function shellShape(pad, cup) {
+    function shellShape(pad, cup, bare) {
         var hw = pad.w / 2, hd = pad.d / 2;
+        var cx = pad.x + hw, cz = pad.z + hd;
         // The disc's own outline, or the slab's — rounded corners and all.
         var shape = pad.r ? discShape(pad) : slabShape(pad);
+        // A cup inside something already cut out needs no hole of its own,
+        // and a hole inside a hole is one a ShapeGeometry cannot triangulate.
+        if (cup && (bare || []).some(function (q) { return P.padContains(q, cup.x, cup.z); })) cup = null;
         if (cup) {
             var hole = new THREE.Path();
-            var cx = pad.x + hw, cz = pad.z + hd;
             // A shade wider than the cup, so no blade hangs over the rim.
             hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R * 1.08, 0, Math.PI * 2, true);
             shape.holes.push(hole);
         }
+        // And whatever is laid into it that grows nothing (bareInlays): the
+        // inlay's own outline, moved from its middle to where it sits in this
+        // pad's shape space (y is minus world z, as everywhere here).
+        var i, q, ox, oy, pts;
+        for (i = 0; i < (bare || []).length; i++) {
+            q = bare[i];
+            ox = q.x + q.w / 2 - cx;
+            oy = -(q.z + q.d / 2 - cz);
+            pts = discShape(q).getPoints(40).map(function (p) {
+                return new THREE.Vector2(p.x + ox, p.y + oy);
+            });
+            shape.holes.push(new THREE.Path(pts));
+        }
         var geo = new THREE.ShapeGeometry(shape, 36);
         geo.rotateX(-Math.PI / 2);
         return geo;
+    }
+
+    /* The inlays a flat pad's grass has to stop at.
+
+       `addTerrain` has always cut its mat round anything laid into it
+       (cutUnder: "the grass may not keep a single blade inside one"). A flat
+       pad never did — its mat is one sheet over the whole outline — and a
+       launch pad is an inlay in a flat green on every course that has one. So
+       the wooden disc and the mark painted on it were three centimetres up
+       under a lawn eleven and a half tall, and all that showed through the
+       blades from the tee was the rim: a thin ring on the grass where a sprung
+       face should have been. Deadlift, on a grey moon under a white sun, is
+       where it was finally called out, and it was the same on every hole.
+
+       Only an inlay that grows nothing of its own, wholly inside the pad and
+       flush with it — or a shorter lawn laid into scrub (below). Grass laid
+       into grass of its own height is a lawn on a lawn and, nested, would
+       want holes that overlap, which a ShapeGeometry cannot triangulate; and
+       anything touching the cup or another hole is left as it was for the same
+       reason. */
+    function bareInlays(pads, pad, cup) {
+        var out = [], i, j, k, q, qx, qz, a, inside, clear, grows;
+        if (!SHELL_HEIGHT[pad.kind] || pad.bumps || pad.field) return out;
+        /* Biggest first, so where grass is nested in grass the outer lawn is
+           the one cut out and the inner one is left to it. */
+        var list = (pads || []).slice().sort(function (m, n) { return (n.r || 0) - (m.r || 0); });
+        for (i = 0; i < list.length; i++) {
+            q = list[i];
+            if (q === pad || !q.inlay || !q.r) continue;
+            /* Grass laid into scrub is cut out of the scrub too: a Coral Keys
+               clifftop is rough with its fairway and green laid on it, and
+               scrub a quarter of a unit tall stood straight up through a green
+               a tenth of one. A shorter lawn in a longer one is the only grass
+               cut; a lawn in a lawn of its own height is left as it was. */
+            grows = SHELL_HEIGHT[q.kind];
+            if (grows && !(pad.kind === 'rough' && grows < SHELL_HEIGHT.rough)) continue;
+            qx = q.x + q.w / 2; qz = q.z + q.d / 2;
+            if (Math.abs(P.padHeight(pad, qx, qz) - P.padHeight(q, qx, qz)) > 0.06) continue;
+            inside = P.padContains(pad, qx, qz);
+            for (k = 0; k < 12 && inside; k++) {
+                a = k / 12 * Math.PI * 2;
+                inside = P.padContains(pad, qx + Math.cos(a) * q.r * 1.05,
+                                            qz + Math.sin(a) * q.r * 1.05);
+            }
+            if (!inside) continue;
+            // A cup is either well clear of the cut or, for a green, well
+            // inside it, where the green's own hole stands in for the cup's.
+            clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2 ||
+                (grows && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
+            for (j = 0; j < out.length && clear; j++) {
+                clear = Math.hypot(out[j].x + out[j].w / 2 - qx, out[j].z + out[j].d / 2 - qz) >
+                    out[j].r + q.r + 0.02;
+            }
+            if (clear) out.push(q);
+        }
+        return out;
     }
 
     /* The wind, in the grass. One sine per shell with the pad's own phase in
@@ -1183,6 +1333,7 @@
     function padOutline(pad, step) {
         var pts = [], i, n, a;
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
+        if (pad.lane) return P.laneOutline(pad.lane, Math.min(step, 0.25));
         if (pad.r) {
             n = Math.max(24, Math.ceil(2 * Math.PI * pad.r / step));
             for (i = 0; i < n; i++) {
@@ -1398,6 +1549,10 @@
        off the pad the mat belongs to, because the vertex has moved across
        ground that rolls. */
     function conform(pos, i, inlay, cx, cz, pad, cy) {
+        // A square strip laid in (a tour fairway) has no radius to be pulled
+        // on to — padRadius of one is NaN — so its edge is left ragged by half
+        // a cell, under the strip.
+        if (!inlay.r) return;
         var qx = inlay.x + inlay.w / 2, qz = inlay.z + inlay.d / 2;
         var dx = cx + pos.getX(i) - qx, dz = cz + pos.getZ(i) - qz;
         var d = Math.hypot(dx, dz);
@@ -1575,6 +1730,69 @@
         return geo;
     }
 
+    /* The top of a shaped road (courses.road with a `bank`, or any bumps),
+       as a ribbon rather than a grid: rows square across the road at every
+       step along it, so the edge is the outline physics walks and a banked
+       turn is drawn along the curve it is banked round. Every vertex is
+       padHeight, as everywhere else. A round end is a fan off the middle of
+       the last row, and the stretch of road under an inlay is cut and the
+       grass conformed to it as a grid's is (cutUnder). */
+    function laneTerrainGeometry(pad, res, cx, cy, cz, cover, anyCut) {
+        var L = pad.lane, step = Math.min(res, 0.3), cuts = [], i, j, k, g, n;
+        for (i = 0; i < L.segs.length; i++) {
+            g = L.segs[i];
+            n = Math.max(1, Math.ceil(g.len / step));
+            for (k = 0; k < n; k++) cuts.push(g.s0 + g.len * k / n);
+        }
+        cuts.push(L.length);
+        var m = Math.max(4, 2 * Math.ceil(L.hw / 0.3)), pos = [], idx = [], at = [0, 0, 0, 0], u;
+        function vert(px, pz) {
+            pos.push(px - cx, P.padHeight(pad, px, pz) - cy, pz - cz);
+            return pos.length / 3 - 1;
+        }
+        for (i = 0; i < cuts.length; i++) {
+            P.lanePoint(L, cuts[i], at);
+            for (j = 0; j <= m; j++) {
+                u = L.hw * (2 * j / m - 1);
+                vert(at[0] + at[2] * u, at[1] + at[3] * u);
+            }
+        }
+        // Row i along the road, column j across it towards the + side
+        // (lanePoint's normal), wound so every face looks up.
+        for (i = 0; i < cuts.length - 1; i++) {
+            for (j = 0; j < m; j++) {
+                var a = i * (m + 1) + j, b = a + 1, c = a + m + 2, d = a + m + 1;
+                idx.push(a, c, b, a, d, c);
+            }
+        }
+        if (L.cap0 || L.cap1) {
+            // Far end from the + side round to the - side, near end the other
+            // way, each bulging away from the road (as laneOutline walks them).
+            var q = Math.max(4, Math.ceil(Math.PI * L.hw / step));
+            [[0, -1], [cuts.length - 1, 1]].forEach(function (e) {
+                if (!(e[1] > 0 ? L.cap1 : L.cap0)) return;
+                P.lanePoint(L, cuts[e[0]], at);
+                var f = e[1], row = e[0] * (m + 1), mid = row + m / 2, prev = f > 0 ? row + m : row, t, cur;
+                var nx = at[2] * f, nz = at[3] * f, dx = -at[3] * f, dz = at[2] * f;
+                for (k = 1; k <= q; k++) {
+                    t = Math.PI * k / q;
+                    cur = k === q ? (f > 0 ? row : row + m)
+                        : vert(at[0] + (nx * Math.cos(t) + dx * Math.sin(t)) * L.hw,
+                               at[1] + (nz * Math.cos(t) + dz * Math.sin(t)) * L.hw);
+                    idx.push(mid, cur, prev);
+                    prev = cur;
+                }
+            });
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+        geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pos.length / 3 * 2), 2));
+        geo.setIndex(idx);
+        if (cover && cover.length) cutUnder(geo, cover, cx, cz, anyCut, pad, cy);
+        geo.computeVertexNormals();
+        return geo;
+    }
+
     /* The flat square the cup is cut out of, which is what the hole in the
        grid above is a hole for. It is flat because courses.js promises it is:
        nothing rolls within CUP_FLAT of a cup, and this patch is well inside
@@ -1608,12 +1826,133 @@
             shape.holes.push(hole);
         }
         var geo = new THREE.ExtrudeGeometry(shape, {
-            depth: thick, bevelEnabled: false, curveSegments: 44
+            depth: thick, bevelEnabled: false, curveSegments: 44,
+            // A weathered wall is cut into, so it needs rings to cut.
+            steps: pad.weathered ? Math.min(12, Math.max(1, Math.ceil(thick / 1.1))) : 1
         });
         geo.rotateX(-Math.PI / 2);      // lay it flat: extrusion now runs +y
         geo.translate(0, -thick / 2, 0);// centred on its middle, like the box
-        if (pad.inlay) levelRim(geo);
+        // (A disc that stands — a green on a pillar, laid over the end of a
+        // road — has a real wall, and keeps the wall's own light.)
+        if (pad.inlay && !pad.stands) levelRim(geo);
         return geo;
+    }
+
+    /* A canyon wall, weathered (courses.butte marks the pads that want it).
+
+       An extruded disc's wall is a drum: one perfect vertical face all the
+       way round, lit the same from top to bottom, and a butte drawn that way
+       read as a stack of tins however its beds were coloured. A real wall is
+       buttresses and the gullies between them, cut back further where the
+       rock is softer. So the wall is drawn in rings and every ring is pulled
+       *in* from the outline by a recess that is a function of where it is —
+       round the wall and up it — with a narrow deep gully where two waves
+       agree and a shallow one elsewhere. Only ever in, and never at the rim:
+       the outline at the top is the one the ball plays off, and a face that
+       bulged past it would be rock a ball flies through. The recess fades in
+       over the first unit below the rim, so the cap and the wall still meet
+       on the edge they share. Flat-shaded afterwards, which is what puts a lit
+       side and a shadowed side on every buttress. */
+    var WEATHER_DEEP = 0.45;     // the deepest a gully cuts back into a wall
+
+    /* A granite crag's face (courses `facets`, the alpine crags): not a
+       drum with grooves in it but a handful of big planes. A few knots are
+       set round the crag, each cut in from the outline by its own depth (up
+       to a third of the radius), and the face between two knots is the
+       straight chord joining them — a true plane, which the flat shading
+       lights as one. The depths change from one band of height to the next
+       and the face is blended between bands, so the planes lean and the
+       crag steps back where a bed is softer. Never outside the outline (a
+       chord of a convex outline lies inside it, and the result is clamped
+       to it anyway), and never at the rim. */
+    function facetRadius(pad, a, wy, seed, rOut) {
+        var n = 6 + Math.floor(treeHash(seed, 3.1) * 3), step = Math.PI * 2 / n;
+        var u = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / step, i = Math.floor(u);
+        function knotAngle(k) { return (k + (treeHash(seed + k * 1.7, 9.1) - 0.5) * 0.5) * step; }
+        function chord(band) {
+            var a0 = knotAngle(i), a1 = knotAngle(i + 1);
+            // the jitter can move a knot past `a`; step back or on one knot.
+            if (a < a0 - 1e-9 && u - i < 0.5) { a1 = a0; a0 = knotAngle(i - 1); }
+            else if (a > a1) { a0 = a1; a1 = knotAngle(i + 2); }
+            var c0 = 0.03 + 0.3 * treeHash(seed + (((i % n) + n) % n) * 7.3, band * 3.7 + 1.3);
+            var c1 = 0.03 + 0.3 * treeHash(seed + ((((i + 1) % n) + n) % n) * 7.3, band * 3.7 + 1.3);
+            var r0 = P.padRadius(pad, a0) * (1 - c0), r1 = P.padRadius(pad, a1) * (1 - c1);
+            var ax = Math.cos(a0) * r0, az = Math.sin(a0) * r0, bx = Math.cos(a1) * r1, bz = Math.sin(a1) * r1;
+            var ex = bx - ax, ez = bz - az, dx = Math.cos(a), dz = Math.sin(a);
+            var den = dx * ez - dz * ex;
+            if (Math.abs(den) < 1e-9) return rOut;
+            return Math.min(rOut, (ax * ez - az * ex) / den);
+        }
+        var b = wy / 2.2, j = Math.floor(b), v = b - j;
+        v = v * v * (3 - 2 * v);
+        return chord(j) * (1 - v) + chord(j + 1) * v;
+    }
+
+    function weatherWall(geo, pad, thick, cy) {
+        var pos = geo.attributes.position, gs = geo.groups, k, i, end;
+        var seed = pad.x * 0.37 + pad.z * 0.61;
+        for (k = 0; k < gs.length; k++) {
+            if (gs[k].materialIndex !== 1) continue;
+            for (i = gs[k].start, end = gs[k].start + gs[k].count; i < end; i++) {
+                var x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+                var r = Math.sqrt(x * x + z * z), below = thick / 2 - y;
+                if (r < 1e-6 || below < 1e-4) continue;
+                var a = Math.atan2(z, x), wy = cy - thick / 2 + y, cut;
+                if (pad.facets) {
+                    cut = (r - facetRadius(pad, a, wy, seed, r)) * Math.min(1, below / 0.7);
+                } else {
+                    var m1 = Math.max(3, Math.round(r * 1.6)), m2 = Math.max(5, Math.round(r * 3.1));
+                    var f = 0.5 + 0.32 * Math.sin(a * m1 + seed + wy * 0.35) +
+                        0.18 * Math.sin(a * m2 - seed * 1.7 + wy * 0.9 + Math.sin(a * m1 * 2 + seed) * 1.2);
+                    var gully = f < 0.55 ? 0 : f > 0.95 ? 1 : (f - 0.55) / 0.4;
+                    gully = gully * gully * (3 - 2 * gully);
+                    cut = Math.min(WEATHER_DEEP, r * 0.06) * (0.25 * f + 0.75 * gully) * Math.min(1, below / 0.9);
+                }
+                var q = (r - cut) / r;
+                pos.setX(i, x * q);
+                pos.setZ(i, z * q);
+            }
+        }
+        pos.needsUpdate = true;
+        geo.computeVertexNormals();
+    }
+
+    /* A granite top for a crag nobody plays (courses `crown`): the cut
+       face's outline at the rim, then two rings drawn in and up, jittered,
+       to a point — so a crag reads as an outcrop rather than a drum with a
+       lid on it. Scenery only: the ball plays the flat top it stands over,
+       which nothing in the bag reaches. Drawn in the cut-earth material, so
+       a theme's strata (and its snowline) run on up it. */
+    function addCrown(group, pad, cy) {
+        var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2, n = 18, i, a, rr, h = Math.min(pad.rx, pad.rz) * 0.9;
+        var rings = [[1, 0], [0.62, 0.45], [0.28, 0.82]], pts = [], k;
+        for (k = 0; k < rings.length; k++) {
+            var ring = [];
+            for (i = 0; i < n; i++) {
+                a = i / n * Math.PI * 2;
+                var jr = k ? 0.75 + treeHash(cx + i, cz + k) * 0.5 : 0.99;
+                rr = P.padRadius(pad, a) * rings[k][0] * jr;
+                ring.push([Math.cos(a) * rr, rings[k][1] * h * (k ? 0.8 + treeHash(cz + i, cx - k) * 0.4 : 1), Math.sin(a) * rr]);
+            }
+            pts.push(ring);
+        }
+        var apex = [pad.rx * 0.08, h, -pad.rz * 0.06], pos = [];
+        function t(p, q, w) { pos.push(p[0], p[1], p[2], q[0], q[1], q[2], w[0], w[1], w[2]); }
+        for (k = 0; k < rings.length - 1; k++) {
+            for (i = 0; i < n; i++) {
+                var A = pts[k][i], B = pts[k][(i + 1) % n], C2 = pts[k + 1][i], D = pts[k + 1][(i + 1) % n];
+                t(A, C2, B); t(B, C2, D);
+            }
+        }
+        for (i = 0; i < n; i++) t(pts[rings.length - 1][i], apex, pts[rings.length - 1][(i + 1) % n]);
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.computeVertexNormals();
+        var mesh = new THREE.Mesh(geo, R.surf.side);
+        mesh.position.set(cx, cy, cz);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
     }
 
     /* Point an inlay's rim wall at the sky.
@@ -1666,6 +2005,10 @@
         // A function surface has no smallest hump to read a scale off, and its
         // waves are a few units long: a fixed fine grid, at the floor.
         if (pad.field) return TERRAIN_MIN;
+        /* Or the pad says. A bank three units across is drawn on a unit grid
+           by the rule below, and a curve that is the whole point of the hole
+           comes out in facets (The Backboard, `res: 0.45`). */
+        if (pad.res) return Math.max(TERRAIN_MIN, pad.res);
         var b = pad.bumps, i, least = Infinity;
         for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
         if (!isFinite(least)) return TERRAIN_RES;
@@ -1705,6 +2048,55 @@
         return out;
     }
 
+    /* The country past the stakes, drawn as country.
+
+       Every long hole is a rectangle of ground: the rows a hole is written
+       in, grown a dozen units of rough on every side so a ball that crosses
+       the line lands on something. Drawn as rough to the edge, that is a
+       green mat on the heather with a bank round it — the stakes in the
+       middle of a lawn and the lawn stopping in a straight line. So the
+       rough beyond the stakes is drawn in the surround's own ground, the
+       same stuff the bank and the country beyond it are made of, with no
+       grass on it: the slab's edge stops reading because there is nothing
+       different on either side of it, and the change is where the stakes
+       are. Not on the line itself — the rough runs on past the stakes in
+       tongues and comes back in bays, by a noise of where you are, between
+       half a unit and seven and a half out, so the edge of the hole is the
+       shape of the country and not of the fence. Scenery only: the ground is
+       rough either way, and out of bounds is the stakes' business. A
+       partition of the triangles rather than an overlay, like splitSteep,
+       and the grass is cut to the same line. Returns the country's share, or
+       null when there is none. */
+    function countryAt(fences, x, z) {
+        var d = Infinity, i, f, dx, dz;
+        for (i = 0; i < fences.length; i++) {
+            f = fences[i];
+            dx = Math.max(f.x - x, 0, x - (f.x + f.w));
+            dz = Math.max(f.z - z, 0, z - (f.z + f.d));
+            d = Math.min(d, Math.sqrt(dx * dx + dz * dz));
+        }
+        if (d < 0.5) return false;
+        var j = (surNoise(x * 0.09, z * 0.09) - 0.5) * 7 + (surNoise(x * 0.27 + 7, z * 0.27 - 3) - 0.5) * 2.2;
+        return d > Math.max(0.5, 3.5 + j);
+    }
+    function splitCountry(geo, hole, cx, cz) {
+        var fences = P.fenceRects(hole);
+        var idx = geo.index.array, pos = geo.attributes.position, keep = [], out = [], t, x, z;
+        for (t = 0; t < idx.length; t += 3) {
+            x = cx + (pos.getX(idx[t]) + pos.getX(idx[t + 1]) + pos.getX(idx[t + 2])) / 3;
+            z = cz + (pos.getZ(idx[t]) + pos.getZ(idx[t + 1]) + pos.getZ(idx[t + 2])) / 3;
+            (countryAt(fences, x, z) ? out : keep).push(idx[t], idx[t + 1], idx[t + 2]);
+        }
+        if (!out.length) return null;
+        geo.setIndex(keep);
+        var g = new THREE.BufferGeometry();
+        g.setAttribute('position', pos);
+        if (geo.attributes.normal) g.setAttribute('normal', geo.attributes.normal);
+        if (geo.attributes.uv) g.setAttribute('uv', geo.attributes.uv.clone());
+        g.setIndex(out);
+        return g;
+    }
+
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
@@ -1724,7 +2116,8 @@
            its earth wall is a hand's breadth of cut sand and not a column down
            to the surround — and it is lifted the same hair a flat inlay is, or
            its rim z-fights with the ground it is exactly flush with. */
-        var base = pad.inlay ? -0.4 : (theme.surroundY - 0.5) - cy;
+        // …and a hovering one (a portal world's island) is a slab, as in addPad.
+        var base = pad.inlay ? -0.4 : pad.hover ? -0.9 : (theme.surroundY - 0.5) - cy;
         var lift = pad.inlay ? INLAY_LIFT : 0;
         var mat = R.surf.pads[pad.kind]
             ? R.surf.pads[pad.kind].slab[0] : R.surf.pads.green.slab[0];
@@ -1732,8 +2125,12 @@
         /* Is the cup cut into this pad? Same question addPad asks, and the
            same answer: it has to be inside the footprint and the pad has to be
            the surface the cup's own mouth is at. */
+        /* …and never a road: the cup's patch is a square cut out of the
+           rectangular grid, and a road's ground is a ribbon. A cup goes on a
+           level road (a slab, punched like any other) or on a green laid at
+           the end of it. */
         var holed = cup && P.padContains(pad, cup.x, cup.z) &&
-            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r;
+            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06 && !pad.r && !pad.lane;
         var cut = null;
         if (holed) {
             // Clamped to what the pad can actually spare, though courses.js
@@ -1747,11 +2144,28 @@
         var res = terrainRes(pad);
         var geo = pad.r
             ? discTerrainGeometry(pad, res, cx, cy, cz)
-            : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
-        worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
+            : pad.lane
+                ? laneTerrainGeometry(pad, res, cx, cy, cz, cover, false)
+                : terrainGeometry(pad, res, cx, cy, cz, cut, cover.concat(holes), holes.length > 0);
+        /* Ground that is out of play wherever it is (courses `oob`, the floor
+           of Redstone's canyon) is the country rather than the course: the
+           surround's own rock, tiled the way the surround is, with nothing
+           growing on it — so the floor between the buttes carries straight
+           on into the plain past the stakes instead of reading as a lawn. */
+        worldUv(geo, pad.oob ? SUR_TILE : (TX.SCALE[pad.kind] || TX.SCALE.green), cx, cz);
+        if (pad.oob) mat = groundMaterial(theme);
         if (holes.length) addVoidRims(group, pad);
         if (pad.hue) { tintRainbow(geo, pad, cx, cy, cz, RAINBOW_GLASS); mat = rainbowGlass(); }
         var rockGeo = pad.rock && !pad.r ? splitSteep(geo) : null;
+        var wild = R.country && pad.kind === 'rough' && !pad.oob && !pad.inlay && !pad.r && !pad.lane
+            ? splitCountry(geo, R.country, cx, cz) : null;
+        if (wild) {
+            worldUv(wild, SUR_TILE, cx, cz);
+            var land = new THREE.Mesh(wild, groundMaterial(theme));
+            land.position.set(cx, cy + lift, cz);
+            land.receiveShadow = true;
+            group.add(land);
+        }
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(cx, cy + lift, cz);
         mesh.receiveShadow = true;
@@ -1765,11 +2179,17 @@
             group.add(rock);
         }
 
-        var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
-            R.surf.side);
-        skirt.position.set(cx, cy + lift, cz);
-        skirt.receiveShadow = true;
-        group.add(skirt);
+        /* …except a strip mown into ground that rolls (a tour hole's fairway
+           on a baked field): it has no edge of its own to wall, and a skirt
+           hung off its middle height stood up as a box wherever the ground
+           beside it was lower. */
+        if (!(pad.inlay && pad.field)) {
+            var skirt = new THREE.Mesh(skirtGeometry(pad, base, cx, cy, cz),
+                R.surf.side);
+            skirt.position.set(cx, cy + lift, cz);
+            skirt.receiveShadow = true;
+            group.add(skirt);
+        }
 
         /* The grass gets the ground's own surface to stand on, and where
            anything is laid into the pad it gets its *own* copy cut harder —
@@ -1781,11 +2201,14 @@
            grid with the disc itself as the thing to cut — which is how a
            domed fairway on Coral Keys came out as a square mat.) */
         var grassOn = geo;
-        if (cover.length && !pad.r) {
+        if (cover.length && pad.lane) {
+            grassOn = laneTerrainGeometry(pad, res, cx, cy, cz, cover, true);
+        } else if (cover.length && !pad.r) {
             grassOn = terrainGeometry(pad, res, cx, cy, cz, cut, cover, true);
             if (rockGeo) splitSteep(grassOn);
+            if (wild) splitCountry(grassOn, R.country, cx, cz);
         }
-        addShells(group, pad, cup, false, cx, cy, cz, grassOn);
+        if (!pad.oob) addShells(group, pad, cup, false, cx, cy, cz, grassOn);
 
         // …and the cup's patch, which is a second flat surface stitched into
         // the hole left in the grid, with its own mat of grass over it.
@@ -2055,30 +2478,54 @@
         group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x27f0ff })));
     }
 
-    /* A gravity well, drawn: a black ball the size of its core sitting on
-       the ground, and an accretion disc round it — two rings, hot inside and
-       violet out, additive and turning (frame) — so it reads from the tee as
-       the thing that will bend the shot and the thing that will eat it. */
-    function addWells(group, hole) {
-        R.wells = [];
+    /* A gravity well, drawn as the black hole it is (v1.129.0; the owner on
+       the sphere and two flat rings it used to be: "very ugly"). Three parts,
+       from the shader every black hole in the game shares (see "the black
+       hole", below):
+
+         · **the disc on the ground**, which is the reading that matters to a
+           player: it reaches out to where the pull falls to a tenth of the
+           hole's gravity (`wellReach`), so the ground it darkens and the rings
+           feeding in across it are the ground the ball will be bent on. Its
+           horizon is the core exactly — inside that the ball is gone.
+         · **a black sphere** standing in the middle, which is the one solid
+           -looking thing: it is drawn opaque and writes depth, so the near
+           half of the disc passes in front of it and the far half behind,
+           the way a disc round a black hole does.
+         · **the glow round the sphere**, turned to the camera: a photon ring
+           on its silhouette and a short bright halo — and postfx bends the
+           picture round it (`lensList`), which is what lifts the far side of
+           the disc up over the top. */
+    function wellReach(hole, w) {
+        var g = P.gravityOf(hole);
+        var d = Math.sqrt(Math.max(0, w.pull / (0.1 * g) - w.core * w.core));
+        return Math.max(w.core * 3, Math.min(w.core * 6, d));
+    }
+
+    // A theme can paint the wells' discs in its own world's inks
+    // (`wellHot`, `wellCool`); the default is gold into violet.
+    function addWells(group, hole, theme) {
+        var hot = theme && theme.wellHot, cool = theme && theme.wellCool;
         hole.wells.forEach(function (w) {
-            var top = P.surfaceTop(hole, w.x, w.z), y = top ? top.y : 0;
-            var core = new THREE.Mesh(new THREE.SphereGeometry(w.core * 0.85, 24, 16),
-                new THREE.MeshBasicMaterial({ color: 0x000000 }));
-            core.position.set(w.x, y + w.core * 0.5, w.z);
-            group.add(core);
-            var disc = new THREE.Group();
-            [[1.15, 1.9, 0xffb347, 0.9], [1.9, 3.2, 0xb040ff, 0.55]].forEach(function (r) {
-                var m = new THREE.Mesh(new THREE.RingGeometry(w.core * r[0], w.core * r[1], 48, 1),
-                    new THREE.MeshBasicMaterial({ color: r[2], transparent: true, opacity: r[3],
-                        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-                m.rotation.x = -Math.PI / 2;
-                disc.add(m);
-            });
-            disc.position.copy(core.position);
-            disc.rotation.z = 0.35;          // tipped, the way they always are
+            var top = P.surfaceTop(hole, w.x, w.z), y = top ? markY(top.pad, w.x, w.z) : MARK_LIFT;
+            var reach = wellReach(hole, w);
+            var disc = blackHole({ size: reach, hor: w.core / reach,
+                ring: Math.min(0.7, w.core * 1.9 / reach), feed: 2.4, shade: 0.95, beam: 0.35, gain: 1.3, rim: 0.9,
+                hot: hot, cool: cool });
+            disc.rotation.x = -Math.PI / 2;
+            disc.position.set(w.x, y, w.z);
             group.add(disc);
-            R.wells.push(disc);
+            var rs = w.core * 0.66;
+            var cy = y + rs * 0.42;
+            var core = new THREE.Mesh(new THREE.SphereGeometry(rs, 32, 20),
+                new THREE.MeshBasicMaterial({ color: 0x000000 }));
+            core.position.set(w.x, cy, w.z);
+            group.add(core);
+            var glow = blackHole({ facing: true, size: rs * 2.6, hor: 1 / 2.6, ring: 1.25 / 2.6,
+                feed: 0, shade: 0, beam: 0.55, order: 1, hot: hot, cool: cool });
+            glow.position.set(w.x, cy, w.z);
+            group.add(glow);
+            R.wells.push({ w: w, disc: disc, glow: glow, core: core, cx: w.x, cy: cy, cz: w.z, rs: rs });
         });
     }
 
@@ -2184,7 +2631,7 @@
         }
         return R.surf.rainbow;
     }
-    /* The shallows round an island (courses.isle's `shelf`): a band on the
+    /* The shallows round an island (courses.island's `shelf`): a band on the
        water's surface from the shore outwards, pale turquoise at the beach
        and fading to nothing over `out` units — the colour a lagoon goes
        where the sand is a hand under it. The water is all but opaque (it
@@ -2243,7 +2690,11 @@
         // nothing reaches the surrounding ground as it always did. Either way
         // it is deep enough for the shaft, because a cup that comes out of the
         // bottom of its own green is worse than any seam.
-        var floor = supportUnder(pads, pad, cy);
+        // A sea cliff (courses.cliff, `sheer`) stands partly on its island and
+        // partly over the water, and has to go all the way down on both: cut
+        // off at the island's top, its seaward face would stop a hand's
+        // breadth over the waves with daylight under it.
+        var floor = pad.sheer ? null : supportUnder(pads, pad, cy);
         var least = holed ? C.CUP_DEPTH + 0.25 : 0.2;
         /* Every slab reaches down to something — the pad below it, or the
            ground the whole course is standing on. There used to be one
@@ -2277,14 +2728,15 @@
         if (pad.hover) thick = Math.max(least, 0.4);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
-            : holed || pad.round
+            : holed || pad.round || pad.lane
                 ? punchedSlab(pad, thick, holed ? cup : null)
                 : new THREE.BoxGeometry(pad.w, thick, pad.d);
-        if ((holed || pad.round) && !pad.r) {
+        if ((holed || pad.round || pad.lane) && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
             geo.translate(0, thick / 2, 0);
         }
+        if (pad.r && pad.weathered) weatherWall(geo, pad, thick, cy);
         if (sx || sz) {
             // Shear about the pad's own centre: y' = y + sx·x + sz·z. Vertical
             // edges stay vertical, so a tilted pad still meets its neighbours.
@@ -2298,16 +2750,25 @@
         }
         // The tiling rides on the pad rather than on the texture, which is
         // what lets every pad of a kind share one material (buildSurfaces).
-        worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
-        var mesh = new THREE.Mesh(geo,
-            padMaterial(pad.kind, pad.inlay ? 'inlay' : (holed || pad.stands ? 'slab' : 'box')));
+        worldUv(geo, pad.oob ? SUR_TILE : (TX.SCALE[pad.kind] || TX.SCALE.green), cx, cz);
+        var look = padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : (holed || pad.stands ? 'slab' : 'box'));
+        // Out of play is bare rock, as it is in addTerrain: a ledge under a
+        // rim or the top of a butte nobody can reach wears no grass.
+        if (pad.oob) {
+            var bare = groundMaterial(theme);
+            look = look.map(function (m) { return m === R.surf.side ? m : bare; });
+        }
+        var mesh = new THREE.Mesh(geo, look);
         mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
+        if (pad.crown) addCrown(group, pad, cy);
+        if (pad.oob) return;
 
         // …and the grass standing on it, if it is the sort of pad that grows.
-        addShells(group, pad, cup, holed, cx, cy, cz);
+        addShells(group, pad, cup, holed, cx, cy, cz, null,
+            bareInlays(pads, pad, holed ? cup : null));
     }
 
     /* ── the machinery ──────────────────────────────────────────────────
@@ -2433,11 +2894,15 @@
         group.add(face);
         // Two darker rings on the face, which is what a sprung membrane looks
         // like and, more usefully, what makes the middle of one findable.
-        var inner = new THREE.Mesh(new THREE.RingGeometry(r * 0.36, r * 0.46, 28),
-            markMat(0x1a1420, 0.35));
-        inner.rotation.x = -Math.PI / 2;
-        inner.position.set(cx, y + 0.004, cz);
-        group.add(inner);
+        // (There was only ever one, at a third opacity, which under the grass
+        // that used to cover the face nobody could tell.)
+        var ringMat = markMat(0x1a1420, 0.5);
+        [[0.3, 0.38], [0.64, 0.72]].forEach(function (b) {
+            var ring = new THREE.Mesh(new THREE.RingGeometry(r * b[0], r * b[1], 32), ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(cx, y + 0.004, cz);
+            group.add(ring);
+        });
         var rim = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, 0.055, 8, 32),
             new THREE.MeshLambertMaterial({ color: col }));
         rim.rotation.x = -Math.PI / 2;
@@ -2446,40 +2911,186 @@
         group.add(rim);
     }
 
-    /* A pipe mouth: a bright collar and a throat that goes nowhere the eye can
-       follow, which is the entire visual argument that the ball will come out
-       somewhere else. */
+    /* ── the black hole ─────────────────────────────────────────────────
+
+       Everything in the game that eats a ball is drawn with one shader
+       (shaders.js, BLACKHOLE_*, v1.129.0): a pipe's mouth, the hole that
+       opens in the sky over its exit, and a gravity well. The owner's
+       brief was Cargo Lander's black hole, and the parts of it that matter
+       are an event horizon that is properly black, a disc of light turning
+       round it, rings feeding in, and the picture behind it bending — the
+       last of which is postfx.js's (`lens`), fed from `stepBlackHoles`.
+
+       Each is a quad of side two made the size it should be by the shader's
+       own `size` uniform, so its mesh is never scaled, and the raycasts that
+       pick camera seats never see one: they are effects, not things, and
+       nothing on the course is solid unless it is in `walls`. Every material
+       is in R.holeMats so the frame can wind their clocks together. */
+    var BH_HOT = 0xffb25a, BH_COOL = 0x7d3cff;
+    // How far round the mouth the disc spreads, in mouth radii. The rim of
+    // the mouth itself — where the ball goes in — is the bright band.
+    var MOUTH_REACH = 1.75;
+    var PORTAL_R = 1.0;
+
+    function blackHoleMaterial(o) {
+        var mat = new THREE.ShaderMaterial({
+            defines: o.facing ? { FACING: '' } : {},
+            uniforms: {
+                time: { value: 0 },
+                size: { value: o.size },
+                open: { value: o.open === undefined ? 1 : o.open },
+                hor: { value: o.hor },
+                ring: { value: o.ring },
+                feed: { value: o.feed === undefined ? 1 : o.feed },
+                shade: { value: o.shade === undefined ? 0.6 : o.shade },
+                gulp: { value: 0 },
+                spin: { value: o.spin || 1 },
+                beam: { value: o.beam || 0 },
+                rim: { value: o.rim || 0 },
+                hot: { value: lin(o.hot || BH_HOT).multiplyScalar(o.gain || 1) },
+                cool: { value: lin(o.cool || BH_COOL).multiplyScalar(o.gain || 1) }
+            },
+            vertexShader: SH.BLACKHOLE_VS,
+            fragmentShader: SH.BLACKHOLE_FS,
+            transparent: true,
+            depthWrite: false,
+            premultipliedAlpha: true,
+            side: THREE.DoubleSide
+        });
+        R.holeMats.push(mat);
+        return mat;
+    }
+
+    function blackHole(o) {
+        var m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blackHoleMaterial(o));
+        m.frustumCulled = false;
+        m.raycast = function () {};
+        m.renderOrder = o.order || 0;
+        return m;
+    }
+
+    /* A pipe mouth: a black hole lying in the floor. The horizon is a little
+       over half the mouth, the bright band is the mouth's own rim — where a
+       ball rolling past is taken — and the disc and the rings feeding in
+       spread three quarters of a radius beyond it, darkening the ground as
+       they go, so the hole reads as the floor falling away into it rather
+       than as a decal on top. It flares and spins up while it swallows
+       (`gulp`, stepBlackHoles).
+
+       It used to be a black disc, a throat, and a torus in the machine
+       colour. The torus was there because a flat ring under the grass could
+       only be seen from one side (see the note on MARK_LIFT); a lit disc
+       lifted clear of the shells has no far side to lose.
+
+       And with it, shut, the portal that will open in the sky over the exit
+       while a ball is in the pipe — a black hole of its own, turned to face
+       the camera, at the place the ride says (physics.js, "the wormhole"). */
     function addMouth(group, hole, w, theme) {
         var s = P.surfaceTop(hole, w.x, w.z);
         var y = s ? markY(s.pad, w.x, w.z) : MARK_LIFT;
-        var dark = new THREE.Mesh(new THREE.CircleGeometry(w.r * 0.8, 26),
-            new THREE.MeshBasicMaterial({ color: 0x080b12 }));
-        dark.rotation.x = -Math.PI / 2;
-        dark.position.set(w.x, y, w.z);
-        group.add(dark);
-        // And a throat under it, for the moment the ball goes past one at its
-        // own eyeline.
-        var throat = new THREE.Mesh(
-            new THREE.CylinderGeometry(w.r * 0.8, w.r * 0.58, 0.7, 24, 1, true),
-            new THREE.MeshBasicMaterial({ color: 0x0a0d14, side: THREE.BackSide }));
-        throat.position.set(w.x, y - 0.35, w.z);
-        group.add(throat);
-        /* The rim is the one mark on this course with real thickness, and it
-           earns it: a flat ring painted round a black hole is only visible
-           from the side of it nearest the camera — the far half is at a
-           grazing angle behind the near lip and simply is not there, so a
-           mouth came out as a hole with a smile under it. A torus is the same
-           shape with a body, and it reads from every angle a ball is ever
-           looked at from. It stands a third of STEP_UP proud, which is well
-           inside a kerb the ball would climb anyway, and it is not solid:
-           nothing on this course is a wall unless it is in `walls`. */
-        var rim = new THREE.Mesh(
-            new THREE.TorusGeometry(w.r * 0.86, 0.055, 8, 30),
-            new THREE.MeshLambertMaterial({ color: theme.machine || 0xffd34d }));
-        rim.rotation.x = -Math.PI / 2;
-        rim.position.set(w.x, y + 0.045, w.z);
-        rim.castShadow = true;
-        group.add(rim);
+        var disc = blackHole({ size: w.r * MOUTH_REACH, hor: 0.55 / MOUTH_REACH,
+            ring: 0.92 / MOUTH_REACH, feed: 1.1, shade: 0.8, beam: 0.3 });
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.set(w.x, y, w.z);
+        group.add(disc);
+        var portal = blackHole({ facing: true, size: PORTAL_R, hor: 0.3, ring: 0.44,
+            feed: 1.2, shade: 0.2, beam: 0.35, gain: 2.2, open: 0, order: 2 });
+        portal.visible = false;
+        group.add(portal);
+        R.mouths.push({ w: w, disc: disc, portal: portal, gulp: 0, open: 0, after: 9, at: null });
+    }
+
+    /* How the ball is shown on the ride: shrinking into the mouth over the
+       back half of the swallow, gone in the dark, and grown back to full as
+       it leaves the portal. Drawing only — the ball is the same size to the
+       physics throughout, and nothing is colliding with it anyway. */
+    function warpScale(wr) {
+        if (!wr) return 1;
+        var ph = P.warpPhase(wr);
+        if (ph.phase === 'swallow') return 1 - smooth01((ph.s - 0.45) / 0.55);
+        if (ph.phase === 'dark') return 0;
+        return smooth01(ph.s / 0.22);
+    }
+    function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
+    /* The frame's work for every black hole on the hole: the shared clock,
+       the mouth's gulp, the sky portal opening and closing, the ball's size,
+       and the list of lenses for postfx. The portal runs off the ride's own
+       clock while there is a ride, so a replay — which carries the ride on
+       its tape — opens it at exactly the moment the shot did; after the
+       landing it closes on the renderer's clock, because by then there is no
+       ride to ask. */
+    var _lensPt = new THREE.Vector3();
+    var _lenses = [];
+    function stepBlackHoles(dt, world) {
+        var i, m, wr = world.warping || null, ph = null;
+        for (i = 0; i < R.holeMats.length; i++) R.holeMats[i].uniforms.time.value = R.clock;
+        if (wr) ph = P.warpPhase(wr);
+        for (i = 0; i < R.mouths.length; i++) {
+            m = R.mouths[i];
+            var mine = !!wr && wr.w === m.w;
+            var eat = mine && ph.phase === 'swallow' ? 1 : 0;
+            m.gulp += (eat - m.gulp) * (1 - Math.pow(eat ? 0.002 : 0.08, dt));
+            m.disc.material.uniforms.gulp.value = m.gulp;
+            var pu = m.portal.material.uniforms;
+            if (mine) {
+                m.at = { x: wr.px, y: wr.py, z: wr.pz };
+                m.after = 0;
+                if (ph.phase === 'swallow') m.open = 0;
+                else if (ph.phase === 'dark') m.open = smooth01(ph.s) * 0.9;
+                else m.open = 0.9 + 0.1 * smooth01(ph.s * 3);
+                // It spits the ball out: a flare as the drop starts.
+                pu.gulp.value = ph.phase === 'drop' ? Math.max(0, 1 - ph.s * 2.5) : (ph.phase === 'dark' ? ph.s * 0.6 : 0);
+            } else if (m.at) {
+                m.after += dt;
+                m.open = 1 - smooth01((m.after - 0.15) / 0.55);
+                pu.gulp.value = 0;
+                if (m.open <= 0) m.at = null;
+            }
+            m.portal.visible = !!m.at && m.open > 0.002;
+            if (m.portal.visible) {
+                m.portal.position.set(m.at.x, m.at.y, m.at.z);
+                pu.open.value = m.open;
+            }
+        }
+        var k = warpScale(wr);
+        R.ball.scale.setScalar(Math.max(1e-3, k));
+        R.ball.visible = k > 0.01;
+    }
+
+    /* Where the lenses are on the screen this frame, for postfx: a centre in
+       uv, a horizon radius in units of the screen's height, and a strength
+       (the square of the Einstein radius over the horizon's, so 1 bends the
+       light right round at the horizon). Only the portal and the wells' cores,
+       because they are round on the screen. A mouth is a disc on the floor
+       seen at a slant, and a round lens over an ellipse was tried and looked
+       like a fault: it dragged the grass in over the horizon and the black
+       came out brown. Called after the camera has moved, which is the only
+       camera it can be right for. */
+    function lensList() {
+        _lenses.length = 0;
+        var cam = R.camera, i, m;
+        cam.updateMatrixWorld();
+        var t = Math.tan(cam.fov * Math.PI / 360);
+        function add(x, y, z, r, k) {
+            if (_lenses.length >= 4 || k <= 0) return;
+            _lensPt.set(x, y, z);
+            var d = _lensPt.distanceTo(cam.position);
+            _lensPt.project(cam);
+            if (_lensPt.z > 1 || _lensPt.z < -1 || d < 0.3) return;
+            var u = _lensPt.x * 0.5 + 0.5, v = _lensPt.y * 0.5 + 0.5;
+            if (u < -0.5 || u > 1.5 || v < -0.5 || v > 1.5) return;
+            _lenses.push({ x: u, y: v, r: r / (2 * d * t), k: k });
+        }
+        for (i = 0; i < R.mouths.length; i++) {
+            m = R.mouths[i];
+            if (m.portal.visible) add(m.at.x, m.at.y, m.at.z, PORTAL_R * 0.3 * m.open, 0.9 * m.open);
+        }
+        for (i = 0; i < R.wells.length; i++) {
+            m = R.wells[i];
+            add(m.cx, m.cy, m.cz, m.rs, 0.8);
+        }
+        return _lenses;
     }
 
     /* A loop-the-loop: the track the ball rides round (physics.js, "the
@@ -2658,7 +3269,22 @@
         crownAt.position.set(B.cx, top - crown * 0.4, B.cz);
         group.add(crownAt);
         var lift = crown * 0.4;
-        if (a < 0.5) {
+        if (wall.fir) {
+            /* A mountain fir (courses.tree `fir`): a spire rather than a
+               cone, four skirts of needles each narrower than the one under
+               it, from a little off the ground to a point well over the
+               trunk — the shape that sheds snow, and the one an alpine
+               treeline is drawn in. */
+            var spire = crown * 0.82;
+            for (i = 0; i < 4; i++) {
+                geo = new THREE.ConeGeometry(spire * (1 - i * 0.2), spire * (1.5 - i * 0.12), 7);
+                mesh = new THREE.Mesh(geo, R.surf.fir);
+                mesh.position.set(0, lift - h * 0.42 + i * spire * 0.78, 0);
+                mesh.rotation.y = a * 6.283 + i;
+                mesh.castShadow = true;
+                crownAt.add(mesh);
+            }
+        } else if (a < 0.5) {
             // A conifer: two skirts, the upper one narrower and higher.
             for (i = 0; i < 2; i++) {
                 geo = new THREE.ConeGeometry(crown * (1 - i * 0.34), crown * (2.1 - i * 0.5), 8);
@@ -2753,6 +3379,126 @@
     /* Visual decor: props drawn to dress the hole. They are non-solid and have
        no presence in physics.js. Geometries are disposed cleanly by disposeGroup. */
     var PROP_SCALE = { barrel: 0.45, crate: 0.45, palm: 0.75, pine: 1.8, sign: 2.2, windmill: 1.8 };
+
+    /* The mountain's own (Alpenglow Pass): a timber chalet, a cairn, a
+       chairlift on its cable and a waterfall off a cliff band. None of them
+       is solid — decor never is — so each stands where nothing is played
+       through it, and each reads the ground it stands on rather than being
+       told a height: the lift's towers find the hillside under each one and
+       a waterfall finds the water (or the ground) at its own foot. */
+    var _fallTex = null;
+    function fallTexture() {
+        if (_fallTex) return _fallTex;
+        var c = document.createElement('canvas'), g, i, x;
+        c.width = 64; c.height = 128;
+        g = c.getContext('2d');
+        g.fillStyle = 'rgba(214,240,240,0.55)';
+        g.fillRect(0, 0, 64, 128);
+        for (i = 0; i < 46; i++) {
+            x = (i * 37) % 64;
+            g.fillStyle = 'rgba(255,255,255,' + (0.25 + ((i * 13) % 7) / 10) + ')';
+            g.fillRect(x, ((i * 53) % 128) - 40, 1 + (i % 3), 50 + (i * 29) % 70);
+        }
+        _fallTex = new THREE.CanvasTexture(c);
+        _fallTex.wrapS = _fallTex.wrapT = THREE.RepeatWrapping;
+        return _fallTex;
+    }
+    function groundUnder(hole, theme, wx, wz) {
+        var w = hole && P.waterAt ? P.waterAt(hole, wx, wz) : null;
+        var g = hole && P.surfaceTop ? P.surfaceTop(hole, wx, wz) : null;
+        if (w && (!g || w.y > g.y)) return w.y;
+        if (g) return g.y;
+        return theme && theme.surroundY !== undefined ? theme.surroundY : 0;
+    }
+    function addAlpineProp(dg, d, kind, hole, theme) {
+        var surf = R.surf.decor, stone = R.surf.walls.rock, m, i, k;
+        function box(w, h, dd, mat, x, y, z) {
+            var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), mat);
+            b.position.set(x, y, z);
+            b.castShadow = true;
+            b.receiveShadow = true;
+            dg.add(b);
+            return b;
+        }
+        if (kind === 'chalet') {
+            // White plaster below, dark timber above, a long low gable roof
+            // and a balcony across the front.
+            box(4.2, 1.5, 3.0, surf.buoyWhite, 0, 0.55, 0);
+            box(4.2, 1.3, 3.0, surf.wood, 0, 1.95, 0);
+            for (k = -1; k <= 1; k += 2) {
+                m = box(4.8, 0.14, 2.2, surf.metalDark, 0, 3.05, k * 0.86);
+                m.rotation.x = k * 0.62;
+            }
+            box(4.4, 0.08, 0.7, surf.woodPale, 0, 1.4, 1.78);
+            box(4.4, 0.4, 0.06, surf.woodPale, 0, 1.62, 2.12);
+            box(0.45, 0.9, 0.45, stone, 1.3, 3.3, -0.4);
+            for (i = -1; i <= 1; i++) box(0.5, 0.55, 0.05, surf.binBody, i * 1.3, 0.75, 1.52);
+        } else if (kind === 'cairn') {
+            for (i = 0; i < 4; i++) {
+                var sg = new THREE.DodecahedronGeometry(0.42 - i * 0.08, 0);
+                sg.scale(1, 0.55, 1);
+                m = new THREE.Mesh(sg, stone);
+                m.position.set((i % 2 ? 0.05 : -0.04), 0.18 + i * 0.36, (i % 3 ? -0.04 : 0.05));
+                m.rotation.y = i * 1.3;
+                m.castShadow = true;
+                dg.add(m);
+            }
+        } else if (kind === 'lift') {
+            /* Towers every ten units along `yaw` for `w`, each standing on
+               whatever ground is under it, a pair of cables strung between
+               their heads and a chair on them every few units. */
+            var len = d.w || 40, span = 10, n = Math.max(1, Math.round(len / span)), tops = [];
+            var sy = Math.sin(d.yaw || 0), cy = Math.cos(d.yaw || 0);
+            for (i = 0; i <= n; i++) {
+                var lz = i * len / n;
+                var gy = groundUnder(hole, theme, d.x + sy * lz, d.z + cy * lz) - dg.position.y;
+                var top = gy + 6.2;
+                box(0.32, top - gy, 0.32, surf.metalDark, 0, (top + gy) / 2, lz);
+                box(2.0, 0.16, 0.24, surf.metalDark, 0, top, lz);
+                tops.push(new THREE.Vector3(0, top, lz));
+            }
+            for (k = -1; k <= 1; k += 2) {
+                for (i = 0; i < n; i++) {
+                    var a = tops[i].clone(), b = tops[i + 1].clone(), seg = b.clone().sub(a);
+                    var cab = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, seg.length(), 4), surf.metalDark);
+                    cab.position.set(k * 0.9, (a.y + b.y) / 2 - 0.15, (a.z + b.z) / 2);
+                    cab.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), seg.normalize());
+                    dg.add(cab);
+                    for (var t = 0.25; t < 1; t += 0.5) {
+                        var cz = a.z + (b.z - a.z) * t, cyy = a.y + (b.y - a.y) * t - 0.15;
+                        box(0.03, 1.0, 0.03, surf.metalDark, k * 0.9, cyy - 0.5, cz);
+                        box(0.7, 0.08, 0.5, k < 0 ? surf.buoyRed : surf.boatHull, k * 0.9, cyy - 1.0, cz);
+                        box(0.7, 0.45, 0.06, k < 0 ? surf.buoyRed : surf.boatHull, k * 0.9, cyy - 0.8, cz - 0.24);
+                    }
+                }
+            }
+        } else if (kind === 'waterfall') {
+            // A sheet of falling water from the lip it is placed on down to
+            // whatever is at its foot, and the spray where it lands.
+            var foot = groundUnder(hole, theme, d.x + Math.sin(d.yaw || 0) * 0.9, d.z + Math.cos(d.yaw || 0) * 0.9);
+            var drop = Math.max(0.5, dg.position.y - foot), wide = d.w || 1.6;
+            var tex = fallTexture().clone();
+            tex.needsUpdate = true;
+            tex.repeat.set(Math.max(1, wide / 1.2), Math.max(1, drop / 2.5));
+            var sheet = new THREE.Mesh(new THREE.PlaneGeometry(wide, drop, 1, 4), new THREE.MeshBasicMaterial({
+                map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, color: 0xeaf8f6
+            }));
+            var sp = sheet.geometry.attributes.position;
+            for (i = 0; i < sp.count; i++) {
+                // Out over the lip at the top and plumb below it.
+                var f = 0.5 - sp.getY(i) / drop;
+                sp.setZ(i, 0.55 * (1 - f) * (1 - f) + 0.2);
+            }
+            sheet.position.set(0, -drop / 2, 0.15);
+            dg.add(sheet);
+            var mist = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false });
+            for (i = 0; i < 5; i++) {
+                m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45 + (i % 3) * 0.2, 1), mist);
+                m.position.set((i - 2) * wide * 0.22, -drop + 0.25, 0.6 + (i % 2) * 0.3);
+                dg.add(m);
+            }
+        }
+    }
 
     function addDecor(group, item, theme, hole) {
         var d = item || {};
@@ -2904,6 +3650,11 @@
             }
             dg.rotation.z += 0.02;
             dg.rotation.x -= 0.01;
+        } else if (kind === 'skyline' || kind === 'cabinet' || kind === 'marquee' || kind === 'lamp' ||
+                   kind === 'jukebox' || kind === 'claw' || kind === 'fruit') {
+            addArcadeProp(dg, d, kind);
+        } else if (kind === 'chalet' || kind === 'cairn' || kind === 'lift' || kind === 'waterfall') {
+            addAlpineProp(dg, d, kind, hole, theme);
         } else if (PROP_SCALE[kind]) {
             // Land props from the CC0 kits: barrel, crate, palm, pine, sign, windmill.
             var pMesh = G3.getModelMesh ? G3.getModelMesh(kind, surf.model) : null;
@@ -2938,6 +3689,226 @@
         }
     }
 
+    /* ── the arcade's dressings (courses.skyline, cabinet, marquee, lamp) ──
+
+       All four are self-lit (MeshBasicMaterial): the parlour is a basement at
+       night and what you see of a city or a cabinet in the dark is its
+       lights. The windows and the screen are one small canvas each, drawn
+       once and shared, so a skyline of a dozen towers is a dozen boxes and
+       one texture. Nothing here is solid — decor never is (courses.decor). */
+    var _arcadeTex = {};
+    function arcadeTex(name) {
+        if (_arcadeTex[name]) return _arcadeTex[name];
+        var cv = document.createElement('canvas'), g2, i, j, rnd = seededRandom(name.length * 97 + 13);
+        if (name === 'windows') {
+            cv.width = 64; cv.height = 64;
+            g2 = cv.getContext('2d');
+            g2.fillStyle = '#120a1f'; g2.fillRect(0, 0, 64, 64);
+            var lit = ['#ffd58a', '#ffe9b8', '#7fe8ff', '#ff8fd0'];
+            for (i = 0; i < 4; i++) for (j = 0; j < 8; j++) {
+                var r = rnd();
+                g2.fillStyle = r < 0.42 ? '#241736' : lit[Math.floor(rnd() * lit.length)];
+                g2.fillRect(i * 16 + 4, j * 8 + 2, 8, 4);
+            }
+        } else if (name === 'screen') {
+            cv.width = 64; cv.height = 64;
+            g2 = cv.getContext('2d');
+            var gr = g2.createLinearGradient(0, 0, 0, 64);
+            gr.addColorStop(0, '#1b0e3d'); gr.addColorStop(1, '#3a1260');
+            g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
+            g2.fillStyle = '#ff4fa3'; g2.fillRect(8, 40, 48, 3);
+            for (i = 0; i < 6; i++) { g2.fillStyle = i % 2 ? '#3ee0ff' : '#ffd23f'; g2.fillRect(10 + i * 8, 14 + (i % 3) * 6, 5, 5); }
+        } else if (name === 'reels') {
+            cv.width = 192; cv.height = 64;
+            g2 = cv.getContext('2d');
+            for (i = 0; i < 3; i++) {
+                g2.fillStyle = '#fbf6ea'; g2.fillRect(i * 64 + 4, 2, 56, 60);
+                g2.fillStyle = '#d8283a'; g2.font = 'bold 48px sans-serif';
+                g2.textAlign = 'center'; g2.textBaseline = 'middle';
+                g2.fillText('7', i * 64 + 32, 34);
+            }
+        } else {
+            // A marquee's words, in neon: the glow is the canvas's own shadow.
+            cv.width = 512; cv.height = 96;
+            g2 = cv.getContext('2d');
+            g2.fillStyle = '#0d0618'; g2.fillRect(0, 0, 512, 96);
+            g2.font = 'bold 62px sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+            g2.shadowColor = '#ff4fa3'; g2.shadowBlur = 18;
+            g2.fillStyle = '#ffd1ec'; g2.fillText(name.slice(5), 256, 50);
+            g2.strokeStyle = '#3ee0ff'; g2.lineWidth = 4; g2.shadowColor = '#3ee0ff';
+            g2.strokeRect(8, 8, 496, 80);
+        }
+        var tex = new THREE.CanvasTexture(cv);
+        if (name === 'windows') { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; }
+        _arcadeTex[name] = tex;
+        return tex;
+    }
+
+    function seededRandom(seed) {
+        var s = (seed % 2147483647 + 2147483647) % 2147483647 || 1;
+        return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    }
+
+    var ARCADE_HUES = [0xff4fa3, 0x3ee0ff, 0xffd23f, 0x9b6bff];
+
+    function addArcadeProp(dg, d, kind) {
+        var m, geo, i, rnd = seededRandom(Math.round(d.x * 131 + d.z * 977) + 7);
+        if (kind === 'skyline') {
+            /* Towers along local x, d.w long, standing on the floor. The window
+               texture is repeated by each face's own size so a tall tower has
+               more floors rather than taller windows. */
+            var len = d.w || 8, x0 = -len / 2, roof = new THREE.MeshBasicMaterial({ color: 0x150c22 });
+            var tallest = null, tH = 0;
+            while (x0 < len / 2 - 0.4) {
+                var bw = 0.7 + rnd() * 0.7, bd = 0.8 + rnd() * 0.8, bh = 2.4 + rnd() * 4.6;
+                geo = new THREE.BoxGeometry(bw, bh, bd);
+                var uv = geo.attributes.uv;
+                for (i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * bw * 1.4, uv.getY(i) * bh * 0.9);
+                var win = new THREE.MeshBasicMaterial({ map: arcadeTex('windows') });
+                m = new THREE.Mesh(geo, [win, win, roof, roof, win, win]);
+                m.position.set(x0 + bw / 2, bh / 2, (rnd() - 0.5) * 0.8);
+                dg.add(m);
+                if (bh > tH) { tH = bh; tallest = m; }
+                x0 += bw + 0.08 + rnd() * 0.25;
+            }
+            if (tallest) {
+                // A red light on the tallest roof, blinking (glowPosts).
+                var beacon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xff3344 }));
+                beacon.position.set(tallest.position.x, tH + 0.12, tallest.position.z);
+                dg.add(beacon);
+                (R.lamps || (R.lamps = [])).push({ mesh: beacon, k: -1, blink: true });
+            }
+        } else if (kind === 'cabinet') {
+            /* An upright, by its side profile: the classic cabinet outline —
+               kick plate, control panel jutting out, the screen set back
+               under the marquee's overhang — extruded across its width, with
+               a neon line round both sides so it reads as a machine from
+               behind as well as from in front. A box with a screen on it read
+               as a box. */
+            var hue = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var shell = new THREE.MeshLambertMaterial({ color: new THREE.Color(hue).multiplyScalar(0.3) });
+            var side = new THREE.Shape(), prof = [
+                [0.36, 0], [0.36, 0.86], [0.56, 0.98], [0.5, 1.06], [0.22, 1.12],
+                [0.3, 1.78], [0.46, 1.84], [0.46, 2.1], [-0.4, 2.1], [-0.4, 0]
+            ];
+            side.moveTo(prof[0][0], prof[0][1]);
+            for (i = 1; i < prof.length; i++) side.lineTo(prof[i][0], prof[i][1]);
+            side.closePath();
+            geo = new THREE.ExtrudeGeometry(side, { depth: 0.86, bevelEnabled: false });
+            geo.rotateY(-Math.PI / 2);            // profile in (z, y), extruded along x
+            geo.translate(0.43, 0, 0);
+            m = new THREE.Mesh(geo, shell);
+            m.castShadow = true;
+            dg.add(m);
+            var trim = new THREE.LineBasicMaterial({ color: hue });
+            [-0.435, 0.435].forEach(function (sx) {
+                var pts = prof.concat([prof[0]]).map(function (q) { return new THREE.Vector3(sx, q[1], q[0]); });
+                dg.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), trim));
+            });
+            // The screen, lying in the recess between the panel and the hood.
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.62), new THREE.MeshBasicMaterial({ map: arcadeTex('screen') }));
+            m.position.set(0, 1.45, 0.27); m.rotation.x = -0.12; dg.add(m);
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.22), new THREE.MeshBasicMaterial({ color: hue }));
+            m.position.set(0, 1.97, 0.465); dg.add(m);
+            for (i = 0; i < 3; i++) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.04, 10),
+                    new THREE.MeshBasicMaterial({ color: ARCADE_HUES[(d.variant + i + 1) % ARCADE_HUES.length] }));
+                m.position.set(-0.2 + i * 0.2, 1.03, 0.44); m.rotation.x = 0.55; dg.add(m);
+            }
+            // And the light it throws on the floor in front of it.
+            m = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshBasicMaterial({
+                color: hue, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            m.rotation.x = -Math.PI / 2; m.position.set(0, 0.02, 0.7); dg.add(m);
+        } else if (kind === 'jukebox') {
+            /* A jukebox: a cabinet with a round head, a lit arch over the
+               front and a row of coloured tubes standing in the grille. */
+            var jh = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var wood = new THREE.MeshLambertMaterial({ color: 0x3a1f2e });
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.15, 0.62), wood);
+            m.position.y = 0.575; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.62, 24, 1, false, -Math.PI / 2, Math.PI), wood);
+            m.rotation.x = Math.PI / 2; m.rotation.z = Math.PI / 2; m.position.y = 1.15; dg.add(m);
+            m = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 24, Math.PI), new THREE.MeshBasicMaterial({ color: jh }));
+            m.position.set(0, 1.15, 0.32); dg.add(m);
+            for (i = 0; i < 5; i++) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.62, 8),
+                    new THREE.MeshBasicMaterial({ color: ARCADE_HUES[(d.variant + i) % ARCADE_HUES.length] }));
+                m.position.set(-0.3 + i * 0.15, 0.62, 0.32); dg.add(m);
+            }
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), new THREE.MeshBasicMaterial({ map: arcadeTex('screen') }));
+            m.position.set(0, 1.12, 0.315); dg.add(m);
+        } else if (kind === 'claw') {
+            /* A claw machine: a lit base, a glass case with prizes heaped in
+               it and the claw hanging over them, and a sign on the roof. */
+            var ch = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var baseMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(ch).multiplyScalar(0.45) });
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.85, 1.0), baseMat);
+            m.position.y = 0.425; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.96, 1.0, 0.96), new THREE.MeshPhongMaterial({
+                color: 0xbfe8ff, transparent: true, opacity: 0.22, shininess: 120, specular: 0xffffff, depthWrite: false
+            }));
+            m.position.y = 1.35; dg.add(m);
+            for (i = 0; i < 7; i++) {
+                m = new THREE.Mesh(new THREE.SphereGeometry(0.11 + rnd() * 0.05, 10, 8),
+                    new THREE.MeshLambertMaterial({ color: ARCADE_HUES[i % ARCADE_HUES.length] }));
+                m.position.set((rnd() - 0.5) * 0.65, 0.95 + rnd() * 0.12, (rnd() - 0.5) * 0.65); dg.add(m);
+            }
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), R.surf.decor.metalDark);
+            m.position.set(0.1, 1.6, 0); dg.add(m);
+            m = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.16, 6, 1, true), R.surf.chrome || R.surf.decor.metalDark);
+            m.position.set(0.1, 1.3, 0); m.rotation.x = Math.PI; dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.22, 1.0), new THREE.MeshBasicMaterial({ color: ch }));
+            m.position.y = 1.96; dg.add(m);
+        } else if (kind === 'fruit') {
+            /* A fruit machine: three reels showing sevens behind a window, a
+               lit crown, and the lever down the right-hand side. */
+            var fh = ARCADE_HUES[d.variant % ARCADE_HUES.length];
+            var fbody = new THREE.MeshLambertMaterial({ color: new THREE.Color(fh).multiplyScalar(0.4) });
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.7, 0.62), fbody);
+            m.position.y = 0.85; m.castShadow = true; dg.add(m);
+            m = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.3), new THREE.MeshBasicMaterial({ map: arcadeTex('reels') }));
+            m.position.set(0, 1.2, 0.315); dg.add(m);
+            m = new THREE.Mesh(new THREE.BoxGeometry(0.87, 0.24, 0.64), new THREE.MeshBasicMaterial({ color: fh }));
+            m.position.y = 1.82; dg.add(m);
+            m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 8), R.surf.chrome || R.surf.decor.metalDark);
+            m.position.set(0.5, 1.25, 0.05); dg.add(m);
+            m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff3344 }));
+            m.position.set(0.5, 1.55, 0.05); dg.add(m);
+        } else if (kind === 'marquee') {
+            var mw = d.w || 4;
+            var sign = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 96 / 512),
+                new THREE.MeshBasicMaterial({ map: arcadeTex('text:' + (d.text || 'ARCADE')), side: THREE.DoubleSide }));
+            // Faces -z, back down the table to whoever is reading it.
+            sign.position.y = 2.6; sign.rotation.y = Math.PI; dg.add(sign);
+            for (i = -1; i <= 1; i += 2) {
+                m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6), R.surf.decor.metalDark);
+                m.position.set(i * mw * 0.4, 1.3, -0.03); dg.add(m);
+            }
+        } else {
+            // A lamp in the baize: a round insert, or an arrow along +z.
+            var col = ARCADE_HUES[d.variant >> 1 & 3], shape;
+            if (d.variant & 1) {
+                shape = new THREE.Shape();
+                shape.moveTo(0, 0.26); shape.lineTo(0.17, -0.12); shape.lineTo(0, -0.04); shape.lineTo(-0.17, -0.12);
+                shape.closePath();
+                geo = new THREE.ShapeGeometry(shape);
+            } else {
+                geo = new THREE.CircleGeometry(0.13, 20);
+            }
+            var lampMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, depthWrite: false });
+            m = new THREE.Mesh(geo, lampMat);
+            m.rotation.x = -Math.PI / 2;
+            if (d.variant & 1) m.rotation.z = Math.PI;      // +z after the lay-down
+            // Over the baize's blades rather than under them (SHELL_HEIGHT).
+            m.position.y = SHELL_HEIGHT.green + 0.01;
+            dg.add(m);
+            var lamps = R.lamps || (R.lamps = []);
+            lamps.push({ mesh: m, k: lamps.filter(function (l) { return !l.blink; }).length });
+        }
+    }
+
     // The floating decor, on the same clock as the waves and a little rougher
     // when the wind is up.
     function bobDecor(wind) {
@@ -2950,11 +3921,107 @@
         }
     }
 
+    /* A pop bumper and a rubber post, drawn as the round things they are
+       (physics.isPost) rather than as the box the solver used to meet.
+
+       A bumper is built the way a real one is, from the table up: a dark
+       base flush with the baize, a pale body, the chrome ring that is the part
+       that fires, and a coloured cap with a lamp in it. The caps take turns
+       through three colours down the list so a table of them reads as a
+       table of them, and each has a material of its own so it can light on
+       its own: `R.bumped` (called by the game off `events.bumped`) fires the
+       flash, a pool of light opens on the baize under it, and both fade over
+       a quarter of a second in `glowPosts`. Between hits the caps breathe a
+       little, out of step with each other — a pinball table is never dark.
+
+       A post is a chrome peg with a black rubber ring round it at the height
+       of the ball's middle, which is where the ball meets it. */
+    var POST_CAPS = [0xff4fa3, 0x3ee0ff, 0xffd23f];
+    function addPost(group, wall) {
+        // Measured from the ground it stands on: courses.bumper sinks the
+        // solid a tenth below the baize, so that is where the table is.
+        var r = wall.w / 2, base = 0, top = wall.h - 0.1;
+        var g = new THREE.Group(), mesh, k = (R.posts || (R.posts = [])).length;
+        g.position.set(wall.x + r, (wall.base || 0) + 0.1, wall.z + wall.d / 2);
+        function part(geo, mat, y) {
+            var m = new THREE.Mesh(geo, mat);
+            m.position.y = y;
+            m.castShadow = true;
+            m.receiveShadow = true;
+            g.add(m);
+            return m;
+        }
+        var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
+            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+        }));
+        if (wall.kind === 'post') {
+            var rubber = R.surf.rubber || (R.surf.rubber = new THREE.MeshLambertMaterial({ color: 0x17151c }));
+            part(new THREE.CylinderGeometry(r * 0.42, r * 0.48, top - base, 14), chrome, base + (top - base) / 2);
+            mesh = part(new THREE.TorusGeometry(r * 0.74, r * 0.26, 8, 22), rubber, C.BALL_R);
+            mesh.rotation.x = Math.PI / 2;
+            part(new THREE.CylinderGeometry(r * 0.56, r * 0.5, 0.05, 14), chrome, top);
+            group.add(g);
+            return;
+        }
+        var colour = POST_CAPS[k % POST_CAPS.length];
+        var lamp = new THREE.MeshPhongMaterial({
+            color: new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.35),
+            emissive: new THREE.Color(colour), emissiveIntensity: 0.5,
+            shininess: 90, specular: 0xffffff
+        });
+        var body = R.surf.postBody || (R.surf.postBody = new THREE.MeshPhongMaterial({
+            color: 0xf1ecf4, shininess: 60, specular: 0x8a8a8a
+        }));
+        part(new THREE.CylinderGeometry(r * 1.08, r * 1.14, 0.06, 24), R.surf.decor.metalDark, 0.03);
+        part(new THREE.CylinderGeometry(r * 0.86, r * 0.9, top - 0.14, 24), body, 0.06 + (top - 0.14) / 2);
+        mesh = part(new THREE.TorusGeometry(r * 0.92, 0.035, 8, 28), chrome, C.BALL_R);
+        mesh.rotation.x = Math.PI / 2;
+        part(new THREE.CylinderGeometry(r * 1.0, r * 0.94, 0.1, 24), lamp, top - 0.03);
+        part(new THREE.SphereGeometry(r * 0.62, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), lamp, top + 0.02);
+        var pool = new THREE.Mesh(new THREE.CircleGeometry(r * 2.3, 28), new THREE.MeshBasicMaterial({
+            color: colour, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.y = 0.012;
+        g.add(pool);
+        group.add(g);
+        R.posts.push({ wall: wall, lamp: lamp, pool: pool, flash: 0, ph: k * 2.1 });
+    }
+
+    // The table answering a hit (game.js, off physics' events.bumped).
+    R.bumped = function (wall) {
+        for (var i = 0; i < (R.posts || []).length; i++) {
+            if (R.posts[i].wall === wall) { R.posts[i].flash = 1; return; }
+        }
+    };
+
+    function glowPosts(dt) {
+        var i, p, t = R.clock || 0;
+        for (i = 0; i < (R.posts || []).length; i++) {
+            p = R.posts[i];
+            p.flash = Math.max(0, p.flash - dt * 4);
+            p.lamp.emissiveIntensity = 0.45 + 0.15 * Math.sin(t * 1.7 + p.ph) + p.flash * 1.6;
+            p.pool.material.opacity = 0.08 + p.flash * 0.55;
+        }
+        /* The lamps chase: a wave runs down the list, each lit a beat after
+           the one before it, the way the inserts on a table point at a shot. */
+        for (i = 0; i < (R.lamps || []).length; i++) {
+            p = R.lamps[i];
+            if (p.blink) { p.mesh.visible = (t % 1.6) < 0.25; continue; }
+            p.mesh.material.opacity = 0.35 + 0.65 * Math.pow(Math.max(0, Math.cos(t * 3.2 - p.k * 0.9)), 6);
+        }
+    }
+
     function addWall(group, wall) {
         if (wall.kind === 'tree') { addTree(group, wall); return; }
-        if (wall.kind === 'rock') { addRock(group, wall); return; }
+        if (wall.kind === 'rock' || wall.kind === 'meteor') { addRock(group, wall); return; }
+        if (P.isPost(wall)) { addPost(group, wall); return; }
+        // A slingshot is drawn whole off its face; its two backs are in it.
+        if (wall.kind === 'slingback') return;
+        if (wall.tri) { addSling(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
         var B = P.wallBox(wall, 0);
+        if (wall.swing && wall.kind === 'blade') { addFlipper(group, wall, B); return; }
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see
         // buildSurfaces) — a hole has up to twenty rails and one coat of paint.
@@ -2982,8 +4049,135 @@
         }
     }
 
-    /* The kerb round a rounded corner (courses.cornerRails), drawn as the one
-       curve it is rather than as the chords the solver meets. A band of rail
+    /* A flipper, drawn as a pinball flipper rather than as the box it is to
+       the solver: a bat that tapers from a round heel to a round tip, a white
+       body over a red rubber band at the height of the ball's middle, and a
+       chrome cap on the pin it turns about — the heel end for a hinged one
+       (courses.flipper `hinge`), the middle for one that is not. The outline
+       is the box's own length and, at the heel, its thickness; the tip is a
+       quarter narrower than the box, which is a few millimetres of lie at the
+       one end and the whole difference between a bat and a plank.
+
+       Built in the bat's own frame about its middle, so it rides R.movers
+       exactly as the box did (syncMovers puts the middle where wallBox says
+       and turns it to its yaw). */
+    /* A slingshot (courses.slingshot): a white triangle of plastic on the
+       table with a lit insert let into its top, and a band of rubber round
+       its three sides at the height the ball meets it — the face the kicker
+       is behind in the hole's own pink. Lit and flashed like a pop bumper
+       (R.posts, glowPosts), off the same event. Built in world coordinates:
+       the shape's points are the table's. */
+    var SLING_RUBBER = 0xff4fa3;
+    function addSling(group, wall) {
+        var tri = wall.tri, base = wall.base || 0, h = wall.h, k;
+        var mx = (tri[0].x + tri[1].x + tri[2].x) / 3, mz = (tri[0].z + tri[1].z + tri[2].z) / 3;
+        // The triangle pulled in (or pushed out) towards its middle by `d`.
+        function grown(d) {
+            return tri.map(function (p) {
+                var dx = p.x - mx, dz = p.z - mz, r = Math.sqrt(dx * dx + dz * dz) || 1;
+                return { x: p.x + dx / r * d, z: p.z + dz / r * d };
+            });
+        }
+        function shapeOf(pts, hole) {
+            var sh = new THREE.Shape();
+            sh.moveTo(pts[0].x, pts[0].z);
+            for (k = 1; k < pts.length; k++) sh.lineTo(pts[k].x, pts[k].z);
+            sh.closePath();
+            if (hole) {
+                var hp = new THREE.Path();
+                hp.moveTo(hole[0].x, hole[0].z);
+                for (k = hole.length - 1; k >= 1; k--) hp.lineTo(hole[k].x, hole[k].z);
+                hp.closePath();
+                sh.holes.push(hp);
+            }
+            return sh;
+        }
+        function slab(shape, depth, top, mat) {
+            var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false });
+            geo.rotateX(Math.PI / 2);              // shape's y → world z, extruded down
+            geo.translate(0, top, 0);
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            m.receiveShadow = true;
+            group.add(m);
+            return m;
+        }
+        var body = R.surf.flipperBody || (R.surf.flipperBody = new THREE.MeshPhongMaterial({
+            color: 0xf5f2f7, shininess: 70, specular: 0x9a9a9a
+        }));
+        var rubber = R.surf.slingRubber || (R.surf.slingRubber = new THREE.MeshLambertMaterial({ color: SLING_RUBBER }));
+        var top = base + h;
+        slab(shapeOf(grown(-0.12)), h, top, body);
+        slab(shapeOf(grown(0.02), grown(-0.12)), 0.16, C.BALL_R + 0.08, rubber);
+        var lamp = new THREE.MeshPhongMaterial({
+            color: 0x3ee0ff, emissive: 0x3ee0ff, emissiveIntensity: 0.5, shininess: 90
+        });
+        slab(shapeOf(grown(-0.34)), 0.012, top + 0.012, lamp).castShadow = false;
+        var pool = slab(shapeOf(grown(0.35)), 0.004, 0.014, new THREE.MeshBasicMaterial({
+            color: SLING_RUBBER, transparent: true, opacity: 0.08, depthWrite: false,
+            blending: THREE.AdditiveBlending
+        }));
+        pool.castShadow = pool.receiveShadow = false;
+        R.posts.push({ wall: wall, lamp: lamp, pool: pool, flash: 0, ph: mx * 1.3 });
+    }
+
+    function addFlipper(group, wall, B) {
+        var len = wall.w, t = wall.d, h = wall.h, sw = wall.swing;
+        var heel = sw.hinge ? (sw.reach > 0 ? -1 : 1) : -1;   // which end is the heel, in local x
+        function outline(grow) {
+            var r0 = t / 2 + grow, r1 = t * 0.375 + grow;
+            var x0 = heel * (len / 2 - t / 2), x1 = -heel * (len / 2 - t * 0.375);
+            var shape = new THREE.Shape(), k, a, n = 12;
+            // Round the heel, then the tip, joined by the two tangents.
+            for (k = 0; k <= n; k++) {
+                a = Math.PI / 2 + k / n * Math.PI;
+                if (heel > 0) a += Math.PI;
+                var px = x0 + Math.cos(a) * r0, pz = Math.sin(a) * r0;
+                if (k) shape.lineTo(px, pz); else shape.moveTo(px, pz);
+            }
+            for (k = 0; k <= n; k++) {
+                a = -Math.PI / 2 + k / n * Math.PI;
+                if (heel > 0) a += Math.PI;
+                shape.lineTo(x1 + Math.cos(a) * r1, Math.sin(a) * r1);
+            }
+            shape.closePath();
+            return shape;
+        }
+        function slab(shape, depth, y0, mat) {
+            var geo = new THREE.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: false, curveSegments: 6 });
+            geo.rotateX(Math.PI / 2);              // shape's y → world z, extruded down
+            geo.translate(0, y0 + depth, 0);
+            var m = new THREE.Mesh(geo, mat);
+            m.castShadow = true;
+            m.receiveShadow = true;
+            return m;
+        }
+        var body = R.surf.flipperBody || (R.surf.flipperBody = new THREE.MeshPhongMaterial({
+            color: 0xf5f2f7, shininess: 70, specular: 0x9a9a9a
+        }));
+        var rubber = R.surf.flipperRubber || (R.surf.flipperRubber = new THREE.MeshLambertMaterial({ color: 0xd8283a }));
+        var bat = new THREE.Group();
+        // Centred on the box's middle in y, which is where syncMovers puts it.
+        bat.add(slab(outline(-0.02), h, -h / 2, body));
+        bat.add(slab(outline(0.015), 0.16, C.BALL_R - 0.08 - (B.base + h / 2) + (wall.base || 0) + 0.1, rubber));
+        bat.position.set(B.cx, B.base + h / 2, B.cz);
+        bat.rotation.y = B.yaw;
+        group.add(bat);
+        R.movers.push({ mesh: bat, wall: wall, h: h });
+
+        var px = sw.hinge ? sw.hinge.x : B.cx, pz = sw.hinge ? sw.hinge.z : B.cz;
+        var chrome = R.surf.chrome || (R.surf.chrome = new THREE.MeshPhongMaterial({
+            color: 0xc9d2da, shininess: 140, specular: 0xffffff
+        }));
+        var pin = new THREE.Mesh(new THREE.CylinderGeometry(t * 0.32, t * 0.36, h + 0.06, 16), chrome);
+        pin.position.set(px, B.base + (h + 0.06) / 2, pz);
+        pin.castShadow = true;
+        group.add(pin);
+    }
+
+    /* The kerb round a rounded corner (courses.cornerRails), or a curved wall
+       that asked to be drawn (`arc`'s `drawn`, in `b.kind`'s material), drawn
+       as the one curve it is rather than as the chords the solver meets. A band of rail
        swept round the corner's centre, extruded up — and then its two curved
        faces given the radial normal they would have on a true cylinder, since
        an extrusion is shaded a facet at a time and a lit fan of facets is the
@@ -3013,11 +4207,25 @@
             else if (d < -0.7) nrm.setXYZ(i, -x / l, 0, -z / l);
         }
         nrm.needsUpdate = true;
-        var mesh = new THREE.Mesh(geo, R.surf.walls.rail);
+        var mat = R.surf.walls[b.kind] || R.surf.walls.rail;
+        var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(b.cx, b.base, b.cz);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         group.add(mesh);
+        /* An end that stops in the open (`cap0`/`cap1`: a kerb broken by a
+           gap, or a wall standing on its own) is finished round rather than
+           cut off square. The cap's far side is where the chord under it
+           ends — `arc` runs each chord half a thickness past its own end —
+           so what is drawn is what the ball meets, near enough. */
+        [[b.cap0, b.a0], [b.cap1, b.a1]].forEach(function (e) {
+            if (!e[0]) return;
+            var cap = new THREE.Mesh(new THREE.CylinderGeometry(b.t / 2, b.t / 2, b.h, 16), mat);
+            cap.position.set(b.cx + Math.cos(e[1]) * b.R, b.base + b.h / 2, b.cz + Math.sin(e[1]) * b.R);
+            cap.castShadow = true;
+            cap.receiveShadow = true;
+            group.add(cap);
+        });
     }
 
     /* A windmill's sails (courses.mill), and the cap they turn on.
@@ -3266,7 +4474,13 @@
        be visible from the tee at forty units and from the overview at eighty,
        which is why they are as tall as they are and why they get the brightest
        white on the hole. Spaced by eye rather than by division, so a long side
-       and a short side have stakes the same distance apart. */
+       and a short side have stakes the same distance apart.
+
+       Half as many as there were, shorter and off-white (v1.155.0): at one
+       every four and a half units in the brightest white on the hole they
+       were the first thing in every picture of the long game (the owner:
+       "too much out of bounds white markers"). A line needs enough posts to
+       be read as a line, and that is one every nine. */
     function addStakes(group, hole, theme) {
         // A hole whose boundary is the edge of the world marks nothing
         // (Challenge mode: the glass runs out, and that is the line).
@@ -3274,10 +4488,10 @@
         var rects = P.fenceRects(hole);
         if (!rects.length) return;
         var mat = new THREE.MeshPhongMaterial({
-            color: 0xf2f4ef, shininess: 26, specular: 0x555a55
+            color: 0xd9d4c2, shininess: 12, specular: 0x33342f
         });
-        var geo = new THREE.CylinderGeometry(0.09, 0.11, 1.15, 6);
-        var gap = 4.5, r, i, k;
+        var geo = new THREE.CylinderGeometry(0.06, 0.08, 0.8, 6);
+        var gap = 9, r, i, k;
         /* Nothing within this of the tee. A boundary can legitimately run
            behind a teeing ground and two of these holes have one that does,
            but the bag rides in front of the camera at a fixed offset and a
@@ -3322,7 +4536,7 @@
                     var top = P.surfaceTop(hole, x, z);
                     if (!top) continue;
                     var m = new THREE.Mesh(geo, mat);
-                    m.position.set(x, top.y + 0.5, z);
+                    m.position.set(x, top.y + 0.35, z);
                     m.castShadow = true;
                     group.add(m);
                 }
@@ -3543,6 +4757,8 @@
        same vertex. Null for the holes that do not get one. */
     function skirtPlan(hole, theme) {
         if (!hole.open || theme.surround === 'water') return null;
+        // A portal world's islands hang in the air: no bank down to anything.
+        if (hole.portal && !hole.grounded) return null;
 
         var b = hole.bounds;
         var cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
@@ -3651,6 +4867,17 @@
         // move the same vertices, and ground that rolls under a hillside puts a
         // hump through it.
         if (plan) flatR = Math.max(flatR, plan.outer);
+        /* …and under a floor that is part of the hole (Redstone's canyon
+           floor, `oob`): it runs well past the stakes, it is drawn down to
+           meet this ground at its edge, and it has no skirt to keep the
+           noise away from it, so the flat has to reach past it instead. */
+        else if (hole.pads.some(function (p) { return p.oob && !p.stands; })) {
+            hole.pads.forEach(function (p) {
+                flatR = Math.max(flatR, 2 + Math.hypot(
+                    Math.max(Math.abs(p.x - cx), Math.abs(p.x + p.w - cx)),
+                    Math.max(Math.abs(p.z - cz), Math.abs(p.z + p.d - cz))));
+            });
+        }
         var amp = theme.relief || 0;
         R.groundAt = function (x, z) {
             return theme.surroundY + (amp ? surRelief(x, z, Math.hypot(x - cx, z - cz), amp, flatR) : 0);
@@ -3840,6 +5067,84 @@
 
     var _ridgeSun = new THREE.Vector3();
 
+    /* A mountain range round the hole, for a theme that names one
+       (`theme.range`, the alpine course's): scenery only, never solid, and
+       well outside the property — it starts past the skirt and runs a
+       hundred-odd units out, between the hole and the horizon ridges.
+
+       Drums are what the first attempt was, and the arithmetic of a disc
+       cannot be anything else, so this is ground instead: a ring of terrain
+       whose height is ridged noise — one minus the folded value noise, three
+       octaves, squared — which is what draws sharp crests with gullies
+       between them rather than rounded hills. It rises out of the valley
+       over its first thirty units, so it stands *behind* the hole rather
+       than beside it, and the near ring is kept lower than the far so the
+       massif climbs away from the course. Every triangle is coloured on its
+       own, and flat-shaded, which is what makes it faceted granite: snow
+       above a ragged snowline where the ground is gentle enough to hold it
+       (so the gullies fill and the steep faces stay rock), rock on anything
+       steep, and dark forest on the low slopes. */
+    function rangeHeight(R, x, z, r, r0) {
+        var f = [1 / 46, 1 / 21, 1 / 9], w = [0.62, 0.28, 0.1], h = 0, k, n, rid;
+        for (k = 0; k < 3; k++) {
+            n = surNoise(x * f[k] + 31.7 * k, z * f[k] - 17.3 * k);
+            rid = 1 - Math.abs(2 * n - 1);
+            h += w[k] * rid * rid;
+        }
+        var t = (r - r0) / 30, env = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+        var climb = 0.55 + 0.45 * Math.min(1, (r - r0) / (R.depth || 110));
+        return env * climb * R.peak * (0.18 + 0.95 * h);
+    }
+
+    function addRange(group, hole, theme, plan) {
+        var R = theme.range;
+        if (!R || !hole.open) return;
+        var b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+        var r0 = (plan ? plan.outer : Math.hypot(b.maxX - cx, b.maxZ - cz) + 30) + (R.gap || 8);
+        var r1 = r0 + (R.depth || 110), K = 18, N = 168, base = theme.surroundY - 1.5;
+        var rings = [], k, j, rr, a, x, z;
+        for (k = 0; k <= K; k++) {
+            rr = r0 + (r1 - r0) * Math.pow(k / K, 1.25);
+            var ring = [];
+            for (j = 0; j < N; j++) {
+                a = j / N * Math.PI * 2;
+                x = cx + Math.cos(a) * rr; z = cz + Math.sin(a) * rr;
+                ring.push([x, base + rangeHeight(R, x, z, rr, r0), z]);
+            }
+            rings.push(ring);
+        }
+        var pos = [], col = [], c = new THREE.Color();
+        var rock = new THREE.Color(R.rock || '#6f737a'), snow = new THREE.Color(R.snow || '#f2f6fa');
+        var wood = new THREE.Color(R.forest || '#2e4a34'), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+        var snowline = base + R.peak * (R.snowline || 0.5), treeline = base + R.peak * (R.treeline || 0.2);
+        function tri(p, q, w) {
+            e1.set(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+            e2.set(w[0] - p[0], w[1] - p[1], w[2] - p[2]);
+            e1.cross(e2).normalize();
+            var ny = Math.abs(e1.y), hm = (p[1] + q[1] + w[1]) / 3;
+            var jit = (surNoise(p[0] * 0.13, p[2] * 0.13) - 0.5) * R.peak * 0.18;
+            if (hm > snowline + jit && ny > 0.56) c.copy(snow);
+            else if (hm < treeline + jit * 0.5 && ny > 0.62) c.copy(wood).multiplyScalar(0.85 + 0.3 * surNoise(p[0] * 0.3, p[2] * 0.3));
+            else c.copy(rock).multiplyScalar(0.78 + 0.4 * surNoise(p[0] * 0.21 + 5, p[2] * 0.21));
+            [p, q, w].forEach(function (v) { pos.push(v[0] - cx, v[1], v[2] - cz); col.push(c.r, c.g, c.b); });
+        }
+        for (k = 0; k < K; k++) {
+            for (j = 0; j < N; j++) {
+                var A = rings[k][j], B = rings[k][(j + 1) % N], C2 = rings[k + 1][j], D = rings[k + 1][(j + 1) % N];
+                // Wound so the face looks up (outward and round is down).
+                tri(A, B, C2);
+                tri(B, D, C2);
+            }
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        geo.computeVertexNormals();
+        var mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+        mesh.position.set(cx, 0, cz);
+        group.add(mesh);
+    }
+
     function addRidges(group, hole, theme, weather) {
         var ridge = theme.ridge;
         // No hills on a theme that has none: the arcade is a basement and the
@@ -3921,6 +5226,8 @@
         rim.position.set(cup.x, cup.y + lift + 0.006, cup.z);
         group.add(rim);
         R.cupMesh = rim;
+        // The lip as drawn, for a camera that goes down the cup (startDive).
+        R.cupTop = cup.y + lift;
 
         /* The pin. Everything below hangs off one group standing at the
            centre of the cup, tilted away down the line of play, so the lean is
@@ -3997,6 +5304,12 @@
        strength. Without it the shaded face of every rail on the course is the
        flat ambient colour and the hole reads as a diagram; with it there is a
        bounce off the ground and the boxes turn into objects. */
+    // How much of the course's light is taken away with the bag fully open.
+    var COURSE_DIM = 0.7;
+    /* How dark the blurred course behind the open picker is: see-through,
+       but quiet enough that a card reads against any sky. */
+    var BACK_DIM = 0.3;
+
     function lights(group, hole, theme, weather) {
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
@@ -4046,6 +5359,8 @@
         group.add(sun);
         group.add(sun.target);
         R.sun = sun;
+        // The sand's spray is drawn unlit, so it is told what light the sand is in.
+        if (G3.sandfx) G3.sandfx.light(amb, sun, weather.wet || 0);
         R.sunDir.set(pos[0] * reach, Math.max(2.5, pos[1] * lift), pos[2] * reach).normalize();
 
         var fill = new THREE.DirectionalLight(skyLight, 0.16 + weather.cloud * 0.10);
@@ -4053,6 +5368,9 @@
         fill.target.position.set(cx, 0, cz);
         group.add(fill);
         group.add(fill.target);
+        // Kept with what they were lit at, for the bag to turn down (frame).
+        R.courseLights = [amb, sun, fill];
+        R.courseLights.forEach(function (l) { l.userData.base = l.intensity; });
     }
 
     /* How far a hole asks you to see.
@@ -4139,15 +5457,20 @@
         cv.width = 256;
         cv.height = 128;
         var c = cv.getContext('2d');
-        c.fillStyle = '#0f2a3a';
+        // A painted yardage board: club green, a cream rule, cream figures.
+        c.fillStyle = '#1f3a26';
         c.beginPath();
-        if (c.roundRect) c.roundRect(4, 4, 248, 120, 22); else c.rect(4, 4, 248, 120);
+        if (c.roundRect) c.roundRect(4, 4, 248, 120, 8); else c.rect(4, 4, 248, 120);
         c.fill();
-        c.lineWidth = 6;
-        c.strokeStyle = '#f8fafc';
+        c.lineWidth = 5;
+        c.strokeStyle = '#ece3c8';
         c.stroke();
-        c.fillStyle = '#f8fafc';
-        c.font = '800 72px Outfit, Inter, system-ui, sans-serif';
+        c.fillStyle = '#ece3c8';
+        // Three figures and a unit have to fit inside the frame.
+        for (var px = 72; px > 40; px -= 4) {
+            c.font = '800 ' + px + 'px "Barlow Semi Condensed", system-ui, sans-serif';
+            if (c.measureText(text).width <= 216) break;
+        }
         c.textAlign = 'center';
         c.textBaseline = 'middle';
         c.fillText(text, 128, 68);
@@ -4165,7 +5488,7 @@
            board is a bigger one, so all five read at about the same size. */
         hole.targets.forEach(function (t, i) {
             var x = i % 2 ? t.x1 + 0.7 : t.x0 - 0.7, z = (t.z0 + t.z1) / 2;
-            var k = 0.55 + t.dist * 0.02;
+            var k = 0.55 + t.dist / G3.distance.scale(hole) * 0.02;   // off the units, not the words
             var post = new THREE.Mesh(postGeo, postMat);
             post.scale.y = k;
             post.position.set(x, 0.65 * k, z);
@@ -4186,12 +5509,23 @@
         R.theme = theme;
         R.weather = weather;
         R.loopCam = null;
+        R.dive = null;
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
+        // The black holes (see "the black hole"): every material, every
+        // mouth with its sky portal, every well — and the camera that
+        // watches a ball come out of the sky.
+        R.holeMats = [];
+        R.mouths = [];
+        R.wells = [];
+        R.warpCam = null;
+        R.waterHidden = false;
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
+        R.posts = [];
+        R.lamps = [];
 
         /* One set of surfaces per hole: the textures behind them are the
            theme's and are only redrawn when the theme changes (textures.js),
@@ -4212,19 +5546,60 @@
         // ...and on a clear day the hole itself stands in clear air. See fogClear().
         R.fogNear = Math.max(R.fogNear, fogClear(hole, weather));
         R.fogFar = Math.max(R.fogFar, R.fogNear * 2.4);
+        /* …and a theme with thin air in it (`air`, the mountain's) pushes the
+           whole fade back, short of the surround's rim, so the ranges stand
+           sharp against the sky rather than paling into it. */
+        if (theme.air) {
+            R.fogNear *= theme.air;
+            R.fogFar = Math.min(R.fogFar * theme.air, 280);
+        }
         R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
-        g.add(skyDome(theme, weather));
+        /* Everything that is the place rather than the hole — sky, ground
+           out to the horizon, ridges, a world's set piece — goes in a group of
+           its own, so that a hole played inside a live world (backdrop.mjs)
+           can put all of it away at once and take it back if the world goes. */
+        var og = new THREE.Group();
+        g.add(og);
+        R.outer = og;
+        og.add(skyDome(theme, weather));
         lights(g, hole, theme, weather);
         var skirt = skirtPlan(hole, theme);
-        addSurround(g, hole, theme, skirt);
-        addSkirt(g, hole, theme, skirt);
-        addRidges(g, hole, theme, weather);
+        addSurround(og, hole, theme, skirt);
+        addSkirt(og, hole, theme, skirt);
+        addRidges(og, hole, theme, weather);
+        addRange(og, hole, theme, skirt);
 
         var i;
-        for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
-        if (theme.grid) addGrid(g, hole, theme);
-        if (theme.glow) addNeonBackdrop(g, hole, theme);
-        if (hole.wells) addWells(g, hole);
+        // The country past the stakes is drawn as country (splitCountry).
+        R.country = hole.open && hole.fence && hole.stakes !== false ? hole : null;
+        /* A `ghost` pad or water is ground the live world already draws — a
+           tour hole sculpted to its world's own terrain is played on that
+           terrain, and only its tee, fairway and green are laid over it. So
+           a ghost is built like anything else and put away while the world
+           is on screen (stepPlace); without the world it is the ground. */
+        /* …and what is laid over it is a `veil`: a strip of mown fairway
+           or a tee draped on that ground. With the world on screen a veil
+           is put away like the ghost, and the strip is painted into the
+           world's own picture instead (the plate's decals) — a change of
+           colour in that ground, not a sheet on top of it. The green stays
+           drawn: it is the one surface a putt has to be read on. */
+        R.ghosts = [];
+        R.veils = [];
+        var n0, sculpted = hole.pads.some(function (p) { return p.ghost; });
+        for (i = 0; i < hole.pads.length; i++) {
+            n0 = g.children.length;
+            addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
+            if (hole.pads[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
+            else if (sculpted && hole.pads[i].inlay && hole.pads[i].kind !== 'green') {
+                while (n0 < g.children.length) R.veils.push(g.children[n0++]);
+            }
+        }
+        R.country = null;
+        // The grid on the floor is off the course, with the rest of the
+        // scenery: in a live world it put a band of lines across the horizon.
+        if (theme.grid) addGrid(og, hole, theme);
+        if (theme.glow) addNeonBackdrop(og, hole, theme);
+        if (hole.wells) addWells(g, hole, theme);
         // The grid world's effects switch on with the theme (see hitAt), and
         // its tail is drawn larger, because it is a light and not a smudge.
         R.glow = !!theme.glow;
@@ -4244,7 +5619,11 @@
                 addBend(g, hole.walls[i].bend);
             }
         }
-        for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
+        for (i = 0; i < hole.water.length; i++) {
+            n0 = g.children.length;
+            addWater(g, hole.water[i], theme);
+            if (hole.water[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
+        }
         addCup(g, hole);
         // No ring on the tee any more: it sat round the ball at every
         // address and said where the ball was while the ball said so itself
@@ -4254,6 +5633,8 @@
         // The long game's dressing, and what lives on it (life.js).
         if (G3.life) G3.life.build(g, hole, themeName, theme.surround === 'water', R.groundAt, R.groundMat);
         if (hole.targets) addBoards(g, hole);
+        // A portal world's set piece, and the door past its flag (worlds.js).
+        if (G3.worlds) G3.worlds.build(og, hole, theme);
 
         // The rain, the mist banks and whatever is drifting in the air are
         // parented to the hole, so the next hole disposes them with it.
@@ -4284,6 +5665,7 @@
         }
         if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);
 
+        setPlace(hole);
         R.scene.add(g);
         R.holeGroup = g;
         R.smooth.started = false;
@@ -4298,6 +5680,427 @@
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         clearTrail();
+        // The last hole's furrows and craters were in the last hole's sand.
+        if (G3.sandfx) G3.sandfx.clear();
+        // A hole changed with a ball inside a pipe would leave it shrunk.
+        R.ball.scale.setScalar(1);
+        R.ball.visible = true;
+    }
+
+    /* ── the live world behind a tour hole ──────────────────────────────
+
+       A hole that names a `place` is played inside a world from Portals,
+       drawn by that project's own engine into a canvas of its own
+       (backdrop.mjs has how). Here it is only a picture: the canvas becomes
+       the scene's background, the hole's own sky and country are put away
+       (R.outer), and the fog is pushed out past the hole so the far end of a
+       green does not fade to a sky that is no longer there.
+
+       All of it is conditional on the world actually being drawn this frame.
+       While it is building, on a machine that cannot run it, or with live
+       worlds switched off, `stepPlace` does nothing and the hole stands in
+       its theme's own sky with worlds.js's simple set piece — a complete
+       hole either way. */
+    /* Only the switch in Courses writes this. The two safety nets below — a
+       build that did not finish last visit, a frame rate that would not come
+       up — turn live worlds off for this visit alone (R.liveSession) and try
+       again on the next. They used to write '0' here, which read as the
+       player's own choice from then on: on a phone a tab closed while a world
+       was building looks just like a crash, and one of those turned the
+       worlds off for good (the owner: "should be on by default — why is it
+       not?"). The key is new with that change, so a '0' a safety net wrote
+       under the old one is not carried over. */
+    var LIVE_KEY = 'golf3d.live';
+    /* Whether the last visit left a build unfinished — read once, here, as
+       the page loads. backdrop.mjs (a module, so it runs after this) sets the
+       mark while *this* visit's world builds, and liveWanted used to read it
+       on every call: asked during the first world's build, it found its own
+       visit's mark, called it a crash and turned live worlds off. That was
+       every new phone, whose first world builds while the demo or the
+       picker is up and something is asking. */
+    var crashedLast = (function () {
+        try {
+            if (!localStorage.getItem('golf3d.worldBuilding')) return false;
+            localStorage.removeItem('golf3d.worldBuilding');
+            return true;
+        } catch (e) { return false; }
+    })();
+    function liveWanted() {
+        if (R.liveOverride !== undefined) return R.liveOverride;
+        /* On by default, everywhere — a phone too. It used to be a
+           desktop's job only, and the owner's phone, which runs the game at
+           sixty frames, was shown the stand-in scenery and wondered where
+           the worlds were. What protects a machine that cannot do it is
+           measured, not guessed: the world's resolution is stepped down
+           while the frame rate is poor and live worlds are switched off if
+           that is not enough (stepPlace), and a build that killed the page
+           last time is not tried again (backdrop.mjs leaves a mark while it
+           builds). */
+        if (crashedLast) {
+            crashedLast = false;
+            R.liveSession = false;
+            setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
+        }
+        if (R.liveSession === false) return false;
+        try {
+            var v = localStorage.getItem(LIVE_KEY);
+            if (v === '0') return false;
+            if (v === '1') return true;
+        } catch (e) { /* ignore */ }
+        return !(navigator.deviceMemory && navigator.deviceMemory <= 2);
+    }
+    function setLive(on) {
+        try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+        R.liveOverride = undefined;
+        R.liveSession = undefined;   // the player's word outranks a safety net
+        if (R.hole) setPlace(R.hole);
+        return liveWanted();
+    }
+
+    function setPlace(hole) {
+        R.hole = hole;
+        var place = hole && hole.place && liveWanted() ? hole.place : null;
+        R.place = place;
+        if (place) {
+            var yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+            R.placeSeat = { x: hole.tee.x - Math.sin(yaw) * 9, y: (hole.tee.y || 0) + 4.2, h: 4.2,
+                z: hole.tee.z - Math.cos(yaw) * 9, yaw: yaw,
+                // the middle of the hole, for seating it on the world's ground
+                cx: (hole.tee.x + hole.cup.x) / 2, cz: (hole.tee.z + hole.cup.z) / 2 };
+        }
+        if (place) {
+            /* The hole's own ground plan, which the world never covers:
+               each pad's box and a margin, up to eight of them. A hole of
+               more pads than that, or one whose ground is the world's own
+               (a `ghost` pad, hidden when the world is live — the ball rolls
+               on rough that is only there as the world's picture), keeps
+               its whole bounding box instead. */
+            var boxes = [], all = [Infinity, Infinity, -Infinity, -Infinity], ghost = false;
+            var ghostHole = (hole.pads || []).some(function (p) { return p.ghost; });
+            (hole.pads || []).forEach(function (p) {
+                if (p.ghost) ghost = true;
+                // A pad is written from its corner; a round inlay from its middle.
+                var m = 0.8, bx = p.w === undefined
+                    ? [p.x - p.r - m, p.z - p.r - m, p.x + p.r + m, p.z + p.r + m]
+                    : [p.x - m, p.z - m, p.x + p.w + m, p.z + p.d + m];
+                all = [Math.min(all[0], bx[0]), Math.min(all[1], bx[1]), Math.max(all[2], bx[2]), Math.max(all[3], bx[3])];
+                // (a sculpted hole's tee and fairway are paint, not pads: only its green is drawn)
+                if (!p.ghost && !(ghostHole && p.inlay && p.kind !== 'green')) boxes.push(bx);
+            });
+            R.placeKeep = boxes.length > 8 ? [all] : boxes;
+            /* Round the whole of a hole the world is set back a little
+               (0.7 of a unit along the eye's line). A placed hole stands on
+               the world's ground and a sculpted one's rough *is* that
+               ground, seen as the world's picture over a baked copy that is
+               smoother than the original; either way a wrinkle of ice or
+               turf a hand high must not cut a rail or bury a ball. A tree,
+               a stall or a pillar is far more than that in front, and still
+               is. */
+            R.placeSoft = [all[0] - 2.5, all[1] - 2.5, all[2] + 2.5, all[3] + 2.5];
+            /* A sculpted hole hands the world three things (backdrop.mjs →
+               sculpt): the ground it was baked to, so the world's own
+               terrain is pressed to exactly that shape — a levelled tee is
+               level in the world's picture too; the strips mown into it,
+               which the world clears of trees and stones; and here, the
+               same strips as paint (the plate's decals). The green is the
+               one surface still drawn by this game, lying on ground that
+               now matches it, with a collar of the same paint round it. */
+            R.placeDecals = null;
+            place.grid = null; place.clear = [];
+            var gp = (hole.pads || []).filter(function (p) { return p.ghost && p.field && p.field[0] && p.field[0].grid; })[0];
+            if (gp) {
+                var th = R.theme || {}, tint = new THREE.Color((th.grass || ['#3fa56a'])[0]);
+                var rects = [];
+                (hole.pads || []).forEach(function (p) {
+                    if (p.ghost || !p.inlay || p.w === undefined) return;
+                    place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
+                    var g = p.kind === 'green' ? 1.3 : 0, k = p.kind === 'green' ? 1.25 : 1;
+                    rects.push([p.x - g, p.z - g, p.x + p.w + g, p.z + p.d + g, [tint.r * k, tint.g * k, tint.b * k]]);
+                });
+                place.grid = gp.field[0].grid;
+                R.placeDecals = { grid: place.grid, rects: rects.slice(0, 6), dirty: true };
+            }
+        }
+        R.live = false;
+        R.eventFired = false;
+        if (G3.backdrop && G3.backdrop.rewind) G3.backdrop.rewind();
+        if (R.plate) R.plate.visible = false;
+        if (G3.backdrop) G3.backdrop.want(place ? place.world : null);
+    }
+    // backdrop.mjs is a module and arrives after the first hole is built.
+    window.addEventListener('g3-backdrop', function () {
+        if (R.place && G3.backdrop) G3.backdrop.want(R.place.world);
+    });
+
+    function stepPlace(dt, world) {
+        var B = G3.backdrop, live = false;
+        /* Something in the world that happens because of the golf: a place
+           may name an `event`, and it is set going the first time the ball
+           is that far from the tee towards the flag (half way, unless it
+           says), or passes through its `gate` — a spot on the hole,
+           [x, z, r] — or drops. The Marble Run's is the dominoes beside it
+           going over in a wave, set off as the ball comes round the first
+           turn. backdrop.mjs plays it; a new hole rewinds it. */
+        if (R.place && R.place.event && B && B.play && world && world.ball && !R.eventFired) {
+            var h = world.hole, tx = h.cup.x - h.tee.x, tz = h.cup.z - h.tee.z;
+            var along = ((world.ball.x - h.tee.x) * tx + (world.ball.z - h.tee.z) * tz) / Math.max(1e-6, tx * tx + tz * tz);
+            var eg = R.place.event.gate, hit;
+            if (eg) hit = (world.ball.x - eg[0]) * (world.ball.x - eg[0]) + (world.ball.z - eg[1]) * (world.ball.z - eg[1]) < eg[2] * eg[2];
+            else hit = along >= (R.place.event.at === undefined ? 0.5 : R.place.event.at);
+            if (world.sunk || hit) {
+                R.eventFired = true;
+                B.play();
+                if (R.live && R.place.event.say) window.dispatchEvent(new CustomEvent('g3-world-event', { detail: R.place.event.say }));
+            }
+        }
+        if (R.place && B) {
+            var cv = R.renderer.domElement;
+            // Three quarters of the stage's own pixels, and never more than
+            // a 720p frame: it is behind everything and half of it is sky.
+            if (R.liveK === undefined) {
+                R.liveCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+                R.liveK = R.liveKMax = R.liveCoarse ? 0.7 : 0.8;
+            }
+            var k = Math.min(R.liveK, (R.liveCoarse ? 1100 : 1440) / Math.max(1, cv.width));
+            live = B.frame(dt, R.camera, R.place, R.placeSeat,
+                Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)));
+        }
+        if (live) {
+            /* How it is going. Two seconds at a time: a poor frame rate
+               takes a quarter off the world's resolution, down to a third of
+               the stage; still poor at the bottom for six seconds and live
+               worlds are switched off, with a line to say so. `?live=1`
+               (R.liveOverride) is somebody asking for it regardless. */
+            var now = performance.now();
+            if (!R.liveT0) { R.liveT0 = now + 6000; R.liveN = 0; R.liveBad = 0; R.liveGood = 0; }
+            /* Nothing is measured for six seconds after a world comes up:
+               it is still compiling its shaders then, and judged on those
+               seconds every world was taken down to a third of the stage
+               and left there (the owner's phone, at sixty frames a second,
+               showing a world made of blocks). And there is a way back up:
+               three good windows running give a step of resolution back. */
+            if (now < R.liveT0) R.liveN = 0;
+            R.liveN++;
+            if (now - R.liveT0 > 2000) {
+                var fps = R.liveN * 1000 / (now - R.liveT0);
+                R.liveT0 = now; R.liveN = 0;
+                if (R.liveOverride) { /* asked for by name: left as it is, for a screenshot */ }
+                else if (fps < 26 && R.liveK > 0.34) { R.liveK = Math.max(0.33, R.liveK * 0.75); R.liveBad = 0; R.liveGood = 0; }
+                else if (fps < 16) { R.liveBad++; R.liveGood = 0; }
+                else {
+                    R.liveBad = 0;
+                    R.liveGood = fps > 48 ? (R.liveGood || 0) + 1 : 0;
+                    if (R.liveGood >= 3 && R.liveK < R.liveKMax) { R.liveK = Math.min(R.liveKMax, R.liveK / 0.75); R.liveGood = 0; }
+                }
+                if (R.liveBad >= 3 && R.liveOverride === undefined) {
+                    R.liveBad = 0;
+                    // This visit only — see LIVE_KEY.
+                    R.liveSession = false;
+                    setPlace(R.hole);
+                    window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
+                    return;
+                }
+            }
+            if (!R.plate) addWorldPlate(B);
+            R.bgTex.needsUpdate = true;
+            var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
+            u.size.value.set(I.w, I.h);
+            u.wNear.value = I.near; u.wFar.value = I.far; u.scale.value = I.scale;
+            u.pA.value = P[10]; u.pB.value = P[14];
+            u.invProj.value.copy(R.camera.projectionMatrixInverse);
+            u.camWorld.value.copy(R.camera.matrixWorld);
+            u.soft.value.set(R.placeSoft[0], R.placeSoft[1], R.placeSoft[2], R.placeSoft[3]);
+            var D = R.placeDecals;
+            u.decalOn.value = D ? 1 : 0;
+            if (D && D.dirty) {
+                D.dirty = false;
+                if (R.gridTex) R.gridTex.dispose();
+                var gd = new Float32Array(D.grid.nx * D.grid.nz * 4), gi;
+                for (gi = 0; gi < D.grid.nx * D.grid.nz; gi++) gd[gi * 4] = D.grid.h[gi];
+                R.gridTex = new THREE.DataTexture(gd, D.grid.nx, D.grid.nz, THREE.RGBAFormat, THREE.FloatType);
+                R.gridTex.minFilter = R.gridTex.magFilter = THREE.NearestFilter;
+                R.gridTex.needsUpdate = true;
+                u.gridTex.value = R.gridTex;
+                u.gridBox.value.set(D.grid.x0, D.grid.z0, D.grid.d, 0);
+                u.gridN.value.set(D.grid.nx, D.grid.nz);
+                for (gi = 0; gi < 6; gi++) {
+                    var dr = D.rects[gi] || [0, 0, 0, 0, [0, 0, 0]];
+                    u.decal.value[gi].set(dr[0], dr[1], dr[2], dr[3]);
+                    u.decalTint.value[gi].set(dr[4][0], dr[4][1], dr[4][2]);
+                }
+            }
+            for (var kq = 0; kq < 8; kq++) {
+                var kb = R.placeKeep[kq] || [0, 0, 0, 0];
+                u.keep.value[kq].set(kb[0], kb[1], kb[2], kb[3]);
+            }
+            var gc = R.fx && G3.postfx && G3.postfx.ok ? G3.postfx.state.uComp : null;
+            u.gOn.value = gc ? 1 : 0;
+            if (gc) {
+                u.gExp.value = gc.exposure.value; u.gSat.value = gc.saturation.value; u.gCon.value = gc.contrast.value;
+                u.gTint.value.copy(gc.tint.value); u.gLift.value.copy(gc.lift.value);
+            }
+        }
+        if (live === R.live) return;
+        R.live = live;
+        if (R.plate) R.plate.visible = live;
+        if (R.outer) R.outer.visible = !live;
+        for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
+        // …and its tee and fairway, which the world's picture now carries.
+        (R.veils || []).forEach(function (top) { top.visible = !live; });
+        if (live) { R.liveT0 = performance.now() + 6000; R.liveN = 0; R.liveBad = 0; R.liveGood = 0; }
+        if (live) {
+            R.fogKeep = { near: R.fogNear, far: R.fogFar };
+            R.fogNear = 400; R.fogFar = 1200;
+        } else if (R.fogKeep) {
+            R.fogNear = R.fogKeep.near; R.fogFar = R.fogKeep.far;
+        }
+    }
+
+    /* The world's picture, and how far away each pixel of it is.
+
+       backdrop.mjs hands over one canvas: the world as its camera saw it in
+       the top half, and under it the distance to each pixel (16 bits on a
+       log scale in red and green). This is one sheet across the whole view,
+       drawn before anything else, that paints the picture and writes that
+       distance into the depth buffer — in this camera's units, a world unit
+       being `scale` of ours. Everything the game then draws is tested
+       against it like any other geometry: a pillar of the world between
+       the camera and the green is in front of the green.
+
+       With one exception, which is the game. Whatever of the world stands
+       inside the hole's own plan (`keep`, each pad's box and a margin) is painted
+       but pushed to the far plane: the playing surface is never cut by a
+       fold of somebody else's terrain, and a ball is never lost under it. */
+    function addWorldPlate(B) {
+        R.bgTex = new THREE.CanvasTexture(B.canvas);
+        R.bgTex.minFilter = R.bgTex.magFilter = THREE.LinearFilter;
+        R.bgTex.generateMipmaps = false;
+        var mat = new THREE.ShaderMaterial({
+            depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth, fog: false, toneMapped: false,
+            uniforms: {
+                map: { value: R.bgTex }, size: { value: new THREE.Vector2(2, 2) },
+                wNear: { value: 0.1 }, wFar: { value: 5000 }, scale: { value: 1 },
+                pA: { value: -1 }, pB: { value: -0.2 },
+                invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
+                keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
+                soft: { value: new THREE.Vector4() },
+                decalOn: { value: 0 },
+                decal: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
+                decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector3(); }) },
+                gridTex: { value: null }, gridBox: { value: new THREE.Vector4(0, 0, 1, 0) }, gridN: { value: new THREE.Vector2(1, 1) },
+                gOn: { value: 0 }, gExp: { value: 1 }, gSat: { value: 1 }, gCon: { value: 1 },
+                gTint: { value: new THREE.Color(1, 1, 1) }, gLift: { value: new THREE.Color(0, 0, 0) }
+            },
+            vertexShader: [
+                'uniform mat4 invProj;',
+                'varying vec2 vUv; varying vec3 vRay;',
+                'void main() {',
+                '    vUv = uv;',
+                '    vec4 v = invProj * vec4(position.xy, 1.0, 1.0);',
+                '    v.xyz /= v.w;',
+                '    vRay = v.xyz / -v.z;',      // the view ray, one unit deep
+                '    gl_Position = vec4(position.xy, 0.0, 1.0);',
+                '}'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform sampler2D map; uniform vec2 size;',
+                'uniform float wNear, wFar, scale, pA, pB;',
+                'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
+                'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
+                'uniform float decalOn; uniform vec4 decal[6]; uniform vec3 decalTint[6];',
+                'uniform sampler2D gridTex; uniform vec4 gridBox; uniform vec2 gridN;',
+                'varying vec2 vUv; varying vec3 vRay;',
+                // postfx.js's tone curve, backwards.
+                'vec3 unaces(vec3 y) {',
+                '    vec3 a = 2.43 * y - 2.51, b = 0.59 * y - 0.03, c = 0.14 * y;',
+                '    return (-b - sqrt(max(b * b - 4.0 * a * c, 0.0))) / (2.0 * a);',
+                '}',
+                // One over the distance to one texel of the depth half, in
+                // this game's units; nothing there is nought.
+                'float inv(vec2 t) {',
+                '    t = clamp(t, vec2(0.0), size - 1.0);',
+                '    vec3 e = texture2D(map, vec2((t.x + 0.5) / size.x, 0.5 * (t.y + 0.5) / size.y)).rgb;',
+                '    float n = (floor(e.r * 255.0 + 0.5) * 256.0 + floor(e.g * 255.0 + 0.5)) / 65534.0;',
+                '    return n < 0.9995 ? scale / (wNear * pow(wFar / wNear, n)) : 0.0;',
+                '}',
+                'void main() {',
+                '    vec2 cuv = vec2(vUv.x, 0.5 + 0.5 * clamp(vUv.y, 0.75 / size.y, 1.0));',
+                '    vec3 c = texture2D(map, cuv).rgb;',
+                '    c = pow(c, vec3(2.2));',
+                /* The depth half. Four texels round the pixel, each read at
+                   its own centre and decoded, then blended as 1/distance
+                   (sky is 0): where the world's outline crosses the hole
+                   the edge is a line through the texels, not their
+                   staircase. */
+                '    vec2 dp = vUv * size - 0.5, df = fract(dp), dt = floor(dp);',
+                '    float iz = mix(mix(inv(dt), inv(dt + vec2(1.0, 0.0)), df.x),',
+                '                   mix(inv(dt + vec2(0.0, 1.0)), inv(dt + vec2(1.0, 1.0)), df.x), df.y);',
+                '    float depth = 0.9999995;',
+                '    if (iz > 0.00002) {',
+                '        float z = 1.0 / iz;',
+                '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
+                '        bool ours = false;',
+                '        for (int i = 0; i < 8; i++) {',
+                '            vec4 k = keep[i];',
+                '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
+                '        }',
+                /* The mown ground of a sculpted hole is not a sheet laid on
+                   the world: it is paint on the world's own picture. This
+                   pixel of the world is at `at` in the hole's own
+                   coordinates; if that is on the hole's ground (within a
+                   stride of the baked height there) and inside a tee or a
+                   fairway, it takes the turf's colour — keeping the light
+                   and shade the world gave it, striped the way a mower
+                   leaves it, with a soft edge that wanders a little. So a
+                   fairway follows every fold of the land exactly, because
+                   it is the land. */
+                '        if (decalOn > 0.5) {',
+                '            vec2 gq = (at.xz - gridBox.xy) / gridBox.z;',
+                '            if (gq.x > -0.5 && gq.y > -0.5 && gq.x < gridN.x - 0.5 && gq.y < gridN.y - 0.5) {',
+                '                float gh = texture2D(gridTex, (floor(gq + 0.5) + 0.5) / gridN).r;',
+                '                if (abs(at.y - gh) < 1.3) {',
+                '                    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+                '                    float wob = 0.4 * sin(at.x * 1.7 + at.z * 0.9) * sin(at.z * 1.3 - at.x * 0.6);',
+                '                    float stripe = 0.9 + 0.1 * smoothstep(-0.15, 0.15, sin(at.z * 2.1 + at.x * 0.35));',
+                '                    for (int j = 0; j < 6; j++) {',
+                '                        vec4 k = decal[j];',
+                '                        vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + 1.4;',
+                '                        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 1.4;',
+                '                        float a = (1.0 - smoothstep(-0.45, 0.4, d + wob)) * step(0.001, k.z - k.x);',
+                '                        c = mix(c, decalTint[j] * (0.5 + 0.8 * min(lum, 0.6)) * stripe, a * 0.9);',
+                '                    }',
+                '                }',
+                '            }',
+                '        }',
+                '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) z += 0.7;',
+                '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
+                '    }',
+                /* The world arrives graded by its own makers, and this
+                   game's grade (postfx.js: tone curve, tint, saturation,
+                   contrast) is about to be laid over the whole frame. So the
+                   picture is put through that grade backwards first, and
+                   comes out the other side the colour it went in. The
+                   brightest end is held back: undone exactly it would be
+                   several times white, and bloom a second time. */
+                '    if (gOn > 0.5) {',
+                '        c = (c - 0.5) / gCon + 0.5;',
+                '        float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+                '        c = mix(vec3(l), c, 1.0 / gSat);',
+                '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.86);',
+                '        c = unaces(c) / max(gExp, 0.05);',
+                '    }',
+                '    gl_FragDepth = depth;',
+                '    gl_FragColor = vec4(c, 1.0);',
+                '    #include <encodings_fragment>',
+                '}'
+            ].join('\n')
+        });
+        mat.extensions = { fragDepth: true };
+        R.plate = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), mat);
+        R.plate.frustumCulled = false;
+        R.plate.renderOrder = -1e6;
+        R.plate.visible = false;
+        R.scene.add(R.plate);
     }
 
     /* ── per-frame ──────────────────────────────────────────────────────── */
@@ -4333,7 +6136,9 @@
     function rollBall(pos) {
         var dx = pos.x - R.lastBall.x, dz = pos.z - R.lastBall.z;
         var d = Math.hypot(dx, dz);
-        if (d > 1e-5) {
+        // A unit in a frame is not a roll, it is a pipe: the ball crossing the
+        // hole to the sky portal, unseen, would otherwise spin fifty turns.
+        if (d > 1e-5 && d < 1) {
             R.ball.rotateOnWorldAxis(_axis.set(dz / d, 0, -dx / d), d / C.BALL_R);
         }
         R.lastBall.set(pos.x, pos.y, pos.z);
@@ -4954,6 +6759,90 @@
 
     function flying() { return !!R.fly; }
 
+    /* ── down the cup ─────────────────────────────────────────────────────
+
+       Between two worlds of the tour the cup is the portal: the camera goes
+       from wherever it watched the ball drop, up over the cup and down into
+       it, and ends just over the lip looking straight down, where the whole
+       picture is the dark inside of the hole and the ball lying in it — which is what the wipe on to the next
+       sky (game.js → throughPortal) opens out of. The owner's idea.
+
+       One quadratic curve from the camera as it stands, over a point above
+       and a little behind the cup, to the lip; the eye moves from what it
+       was looking at to just under the cup's floor (a hair forward of it, so
+       the last look is never exactly straight down, where lookAt has no up).
+       Eased in, so it leaves gently and is falling fastest as it goes in.
+
+       The flag is in the way, so it goes first — off like a rocket, on a
+       trail of sparks (the owner's idea, as the dive was), well before the
+       camera comes down where it stood. The pose holds at
+       the lip once it gets there, until the next hole is built, which
+       clears it (buildHole). */
+    var _dv = new THREE.Vector3();
+    function startDive(hole, ball) {
+        if (!R.ready || !hole || !R.camera) return false;
+        var D = C.DIVE, cup = hole.cup, top = R.cupTop === undefined ? cup.y : R.cupTop;
+        var p0 = R.camera.position.clone();
+        var t0 = R.smooth.started ? R.smooth.target.clone() : new THREE.Vector3(cup.x, cup.y, cup.z);
+        var hx = cup.x - p0.x, hz = cup.z - p0.z, hl = Math.sqrt(hx * hx + hz * hz);
+        if (hl < 1e-3) {
+            // Already over it: come in along the line of play.
+            hx = cup.x - hole.tee.x; hz = cup.z - hole.tee.z;
+            hl = Math.sqrt(hx * hx + hz * hz) || 1;
+        }
+        hx /= hl; hz /= hl;
+        var up = Math.max(D.UP_MIN, Math.min(D.UP_MAX, p0.y - top));
+        /* Where it stops: as high over the lip as puts the wider half of the
+           picture just inside the cup's wall there, so the cup fills a
+           phone held either way. Not right down at the lip — the ball is
+           lying in the cup, and a camera at the rim is looking at nothing
+           but its dimples. */
+        var tanV = Math.tan((R.camera.fov || 52) * Math.PI / 360);
+        var tanW = Math.max(tanV, tanV * (R.camera.aspect || 1));
+        var end = Math.max(D.END_MIN, Math.min(D.END_MAX, D.LIP_FILL / tanW));
+        R.dive = {
+            t: 0,
+            p0: p0, t0: t0,
+            c: new THREE.Vector3(cup.x - hx * D.OVER, top + up, cup.z - hz * D.OVER),
+            p1: new THREE.Vector3(cup.x, top + end, cup.z),
+            t1: new THREE.Vector3(cup.x + hx * 0.06, top - 1, cup.z + hz * 0.06),
+            pinY: R.pin ? R.pin.position.y : 0
+        };
+        return true;
+    }
+    function diveCamera(hole, dt) {
+        var d = R.dive, D = C.DIVE;
+        d.t = Math.min(D.DUR, d.t + dt);
+        var u = d.t / D.DUR, s = u * u * (3 - u) / 2, k = 1 - s;
+        _dv.set(0, 0, 0)
+            .addScaledVector(d.p0, k * k)
+            .addScaledVector(d.c, 2 * k * s)
+            .addScaledVector(d.p1, s * s);
+        var a = Math.min(1, s / 0.6), e = a * a * (3 - 2 * a);
+        R.smooth.pos.copy(_dv);
+        R.smooth.target.copy(d.t0).lerp(d.t1, e);
+        R.smooth.started = true;
+        R.camera.position.copy(R.smooth.pos);
+        R.camera.lookAt(R.smooth.target);
+        if (R.pin && R.pin.visible) {
+            /* Not drawn out but launched: a shudder on the pad, then away on
+               a cubic, so it is crawling for a moment and gone the next,
+               with a wobble and embers off its foot all the way up. */
+            var pu = Math.min(1, u / D.PIN_BY), pe = pu * pu * pu;
+            R.pin.position.y = d.pinY + D.PIN_LIFT * pe;
+            R.pin.rotation.z = Math.sin(d.t * 47) * (pu < 0.15 ? 0.05 : 0.025);
+            R.pin.rotation.x = -R.pinLean + Math.cos(d.t * 39) * 0.02;
+            if (pu < 1) {
+                var foot = R.pin.position;
+                burst(foot.x, foot.y, foot.z, 0xffb347, pu < 0.15 ? 2 : 4, 0.9 + pu * 1.6);
+            } else {
+                R.pin.visible = false;
+            }
+        }
+        return true;
+    }
+    function diving() { return !!R.dive; }
+
     /* ── the ace replay's camera ──────────────────────────────────────────
 
        Two shots and one cut, the way a broadcast shows an ace. First the
@@ -5013,6 +6902,23 @@
     function replayCamera(hole, ball, dt) {
         var r = R.replay, RP = C.REPLAY;
         var px, py, pz;
+        // A pipe on the way to an ace: the same cut to the sky portal the
+        // shot had, until the cup seat takes over.
+        if (R.warpCam && !r.seat) {
+            var wc = R.warpCam;
+            if (wc.cut) {
+                R.smooth.pos.set(wc.px, wc.py, wc.pz);
+                R.smooth.target.set(wc.tx, wc.ty, wc.tz);
+                wc.cut = false;
+            }
+            R.smooth.pos.lerp(_camPos.set(wc.px, wc.py, wc.pz), 1 - Math.pow(0.004, dt));
+            R.smooth.target.lerp(_camTarget.set(wc.tx, wc.ty, wc.tz), 1 - Math.pow(0.004, dt));
+            r.head = Math.atan2(Math.sin(wc.w.yaw), Math.cos(wc.w.yaw));
+            R.smooth.started = true;
+            R.camera.position.copy(R.smooth.pos);
+            R.camera.lookAt(R.smooth.target);
+            return true;
+        }
         if (r.seat) {
             px = r.seat.x; py = r.seat.y; pz = r.seat.z;
         } else {
@@ -5059,6 +6965,7 @@
         // that stopped with it would say so.
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
+        if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
 
@@ -5068,6 +6975,16 @@
             loopSeat(R.loopCam, _seat);
             px = _seat.px; py = _seat.py; pz = _seat.pz;
             tx = _seat.tx; ty = _seat.ty; tz = _seat.tz;
+        }
+        if (R.warpCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor' && R.cam.mode !== 'demo') {
+            var wc = R.warpCam;
+            px = wc.px; py = wc.py; pz = wc.pz;
+            tx = wc.tx; ty = wc.ty; tz = wc.tz;
+            if (wc.cut) {
+                R.smooth.pos.set(px, py, pz);
+                R.smooth.target.set(tx, ty, tz);
+                wc.cut = false;
+            }
         }
 
         if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant)) {
@@ -5105,6 +7022,75 @@
         }
     }
 
+    /* The camera through a pipe (physics.js, "the wormhole").
+
+       From the seat behind the ball a pipe is a ball vanishing into the
+       floor and then, across the hole, a ball dropping out of a sky the
+       camera is not looking at. So the moment the ball is gone — the dark,
+       while the portal opens — the picture cuts to a seat that holds both
+       the portal and the exit: off to one side of the exit's heading and
+       behind it, so the drop comes down across the frame and rolls on away
+       from the lens. Cut, not eased, the way the replay cuts to the cup: the
+       ball is nowhere for a fifth of a second, and a camera sweeping across
+       the hole in that time is a smear. It holds for most of a second after
+       the landing and then the ordinary easing carries it back to the seat.
+
+       The seat is picked once, when the ride reaches the dark: the side the
+       camera already stands on first, then the other, then wider and
+       narrower, taking the first with a clear line to both the portal and
+       the landing (a dome or a wall round the exit is exactly where a fixed
+       seat would be looking at the back of something). */
+    var WARP_SEATS = [0.8, 0.45, 1.2, 0.1, 1.6];
+    function watchWarp(world, dt) {
+        var wr = world.warping;
+        if (wr && P.warpPhase(wr).phase !== 'swallow') {
+            if (!R.warpCam || R.warpCam.key !== wr.px + ':' + wr.pz + ':' + wr.w.tx) R.warpCam = warpSeat(world.hole, wr);
+            R.warpCam.hold = 0.85;
+        } else if (R.warpCam) {
+            R.warpCam.hold -= dt;
+            if (R.warpCam.hold <= 0 || !world.moving || wr) R.warpCam = null;
+        }
+    }
+
+    function clearView(p, x, y, z) {
+        _rayFrom.set(p.x, p.y, p.z);
+        _rayDir.set(x - p.x, y - p.y, z - p.z);
+        var len = _rayDir.length();
+        if (len < 1e-3) return true;
+        _rayDir.multiplyScalar(1 / len);
+        _ray.set(_rayFrom, _rayDir);
+        _ray.far = len;
+        var hits = _ray.intersectObject(R.holeGroup, true), i;
+        for (i = 0; i < hits.length; i++) {
+            var o = hits[i].object;
+            if (o.isMesh && o.visible && hits[i].distance < len - 0.5) return false;
+        }
+        return true;
+    }
+
+    function warpSeat(hole, wr) {
+        var w = wr.w, fx = Math.sin(w.yaw), fz = Math.cos(w.yaw);
+        // What it looks at: two fifths of the way from the landing to the portal.
+        var tx = w.tx + (wr.px - w.tx) * 0.4, tz = w.tz + (wr.pz - w.tz) * 0.4;
+        var ty = wr.ey + (wr.py - wr.ey) * 0.4;
+        var dist = 5.4 + wr.back * 0.5;
+        var cam = R.camera.position;
+        var side = ((cam.x - w.tx) * fz - (cam.z - w.tz) * fx) < 0 ? -1 : 1;
+        var best = null, i, k, a, s;
+        for (i = 0; i < WARP_SEATS.length * 2 && !best; i++) {
+            a = WARP_SEATS[i >> 1] * (i & 1 ? -side : side);
+            var bx = -fx * Math.cos(a) + fz * Math.sin(a), bz = -fz * Math.cos(a) - fx * Math.sin(a);
+            s = { x: tx + bx * dist, y: ty + 1.3, z: tz + bz * dist };
+            var top = P.surfaceTop(hole, s.x, s.z);
+            if (top && s.y < top.y + 1.1) s.y = top.y + 1.1;
+            if (clearView(s, w.tx, wr.ey, w.tz) && clearView(s, wr.px, wr.py, wr.pz)) best = s;
+            if (i === 0) k = s;
+        }
+        s = best || k;
+        return { key: wr.px + ':' + wr.pz + ':' + w.tx, w: w, cut: true, hold: 0.85,
+            px: s.x, py: s.y, pz: s.z, tx: tx, ty: ty, tz: tz };
+    }
+
     function loopSeat(lc, out) {
         var L = lc.L, F = lc.F;
         // The middle of the circle, half way along the corkscrew's drift.
@@ -5138,6 +7124,21 @@
 
        The weather on the ground is untouched: the hole is playing in exactly
        the mist it was, and looks it the moment you are back behind the ball. */
+    /* The air for a camera looking down on the hole from `dist` away: past
+       the far corner of the hole, with the horizon still fading — a map with
+       no distance at all reads as a cardboard cut-out. A theme with thin air
+       (`air`) pushes both back by half as much again as it pushes the
+       ground-level fog, so the hole itself stands clear of the haze from
+       above and only the country round it fades. The turntable photographs
+       through this same function. */
+    function overFog(dist, radius) {
+        var k = R.theme && R.theme.air ? 1 + (R.theme.air - 1) * 0.5 : 1;
+        return {
+            near: Math.max(R.fogNear, dist * 0.85 * k),
+            far: Math.max(R.fogFar, (dist * 1.5 + radius * 2.2) * k)
+        };
+    }
+
     function atmosphere(dt) {
         var want = R.cam.mode === 'over' ? 1
                  : (R.cam.mode === 'demo' ? C.DEMO_CAM.LIFT
@@ -5152,14 +7153,10 @@
         if (R.lift < 0.002) R.lift = 0;
         if (R.lift > 0.998) R.lift = 1;
 
-        var dist = R.overDist || 40, radius = R.overRadius || 20;
-        // Past the far corner of the hole, with the horizon still fading —
-        // a map with no distance at all reads as a cardboard cut-out.
-        var near = Math.max(R.fogNear, dist * 0.85);
-        var far = Math.max(R.fogFar, dist * 1.5 + radius * 2.2);
+        var over = overFog(R.overDist || 40, R.overRadius || 20);
         if (R.scene.fog) {
-            R.scene.fog.near = R.fogNear + (near - R.fogNear) * R.lift;
-            R.scene.fog.far = R.fogFar + (far - R.fogFar) * R.lift;
+            R.scene.fog.near = R.fogNear + (over.near - R.fogNear) * R.lift;
+            R.scene.fog.far = R.fogFar + (over.far - R.fogFar) * R.lift;
         }
         // Not quite nothing: a trace of rain still falling says the hole has
         // not stopped being wet just because you are looking down at it.
@@ -5244,8 +7241,12 @@
         R.cam.kick *= Math.pow(0.008, dt);
         if (R.cam.kick < 0.002) R.cam.kick = 0;
 
-        // The tail only follows a ball that is actually going somewhere.
-        if (world.moving && speed > 1.2) {
+        // The tail only follows a ball that is actually going somewhere — and
+        // not through a pipe, where it would be a line drawn straight across
+        // the hole from the mouth to the sky. It starts again at the portal,
+        // so the drop leaves a streak.
+        var tailed = !world.warping || P.warpPhase(world.warping).phase === 'drop';
+        if (world.moving && speed > 1.2 && tailed) {
             R.trailOn = true;
             pushTrail(world.ball.x, world.ball.y, world.ball.z);
         } else if (R.trailOn) {
@@ -5257,10 +7258,18 @@
 
         updateAim(world, aim);
         stepParticles(dt);
+        // What the sand does back: spray and a furrow off a rolling ball.
+        if (G3.sandfx) G3.sandfx.step(dt, world);
         stepRipples(dt);
-        if (R.wells) for (var wi = 0; wi < R.wells.length; wi++) R.wells[wi].rotation.y += dt * 0.9;
+        stepBlackHoles(dt, world);
+        if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
+        watchWarp(world, dt);
         updateCamera(world.hole, world.ball, dt);
+        if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
+
+        // The live world behind the hole, from where the camera now is.
+        stepPlace(dt, world);
 
         // The camera has moved; what the air is doing about it, and the two
         // markers that only exist while it is up there.
@@ -5279,6 +7288,7 @@
         swayShells(wind);
         swayTrees(wind);
         bobDecor(wind);
+        glowPosts(dt);
         if (G3.life) G3.life.update(dt, R.clock);
 
         var i;
@@ -5306,14 +7316,56 @@
            picture that says the camera is not really up there. The demo's
            orbit is the same picture and the same tell, with the extra reason
            that there is nobody there to pick a club out of it. */
+        var front = null;
         if (G3.bag) {
-            G3.bag.setVisible(!R.fly && !R.replay && R.cam.mode !== 'demo');
+            G3.bag.setVisible(!R.fly && !R.dive && !R.replay && R.cam.mode !== 'demo');
+            // With the post chain the course behind the open row is blurred
+            // (postfx.js `backdrop`) and the bag lit on its own layer, so the
+            // course keeps its light and its water; without it, the scrim.
+            G3.bag.setBackdrop(!!R.fx);
             G3.bag.update(dt, R.camera, R.camera.aspect);
+            // And the club in hand, behind the ball (bag.js `address`).
+            G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
+                !R.fly && !R.dive && !R.replay && R.cam.mode !== 'demo', world.ball, aim ? aim.yaw : 0, R.camera);
+            var open01 = G3.bag.state.open01;
+            if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
+            /* And the course's own light goes down as the clubs come out.
+               Those three are the hole's weather — a dusk sky, a low sun — and
+               they light the clubs as well as the course, so the same row read
+               bright on one hole and murky on the next. Turned most of the way
+               down, what is left on the clubs is the bag's studio and its
+               spotlight, which are the same everywhere. The course is behind
+               the scrim by then and going dark anyway; the sky and the water
+               are unlit and keep their colour. */
+            var dim = 1 - (R.fx ? 0 : COURSE_DIM * open01);
+            if (R.courseLights) R.courseLights.forEach(function (l) {
+                l.intensity = l.userData.base * dim;
+            });
+            hideWaterUnderBag(!R.fx && open01 > 0.5);
         }
 
-        if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt)) return;
+        if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt, front)) return;
         R.renderer.setRenderTarget(null);
         R.renderer.render(R.scene, R.camera);
+    }
+
+    /* Without the post chain the open picker's backdrop is the bag's scrim,
+       and the water — unlit and transparent — came through it as a bright
+       blue line across the row. So on that path, while the bag is mostly
+       open, the water is simply not drawn; behind a scrim that dark nothing
+       is missed. (With the chain the course is blurred instead and keeps it.) Walked only when the answer changes, and the hole's
+       build resets it (a new hole's water starts drawn). */
+    function hideWaterUnderBag(hide) {
+        if (!!R.waterHidden === hide) return;
+        R.waterHidden = hide;
+        R.scene.traverse(function (o) {
+            var m = o.material;
+            if (!m) return;
+            var water = Array.isArray(m)
+                ? m.some(function (x) { return R.waterMats.indexOf(x) >= 0; })
+                : R.waterMats.indexOf(m) >= 0;
+            if (water) o.visible = !hide;
+        });
     }
 
     /* Where the sun lands on the screen, and how much of it is on there. The
@@ -5391,7 +7443,14 @@
         if (speed > 1.5) ripple(x, y, z, 0.2 + speed * 0.08);
         if (speed > 4) burst(x, y + 0.05, z, 0x27f0ff, Math.min(8, Math.round(speed)), 0.8 + Math.min(1, speed * 0.1));
     }
-    function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
+    /* A landing in a bunker. sandfx.js reads how the ball came down — how
+       fast, how flat, after how long in the air — and throws the crown, the
+       dust and the crater to match; a big arrival also flinches the camera. */
+    function sandAt(x, y, z) {
+        if (!G3.sandfx || !R.holeGroup) { burst(x, y, z, 0xe8d8a8, 14, 1.5); return; }
+        var hard = G3.sandfx.land(R.hole, x, y, z);
+        if (hard > 0.45) R.cam.kick = Math.max(R.cam.kick, (hard - 0.45) * 0.5);
+    }
     /* The ball goes past the pin on its way in — nothing stops it, since the
        simulation has never heard of the pin — so the pin at least acknowledges
        it and rattles, which is what a real one does and what your ear is
@@ -5403,6 +7462,8 @@
 
     /* Whatever the ball was sitting on, sprayed backwards off the strike. */
     function divot(x, y, z, yaw, frac, kind) {
+        // Out of a bunker the club takes the sand with it (sandfx, blast).
+        if (kind === 'sand' && G3.sandfx && R.hole) { G3.sandfx.blast(R.hole, x, y, z, yaw, frac); return; }
         var colour = kind === 'sand' ? 0xe8d8a8 : (kind === 'wood' ? 0xc79a63 : 0x6fbf5a);
         var n = 5 + Math.round(frac * 13);
         burst(x - Math.sin(yaw) * 0.1, y + 0.03, z - Math.cos(yaw) * 0.1,
@@ -5434,6 +7495,8 @@
         divot: divot,
         punch: punch,
         setCam: setCam,
+        startDive: startDive,
+        diving: diving,
         startFlyover: startFlyover,
         skipFlyover: skipFlyover,
         flying: flying,
@@ -5445,6 +7508,9 @@
         viewLabel: viewLabel,
         setLock: setLock,
         setWaterQuality: setWaterQuality,
+        setLive: setLive,
+        get liveWanted() { return liveWanted(); },
+        get live() { return !!R.live; },
         get prettyWater() { return R.prettyWater; },
         cam: R.cam,
         // The bag picks against these, and nothing else needs them.
@@ -5452,6 +7518,7 @@
             return G3.bag ? G3.bag.pick(nx, ny, R.camera, R.scene) : null;
         },
         state: R,
+        overFog: overFog,
         THEMES: G3.THEMES,
         // What the HUD needs to name the sky it is standing under.
         get weather() { return R.weather; }

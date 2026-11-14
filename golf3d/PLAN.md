@@ -12,6 +12,294 @@ to be worked out again.
 
 ---
 
+## The rework queue — the owner's list, one map at a time
+
+Holes the owner has played and sent back, in the order they came in. Work them
+top down, one per merge, and strike each off (move it to "Done" with its
+version) when it ships. Measure a long-game hole with
+`node golf3d/tools/human-check.mjs <course>` as well as `par-check.mjs`: the
+perfect bot reads a hole's shape, the one with hands reads whether it is fair.
+
+Open — round two of the owner's notes, each in their own words and in the
+order they came in (the ones already shipped are under "Done", v1.126.0):
+
+9. **The long game, upwards** — "in general nice when the long game maps have
+   some verticality. For the Grand Canyon inspired ones I'd like some really
+   high cliffs as part of the design." Redstone first (the canyon country),
+   then height wherever a long hole is flat for no reason. In hand (v1.130.0):
+   Redstone is built the other way up — every piece of ground stands on its
+   own walls (`butte`, a `stands` + `sheer` disc) out of a canyon floor four
+   units down that is out of play wherever it is (`pad.oob`, physics
+   `markOutOfBounds`), with the river in it, stepped temples round it and the
+   walls banded by height (`theme.strata`, render `strataOn`). First Cut (a
+   six-unit wall across the drive), The Rim (a ledge between the drop and a
+   band of rock, the green out on a point) and Stone Bridge (off a rim seven
+   up to a mesa, or round by the arch) shipped in v1.130.0; Long Way Round
+   (off a pinnacle eight up), Switchback (four benches up a cliff band, a slot
+   at the foot of each) and Redstone (round a temple fourteen high, over the
+   canyon to a green on a mesa) followed in v1.131.0. The bot with hands went
+   from 7.7 under par to about one under over the six, every hole within a
+   stroke of its par. Then (v1.133.0) the walls were weathered into
+   buttresses and gullies, the temples given one summit instead of three
+   drums, scree laid at the feet, and the floor's edge let down into the
+   country. Still open: height on the other long courses where a hole is flat
+   for no reason.
+Proposed next — what a look round the whole game turned up once the owner's
+list was done (v1.134.1), most visible first. Not asked for; each wants the
+owner's yes before it is started.
+
+- **A tree line or gorse along each long hole's edge**, to hide the faint
+  line left where the ground meets the bank (v1.141.0).
+- **Another biome** after the alpine one, for the long game or a mini course:
+  black-sand volcanic links, an autumn forest, a desert of dunes, or a course
+  under floodlights at night.
+
+- **The next holes the same way** — what the lab and the turntable still
+  show after v1.147.0, worst first:
+  - *First Gear* (`works` 1): the putt at the flag drops at one moment of
+    the gate, and it is the last rectangle-with-a-thing-across on the course
+    bar The Mill, which has earned it. Moving the tee and pin so the line
+    meets the fixed wall was tried (v1.149.0) and took the ace to 0.05% on an
+    opener; it wants a plan, not a pin.
+  - *Full Flow* (`clockwork` 5), *Under the Boardwalk* and *The Reach*
+    (`tidewater` 5, 6): par fours with no ace, which a par four may be — look
+    at them for plan, not for share.
+  - *Change Ringing* (`clockwork` 3) has a pin and an ace since v1.149.0,
+    but the ace does not need either clock: the idea (a machine hidden
+    behind a door) is still not what the hole plays as.
+  - *The Salt Line* and *Glass Table* (`icehouse` 2, 5): fine numbers, the
+    two flattest plans left on the drawn courses.
+  - *Sea Legs*, *Cold Store* and *The Draught* are over 1% (a giveaway by the
+    lab's bands). The first two are openers and were meant to be generous;
+    The Draught is a third hole and could give less.
+
+Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
+is waiting on the owner to say which course they meant.
+
+Done:
+
+- **The Cone** (v1.150.0) — Cinder Cone had no cone. *The Ash Slide* (a
+  belt across a lane) is gone and the second hole is a hill on a keyhole
+  green with the pin on its flat top and a lava bomb on the line at the flag
+  (0.18%, off the lane's west rail). `mesa` is the new piece of ground: a
+  `channel` with its ring filled in, level across the top (physics.spine).
+  "Flat for CUP_FLAT" now measures relief against the cup's own level, so a
+  cup may stand on raised ground that is flat. Tried and dropped: a scooped
+  crater (not flat, so no cup can be cut in it), a disc inlaid on a ring
+  (stands proud of its bed), and a banked bend into the cone, The Ledge's
+  way (the bend takes the pace the climb needs). Still lanes on this
+  course: The Springboard, Through the Pipe, Loop the Loop, Blowhole.
+
+- **Windmill Works finished, as an editor** (v1.149.0) — the owner's "don't
+  be afraid to be an editor and remove what doesn't work or is boring".
+  *The Sweeper* is gone: *The Line* is a belt across the way to the green,
+  crossed like a river (0.26%). *Grand Finale* is a par 3 now, a chute down
+  from a tower, a lip, and a carry over the mill race, with a footbridge for
+  the safe way (0.21%). *Change Ringing* lost its dead far third and its pin
+  is behind the wall between the doors (0.28%). Tried and dropped for the
+  fourth: a pair of meshed counter-turning gears — it set the ball down at
+  the blades' pace by the pin, which is The Carousel again one hole later.
+
+- **The club in hand stands at the ball, and the touch swing swings it**
+  (v1.148.0) — the owner's "wouldn't it be cool if you could see the selected
+  club next to the ball, and when you do the swing touch input you also swing
+  the club". README → "The club at the ball". Not done, and worth a look on a
+  phone: the swing is a short one about the middle of the shaft because the
+  camera is too close for a real one; the club is ball-scale, so on a mini
+  hole its shaft runs out through the wall beside the tee; and the dev styles
+  and the bot get the finish without a backswing.
+
+- **Three more holes, and the tests looked at** (v1.147.0) — the owner's
+  "continue … evaluate if some tests are too restrictive for good and
+  creative design". Holes: *The Carousel* replaces Through the Wall on
+  Windmill Works (0.31%); Three Against Two's pin moved to just round its
+  corner (0.33%, and the putt at the flag no longer drops); Through the Pipe's far
+  green leans (0.66%). `tools/rest-map.mjs` is the tool they were found with
+  (README → "Where the ball finishes"). Tests, each a rule that was holding
+  designs rather than catching faults: *the bot holes out* accepts the caddie
+  with a plan where the greedy one fails (a pad off the line, a road that
+  sets off away from the cup); *nothing stands on a green* is the long game's
+  rule only, so a drawn hole may have a rock or a tree on its line; the
+  rounded-corner check measures from the arc (v1.146.0), so a pad may be a
+  disc; and the two "enough to check" counts (scooped bunkers, holes that
+  need loft) are floors of four and three rather than the number there
+  happened to be. Kept as they were, on purpose: a putt at the flag never
+  drops, a needs-loft hole cannot be played along the floor, a green holds a
+  ball, and everything the audit calls a fault.
+
+- **Apogee Yard, rebuilt** (v1.146.0) — the owner's "the courses are a bit too
+  similar and don't really have the game play feeling … start with a few that
+  can be improved the most". The lab picked the course: no ace on five of its
+  six holes, the putt at the flag on the sixth, six plans that were a slab, a
+  gap and a slab. Each hole is now built round what its gravity does: three
+  stones to carry between (Hang Time), a plank that is a slide (Dead Weight),
+  a crater whose far wall is the road (The Crater), a pad that clears both
+  steps in one leap (Deadlift), a round table with the pin behind the well
+  (Orbit) and a flight bent round a black hole on to a crescent (Apogee).
+  Every hole has an ace between 0.04% and 0.39% and none drops the putt at the
+  flag; `OPEN` in tests.html is empty. README → "Apogee Yard" has the table and
+  what was measured. Looked at on the turntable and from three tees in the
+  game; not yet played by a person.
+
+- **Height where a long hole was flat for no reason** (v1.142.0) — the rest
+  of item 9. The three flattest holes on the older long courses each get a
+  green up a bank: Long Meadow's (Ashdown) a unit and a half up a bank of
+  rough, Bell Heather's shelf (Dunmore) two and a half units over the landing
+  ground up a heather bank, and The Whins' shelf (Whinstone) most of two
+  units up. The approach is played up at the flag and a short one comes back
+  down; the routes and the lay-ups are as they were. Human-check (12 rounds):
+  Long Meadow -1.58, Bell Heather -1.25, The Whins -1.00, each course within a
+  tenth of where it was.
+
+- **The property reads as a mat** (v1.141.0) — every long hole was a green
+  rectangle on its plateau. The rough past the stakes is now drawn as the
+  country it is (render.splitCountry): the surround's own ground, no grass,
+  the same stuff as the bank and the plain beyond, so the slab's edge has
+  nothing to show against; the change is near the stakes instead, in tongues
+  and bays of rough between half a unit and seven and a half out, by a noise
+  of where you are. Scenery only — the ground is rough either way. General
+  to every long hole with stakes (not Coral Keys). Still faint: the slab's own
+  edge where the country meets the bank, which a tree line or gorse at the
+  edge would finish.
+
+- **Less fog on a clear day** (v1.139.0) — the hero and plan views of the
+  long courses washed out to the edges. `theme.air` (Alpenglow's knob) is on
+  every long theme now — Ashdown 1.8, Dunmore 1.7, Redstone 1.6, Whinstone and
+  the lagoon 1.3, the links keeping its sea haze — and the camera that looks
+  down (the game's map, and the turntable, through one `render.overFog`) gets
+  half as much again, so from above the hole stands clear and only the country
+  round it fades.
+
+- **Alpenglow's last drums** (v1.138.0) — the crags the tees stand on and the
+  cliff behind the tarn were still cylinders under their tops. A `facets`
+  butte's wall is now a handful of planes (render.facetRadius): knots round the
+  crag cut in by their own depth, a straight chord between each pair, the
+  depths shifting band by band up the face — still only inward, never at the
+  rim.
+
+- **Alpenglow Pass, a long course on a new biome** (v1.135.0) — "perhaps new
+  biome for long game maps", with the verticality asked for in item 9. Six
+  holes, par 24, on a mountainside: a downhill par three off a crag, an uphill
+  four to a shelf, a five down a valley over the stream twice, a carry over a
+  tarn with a way round, a ridge with a drop down one side and a closer to the
+  chalet. Theme `alpine` (clear high air: `air` pushes the fog back; granite
+  `strata` with snow from ten units up), firs, chalet, cairns, a chairlift and
+  a waterfall, and a faceted, snow-capped range round every hole
+  (`theme.range`, render.addRange) with the crags nobody plays crowned
+  (render.addCrown). The bot with hands scores 18.8 (-5.3), every hole within
+  a stroke and a quarter of par. Not done: a snowfield surface (it would play
+  as sand does — README → "Alpenglow Pass"); the hero views are still a little
+  paler than the tee views; the tee crags keep their flat tops, since a tee
+  stands on them.
+
+- **Pinball Parlour, as a course** (v1.126.0, finished in v1.134.0) — "could
+  have nicer flippers and a bit more fun design. The increasing complexity for
+  every level kind of deal, and vary props and decor." v1.126.0 drew hinged
+  bats as flippers, ordered the course by what each table adds and put a
+  different room round every table; The Flippers and The Slingshots still had
+  no ace. Now they do, out of two new pieces (README → "Slingshots and firing
+  bats"). The Slingshots: the pin beside the tee behind a wall up the middle,
+  two kickers at the far end, and a firm mallet up into the left one fired back
+  round the wall to the pin (0.67%, tutorial). The Flippers: two bats hung down
+  the rails that snap rather than swing, and fire a ball they meet on the way up
+  across the table, off the far rail and in, or into the other bat first (0.48%,
+  tutorial, every ace through a bat; the bot with hands 2.4). Neither drops the
+  putt at the flag.
+- **Wormholes, and Orbit's black hole** (v1.129.0) — "a black hole opens in the
+  sky and lets the ball out instead of an instant teleport … some shader maybe?
+  Like the cargo lander game's" and "Orbit, the black hole model is very ugly".
+  One shader ported from Cargo Lander (horizon, photon ring, spiral accretion
+  disc, rings feeding in) for the mouth in the floor, a portal in the sky over
+  the exit, and Orbit's well. A pipe is a ride now (`world.warping`): swallowed,
+  gone while the portal opens, dropped out of it — about 1.2 s — and released
+  at exactly the exit's place, pace and heading, so the lab's numbers held
+  (Caldera 0.208 → 0.206%, Jackpot 0.433 → 0.436%). Lensing in postfx behind
+  the portal and the well's core. Looked at since: the ride on Jackpot and
+  Caldera and a replay through a pipe. The well marks its reach (v1.132.0):
+  a faint violet line where the pull falls to a tenth of the hole's gravity.
+- **The autoplay caddie plans a route** (v1.128.0) — "bot gets stuck on Dead
+  Weight" and "perhaps the bot needs some pathfinding algos as well to make a
+  plan?" `G3.bot.Planner`: rests are nodes, shots are edges, A* to the cup on
+  a shot budget, values backed up from the cup and the greedy search scored
+  by them, so a route that goes away first is played. At the in-game settings
+  it finishes all 84 holes (greedy left Dead Weight), stops shuffling on the
+  old Caldera lip, and aces Bumper City. It thinks in 20 ms slices
+  (`BOT_SLICE`). The hole lab, par-check and human-check still use greedy.
+  Then (README → "Hands, and the wait"): with hands it is the greedy player
+  told where the traps are, level with greedy on Coral Keys (−0.54 against
+  −0.63, twelve rounds) and still ahead where it was for (Apogee Yard +1.50
+  against +2.29); a long hole's first shot thinks 0.78 s on average, 1.9 s at
+  worst (was 5.1), made during the flyover and the roll; and the hands miss
+  the moment where a wall moves (Clockwork 10.8 → 11.8 a round). Open: the
+  worst long hole still takes longer than the greedy search alone to plan,
+  so on a phone with the flyover off the tee shot's think is a second or two.
+- **The Backboard and the crossed corners** (v1.127.0) — "a good concept that
+  is lacking in execution. Also don't like the X style corners sticking out."
+  The X was general: `railFor` ran every rail a thickness past both ends, and
+  at an inside corner that is a stub on the neighbour's floor — 53 of them on
+  13 holes. A rail end now stops where the floor carries on (`floorPast`). The
+  hole is one rounded table, a curved brick door in front of the pin, a banked
+  half circle behind it under a curved stone board, and a lip over the quarry
+  edge for the firm one that runs past (0.35%, tutorial; the putt at the flag
+  never drops). Two Ramps' pin moved 0.3 east: its ramp mouths had been
+  narrowed by stubs, and without them the putt at the flag ran up the steep
+  ramp and in.
+- **Round two of the owner's notes, the first half** (v1.126.0). Bumper City
+  (a block of round pop bumpers round the pin, entered by a bank off a side
+  rail; 0.71%, the bot with hands 2.5), the mallet (17 → 20), Caldera (no box,
+  no lip past the vent, the tube is the ace; par 3), The Shelf (a cliff that
+  stands on a beach is rock — every `stands` pad, physics.surfaceUnder),
+  The Ledge (a banked curve, the `road` primitive; soft is safe, firm aces,
+  too firm is wet; par 3), Jackpot (a vault and a hole in the table; par 3),
+  and The Flippers' square post. Six holes the stronger mallet reopened to the
+  putt at the flag were closed again: Harbour Gate, The Salt Line, The
+  Draught, Pendulum, The Cold Room, Plunger Lane.
+- **Fewer courses, and the mini holes the lab flagged** (v1.122.0) — the
+  owner's "some maps, specially mini golf, still need improvement, and we
+  could reduce the number of maps and consolidate some of them". Eighteen
+  courses are fourteen: Quarry + Highland, Clockwork + Belfry + Millrace and
+  Helter Skelter + Cinder Cone are one course each, made of their best six
+  (README → "Fourteen courses, from eighteen"). Then five mini holes rebuilt
+  to the hole lab: Harbour Gate (the timed putt at the flag no longer drops;
+  the ace banks off the east rail out through the gap, and the hole is in
+  `CLOCKED`), Low Tide (a J round an inlet instead of a lane with a band of
+  water; the chip at the flag lands in the inlet), Stepping Stones (an ace at
+  last — a full carry off the back rail), Short Side (a lean round the sand
+  and a timber face behind it) and Tabletop (a long shallow table with a
+  backboard to bank off). Every mini par 3 has an ace now. Still open on the
+  long game: the owner chose to keep five long courses, so merging Ashdown,
+  Whinstone and Dunmore into one would be the next cut if fewer is wanted.
+- **Coral Keys** (v1.114.0) — "too hard"; one big island a hole, a carry and
+  a way round on each. See "Where it stands".
+- **Switchback** (`quarry` 3, v1.114.0) — the tall ramp is a quarter-pipe the
+  mallet aces by weight; par 3 now.
+- **The Letterbox** (`tidewater` 3, v1.114.0) — the pin is in a boathouse:
+  post it through the slot from the tee, or carry the jetty and putt in at
+  the door.
+- **Cold Store** (`icehouse` 1, v1.115.0) — the box is gone: the pin is
+  beside the tee behind racking, and the ice brings a putt sent away from it
+  back round the aisle.
+- **The Cold Room** (`icehouse` 6, v1.115.0) — the green on a dais: putt up
+  the ice ramp, or fly the face with the Checker.
+- **Blowhole** (`cinder` 5, v1.115.0) — a hollow with the vent in its floor
+  that throws whatever rolls in up on to the green, by the pace it came in
+  with.
+- **Turnstile** (`works` 5, v1.116.0) — a fenced green with two ways in:
+  time the bar in the front gate and let the lawn's lean carry it to the pin,
+  or walk round to the back gate for a sure two. Par 3 now.
+- **Midnight** (`clockwork` 6, v1.116.0) — five pieces where there were
+  nine: a clock lane with two weights at their own rates and a bank to the
+  pin, or the empty wide lane round the spine for a two. Par 3 now.
+
+  One caveat on measuring these with `human-check.mjs`: its hands miss the
+  line and the weight but never the moment, so a timing hole reads easier to
+  it than to a person (Midnight averages 1.5, Pendulum 1.58). A timing miss
+  in BOT_HANDS would be the next step for the crazy courses.
+- **Deadlift** (`apogee` 4, v1.115.0) — the launch pads read again on every
+  course: the green's grass had been growing over them.
+
+---
+
 ## Where it stands (v1.82.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
@@ -21,16 +309,18 @@ to be worked out again.
   their tees moved six back (The Elbow, Homeward, Long Way Round, Burnside;
   `moor` takes `z0` for that). Deadlift's pads went 13 → 15 so the new driver
   still gets over both steps.
-- **Coral Keys**, the fifth long course: island-hopping across a lagoon
-  (`isle`, `keyGreen`, `keys` in courses.js). Its keys are **low domes** now
-  (v1.96.0), with palms and shallows: the raft-with-corners was the grass,
-  which `addTerrain` laid on the square grid with the disc itself cut out of
-  it, not the ground. Keep a dome under a sixteenth — steeper ran balls off
-  the end of Two Ways Home's long island into a spot the bot could not get
-  back to the green from. Their outlines are dealt per island by `coast` (a stronger, seeded wave):
-  the keys you must land on are kept near 0.15 of wildness, because the bot
-  — and a person — cannot find a target that bites in by half; the bare sand
-  islets take the wild shapes.
+- **Coral Keys**, the fifth long course, rebuilt (v1.114.0): one big island
+  a hole with the sea let in as coves and bays (`island`, `cliff`, `lay`,
+  `keys` in courses.js; bays are `wave.bays` in physics.padRadius), tees on
+  2.6 headlands, a carry and a way round on every hole. Measured with
+  `tools/human-check.mjs` (`CONFIG.BOT_HANDS`, 3° and 8%): the old string of
+  keys averaged about four over par with four balls in the sea a round, the
+  new course about five under with one — still the hardest long course for
+  that player (Ashdown is about seven under). Two things it found that the
+  perfect bot never would: a holed putt on a key used to come back as a
+  splash (the cup's floor is below the sea sheet; physics.drown now leaves a
+  ball inside a cup alone), and the islands' sand costs nothing to play
+  from, so the beach is where a bail-out lands, not a penalty.
 - The owner asked whether there are too many long courses. Five is the count
   now; rather than naturalise all four of the older ones hole by hole, new
   concepts (this one) are the better spend than a fifth pass over the same
@@ -143,8 +433,8 @@ weight, so a rebuilt course still comes in around ten under.
 5. **Greens that differ.** Long thin ones, two-tier ones, raised ones, ones in a
    bowl (`dish`, the Punchbowl), ones behind a bunker, so each approach is its
    own shot.
-6. **Less fog on a clear day.** From above, the haze makes every hole look like
-   every other; the ground has shape now and the fog hides it.
+6. ~~**Less fog on a clear day.**~~ (done, v1.139.0 — `theme.air` and
+   `render.overFog`; see "Done" above.)
 
 Order of work: ~~Ashdown Park first, by hand, to settle the recipe~~ (done,
 v1.62.0 — all six holes rebuilt: a burn across the landing zone on the
@@ -303,16 +593,28 @@ tee shows (Sea Legs' was).
 9. **An ace line on every mini hole.** On most of them the right play is two
    safe putts; one risky line per hole that can drop makes every tee worth a
    go. §2's "the bot could prove a hole is ace-able" is the check for it —
-   built now as the hole lab (v1.105.0, README → "The hole lab"), and it says
-   43 of the 78 drawn holes have no ace from the tee at 1° and 25 weights
-   (`node golf3d/tools/hole-lab.mjs --coarse`; 42 before v1.105.0 made
-   Caldera a par 4 in stages on purpose). Some are par 4s played in
-   stages and fine as they are; the mini par 3s among them are the list.
-10. **The putt at the flag, on the ten holes that still drop it** (README →
-   "The hole lab"; v1.105.0 rebuilt twelve). Two kinds, and they want
-   different answers:
-   - *Launch pads in a row* — Bounce Alley, The Gravitron, Fumarole, Blowhole,
-     Apogee. A pad leaves the heading alone, so the ace through it is the line
+   built now as the hole lab (v1.105.0, README → "The hole lab"). It said 43
+   of the 78 drawn holes had no ace from the tee at 1° and 25 weights
+   (`node golf3d/tools/hole-lab.mjs --coarse`), 38 of 78 at v1.120.0, and
+   after v1.122.0's consolidation and rebuilds it is 22 of 54 (flukes 6 → 1,
+   putts at the flag that drop 9 → 2), and none of them is a mini
+   par 3 — the mini ones left are two par 4s played in stages (Under the
+   Boardwalk, The Reach). The Ledge was the third, and since v1.126.0 it is a
+   par 3 with an ace: a banked turn (`road`, README → the authoring
+   vocabulary) that a firm mallet rides round to the pin and a firmer one
+   goes over the top of. The rest are crazy and adventure: Through
+   the Wall, The Sweeper, Grand Finale, five of Pinball Parlour's six, Three
+   Against Two, Change Ringing, The Weir, Full Flow and Through the Pipe
+   (Caldera, which was on this list, got its ace through the tube in v1.126.0,
+   and five of Apogee Yard's six got theirs when the course was rebuilt in
+   v1.146.0). On a timing hole the sweep's four moments can miss a
+   window, so read those with care.
+10. **The putt at the flag, on the two holes that still drop it** (README →
+   "The hole lab"; v1.105.0 rebuilt twelve; v1.122.0 took Bounce Alley, The
+   Gravitron, Fumarole, Headrace, Half Time and Rounds out with their courses
+   and rebuilt Harbour Gate). Two kinds, and they want different answers:
+   - *Launch pads in a row* — Apogee (Blowhole came off in v1.115.0, rebuilt
+     as a hollow with the vent in its floor). A pad leaves the heading alone, so the ace through it is the line
      from the tee. Moving the pad or the pin off the line is the obvious fix and
      it fails the other way: the bot's fan starts at the cup's bearing, finds no
      pad there and cannot finish the hole (every variant tried left it short).
@@ -321,13 +623,15 @@ tee shows (Sea Legs' was).
      landing; or a smarter bot, one that aims at the pads as well as the pin.
      The Gravitron also has its doorway skipped: a full putter lands on the
      second pad over the wall, and a mallet at nine tenths flies both moats.
-     These five are `OPEN` in tests.html and must leave it when fixed.
-   - *Timed at the flag* — Harbour Gate, First Gear, Headrace, Half Time,
-     Rounds. A putt at the pin that drops at the right moment, which is the
-     oldest shot in crazy golf and the rule Pocket Links made anyway ("or at any
-     moment of a clock"). Rounds is a wave ridden straight down the lane by
-     design. Worth the owner's call before any of them changes; the suite does
-     not check clocked holes unless they are in `CLOCKED`.
+     (The Gravitron is gone; the note stands for the next pad hole.) Apogee
+     was rebuilt in v1.146.0 — the pad off the line and a well to bend the
+     flight — so this kind is closed and `OPEN` in tests.html is empty.
+   - *Timed at the flag* — First Gear. A putt at the pin that drops at the
+     right moment, which is the oldest shot in crazy golf and the rule Pocket
+     Links made anyway ("or at any moment of a clock"). Harbour Gate was the
+     other one on a mini course and was rebuilt in v1.122.0 (the ace banks out
+     through the gap now); the suite does not check clocked holes unless they
+     are in `CLOCKED`.
 
 ### Next: curved surfaces — started (v1.67.0)
 
@@ -359,9 +663,9 @@ and a banked floor is `padHeight` learning a curved profile.
 **The loop is built (v1.90.0)** — not as ground (a height field has no
 ceiling) but as a track the ball rides, with honest energy and a fall off the
 top: README → "The loop", on Helter Skelter's *Loop the Loop*. The camera
-swings to the side to watch a ride (v1.99.0), and the second loop is the
-bobsleigh at the end of Icehouse Yard (v1.100.0, The Cold Room), where the ice
-hands a ball that falls off it all the way back down the hall.
+swings to the side to watch a ride (v1.99.0). A second loop, a bobsleigh on
+The Cold Room (v1.100.0), went when that hole was rebuilt round its dais
+(v1.115.0); Loop the Loop is the only one now.
 
 ### Then: Challenge mode (the owner's idea) — built (v1.70.0)
 
@@ -435,6 +739,14 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   and play"). Open: names a player can type, and a record per player.
 - ~~**1-click level editor sharing**~~ (done, v1.102.0 — README → "The hole
   editor", Share 🔗): the hole travels in the link's fragment.
+- **Catch the hole editor up with the game** — a future job, not a rule. The
+  owner's call (v1.135.0): the editor is no longer kept in step with every
+  change (golf3d/CLAUDE.md → Standing instructions). When it is done, it is
+  one pass: round-trip every drawn hole through the editor's import and
+  export and fix what comes back changed, then teach it what it cannot draw.
+  Known gaps today: slingshots (`kick` faces and `slingback`), firing bats
+  (`swing.snap`, the hinge), round bumpers and posts, and the decor kinds
+  added since v1.100 (arcade, alpine, Redstone). Roads may already survive.
 
 ---
 

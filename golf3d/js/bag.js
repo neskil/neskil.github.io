@@ -89,7 +89,7 @@
        names on the club cards and the maker's patch on the bag alike. What
        the first pass did instead, and why it did not work, is under `labels`
        below. */
-    var FACE = '"Outfit", system-ui, -apple-system, "Segoe UI", sans-serif';
+    var FACE = '"Barlow Semi Condensed", system-ui, -apple-system, "Segoe UI", sans-serif';
     var FIGS = '"JetBrains Mono", ui-monospace, "SFMono-Regular", monospace';
 
     /* One palette per club, and it is the same palette everywhere the club
@@ -128,7 +128,9 @@
     var CLUB_LOOK = {
         putter:  { name: '#7dd3fc', metal: 0x38bdf8, steel: 0x515f72, shine: 34, finish: 'satin' },
         driver:  { name: '#8ab4ff', metal: 0x1f6fff, steel: 0x2f3b4f, shine: 82, finish: 'pvd' },
+        iron5:   { name: '#fdba74', metal: 0xf97316, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
         iron:    { name: '#c4b5fd', metal: 0x8b5cf6, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
+        iron9:   { name: '#fda4af', metal: 0xf43f5e, steel: 0x9aa6b4, shine: 76, finish: 'brushed' },
         chipper: { name: '#86efac', metal: 0x22c55e, steel: 0x929daa, shine: 70, finish: 'satin' },
         wedge:   { name: '#fde68a', metal: 0xeab308, steel: 0x76828f, shine: 96, finish: 'chrome' },
         mallet:  { name: '#f0abfc', metal: 0xc026d3, steel: 0x4a5568, shine: 30, finish: 'satin' },
@@ -611,11 +613,12 @@
 
     /* ── one club ──────────────────────────────────────────────────────── */
 
-    // Real lengths, in metres. A driver is 45 inches, a 7 iron 38, wedges 35.5,
+    // Real lengths, in metres. A driver is 45 inches, a 7 iron 38 with the 5
+    // and the 9 a step either side of it, wedges 35.5,
     // a putter 34 — and the mallet is a putter, which it was not until the
     // mallet had a head of its own: it fell through to the default 0.95.
     var LENGTHS = {
-        driver: 1.14, iron: 0.97, chipper: 0.95, wedge: 0.90, checker: 0.92,
+        driver: 1.14, iron5: 0.98, iron: 0.97, iron9: 0.96, chipper: 0.95, wedge: 0.90, checker: 0.92,
         putter: 0.86, mallet: 0.86
     };
 
@@ -642,8 +645,10 @@
        out the far side of whatever club is parked there. Cut to a stub short
        enough to clear the next row down, a club still reads as a club — head,
        ferrule and a hand's width of shaft — without appearing to belong to
-       its neighbour's card. */
-    var STUB = 0.34;
+       its neighbour's card — and short enough to end behind its own card
+       rather than poking out under it, which read as a stray line hanging off
+       every card in the grid. */
+    var STUB = 0.22;
 
     function buildClub(club, M) {
         var g = new THREE.Group();
@@ -725,7 +730,7 @@
         g.userData.clubId = club.id;
         g.userData.len = len;
         return {
-            group: g, hit: hit, head: head, len: len, pivot: pivot,
+            group: g, hit: hit, head: head, len: len, pivot: pivot, at: built.userData.at,
             shaft: shaft, fullGeo: fullGeo, stubGeo: stubGeo, stubLen: stubLen,
             grip: grip, cap: cap
         };
@@ -933,6 +938,7 @@
         g.position.y = HOSEL_SEAT;
         g.add(turn);
         g.userData.neck = at.r;
+        g.userData.at = at;
         return g;
     }
 
@@ -1422,7 +1428,9 @@
        sole hangs below the leading one, per metre of sole. `lie` is the
        angle between shaft and ground, which climbs as the shaft shortens. */
     var IRONS = {
+        iron5:   { len: 0.080, heel: 0.031, toe: 0.047, neck: 0.035, sole: 0.018, cavity: true, lie: 61.5 },
         iron:    { len: 0.078, heel: 0.033, toe: 0.050, neck: 0.036, sole: 0.019, cavity: true, lie: 62.5 },
+        iron9:   { len: 0.076, heel: 0.035, toe: 0.053, neck: 0.038, sole: 0.021, cavity: true, lie: 63 },
         chipper: { len: 0.075, heel: 0.036, toe: 0.054, neck: 0.040, sole: 0.022, cavity: true, lie: 63.5 },
         wedge:   { len: 0.080, heel: 0.035, toe: 0.059, neck: 0.044, sole: 0.026, drop: true, bounce: 0.14, lie: 64 },
         checker: { len: 0.078, heel: 0.035, toe: 0.056, neck: 0.042, sole: 0.024, drop: true, bounce: 0.08, lie: 64 }
@@ -2161,9 +2169,11 @@
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         g.font = '800 16px ' + FACE;
-        g.fillStyle = held ? tint.name : 'rgba(159, 182, 201, 0.82)';
-        var bandText = held ? 'IN HAND' : 'KEY ' + club.key;
+        g.fillStyle = held ? tint.name : 'rgba(167, 160, 136, 0.82)';
+        var bandText = (held ? 'IN HAND' : 'KEY ' + club.key) +
+            ' \u00b7 LOFT ' + Math.round(club.loft * 180 / Math.PI) + '\u00b0';
         if (club.bite) bandText += ' \u00b7 BITE ' + Math.round(club.bite * 100) + '%';
+        if (LIE && LIE[club.id]) bandText += ' \u00b7 SAND';
         g.fillText(bandText, W / 2, 4 + BAND_H / 2);
 
         /* The name, in the page's own face, in one flat colour: a gradient
@@ -2179,7 +2189,7 @@
 
         g.textAlign = 'left';
         var deg = Math.round(club.loft * 180 / Math.PI);
-        var frac = club.power / maxPower();
+        var frac = figures(club).power / maxPower();
 
         if (CARD === CARDS.grid) stackedFigures(g, W, H, rule, deg, club, frac, tint);
         else sideBySideFigures(g, W, H, rule, deg, club, frac, tint);
@@ -2187,82 +2197,92 @@
         return srgbCanvas(cv);
     }
 
-    /* Side by side, for a card standing in a row: carry & loft on the left,
-       total distance, power & bite on the right. */
-    function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
-        var top = rule + 22;
-        var x2 = Math.round(W * 0.54);
-        var carryStr = club.carry ? String(club.carry) : '\u2014';
-        var totalStr = club.total ? String(club.total) : String(club.power);
-
-        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
-        g.font = '700 15px ' + FACE;
-        g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 28, top);
-        g.fillText('TOTAL \u00b7 PWR ' + club.power, x2, top);
-
-        g.fillStyle = '#eaf6ff';
-        g.font = '700 34px ' + FIGS;
-        g.fillText(carryStr, 28, top + 34);
-        g.fillText(totalStr, x2, top + 34);
-
-        if (club.bite) {
-            roundRect(g, W - 116, top + 42, 88, 22, 6);
-            g.fillStyle = 'rgba(20, 184, 166, 0.25)';
-            g.fill();
-            g.strokeStyle = '#5eead4';
-            g.lineWidth = 1.5;
-            g.stroke();
-            g.fillStyle = '#5eead4';
-            g.font = '800 12px ' + FACE;
-            g.textAlign = 'center';
-            g.fillText('BITE ' + Math.round(club.bite * 100) + '%', W - 72, top + 53);
-            g.textAlign = 'left';
-        } else {
-            drawPower(g, x2, top + 56, W - 28 - x2, 11, frac, tint.name);
-        }
-        drawLoft(g, 126, top + 44, deg, tint.name);
+    /* The card's two distances, in the hole's own metres (G3.distance) —
+       the same scale, rounding and band the picker's "reach" line and the
+       meter use, so the card and the line above the row never disagree.
+       They used to be in the long game's metres on every hole: a mini
+       lane's mallet read 70–100 on its card and 20–20 m over it. Carry and
+       total are measured on a fairway; rough on purpose, like the meter. */
+    var SCALE = C.LONG_M;
+    function setScale(s) {
+        s = s || 1;
+        if (s === SCALE) return;
+        SCALE = s;
+        redrawCards();
+    }
+    function cardCarry(club) {
+        var f = figures(club);
+        if (!f.carry) return '\u2014';
+        var m = f.carry * SCALE, n = G3.distance.near(null, SCALE);
+        // One figure, rounded the way the bands are.
+        return m < n ? '<' + n : String(G3.distance.round(m));
+    }
+    function cardTotal(club) {
+        var f = figures(club);
+        if (!f.total) return String(f.power);
+        var b = G3.distance.band(f.total, null, SCALE);
+        return b ? b[0] + '\u2013' + b[1] : '<' + G3.distance.near(null, SCALE);
     }
 
-    /* Stacked, for a card in a grid: carry and loft on line one, total
-       distance and power/bite on line two. */
+    /* A figure with its unit after it, smaller, on the same baseline — a
+       bare "40–50" read as a score as easily as a distance. */
+    function figure(g, text, x, y, size) {
+        g.fillStyle = '#ebe4cf';
+        g.font = '700 ' + size + 'px ' + FIGS;
+        g.fillText(text, x, y);
+        if (text === '\u2014') return;
+        var w = g.measureText(text).width;
+        g.fillStyle = 'rgba(235, 228, 207, 0.6)';
+        g.font = '700 ' + Math.round(size * 0.5) + 'px ' + FACE;
+        g.fillText(' m', x + w, y + size * 0.12);
+    }
+
+    /* The club's power against the strongest in the bag, as a strip along
+       the card's foot. It sat beside the total and the total ran into it
+       once it was a band ("190–260"). */
+    function powerStrip(g, W, H, frac, tint) {
+        drawPower(g, 26, H - 22, W - 52, 8, frac, tint);
+    }
+
+    /* Side by side, for a card standing in a row: carry on the left, total
+       on the right, the loft drawn between them. */
+    function sideBySideFigures(g, W, H, rule, deg, club, frac, tint) {
+        var top = rule + 22;
+        var x2 = Math.round(W * 0.50);
+
+        g.fillStyle = 'rgba(167, 160, 136, 0.9)';
+        g.font = '700 15px ' + FACE;
+        g.fillText('CARRY', 28, top);
+        g.fillText('TOTAL \u00b7 FULL SWING', x2, top);
+
+        figure(g, cardCarry(club), 28, top + 34, 34);
+        figure(g, cardTotal(club), x2, top + 34, 34);
+
+        drawLoft(g, 140, top + 40, deg, tint.name);
+        powerStrip(g, W, H, frac, tint.name);
+    }
+
+    /* Stacked, for a card in a grid: carry on line one with the loft beside
+       it, total on line two, the power strip at the foot. */
     function stackedFigures(g, W, H, rule, deg, club, frac, tint) {
-        var mid = rule + 56;                 // the carry line
-        var low = H - 30;                    // …and the total line
-        var carryStr = club.carry ? String(club.carry) : '\u2014';
-        var totalStr = club.total ? String(club.total) : String(club.power);
+        var mid = rule + 54;                 // the carry line
+        var low = H - 40;                    // …and the total line
 
-        g.fillStyle = 'rgba(159, 182, 201, 0.9)';
+        g.fillStyle = 'rgba(167, 160, 136, 0.9)';
         g.font = '700 16px ' + FACE;
-        g.fillText('CARRY \u00b7 ' + deg + '\u00b0', 26, mid - 34);
-        g.fillText('TOTAL \u00b7 PWR ' + club.power, 26, low - 34);
+        g.fillText('CARRY', 26, mid - 32);
+        g.fillText('TOTAL \u00b7 FULL SWING', 26, low - 32);
 
-        g.fillStyle = '#eaf6ff';
-        g.font = '700 46px ' + FIGS;
-        g.fillText(carryStr, 26, mid);
-        g.fillText(totalStr, 26, low);
+        figure(g, cardCarry(club), 26, mid, 40);
+        figure(g, cardTotal(club), 26, low, 40);
 
-        drawLoft(g, W - 108, mid + 10, deg, tint.name);
-
-        if (club.bite) {
-            roundRect(g, W - 130, low - 16, 104, 24, 6);
-            g.fillStyle = 'rgba(20, 184, 166, 0.25)';
-            g.fill();
-            g.strokeStyle = '#5eead4';
-            g.lineWidth = 1.5;
-            g.stroke();
-            g.fillStyle = '#5eead4';
-            g.font = '800 13px ' + FACE;
-            g.textAlign = 'center';
-            g.fillText('BITE ' + Math.round(club.bite * 100) + '%', W - 78, low - 4);
-            g.textAlign = 'left';
-        } else {
-            drawPower(g, W - 150, low + 4, 124, 14, frac, tint.name);
-        }
+        drawLoft(g, W - 108, mid + 6, deg, tint.name);
+        powerStrip(g, W, H, frac, tint.name);
 
         g.strokeStyle = 'rgba(148, 176, 199, 0.14)';
         g.lineWidth = 2;
         g.beginPath();
-        g.moveTo(26, (mid + low) / 2 - 22); g.lineTo(W - 26, (mid + low) / 2 - 22);
+        g.moveTo(26, (mid + low) / 2 - 20); g.lineTo(W - 26, (mid + low) / 2 - 20);
         g.stroke();
     }
 
@@ -2331,6 +2351,22 @@
        shape the layout has asked for, or the typeface that has just arrived.
        Which face is showing survives the swap; the card under it does not
        otherwise change. */
+    /* What the lie leaves a club, when it is not the club's own card: out of
+       a bunker an iron reaches only its sand ceiling (physics.fromLie), and a
+       card promising its fairway distance there would be the one figure on
+       screen that is wrong. `LIE` is club id → { power, carry, total }, from
+       game.js syncLie, measured the way the club's own card is; a club not in
+       it — every club off the sand, and the wedges and putter in it — reads
+       its own. Redrawn only when it changes, which is once a lie. */
+    var LIE = null;
+    function figures(club) { return (LIE && LIE[club.id]) || club; }
+    function setLie(map) {
+        var key = map ? JSON.stringify(map) : '';
+        if (key === (LIE ? JSON.stringify(LIE) : '')) return;
+        LIE = map || null;
+        redrawCards();
+    }
+
     function redrawCards() {
         _labelled.forEach(function (c) {
             var held = c.label.material.map === c.label.userData.held;
@@ -2408,7 +2444,10 @@
         // card that covers the head is a caption standing in front of the
         // thing it captions, and the head — the face, and how far back it
         // leans — is what the row is opened to compare.
-        card.drop = halfH + 0.06;
+        // Clearing it by a hair rather than a stride: on a phone, where the
+        // row wraps, a wide gap left every head floating on its own over a
+        // card that looked unrelated to it.
+        card.drop = halfH + 0.025;
         card.tail = card.drop + halfH;
         // A row has to clear the heads of the row under it, not just its own
         // card: the head stands HEAD_TOP above its line and the card hangs
@@ -2436,7 +2475,11 @@
        closest the camera is ever allowed to the ball is four units, so
        1.62 clears the first with room and the second by miles. */
     var SCRIM_DEPTH = 1.62;
-    var SCRIM = 0.72;          // …and how dark it gets, fully open
+    var SCRIM = 0.86;          // …and how dark it gets, fully open
+    var LAYER = 1;             // the bag's own camera layer (see build)
+    var AMB = 0.55;            // its ambient, fully open, on that layer alone
+    var SPOT = 2.2;            // the spotlight, fully open…
+    var SPOT_REACH = 2.6;      // …and how far it carries, in front of the lens
 
     /* And the corner the shut bag stands in, in the same spirit: how far out
        toward the left edge, and how far its tallest head crests above whatever
@@ -2739,6 +2782,7 @@
         var body = buildBody(M);
         B.rig.add(body.group);
         B.pickables.push(body.hit);
+        B.bodyHit = body.hit;
 
         /* The clubs live in a rig of their own so that opening the bag can
            carry *them* into the middle of the view while the bag itself stays
@@ -2816,6 +2860,7 @@
                 label: label,
                 pivot: built.pivot,
                 halo: halo,
+                hit: built.hit,
                 labelBase: { x: 0, y: built.len - 0.02, z: 0 },
                 spot: spot,
                 shaft: built.shaft, fullGeo: built.fullGeo, stubGeo: built.stubGeo,
@@ -2872,6 +2917,36 @@
         B.rim.position.set(0.1, 1.35, -1.0);
         B.clubRig.add(B.rim);
 
+        /* And a spotlight, because the studio above was still only half the
+           light on the row. The other half was the course's: its sky, its sun
+           and its fill land on the heads like on anything else, and they are
+           whatever the hole's weather made them — the same five clubs read
+           bright on a clear afternoon and murky at dusk. This one is the
+           course's least: hung above the lens, aimed at the middle of the
+           row, the same light on every hole under every sky (and render.js
+           turns the course's own down while it is on). `place` aims it every
+           frame.
+
+           Its reach is short on purpose. The row is a metre and a half from
+           it and the turf behind is further; with no reach it lit a bright
+           pool on the grass, through the scrim, and barely touched the clubs
+           it was there for. The gentle decay keeps the near and far heads of
+           the row within a third of each other.
+
+           It is always in the scene and only ever turned to nothing. A light
+           added or removed changes every lit material's program, which is a
+           recompile of the whole course the moment you open the bag. */
+        B.spot = new THREE.SpotLight(0xfff7ea, 0, SPOT_REACH, 0.75, 0.6, 0.4);
+        scene.add(B.spot);
+        scene.add(B.spot.target);
+
+        /* There was a lit pool drawn behind the row as well — what a
+           spotlight looks like from the seats. On a phone, where the row wraps
+           into a grid, it was a big pale ellipse on the turf between the
+           cards, and the owner read it as bad lighting. The scrim is darker
+           instead (SCRIM), so the row stands out by what is behind it being
+           quiet rather than by a glow. */
+
         /* The scrim: the course, dimmed, while the row is out.
 
            The picker has always claimed to dim the course behind the clubs
@@ -2914,7 +2989,27 @@
         // own typeface has actually arrived.
         watchFonts();
 
+        /* An ambient of the bag's own, for the row's shadowed sides once the
+           course's sky is no longer lighting them (see LAYER). Nothing while
+           the bag is shut. */
+        B.amb = new THREE.HemisphereLight(0xe8f1ff, 0x262c36, 0);
+        scene.add(B.amb);
+
+        /* Everything the bag draws and every light it owns lives on a layer
+           of its own. The camera normally looks at both, so a shut bag is in
+           the scene like anything else; with the picker open the course is
+           drawn alone and blurred, and then the bag's layer on its own — and
+           a light only counts on a layer the camera is looking at, so the row
+           is lit by the bag's studio and spotlight and nothing of the hole's
+           weather (postfx.js `backdrop`). */
+        [B.rig, B.clubRig, B.spot, B.spot.target, B.scrim, B.amb].forEach(function (root) {
+            root.traverse(function (o) { o.layers.set(LAYER); });
+        });
+
+        buildAddress(scene);
+
         B.ray = new THREE.Raycaster();
+        B.ray.layers.set(LAYER);
         B.ndc = new THREE.Vector2();
         B.ready = true;
         setSelected(C.DEFAULT_CLUB);
@@ -2936,20 +3031,25 @@
        in it are meant to show — but half off is a fraction, and the fixed
        offsets this used before were a quarter of the way into a wide screen
        and clean off the side of a narrow one. */
-    function place(camera, aspect) {
-        if (!B.ready) return;
-        var k = B.open01;
-
+    // Where the shut bag stands, in camera space. `place` puts it there and
+    // `screenBox` measures it there, so the two cannot disagree.
+    function bagSpot(camera, aspect) {
         var bagH = Math.tan((camera.fov || 52) * Math.PI / 360) * BAG_DEPTH;
         var bagW = bagH * aspect;
-        var cz = -BAG_DEPTH;
-        var cx = -bagW * BAG_EDGE;
         // Cresting just above the controls, wherever they have ended up: the
         // heads are what say "your clubs are here", so they are the part that
         // has to clear the meter, and the rest of the bag can go under it.
         var crest = Math.max(BAG_LOW, Math.min(BAG_HIGH,
             BAG_CLEAR - (1 - 2 * BAND.bottom)));
-        var cy = bagH * crest - B.crest * BAG_SCALE;
+        return { x: -bagW * BAG_EDGE, y: bagH * crest - B.crest * BAG_SCALE, z: -BAG_DEPTH, w: bagW };
+    }
+
+    function place(camera, aspect) {
+        if (!B.ready) return;
+        var k = B.open01;
+
+        var at = bagSpot(camera, aspect);
+        var cx = at.x, cy = at.y, cz = at.z, bagW = at.w;
         put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
 
         /* And how far out of the bag the club in hand may stand: a fifth of
@@ -2983,13 +3083,24 @@
            the moment the lens opens between the measurement and the frame. */
         if (B.scrim) {
             var sh = Math.tan((camera.fov || 52) * Math.PI / 360) * SCRIM_DEPTH;
-            B.scrim.visible = k > 0.005;
+            // Not drawn when the course behind is blurred instead (`backdrop`).
+            B.scrim.visible = k > 0.005 && !B.backdrop;
             B.scrim.material.opacity = SCRIM * k;
             B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
             put(B.scrim, camera, 0, 0, -SCRIM_DEPTH, 1, 0, 0);
             // put() sets the scale from its own argument; this one is set
             // from the frustum above, so it goes back afterwards.
             B.scrim.scale.set(sh * aspect * 2.4, sh * 2.4, 1);
+        }
+
+        /* The spotlight, on the middle of the band the row is laid out in
+           (fitOpen): above the lens and a little to the right, pointed down
+           at it. */
+        if (B.spot) {
+            var oh = Math.tan((camera.fov || 52) * Math.PI / 360) * OPEN_DEPTH;
+            var mid = oh * (BAND.bottom - BAND.top);
+            atCamera(B.spot.position, camera, oh * aspect * 0.3, oh * 1.6, -0.15);
+            atCamera(B.spot.target.position, camera, 0, mid, -OPEN_DEPTH);
         }
 
         // The clubs: the same place when shut, the middle of the view when
@@ -3001,6 +3112,75 @@
             BAG_SCALE + (B.openScale - BAG_SCALE) * k,   // up to the lens
             -TWIST + TWIST * k,
             0.1 - 0.1 * k);
+    }
+
+    // A point given in the camera's own frame, written into `out` in the world's.
+    function atCamera(out, camera, x, y, z) {
+        _off.set(x, y, z);
+        _off.applyQuaternion(camera.quaternion);
+        out.copy(camera.position).add(_off);
+    }
+
+    /* The part of the screen the shut bag covers, as fractions of the canvas
+       from its top left: { left, right, top, bottom }, clipped to the frame.
+       game.js asks so the swipe lane can stand clear of it.
+
+       Worked from the camera handed in rather than from where the rig was
+       last put, because the question comes on a resize — a phone turned over
+       — and the rig is not moved until the next frame. The bag and its clubs
+       are measured in their own space and posed here exactly as `put` poses
+       them. Measured on every call, not kept: which clubs stand in the bag
+       changes from hole to hole, and the call comes only when the lane is
+       placed. */
+    var _corner = null, _pose = null, _inv = null, _m = null;
+    function screenBox(camera, aspect) {
+        if (!B.ready || B.expanded || B.open01 > 0.01) return null;
+        if (!_pose) {
+            _corner = new THREE.Vector3();
+            _pose = new THREE.Object3D();
+            _inv = new THREE.Matrix4();
+            _m = new THREE.Matrix4();
+        }
+        var at = bagSpot(camera, aspect);
+        _pose.position.set(at.x, at.y, at.z);
+        _pose.quaternion.set(0, 0, 0, 1);
+        _pose.rotateY(-TWIST);
+        _pose.rotateX(0.1);
+        _pose.scale.setScalar(BAG_SCALE);
+        _pose.updateMatrix();
+        var t = Math.tan((camera.fov || 52) * Math.PI / 360);
+        var x0 = 1, x1 = -1, y0 = 1, y1 = -1;
+        /* Each mesh's own box, projected one at a time: one box round the
+           lot, turned off-axis by the bag's twist, was nearly twice as wide
+           on the screen as the bag. Meshes only — the rig also carries a
+           sprite, a quad turned to the camera whose box says nothing about
+           where the bag is. The invisible hit boxes count, on purpose: they
+           reach a little past the drawn bag, and a press on one is a press
+           on the bag, so that is the edge anything else should stay clear of. */
+        [B.rig, B.clubRig].forEach(function (rig) {
+            rig.updateMatrixWorld(true);
+            _inv.copy(rig.matrixWorld).invert();
+            rig.traverseVisible(function (o) {
+                if (!o.isMesh || !o.geometry) return;
+                if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+                var g = o.geometry.boundingBox;
+                // An empty geometry boxes to NaN, and one NaN poisons the rest.
+                if (!isFinite(g.min.x + g.min.y + g.min.z + g.max.x + g.max.y + g.max.z)) return;
+                _m.multiplyMatrices(_pose.matrix, _m.multiplyMatrices(_inv, o.matrixWorld));
+                for (var i = 0; i < 8; i++) {
+                    _corner.set(i & 1 ? g.max.x : g.min.x,
+                                i & 2 ? g.max.y : g.min.y,
+                                i & 4 ? g.max.z : g.min.z).applyMatrix4(_m);
+                    if (_corner.z > -0.01) continue;
+                    var nx = _corner.x / (-_corner.z * t * aspect), ny = _corner.y / (-_corner.z * t);
+                    x0 = Math.min(x0, nx); x1 = Math.max(x1, nx);
+                    y0 = Math.min(y0, ny); y1 = Math.max(y1, ny);
+                }
+            });
+        });
+        if (x1 < x0 || y1 < y0) return null;
+        var c = function (v) { return Math.max(0, Math.min(1, v)); };
+        return { left: c((x0 + 1) / 2), right: c((x1 + 1) / 2), top: c((1 - y1) / 2), bottom: c((1 - y0) / 2) };
     }
 
     function put(rig, camera, x, y, z, scale, twistY, twistX) {
@@ -3055,6 +3235,8 @@
         if (B.lamp) B.lamp.intensity = 0.30 + 0.95 * B.open01;
         if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
         if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
+        if (B.spot) B.spot.intensity = SPOT * B.open01;
+        if (B.amb) B.amb.intensity = AMB * B.open01;
         B.clubs.forEach(function (c) {
             // A club that is not in this hole's bag is not on screen and has
             // no slot in the arrangement to be moved towards.
@@ -3256,7 +3438,41 @@
         B.ndc.set(nx, ny);
         B.ray.setFromCamera(B.ndc, camera);
         var hits = B.ray.intersectObjects(B.pickables, false);
-        return hits.length ? 'bag' : null;
+        if (hits.length) return 'bag';
+        return !B.expanded && inBagBox(nx, ny, camera) ? 'bag' : null;
+    }
+
+    /* The shut bag, as a finger sees it: the rectangle round the bag and the
+       heads standing in it, with a margin, rather than the meshes themselves.
+
+       A ray only answers on leather or steel, and what shows of the bag on a
+       phone is a cuff along the bottom edge with four thin shafts above it —
+       so a thumb that came down between two shafts, or just over the cuff,
+       went to the course instead. On an iPhone it was worse again: Safari
+       keeps a band along the bottom of the screen for its own toolbar, which
+       is exactly where the cuff is. The box gives the heads' whole row and a
+       margin round it, so the bag answers wherever it looks like it should. */
+    var _box = null, _corner = null;
+    var BOX_PAD = { x: 0.07, y: 0.05 };    // in NDC: ~14 px on a 393 px phone
+    function inBagBox(nx, ny, camera) {
+        if (!B.bodyHit || (B.rig && !B.rig.visible)) return false;
+        if (!_box) { _box = new THREE.Box3(); _corner = new THREE.Vector3(); }
+        _box.makeEmpty();
+        _box.expandByObject(B.bodyHit);
+        live().forEach(function (c) { if (c.hit) _box.expandByObject(c.hit); });
+        if (_box.isEmpty()) return false;
+        var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (var i = 0; i < 8; i++) {
+            _corner.set(i & 1 ? _box.max.x : _box.min.x,
+                        i & 2 ? _box.max.y : _box.min.y,
+                        i & 4 ? _box.max.z : _box.min.z).project(camera);
+            if (_corner.x < x0) x0 = _corner.x;
+            if (_corner.x > x1) x1 = _corner.x;
+            if (_corner.y < y0) y0 = _corner.y;
+            if (_corner.y > y1) y1 = _corner.y;
+        }
+        return nx >= x0 - BOX_PAD.x && nx <= x1 + BOX_PAD.x &&
+               ny >= y0 - BOX_PAD.y && ny <= y1 + BOX_PAD.y;
     }
 
     /* The four things that can give the bag something to do again. Anything
@@ -3269,6 +3485,11 @@
     function setHover(id) { if (id !== B.hover) B.settled = false; B.hover = id; }
     function isExpanded() { return B.expanded; }
 
+    /* Whether the renderer is blurring the course behind the open row, in
+       which case the scrim stands down — it would be a dark plane over the
+       blur. Without the post chain (an old phone) the scrim is the backdrop. */
+    function setBackdrop(on) { B.backdrop = !!on; }
+
     /* What the DOM is using at the top and the bottom of the stage, as
        fractions of its height. Clamped rather than trusted: a mid-transition
        measurement or a stage of no height should move the clubs a little, not
@@ -3278,18 +3499,204 @@
         if (bottom > 0) BAND.bottom = Math.max(0.06, Math.min(0.45, bottom));
     }
 
+    /* ── the club at the ball ──────────────────────────────────────────── */
+
+    /* The club in hand, stood behind the ball the way it would be addressed:
+       soled on the ground, face square to the aim, shaft leaning off at its
+       own lie to where the player's hands would be. It is the same model the
+       bag holds — `buildClub` again — at the ball's own scale, so a ball that
+       is 0.16 of a unit across its radius gets a club seven and a half times
+       life size, which is to say the right size for that ball.
+
+       Unlike everything else in this file it is *in* the course: on the
+       course's layer, under the course's light, casting a shadow on the
+       grass. Nothing in the simulation knows about it; a wall it stands
+       through is a wall it stands through.
+
+       And the touch swing swings it (swing.js `clubPose`). Not as a golfer
+       would: the camera stands about where the player's shins are, so a real
+       backswing — the head a metre and a half behind the ball and over a
+       shoulder — is out of the picture a tenth of the way back and through
+       the lens shortly after. So the club turns about a point half way up
+       its own shaft (`HANDS`), in the plane the shaft and the aim lie in,
+       which is a short wristy swing whose head lifts as it goes back and
+       stays where it can be seen; and how far back it may go is read off the
+       camera every frame (`backMax`). The finish is ahead of the ball, where
+       there is all the room in the world. */
+    var BALL_M = 0.02135;        // a golf ball's radius, metres
+    var HANDS = 0.55;            // head to the point the club turns about, metres
+    var SWING_BACK = 1.35, SWING_FINISH = 1.75;      // a whole turn each way, radians
+    var AD = {
+        root: null, sh: null, slot: null,
+        built: {},               // club id -> { holder, axis, pivot }
+        id: null,
+        mode: 'rest',            // rest | pull | through
+        want: 0, now: 0, from: 0,        // turns (swing.js `clubPose`)
+        t: 0, frac: 0, away: 0, back: SWING_BACK
+    };
+    var _cam = new THREE.Vector3();
+
+    function isPutter(id) {
+        var c = C.ALL_CLUBS.filter(function (k) { return k.id === id; })[0];
+        return !c || (c.loft || 0) < 9 * Math.PI / 180;
+    }
+
+    function addressClub(id) {
+        if (AD.built[id]) return AD.built[id];
+        var club = C.ALL_CLUBS.filter(function (k) { return k.id === id; })[0];
+        if (!club) return null;
+        var c = buildClub(club, mats(club));
+        c.group.remove(c.hit);
+        c.group.remove(c.pivot);
+
+        /* Undo `mount`: that hung an address-frame head on an upright shaft,
+           and this stands the whole club back up on the head. */
+        var turn = -(c.at.lie + Math.PI / 2);
+        var holder = new THREE.Group();
+        holder.add(c.group);
+        c.group.rotation.x = turn;
+        var seat = v3(0, c.len - 0.004 + HOSEL_SEAT, 0).applyAxisAngle(v3(1, 0, 0), turn);
+        c.group.position.copy(c.at.top).sub(seat);
+
+        /* Then the head to the ball: the sole on the ground, the middle of
+           the face behind the middle of the ball and a finger's width off
+           it. Read off the head itself, so a new head needs nothing here. */
+        holder.updateMatrixWorld(true);
+        var box = new THREE.Box3().setFromObject(c.head);
+        holder.position.set(-box.max.x - BALL_M - 0.006, -box.min.y, -(box.min.z + box.max.z) / 2);
+
+        var d = shaftDir(c.at.lie);
+        var made = {
+            holder: holder,
+            pivot: c.at.top.clone().add(holder.position).addScaledVector(d, HANDS),
+            // aim × shaft: turning about it by a positive angle carries the
+            // head toward the target.
+            axis: v3(0, -d.z, d.y).normalize()
+        };
+        holder.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
+        AD.built[id] = made;
+        return made;
+    }
+
+    function buildAddress(scene) {
+        AD.root = new THREE.Group();
+        AD.sh = new THREE.Group();
+        AD.slot = new THREE.Group();
+        AD.root.add(AD.sh);
+        AD.sh.add(AD.slot);
+        /* Mirrored in z: the heads are modelled with the hosel toward +z,
+           which from behind the ball is a left-hander's club, and the shaft
+           leaning right runs under the club chip. Flipped, it leans left
+           toward the bag it came out of. */
+        var k = C.BALL_R / BALL_M;
+        AD.root.scale.set(k, k, -k);
+        AD.root.visible = false;
+        scene.add(AD.root);
+    }
+
+    function addressTake(id) {
+        if (AD.id === id) return AD.built[id];
+        var made = addressClub(id);
+        if (!made) return null;
+        while (AD.slot.children.length) AD.slot.remove(AD.slot.children[0]);
+        AD.slot.add(made.holder);
+        // `sh` sits on the pivot and the slot puts the club back where it
+        // was — so no turn at all is the club at address.
+        AD.sh.position.copy(made.pivot);
+        AD.slot.position.copy(made.pivot).negate();
+        AD.id = id;
+        return made;
+    }
+
+    /* How far back a whole turn may go, in radians: far enough that the head
+       gets no nearer the camera than 0.3 of the way to it. Only when the
+       camera is behind the ball and near the line — from the side or from
+       above there is nothing to run into. */
+    function backMax(camera) {
+        AD.root.updateMatrixWorld(true);
+        AD.root.worldToLocal(_cam.copy(camera.position));
+        if (_cam.x >= 0 || Math.abs(_cam.z) > 1.5) return SWING_BACK;
+        return Math.min(SWING_BACK, Math.asin(Math.min(1, 0.3 * -_cam.x / HANDS)));
+    }
+
+    /* Called by the renderer every frame. `show` is "a shot is being aimed";
+       the club also stays for the moment after a strike, where it stood, to
+       finish its swing. */
+    function addressUpdate(dt, show, ball, yaw, camera) {
+        if (!AD.root) return;
+        if (AD.mode === 'through') {
+            AD.t += dt;
+            AD.now = G3.swing.clubThrough(AD.from, AD.t, AD.frac, isPutter(AD.id));
+            if (AD.t > 0.7) { AD.mode = 'rest'; AD.away = 1; AD.want = 0; }
+        } else {
+            if (AD.away) {
+                // Put away after the shot; back at address for the next one.
+                AD.now = 0;
+                if (show) AD.away = 0;
+            }
+            AD.now += (AD.want - AD.now) * (1 - Math.pow(AD.mode === 'pull' ? 1e-9 : 1e-4, dt));
+        }
+        var on = !!B.selected && !AD.away && (AD.mode === 'through' || !!show);
+        AD.root.visible = on;
+        if (!on) return;
+        var made = addressTake(B.selected);
+        if (!made) { AD.root.visible = false; return; }
+        if (AD.mode !== 'through') {
+            AD.root.position.set(ball.x, ball.y - C.BALL_R, ball.z);
+            AD.root.rotation.y = yaw - Math.PI / 2;
+            AD.back = backMax(camera);
+        }
+        AD.sh.quaternion.setFromAxisAngle(made.axis, AD.now < 0 ? AD.now * AD.back : AD.now * SWING_FINISH);
+    }
+
+    var address = {
+        // The thumb, mid-gesture (see swing.js `clubPose`).
+        swing: function (load, up) {
+            if (!AD.root || AD.mode === 'through') return;
+            AD.mode = 'pull';
+            AD.want = G3.swing.clubPose(load, up, isPutter(B.selected));
+        },
+        // The gesture ended without a shot: back to address.
+        rest: function () {
+            if (AD.mode !== 'pull') return;
+            AD.mode = 'rest';
+            AD.want = 0;
+        },
+        // The ball has gone. `frac` is the swing as a fraction of a full one.
+        strike: function (frac) {
+            if (!AD.root) return;
+            /* Struck as the thumb crossed the line, which is the club at the
+               ball whatever the easing had got to — a fast swipe is three
+               frames long and the club must not still be on its way down. */
+            AD.from = Math.max(AD.now, -0.1);
+            AD.mode = 'through';
+            AD.t = 0;
+            AD.frac = frac;
+            AD.away = 0;
+        },
+        state: AD
+    };
+
     G3.bag = {
+        address: address,
+        addressUpdate: addressUpdate,
         build: build,
         update: update,
         pick: pick,
         toggle: toggle,
         setBag: setBag,
+        setLie: setLie,
+        setScale: setScale,
+        figures: figures,
         setVisible: setVisible,
         setExpanded: setExpanded,
         setSelected: setSelected,
         setHover: setHover,
         setBand: setBand,
+        screenBox: screenBox,
         isExpanded: isExpanded,
+        setBackdrop: setBackdrop,
+        LAYER: LAYER,
         // The palette, so the DOM can say a club in the same colour the canvas
         // does rather than keeping a second copy of it.
         look: look,

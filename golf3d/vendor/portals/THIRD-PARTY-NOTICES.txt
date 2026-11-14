@@ -1,0 +1,133 @@
+THIRD-PARTY NOTICES
+
+Portals (https://portals-endless-worlds.netlify.app) builds on the open-source
+work listed here. Thank you to its authors.
+
+The first four are distributed under the MIT License. Each has its own
+copyright line below; the licence text that follows them applies to each.
+
+
+1. three.js (release 170) and its addons
+   The 3D library the whole site is drawn with.
+   https://github.com/mrdoob/three.js
+
+   Copyright © 2010-2024 three.js authors
+
+   One world's own file (the plan of the otter airliner) measures the
+   distance from a point to a triangle with a function that follows
+   Triangle.closestPointToPoint of three.js. The three.js source says of
+   that method: "algorithm thanks to Real-Time Collision Detection by
+   Christer Ericson, published by Morgan Kaufmann Publishers, (c) 2005
+   Elsevier Inc., under the accompanying license; see chapter 5.1.5 for
+   detailed explanation." That credit is passed on here as three.js gives
+   it; no terms beyond the three.js licence are claimed.
+
+   One world's own files (floor-without-windows) carry the five numbers of
+   the filmic tone curve that three.js applies in its
+   ACESFilmicToneMapping, a fit of the ACES curve by Stephen Hill as
+   three.js carries it. The world runs that curve backwards, so that a
+   colour reaches the screen as it was chosen. The numbers are taken from
+   three.js; the credit for the fit is passed on here as the world's makers
+   gave it; no terms beyond the three.js licence are claimed.
+
+
+2. Hash without Sine
+   Sine-free hash functions for shaders: hash11, hash12, hash13, hash22 and
+   hash33 in this site's shader kit and engine, and the same functions where
+   a world's own shader carries them. One world's own script
+   (pallet-tower-midsummer) carries a variant of them in plain arithmetic,
+   with the same numbers.
+   https://www.shadertoy.com/view/4djSRW
+
+   Copyright (c)2014 David Hoskins.
+
+
+3. webgl-noise
+   Simplex noise for shaders: snoise in this site's shader kit.
+   https://github.com/ashima/webgl-noise
+
+   Copyright (C) 2011 by Ashima Arts (Simplex noise)
+   Copyright (C) 2011-2016 by Stefan Gustavson (Classic noise and others)
+
+
+4. Shader functions by Inigo Quilez
+   Three short functions follow code published by this author. The exact
+   distance to a box in the plane (sdBox in the portal, i_box in this site's
+   interior kit, and the same function where a world's own shader carries
+   it). The polynomial smooth minimum in the terrain kit. The value noise in
+   three dimensions read from one 256 by 256 noise texture, whose two
+   channels are the same field shifted by a fixed pair of numbers, so that
+   one lookup gives two layers (vn3 in this site's sky kit, and the same
+   function where a world's own shader carries it); this one is known from
+   the author's shaders rather than from an article. Three more stand in
+   one world's own code, the statue of the Colossus of Rhodes: the distances
+   to a round cone between two points, to an ellipsoid and to a box with
+   rounded edges, as the author's article on distance functions in three
+   dimensions gives them (iquilezles.org, article distfunctions). The
+   author's site says that its code that implements an algorithm is under
+   the MIT License.
+   https://iquilezles.org/articles/distfunctions2d/
+   https://iquilezles.org/articles/smin/
+   https://www.shadertoy.com/user/iq
+
+   Copyright (c) Inigo Quilez
+
+
+THE MIT LICENSE
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+ALSO WITH THANKS
+
+Short, widely published forms that this site uses, named here as a courtesy:
+
+- mulberry32, a small random number generator, in the form widely attributed
+  to Tommy Ettinger. It stands in this site's sound engine, in its portal
+  code, in its kit for skies, ground and animals, and in the own files of
+  twenty-two of its worlds. No licence statement for it has been found, so
+  no terms are claimed here; it is named because its authorship is known.
+
+- The sine hash, in the form fract(sin(dot(p, c)) * 43758.5453) and its
+  one-, two- and three-number variants, with the constants usually published
+  with it (12.9898 and 78.233, or 127.1 and 311.7, inside the sine, the
+  large multiplier shown above, and in some two-number variants a triple such as 123.34 with 345.45
+  and 34.345, or 123.34 with 456.21 and 45.32). It is the oldest way to make a random
+  number in a shader and it is published in hundreds of places. It stands in
+  this site's shader kit and in its engine, and in the own files of most of
+  its worlds: by a count made on 14 October 2026, 429 files carry the form
+  and 178 of those carry one of the triples named above. No author and no
+  licence statement for the form could be established, so no author is named
+  and no terms are claimed. It is listed here because the site brings it in,
+  and because it is the constants as much as the shape that are the
+  published thing. Readers of this project's own code believe that the two
+  triples above follow one author's published shaders; that could not be
+  confirmed from any page, so this notice makes no claim about it. The site
+  ships its source unbuilt and readable, so every line that uses the form
+  can be read.
+
+- A closed form for the share of a normal (bell) curve that lies below a
+  given point, written as a logistic of a cubic, after Bowling, Khasawneh,
+  Kaewkuekool and Cho, "A logistic approximation to the cumulative normal
+  distribution", Journal of Industrial Engineering and Management 2 (1),
+  2009, pages 114 to 127. One line in the own file of one world
+  (pallet-tower-midsummer) is written anew from that idea, with the two
+  numbers that the form gives to anyone who fits it. A formula is
+  mathematics, so no terms are claimed; the article is named here as a
+  courtesy.

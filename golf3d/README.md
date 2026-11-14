@@ -1,17 +1,19 @@
 # Loft Links
 
-Eighteen six-hole courses of 3D golf in four kinds. **Mini golf**: four courses
-of lanes, rails, ledges and one horseshoe. **Crazy golf**: five of blades,
-gates, bumpers, angled banks and pendulums, where the shot is a matter of
-timing rather than of aim — of what a mistimed one costs on The Millrace, where
-every machine stands over water, and of counting bars rather than beats in The
-Belfry, where every hole has two machines geared to each other. **Adventure
-golf**: four where the floor itself is the obstacle — ice that will not let
-the ball stop, travelators that carry it off, launch pads that throw it in the
-air, pipes that put it somewhere else entirely, a volcano where all of that
-is pointed downhill, and Apogee Yard, where the floor is ordinary and the
-*ball* is not: six holes at six gravities, from three tenths of a g to two and
-two fifths. **The long game**: five full-size courses with no fence on any of
+A **World Tour** of twenty holes, each played inside a world borrowed from
+Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
+— and beside it in the same picker, the game this started as:
+
+Fifteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
+courses of lanes, rails, ledges, banks and carries. **Crazy golf**: three of
+blades, gates, bumpers, angled banks and pendulums, where the shot is a matter
+of timing rather than of aim — and on Clockwork Court of bells geared to each
+other and a mill race under the machinery, where a mistimed shot is a stroke.
+**Adventure golf**: three where the floor itself is the obstacle — ice that
+will not let the ball stop, belts that carry it off, launch pads that throw it
+in the air and pipes that put it somewhere else entirely, all on the side of a
+volcano, and Apogee Yard, where the floor is ordinary and the *ball* is not: six holes at six gravities, from three tenths of a g to two and
+two fifths. **The long game**: six full-size courses with no fence on any of
 them — four built out of the shape of their own ground, and one with almost no
 ground at all — Ashdown
 Park, a parkland falling three units off a bluff and climbing back to a shelf,
@@ -21,9 +23,11 @@ of a hill down the right of one of them; Dunmore Heath, where the interest
 is the moor itself — crests, hollows, a punchbowl, a spiral, a burn round a
 dogleg, a tarn on top of four units of hillside and a gorge two units deep
 across the last of it; and
-Redstone Canyon, which is the only one made of ground that is *missing*; and
-Coral Keys, six holes of island-hopping across a lagoon, where the sea is the
-course and every shot is a carry to the next key. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
+Redstone Canyon, which is the only one made of ground that is *missing*;
+Coral Keys, six holes round the coasts of big islands in a lagoon, where every
+hole has a line across the water that saves a shot and a way round on dry
+land that does not; and Alpenglow Pass, a mountainside of granite crags, a
+glacier tarn and stream, fir woods and snow-capped peaks. three.js (vendored, r128), plain ES5-flavoured JavaScript, no
 build step and no other dependencies — same as everything else here, open
 `index.html` and it runs.
 
@@ -31,8 +35,8 @@ Two rules run through the whole card. **A course gets harder as you play it** �
 hole one introduces something, the middle develops it and the sixth asks for all
 of it at once — and the same climb runs across each group, so the four mini
 courses are in the order of how much they ask for and so are the crazy, the
-adventure and the long ones. **A hole is not the hole beside it**: a hundred and eight holes
-on one list is a hundred and eight chances to write the same corridor again, and
+adventure and the long ones. **A hole is not the hole beside it**: ninety holes
+on one list is ninety chances to write the same corridor again, and
 the way out is the *plan* rather than the furniture. See
 [The order the holes are in](#the-order-the-holes-are-in).
 
@@ -50,8 +54,13 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The hundred and eight holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
+| `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
+| `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
+| `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
+| `tools/portal-check.mjs`, `tools/portal-shot.mjs` | Every world played by the caddie with its ace share and widest windows; and one shot on one world, traced. Plain Node. |
 | `js/audit.js` | The [geometry audit](#the-pictures-which-neither-suite-can-see): the faults that are invisible to the ball and obvious in a screenshot. Pure — read by `tests.html`, by the inspector and by the turntable. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/swing.js` | The swing gate (what a shot past a full swing costs), shot shapes, the arithmetic of the four swing styles and the strike grade. No DOM, no three.js. |
@@ -65,8 +74,9 @@ them.
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/flyover.js` | The intro sweep's path: four keys, a curve through them, and the rule that keeps it out of the hillside. Pure — no three.js, no DOM. |
 | `js/replay.js` | The ace replay's tape: every shot recorded a physics step at a time, read back for a hole in one with the cut to the cup and the slow motion timed off it. Pure — `render.js` places the camera, `game.js` plays the tape. |
-| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
+| `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. And the caddie's [plan](#the-plan-v11280) over it: a graph of where shots come to rest, searched for a route to the cup. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
+| `js/sandfx.js` | What a bunker does back: grains ploughed up off both shoulders of a rolling ball at a rate and height set by its speed, a furrow pressed in behind it, and a landing's crown, dust and crater shaped by how fast and how flat the ball came down and how long it had been in the air. Multiply-blended marks that stay for the hole. Nothing in the simulation. Loaded before `render.js`, which runs without it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -81,6 +91,7 @@ them.
 | `turntable.html` + `tools/turntable.mjs` | [The turntable](#the-pictures-which-neither-suite-can-see): every hole drawn from eight fixed angles, as one contact sheet per course, with the audit's findings printed under each row. |
 | `js/lab.js`, `hole-lab.html` + `tools/hole-lab.mjs` | [The hole lab](#the-hole-lab): every line and weight from the tee out of every club in the bag — how many are aces and how wide their windows are, whether a shot aimed straight at the flag drops, and the caddie's card. The page draws the traces on the hole's plan; the tool prints the numbers. Pure, no install. |
 | `tools/par-check.mjs` | The bot plays a course and prints its card against par — a reading of each hole's shape (a par 4 it drives in one has no second shot). Plain Node, no install. PLAN.md §0 sets the line it is measured against. |
+| `tools/human-check.mjs` | The same bot with a person's hands (`CONFIG.BOT_HANDS`: every stroke off line and off weight by a normal draw, and the shot chosen knowing it), playing a course many rounds and printing the average, the spread and the balls in the water per hole. The reading of whether a hole is *fair*, which the perfect bot cannot give: it threads any gap because in its world nothing lands either side of the line. Seeded; `--rounds`, `--hole`, `--seed`. |
 
 The three files above `weather.js` in that list are three of the four different
 jobs the renderer used to do in one file. Picking colours, drawing a texture,
@@ -93,7 +104,7 @@ places where the answer is GLSL rather than a property. What is left in
 
 ## The bag
 
-Five clubs by default, in `config.js`, and two more a hole may ask for — and
+Seven clubs by default, in `config.js`, and two more a hole may ask for — and
 **mini golf has a bag of its own**: every hole on a mini, crazy or adventure
 course is played with the putter and the mallet (`CONFIG.MINI_BAG`), a hole
 marked `needsLoft` adds the pitch and the wedge, and a hole may still name its
@@ -106,15 +117,62 @@ simulation never hears the word "club", it is handed a launch angle and a
 speed — and it is now a loft, a ceiling and one number about what happens
 *after* the ball lands. See [Backspin](#backspin).
 
-| Club | Loft | Full swing | Carry | Apex | Total on green | What it is for |
-| --- | --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 10.5 | — | — | 8.0 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 10° | 32 | 19.4 | 1.01 | 42.5 | The reach club. The longest flight in the bag and the lowest that really flies — a metre of air, enough to carry water, and it still runs when it lands. |
-| 7 Iron | 16° | 18 | 9.8 | 0.83 | 21.4 | The long approach: three quarters of a driver, and it *carries* three quarters of that. |
-| Pitch | 45° | 11.7 | 7.6 | 2.03 | 14.1 | Up steep and down steeper. Stops near where it lands. |
-| Wedge | 58° | 12.1 | 7.3 | 3.05 | 12.7 | The lob: straight up, over anything, and it does not run when it lands. |
-| Mallet | 0° | 17 | — | — | 13.3 | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
-| Checker | 38° | 13.5 | 9.9 | 2.06 | 11.4 | Not in the default bag. An iron's carry with a unit and a bit of run on the end of it: `bite: 0.78`. |
+| Club | Key | Loft | Full swing | Carry | Apex | Total on fairway | What it is for |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Putter | 1 | 0° | 10.5 | — | — | 5.5 (8.0 on green) | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. On a long-game green it is the only club (see [Putting](#putting)). |
+| Driver | 2 | 12° | 24 | 31.4 | 3.47 | 41.4 | The reach club. Comes off low, climbs, and still runs when it lands. Not playable from sand. |
+| 5 Iron | 3 | 17° | 17.9 | 20.7 | 3.39 | 27.0 | The long iron: the second shot on a par 5, and the long par 3. |
+| 7 Iron | 4 | 22° | 14.4 | 13.9 | 3.21 | 17.9 | The long approach. Carries what the driver runs into. |
+| 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
+| Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper. Stops near where it lands. |
+| Wedge | 7 | 52° | 13.3 | 8.8 | 3.79 | 11.2 | The lob: straight up, over anything, and it does not run when it lands. |
+| Mallet | 8 | 0° | 20 | — | — | 12.1 (15.8 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
+
+Every full swing tops out between three and three and a half metres, the way a
+real bag does — a tour 7 iron peaks as high as a drive — and each club down
+the bag lands steeper than the one before it, 27° for the driver to 61° for
+the wedge. That is the lift (`CONFIG.AIR_LIFT`, by loft), solved per club
+together with its power so that every club still runs to where it did; see
+[The flight](#the-flight). Carry and total are the picker's card, and
+`tests.html` measures both off a flat fairway ("what the card says"), because
+for a long while the pitch's and the wedge's said 14.6 and 13.0 after the turf
+had made them 10.5 and 9.6. The wedge was 58° and 12.7 until v1.124.0, and it
+was the weakest full swing in the bag; more pace at 58° sent it up past every
+other club's apex before it bought much distance, so it is 52° now.
+
+**Out of a bunker** the bag changes (`game.syncLie`, the same place that hands
+you the putter on a green). The driver is not in it: its `sand` is 0, and the
+club in hand drops to the 5 iron. The irons stay, but each is capped at a
+fraction of its own ceiling (`club.sand`, `physics.fromLie`): 0.80 for the 5
+iron, 0.85 for the 7, 0.90 for the 9, which keeps about 18, 13.5 and 12 metres
+of their full swings. It is a cap, not a scale: a half swing from sand is the
+half swing it is from the fairway. The putter and both wedges have no `sand`
+and lose nothing. The shot, the aim preview, the "full ≈" readout (which reads
+"sand: max ≈" there) and the bot all go through the same function. So do the
+bag's cards (v1.125.0): in a bunker each capped iron's card shows its carry,
+total and power at the sand ceiling with SAND in its band, and the picker's
+reach line says "from sand" — measured the way the club's own card is, a full
+swing on a flat fairway (`game.lieCards`, handed to `bag.setLie`).
+
+### The flight
+
+A struck ball is lifted square to its path by an amount that depends on its
+loft, and the lift wears off as it flies (`physics.carryFlight`,
+`CONFIG.AIR_LIFT`, `AIR_DECAY`). There is no drag: lift does no work, so the
+ball lands as fast as it left and the turf's run is the run it was tuned for.
+The shape is a struck ball's rather than a thrown one's — low off the face,
+the top past halfway, down steeper than it went up.
+
+The first lift was one figure that stopped at 32°, so only the driver and the
+7 iron had it, and the pitch and wedge flew the plain arc. Measured against a
+real bag that was backwards: the 7 iron topped out at two metres and the pitch
+under that, against the driver's three and a half. The table is solved, not
+drawn — it rises to the 7 iron and falls again, because a 45° face already
+launches the ball at the sky and needs less help getting there. It applies
+everywhere, mini golf's chips included; full swings on a green finish within
+half a metre of where they did. A topped shot is struck without spin and gets
+none of it.
 
 ### Backspin
 
@@ -125,10 +183,9 @@ write two clubs that differ in what happens after the ball comes down. Every
 club in the file until now said how far and how high; none of them could say
 whether the thing stops.
 
-The numbers in the table above are what that buys. The Checker and the 7 Iron
-carry within a tenth of a unit of each other — 9.9 against 9.8 — and finish
-ten units apart, because the iron's landing hands it eleven units of run and
-the Checker's hands it one and a bit.
+The numbers in the table above are what that buys. The Checker and the 9 Iron
+carry within a unit of each other — 10.0 against 11.0 — and the iron runs on
+another three, where the Checker's landing leaves it under half a unit.
 
 It is not in the default bag, and the reason is the same one that keeps the
 mallet out of it: a club that lands and stops would be the answer to half the
@@ -147,7 +204,7 @@ which club supplies which.
 A hole may name its own bag — `bag: ['putter', 'mallet']` — out of
 `CONFIG.ALL_CLUBS`, and `G3.bagFor(hole)` is the one place that resolves it.
 Everything downstream reads that rather than `CONFIG.CLUBS`: the number keys,
-the cycle, the modelled bag in the corner (`bag.setBag`), the auto-putt, and
+the cycle, the modelled bag in the corner (`bag.setBag`), the green lock, and
 the bot in `tests.html`, which plays every hole out of the bag the hole hands
 out. So "solvable" now means solvable with the clubs you are actually given.
 
@@ -166,6 +223,12 @@ one, so the hole becomes two safe taps and no decision in either. Eighteen
 runs the length of one, and the same hole is a single committed shot that is
 either in or fifteen units past. It stays out of the default bag because a flat
 club with that much reach would quietly become the answer to half the course.
+
+Which club is in hand on a mini tee follows from the same split: the mallet,
+because the lane is the hole, except on a hole flagged `needsLoft`, which
+starts with the Pitch (or, where the hole's own bag has no Pitch, the club in
+it that flies the shortest: the Checker on Glass Table) — the mallet is the one club sure to be wrong on a hole
+that cannot be played along the floor (`loftClub` in `game.js`).
 
 The bag is modelled once, for every club the game knows about, and `setBag`
 decides which of them are in the mouth of it, in the open row and pickable —
@@ -195,7 +258,7 @@ bridges and the ramps into choices rather than requirements — at seven and a
 half units of carry a pitch flies most of the water at Seaside's Low Tide.
 (Seaside itself now hands out a putter and a mallet, and the pitch only where
 flying is the point — see [The courses](#the-courses).) Tidewater Reach
-and Highland Steps were built the other way round, from the carries outward:
+and Highland Steps (now half of Quarry Ridge) were built the other way round, from the carries outward:
 they take the ground away and let the numbers in this table decide what is
 reachable, which is why so many of their holes have no route along the floor at
 all.
@@ -331,12 +394,46 @@ through over a shot that can barely go wrong is a hoop for its own sake.
 plain object, which is what lets `tests.html` cover the gate, every swing style,
 both edges of every miss and the bound on the envelope without a browser.
 
-### Swing styles (on trial)
+### The club at the ball
 
-Four ways to hit the ball, picked from 🏌 Swing in ☰ (`STYLE_KEY`; the old
-touch-swing on/off, `SWIPE_KEY`, is read once so a player who had it keeps it),
-on every course or on the long game and the range only — the panel's
-**Courses** setting, which is for every style. Each style's arithmetic is in
+The club in hand stands behind the ball while a shot is aimed: soled, face
+square to the aim, shaft leaning off at its own lie. It is the bag's own model
+(`bag.js` `buildClub`, a second copy built the first time a club is taken) at
+the *ball's* scale, in the course's scene and light rather than on the bag's
+layer, and the simulation has never heard of it.
+
+The touch swing swings it. `game.js` hands every sample of the gesture to
+`G3.bag.address.swing(load, up)`; `swing.js` `clubPose` turns that into a turn
+from 0 (address) to -1 (the top), and the club is back at 0 as the thumb
+crosses the line it started on, which is the instant `strike` plays the shot.
+After it `clubThrough` carries the club to a finish and it is put away until
+the next shot is aimed. Any other way of striking — the dev styles, the bot —
+gets the finish alone.
+
+It is not a golfer's swing and cannot be: the camera stands about where the
+player's shins are, so a real backswing is out of frame a tenth of the way back
+and through the lens after that. The club turns about a point half way up its
+own shaft instead (`HANDS`), which lifts the head as it goes back, and how far
+a whole turn goes is read off the camera each frame (`backMax`) so the head
+never comes more than 0.3 of the way to it.
+
+The models are a left-hander's from behind the ball (hosel toward +z), so the
+rig is mirrored in z: the shaft leans left, toward the bag, and clear of the
+club chip.
+
+### Swing styles (the touch swing, and three in dev mode)
+
+**The touch swing is the game's swing** (the owner's call). The other three
+are kept, behind dev mode: `?dev=1` turns it on and `?dev=0` off, and the
+choice is remembered (`DEV_KEY`). Outside dev mode 🏌 Swing in ☰ opens the
+touch swing's settings and nothing else, and the swing school on the range
+(which teaches the meter) stays down. **A round struck with any other style
+is not recorded** (`state.devSwing`, `finishRound`) — a record is a claim
+about the swing everyone plays — and the card says so.
+
+In dev mode the four are picked from the same panel (`STYLE_KEY`), on every
+course or on the long game and the range only — the panel's **Courses**
+setting, which is for every style. Each style's arithmetic is in
 `swing.js` and each ends as a gate-shaped object handed to `strike`, so the
 push, the pull, the bend and the [shapes](#shot-shaping) are the same whichever
 way the ball was hit. game.js "swing styles" is the thumb and the pictures.
@@ -362,6 +459,17 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     is clean, past it the −1..1 over its `SPAN` (`swipeOff`), and a miss is
     costed at no less than its `FLOOR` of overdraw. Easy is the swipe as it
     first shipped (8°); normal forgives 3½°, hard under 2°.
+
+    The angle alone let a loop through: pull down one side, come up the
+    other, and the two ends of the swipe up still line up. So the line is
+    also charged for the **width** of the whole gesture (`swipeWide`,
+    `SWIPE.WIDE`): how far the pull and the swipe up spread across the line,
+    as a share of its length. A thumb's own arc, retraced, is about 0.17 and
+    `FREE` lets 0.22 go; past it up to `MAX` (half a full miss, kept mild on
+    the owner's word) over `SPAN`, the way the last quarter of the swipe up
+    was heading — a thumb finishing across the line to the left pulls it
+    left. A shape drawn on purpose has its own bow taken off the width
+    first, so a draw is not charged twice. The card says "Too wide a loop".
   - **Timing** (off / rhythm / snap, `swipeTimes`, `swipeTempo`): *rhythm*
     wants the swipe up at the pace of the pull down; *snap* wants it to take
     about `TIMING.snap.TARGET` (0.22 s) however far you pulled, so length and
@@ -375,11 +483,18 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     hook or slice. A shape picked on the ball wins over a drawn one, and a club
     that cannot bend does not.
 
-  After the shot a card under the top chips (`showSwingCard`) draws the swipe
-  small against a straight line and the lean that was forgiven, and says one
-  line per thing read — "13° right — pushed right", "snatched — 70 ms, too
-  quick", "draw — just the right bend", "71% of a full swing, 30% lost
-  quitting on it" — coloured by how it went (`swipeReport`).
+  After the shot a card under the topbar and the View row (`showSwingCard`,
+  `placeSwingCard`) draws the swipe small against a straight line and the lean
+  that was forgiven, gives the grade, and says one line per thing read —
+  "13° right — pushed right", "snatched — 70 ms, too quick", "draw — just the
+  right bend", "71% of a full swing, 30% lost quitting on it" — each with a
+  bar for how clean that part was (`swipeReport`'s `score`, 1 down to 0, off
+  the same −1…+1 the strike used) coloured by how it went. It has no plate:
+  it is drawn straight on the scene with a hard drop shadow, on the owner's
+  word that the dark slab did not fit — the swipe drawing in a dark casing
+  of its own, with a dot where the thumb struck, because that line is the
+  *why* and it went faint the moment the plate came off — and it moved up from over the
+  controls, where it covered the bag.
 - **Arcade.** The three-press swing every arcade golf game has had: a half-dial
   over the ball, Swing (or a tap on the dial, or space) to start the needle
   climbing, again to set the power, and the third press as it swings back to
@@ -397,9 +512,57 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   so the three new styles cost a miss at no less than their `FLOOR` of the
   overdraw — otherwise their accuracy would be decoration. A clean strike is
   untouched, exactly as the meter's.
+- **Past 100%, and on the green, a touch miss costs more** (`swipeMult`):
+  every consequence — push, pull, bend, the weight a lazy swing loses — is
+  multiplied by `1 + SWIPE.OVER_MULT ×` the meter's own overdraw (×1.75 at
+  the top — it was ×2.5, which the owner found a lot), and the tempo's clean band narrows there like the line's. A putt (a
+  club under 9° of loft) has a tighter line (`SWIPE.PUTT.TOL`), costs
+  `PUTT.MULT` more, and is the one stroke where a snatch runs *long*
+  (`PUTT.JAB`). The card names the multiple when it bit.
+- **Backspin by touch** (`swipeSpin`, game.js `onSwipeUp`): on the touch
+  swing backspin is not picked on the ball, it is swung — swipe up and let go
+  *before* the start line. Where you let go, as a share of the way back up,
+  is the spin: all of it at about three quarters (`SWIPE.SPIN_AT`, a dashed
+  gold "spin" tick in the lane, over the bottom of the pull rather than the
+  start, because the swipe up is read from there and a thumb drifts), less
+  either side, and under `MIN` no shot.
+  A swipe through the start is the plain strike it always was. A club with no
+  loft has no spin, so a putt let go early is still no shot. The swipe up is
+  timed as if it had gone the whole way, or every spin shot would read as
+  rushed. How much spin a strike *can* make, whichever way it was asked for
+  (the release or the backspin shape), is the club's loft times the meter's
+  fraction (`spinCap`, `CONFIG.SPIN`): a wedge at 130% checks back, over a
+  bite of 1, and a 7 iron at half a swing barely bites. (It replaced a snap
+  back down after the strike, which the owner found convoluted.)
+- **The driver is the tee club** (game.js `nextClub`, `offDeck`,
+  `CONFIG.DECK`). Once the ball comes to rest on a long hole with the driver
+  in hand, it is swapped for the club whose run best fits what is left
+  (`teeClub` measured from the ball, the driver left out) — unless the ball
+  is back on the tee after a penalty. Picked back up, it swings, but off the
+  deck the touch swing reads it as `DECK.OVER` into the overdraw: line and
+  tempo bands about a fifth narrower, the miss not multiplied. The card says
+  so on a "Lie" line.
+- **Rhythm also wants a sensible pace** (`TIMING.rhythm.PACE*`): an even swing
+  that is far too quick or far too slow used to read as clean. Now the swipe
+  up is also held to about a quarter of a second, a doubling either side
+  free, and the miss weighed at `PACE_W` — a little, not a lot. Rhythm is the
+  default timing now.
+- **A flushed full swing** (`CONFIG.FLUSH`, game.js `flushOf`): a lofted club
+  struck Perfect in any judged style, from 85% of a full swing up, leaves with
+  up to 4½% more pace. The cone does not preview it and the cards do not
+  count it — the courses are tuned on the clean ceiling, and a global boost
+  measured at +17% on a drive's total and broke fifteen long holes — so it is
+  only ever the prize for the strike.
+- **Easy strike** (the Swing panel's first row, `swing.js setAssist`,
+  `CONFIG.ASSIST`): every style forgiving at once — wider clean zones for the
+  gate, the arc and the needle, a slower marker, twice the swipe's lean and a
+  wider tempo band, half of every miss's cost, and none of the overdraw or
+  putting multiples. Off by default.
 
 Every strike, in any style, pops one word over the stage (`grade`: Perfect,
-Great, Good, Pulled/Pushed, Shanked, Whiff) and buzzes a phone that can
+Great, Good, then a few words for each kind of miss — Pulled, Drifted right,
+Fore left!, Banana ball, Chunked, Shanked, Air shot — that always say which
+side it went; the lists are `swing.js` `WORDS`) and buzzes a phone that can
 (`navigator.vibrate`). The meter itself got the same attention: a glint runs
 along the fill, the bar's rim and the white line light up when it is loaded to
 exactly a full swing, the gate's marker trails a tail you can read its speed
@@ -408,21 +571,20 @@ from, and the zone breathes while there is a strike to be had.
 ### Shot shaping
 
 The gate is what a swing does to the ball by accident; shaping is what you ask
-it to do. Each club lists the shapes it can play (`shapes` in the bag). The
-button above the meter is a little ball with a dot where the club will meet
-it; pressing it opens a bigger ball to move the dot on — the top tops it,
-underneath spins it back, either side bends it that way, the middle is
-straight — with the shapes the club cannot play greyed out (`SHAPE_INFO` in
-game.js). It replaced a chip that cycled through five words. Or a key each:
-<kbd>Z</kbd> draw, <kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd>
-topped, and the same key again for straight.
+it to do. Each club lists the shapes it can play (`shapes` in the bag). There
+is no picker for them: the ball-with-a-dot button above the meter, the bigger
+ball it opened ("Where do you hit it?") and the <kbd>Z</kbd> <kbd>X</kbd>
+<kbd>Q</kbd> <kbd>E</kbd> keys came out in v1.137.0 on the owner's request. On
+the touch swing a draw or a fade is the bow of the swipe and backspin is
+letting go at three quarters, so the shapes below are still played — swung,
+not picked. Topped is no longer reachable from the page.
 
 | shape | what it does | clubs |
 | --- | --- | --- |
-| draw | starts right of the aim, curves back left onto it, runs on | driver, 7 iron |
-| fade | the mirror, and lands with extra backspin (`SHAPE.FADE_BITE`) | driver, 7 iron |
-| backspin | the same flight, stops where it lands (`SHAPE.BACKSPIN`) | 7 iron, pitch, wedge |
-| topped | low (`SHAPE.TOPPED_LOFT` of the loft), under the branches, runs | driver, 7 iron, pitch |
+| draw | starts right of the aim, curves back left onto it, runs on | driver, the irons |
+| fade | the mirror, and lands with extra backspin (`SHAPE.FADE_BITE`) | driver, the irons |
+| backspin | the same flight, stops where it lands (`SHAPE.BACKSPIN`) | the irons, pitch, wedge |
+| topped | low (`SHAPE.TOPPED_LOFT` of the loft), under the branches, runs | driver, the irons, pitch |
 
 All of it is `swing.js` `shape`, and none of it is new to the simulation: the
 bends are the sidespin a mishit already got (`world.spin`), the stop is the
@@ -511,6 +673,24 @@ Four of those are recent and each replaced something that did not work:
   away — the course goes dark, the row does not, out of one plane and no second
   pass. The stylesheet keeps a vignette, which is all it was ever able to do
   honestly.
+- **…and with the post chain it is blurred instead** (postfx.js `backdrop`).
+  The owner wanted the course to stay see-through, and the spotlight's lit
+  pool on the turf read as bad lighting, so the pool is gone and the scrim is
+  now only the fallback for a device without the chain. Everything the bag
+  draws and every light it owns is on its own camera layer (`bag.LAYER`); with
+  the picker open the course is drawn alone, blurred at quarter size, laid back
+  over itself darkened (render.js `BACK_DIM`) as the bag opens, and then the
+  bag's layer is drawn sharp on top with the depth cleared. A light only counts
+  on a layer the camera is looking at, so the row is lit by the bag's studio,
+  spotlight and its own ambient (`AMB`) and nothing of the hole's weather — the
+  same clubs on every course under every sky. The bag's raycaster looks at the
+  same layer, or a tap would find nothing.
+- **On a touch screen the text row of clubs is not drawn.** It is the
+  keyboard's radiogroup and stays in the page for that and for screen readers,
+  but on a phone it sat right across the heads, a second copy of the cards.
+  Where it is drawn (a fine pointer), `measurePickerBand` lays the cards out
+  under it rather than under the stats line. The swing card and the aim
+  stand down while the picker is up too.
 - **The club in hand is marked with a colour rather than a brightness.** The
   mark used to be emissive on the club's own materials, and that cannot work
   across a bag: a driver crown is nearly black on purpose, and the light needed
@@ -674,7 +854,7 @@ shaft's width to the hosel's, as a real one does; see "Modelling the heads".)
 
 ### What a club's card says
 
-Each club carries its own card the whole time the row is open, so five clubs are
+Each club carries its own card the whole time the row is open, so the clubs are
 compared at a glance rather than one at a time. Two versions of that card are
 worth contrasting.
 
@@ -924,7 +1104,7 @@ say what it cost rather than how long it went on.
 
 ## The courses
 
-Eighteen, six holes each, filed under four groups — and the group is not a
+Fifteen, six holes each, filed under four groups — and the group is not a
 heading in the picker, it is a tab (see [The picker](#the-picker)). The four
 are not variations of one another: a mini golf hole is one swing and a putt, a
 crazy golf hole is a mechanism you have to time, an adventure hole is a floor
@@ -934,23 +1114,48 @@ approach.
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
-| Quarry Ridge | mini | `quarry` | Ramps, a road with a corner in it and a long way down off every edge. Height as a hazard. Two ramps to one shelf, a pillar with a stair down its side, and a cannon with a plank beside it. |
+| Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
-| Highland Steps | mini | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. A curved backboard, a slanted wall, a stair that climbs round a pool. |
-| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a lay-by off The Sweeper's floor. |
-| Pinball Parlour | crazy | `arcade` | A table, not a course: bumpers, a plunger chute and two banks set across the throat. The posts *are* the route — and on Bumper City, a dome-topped table, the shot is up a side lane and off a kicker at the pin. |
-| Clockwork Court | crazy | `clockwork` | Six mechanisms at six rates. Two bats that stop, a pendulum, three staggered cogs, a ratchet, and a finish with two lanes to pick between. |
-| The Millrace | crazy | `mill` | The same machines with the river underneath them. A mistimed shot is a stroke here rather than a bounce, so laying up is a real option for the first time on a timing course. |
-| The Belfry | crazy | `belfry` | Two machines on every hole, geared to each other: 2:1, 3:2, 1:4, and four shutters a quarter-beat apart. Counting bars rather than beats. |
+| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a back gate round Turnstile's fence. The third is The Carousel: four blades in a round room that carry a ball round and set it down by the pin. The fourth is The Line, a belt across the way that is crossed like a river, and the last is a chute, a lip and a carry over the mill race (v1.149.0). |
+| Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots that kick, ramps, flippers that fire and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
+| Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
-| Helter Skelter | adventure | `fairground` | Launch pads, travelators, pipes and a loop-the-loop. The floor decides; you only decide how hard. |
-| Cinder Cone | adventure | `volcano` | The same machinery pointed downhill. Belts that run back at you, vents that are the only way up, and two lava tubes — a narrow one at the pin and a wide one that leaves a putt. |
+| Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |
 | Ashdown Park | long | `parkland` | The long game, on a hillside: bluffs, a crest, a cross-fall into a lake, and two round greens. No fence — the park carries on past the stakes. |
 | Whinstone Links | long | `links` | No flat lies and no straight edges. The ground is the hazard, and on one hole it is a sandhill. |
 | Dunmore Heath | long | `heath` | The long game again, shaped rather than furnished: crests, hollows, a punchbowl, a whorl, one dry ravine and a hillside you climb — and moorland water, a burn, a tarn and a pond. |
-| Redstone Canyon | long | `canyon` | Ground that is missing, six ways. A canyon across the drive, down the side of the hole, flooded under a par three, biting a piece out of the fairway, twice, and at the end of a dogleg round a mesa. |
-| Coral Keys | long | `lagoon` | Islands in a lagoon and nothing between them. Every tee is a sea stack, every key is grass on a low dome of beach with palms on it and shallows round it, and every shot is a carry: a chain of keys, an atoll, two ways down a bay, one long carry. `isle` and `keyGreen` in courses.js; the shallows are `render.addShelf`. The dome is a sixteenth at its steepest — at a tenth, balls ran off the end of the long island in Two Ways Home and the bot could not get back to the green from there. |
+| Redstone Canyon | long | `canyon` | Ground that is missing, six ways, and since v1.130.0 really missing: every piece of the course stands on its own banded walls out of a canyon floor that is out of play. A wall across the drive, a ledge along the rim, a rim seven up over a mesa, a pinnacle tee, benches to climb, and a temple to go round. |
+| Coral Keys | long | `lagoon` | One big island a hole (two on the par five), with the sea let into it as a cove, a bay or the lagoon inside a crescent, and every hole a choice between the carry and the way round: a cove at the flag, a shelf of turf above the beach, a key in the crook of a crescent, a lagoon between two islands, a Cape-style slanting shore, and a clifftop green round a point. Tees stand on headlands 2.6 up. `island`, `cliff` (with `sheer` for a sea cliff, render.addPad) and `lay` in courses.js; bays are dips in the disc's outline (`wave.bays`, physics.padRadius); the shallows are `render.addShelf`. Built to `tools/human-check.mjs` rather than to the perfect bot, which had scored the first version (a string of small keys) ten under while people found it too hard. |
+| Alpenglow Pass | long | `alpine` | A mountainside: off granite crags, up a pasture to a shelf under a snow-capped cliff band, down a valley over the glacier stream twice, across a tarn under a waterfall, along a ridge with the drop down one side, and down to the chalet. Firs, a chairlift, cairns, and peaks round every hole. |
+
+### Fourteen courses, from eighteen (v1.122.0)
+
+There were eighteen until v1.122.0, and three sets of them were teaching the
+same lesson. Quarry Ridge and Highland Steps were both height — ground missing
+and ground in the way. Clockwork Court, The Belfry and The Millrace were all
+timing, and fourteen of their eighteen holes were a straight lane with one
+machine across it that the hole lab found no ace on, or only a fluke. Helter
+Skelter and Cinder Cone were built from the same four machines. Each set is one
+course now, made of its best six holes, judged by the rules in [`golf/README.md`
+→ "Designing a hole"](../golf/README.md#designing-a-hole) and measured with the
+hole lab: a hole stayed if it had a shape as well as an idea — a corner, a
+choice of doors, two roads — and went if it was a lane with an X in the middle,
+or a hole whose ace was the putt at the flag. The long game was left at five.
+
+| Course now | Kept | Gone |
+| --- | --- | --- |
+| Quarry Ridge | The Backboard, The Drop, Switchback, Over the Top, The Ledge, The Cannon | Step Up, Halfpipe, Stairway, The Gorge, Two Roads, Crown |
+| Clockwork Court | Pendulum, Three Against Two, Change Ringing, The Weir, Full Flow, Midnight | Escapement, The Gearbox, The Cogs, Ratchet, Headrace, Two Planks, The Undershot, The Tailrace, Half Time, Rounds, The Tenor, Full Circle |
+| Cinder Cone | The Springboard, The Cone (v1.150.0, where The Ash Slide stood), Through the Pipe, Loop the Loop, Blowhole, Caldera | Crosstown, Bounce Alley, The Gravitron, Fumarole, Lava Tube, The Scree |
+
+The merged courses keep the ids `quarry`, `clockwork` and `cinder`, so a
+record set there before is a record for a different six holes, the same as
+after any rebuild. `highland`, `millrace`, `belfry` and `skelter` are gone from
+the picker; their themes stay in `themes.js`, because the hole editor offers
+every theme to a hole of your own. The write-ups of the holes that went are
+left below where they explain something still in the code — The Belfry's
+Rounds is why the shutters' spacing rule exists — and are marked as gone.
 
 **Sea Legs**, the first hole anybody plays, is a bounce hole: one lane, one
 baffle reaching in from the east rail, and a rail across the far corner set at
@@ -989,8 +1194,8 @@ thirteen, and why The Bend lost two units off each leg.
 | --- | --- | --- | --- |
 | Sea Legs | the 45° bank | up the open side, then across | the mallet up the open side and off the angle |
 | The Bend | the slipway: the top leg falls about a twentieth towards the cup | into the corner, then down the slope | shave the inside corner onto the slipway (the putter will do it), or the mallet off the outside rail |
-| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate | through the gap, then past the gate when it has moved | at the flag: the inside edge of the gap, timed past the gate |
-| Low Tide | the bridge and the water | over the bridge, then putt | the mallet across the bridge all the way to the cup, or a pitch at the pin |
+| Harbour Gate | one bar of beach with the gap at the tee's end, and a slow gate; the pin is off the line of the gap | through the gap, then past the gate when it has moved | the mallet off the east rail beside the gap, back out through it and on to the pin while the gate is at its west end (v1.122.0; the putt at the flag used to drop, timed, and now dies in the sand) |
+| Low Tide | a bay with an inlet running up the far green to just short of the flag, which is round the head of it | over the bridge, then round the head of the inlet | the mallet into the bridge rail and back up the landing along the inlet's edge into the cup; a pitch at the flag lands in the inlet (v1.122.0 — it was a lane with a band of water across it) |
 | The Horseshoe | the return leg leans at the sea wall, and the cup is against it | round the long way, four putts, par | a pitch across the bay onto the cup's line, and the lean rolls it in |
 | The Jetty | the kink, no rails, and the far green leaning gently east to the pin | a putt along each plank, par | the mallet dead straight down the one line where all three planks overlap, and the lean takes it across to the pin — the longest shot on the card |
 
@@ -1000,7 +1205,11 @@ seconds, so it never shuts the hole and waiting for it costs nothing. It is a
 preview of the crazy courses rather than a test of timing. It replaced **The
 Zigzag**, two bars of beach with the gap at opposite ends, because no rolled ball
 could thread both bars in one. Bouncing a ball off two rails takes too much out
-of it to reach the cup. Its first bar is kept.
+of it to reach the cup. Its first bar is kept. Until v1.122.0 its ace was the putt
+at the flag timed past the gate, which is a weight and a moment and never a line;
+the pin is a little west of the gap's line now, so that putt dies in the sand,
+and the ace is a bank off the east rail beside the gap. The suite holds it to the
+straight-putt rule at twelve moments of the gate (`CLOCKED`).
 
 **The Bend**'s slipway is the first ground on the course that is *for*
 something. It carries a ball that gets round the corner at any pace down to the
@@ -1019,12 +1228,22 @@ that leg gathers where the pin is. The lean has to run *along* x rather than acr
 it, because the return leg shares its whole western edge with the top of the
 horseshoe and two pads only meet without a step where the tilt runs along the
 seam. **The Jetty** is a plank over the shallows with a kink in the middle, and
-**The Ledge** is the same idea in a quarry: two metres of road with a corner in
-it, every edge a brink except the outside of the bend, which keeps its wall
-because a corner with nothing on the outside of it is a corner nobody can hold.
+**The Ledge** was the same idea in a quarry — two metres of road with two
+right angles in it, every edge a brink but the outside of the first corner —
+and the hole lab found no ace on it at all. Since v1.126.0 it is a `road`: a
+straight up the hole and a quarter-turn round to the left with no corner
+anywhere along it, the turn banked on the outside like a velodrome with a bare
+lip over the quarry pool, a kerb along the whole inside, and the green on a
+pillar of its own hanging off the end of the bend, a brink all round. The
+weight is the shot, and the three weights do three things: soft (anything the
+putter has) climbs the bank, comes back down into the gutter and leaves a putt;
+the mallet at about three fifths rides the bank round and is turned on to the
+pin; too firm is quicker than the bank can turn and goes straight on over the
+lip. The putt at the flag is across the crook of the bend, over the pool.
 
 The rest of Quarry was three straight lanes with one thing in the middle, and
-v1.82.0 gave each a second way. **Step Up** has two ramps to one shelf — a long
+v1.82.0 gave each a second way. (Step Up and Halfpipe went in v1.122.0, when
+Quarry and Highland became one course.) **Step Up** has two ramps to one shelf — a long
 gentle one on the left, a short steep one on the right that only a firm hit
 gets over — and a pool between them at the foot of the face, which is where
 the line at the flag goes. **The Drop** keeps the drop off the front of the
@@ -1045,12 +1264,19 @@ Tidewater and Highland are why the bag has more than two clubs. Every hole on
 Tidewater is built round the one thing a chip can do that a putt cannot —
 leave the ground — and each asks for it differently, with a safe target and a
 short one: **Stepping Stones** is two carries, by a big stone out east or a
-little one on the line; **Short Side** tucks the pin behind sand on the near
-right with the fat of the green open on the left; **The Letterbox** is four
-walls and no door at the end of a lane that turns, so you walk it round and
-chip in or post it from the tee over the bay; **Tabletop** puts the green a
+little one on the line — or, since v1.122.0, one full carry to the near end of a
+green lying across the bay, with its back rail bringing the ball to the pin;
+**Short Side** tucks the pin behind sand on the near right with the fat of the
+green open on the left, and the whole green leans a fortieth towards it, so a
+chip landed just left of the sand is carried round behind it while a chip at
+the flag lands in the bunker against a timber face (v1.122.0); **The Letterbox** puts the
+pin indoors, in a boathouse across the bay with two ways in — post it through
+the slot in the front from the tee, where a miss is in the water, or land on the
+jetty and putt in by the front door, which costs a stroke; **Tabletop** puts the green a
 metre up, off to the right of an apron that runs under it, with every edge a
-brink; **The Reach** goes out to a rock off to the right and back across the
+brink — since v1.122.0 a long shallow table with a timber backboard, the pin at
+its far end just past where a chip on the flag's line can reach the top, so the
+ace is a carry to the near end and off the board; **The Reach** goes out to a rock off to the right and back across the
 water into a crater that gathers whatever lands in it. And then
 **Under the Boardwalk**, which is the joke at the course's expense: a bar too
 tall to fly across the top of a dogleg, standing high enough off the ground
@@ -1058,7 +1284,9 @@ that a putt runs under it. The club that has answered every other hole is
 suddenly the wrong one; pitch the corner, land it short of the bar and let it
 run.
 
-Highland turns the same screw with ground instead of water. **Stairway** is
+Highland turned the same screw with ground instead of water; The Backboard
+and Over the Top are on Quarry Ridge now, and the other four went in v1.122.0.
+**Stairway** is
 four flights with no ramp that climb round a pool — east, north, west — with
 the pin on the top landing right over the tee: a chip per riser, a corner cut,
 or one lob up two steps at once. **Over the Top** is a wall nothing goes round
@@ -1067,12 +1295,31 @@ near end by the pin is short and over the far end is safe. **Crown** runs a
 ramp up to a shoulder that stops short of the summit, and the last step up is
 yours to fly. The other three keep a flat answer on purpose, because a course
 where every shot is the same shot is not varied, it is uniform: **The
-Backboard** bricks up the front door and puts a curved bank — a `channel` half
-round the back of the cup — that hands a ball sent past either end of the wall
-back towards the pin; **Two Roads** is a long low road up the west under a beam
+Backboard** bricks up the front door and puts a curved bank round the back of
+the cup that hands a ball sent past the end of the wall back to the pin (rebuilt
+in v1.127.0, below); **Two Roads** is a long low road up the west under a beam
 or a high shelf up the east you chip onto, with a burn between them; and **The
 Gorge** is narrow on the left and wide on the right, under the pin, so you can
 carry the narrow side and putt across or fly the whole width at the flag.
+
+**The Backboard** (Quarry Ridge's first hole) was rebuilt in v1.127.0 on the
+owner's "a good concept that is lacking in execution", and with nothing square
+left in it. It is one rounded table rather than a tee box butted into a green,
+so there is no join to have a corner in: the near corners are rounded and the
+far end is a half circle. The door is a crescent of brick round the front of
+the cup, finished round at both ends, which closes every putt at the flag. The
+backboard is the half circle: the green rises from a unit and a half out from
+the cup to six tenths at the edge on a ring centred on the cup, so whatever
+slows to a stop on it rolls back down at the pin, and a stone board stands
+round its far side. From the north-east round to the east there is no board and
+down the whole east side no rail — the quarry edge. So the near end of the door
+is the bold way, up the edge side and firm enough to climb the bank, and too
+firm goes over the lip for a stroke; the far end is the safe way, round the
+walled side and soft, where the bank stops short and leaves a putt back round
+the door. The bank used to run the whole half circle, and the far end was a
+free ace off the west rail. Full sweep: 0.075% in three thin windows before,
+0.350% (tutorial) after, the widest window one weight for every line from
+straight up the table at 88% of the mallet to twenty-six degrees out at half.
 
 Until v1.82.0 fourteen of those eighteen holes were a lane pointed straight at
 the flag with one thing across it, three of Tidewater's were seven units long
@@ -1084,19 +1331,50 @@ Which holes are which is not a matter of taste in the tests: the ones that must
 be flown carry `needsLoft: true` and are replayed by the bot with the lofted
 clubs taken away (see [Tests](#tests)).
 
-The five crazy courses each own one mechanism and the difference between them
-is what the mechanism is *for*. Windmill Works asks you to find the gap;
+The crazy courses each own one mechanism and the difference between them
+is what the mechanism is *for*. (There were five until v1.122.0. The Millrace
+and The Belfry below are holes on Clockwork Court now — Three Against Two,
+Change Ringing, The Weir and Full Flow — and the rest of their holes, Two
+Planks, The Undershot and Rounds among them, are gone.) Windmill Works asks you to find the gap;
 Clockwork Court asks you to find the moment. Pinball Parlour asks for neither —
 the obstacles there are not between you and the cup, they *are* the route, which
-is why it is the one course built out of things that do not move. **The
-Slingshots** is the clearest case: two rails set across the table at thirty-five
-degrees with a post in the throat between them, so there are four ways past and
-not one of them is straight. A window either side of the post with half a metre
-of aim each and a bank right there to throw a near miss across the table, or
-round the outside, which is wider and twice as long and lands you in the pair of
-posts guarding the pin. **The Flippers** uses the same furniture the other way
-up: a V that funnels everything into a window a metre wide, with the two bats on
-the far side of it.
+is why it is the one course built out of things that give the ball pace rather
+than only taking it away. **The Slingshots** is the clearest case since v1.134.0:
+the pin is beside the tee behind a wall up the middle of the table, and the way
+to it is away from it — a firm putt up into a slingshot at the far end, which
+fires it back round the end of the wall and down to the pin. **The Flippers**
+has two bats that fire, hung down the rails; roll past one as it comes up and it
+sends you up the table, off the far rail and in.
+
+**Slingshots and firing bats** (v1.134.0) are the two pieces that made those
+holes. `slingshot(a, b, c)` is a triangle of rubber, `a`–`b` the face with a
+kicker behind it: met at more than `CONFIG.SLING.trip` it fires the ball back
+off its face at `kick` or `give` of what it brought, whichever is more
+(physics.collideWalls) — the pop bumper's rule along a line — and rolled along,
+it is a rail. Its other two sides are plain rubber so nothing gets in behind the
+face, and the renderer and minimap draw the three as one piece off the face's
+`tri`. A flipper with `snap` (physics.snapAt) moves the way a real one does: at
+rest most of its beat, up through its arc in a tenth of it at a constant rate,
+held, and eased back down. Off a sine a bat pushed a ball at whatever pace it
+happened to be turning at, which was never much; off a snap, the tip on the way
+up is moving faster than a full putt, and the ball leaves with that. A ball that
+stops anywhere a firing bat sweeps is not at rest (`physics.inSweep`): it waits
+to be flipped, rather than lying in the bat's path to be swept through.
+
+**The posts went round in v1.126.0**, and three of every four started firing.
+`bumper` is a pop bumper now (`physics.popBumper`): a circle rather than a box,
+that hands the ball back at `CONFIG.BUMPER.give` of the speed it arrived with or
+at `kick`, whichever is more — so a ball that reaches one at all leaves it at a
+pace of its own, and it lights and rings as it does (`render.bumped`,
+`audio.pop`). `post` is the same circle with no coil, a rubber ring that gives
+back a rail's share, and it is what stands in front of the bumpers: a kick on
+the line from the tee made every glancing putt an ace at any weight. The course
+runs in order of what it adds — Plunger Lane (bumpers), The Slingshots
+(kickers), Bumper City (bumpers that fire, and a bank shot into a block of
+them), Two Ramps (height), The Flippers (bats that fire) and Jackpot (a pipe, a
+vault and all of it) — and every table stands in a room of its own: cabinets, claw machines,
+jukeboxes, fruit machines, a skyline behind Bumper City, and the hole's name in
+neon over the far end (`courses.arcadeRoom`).
 
 The Millrace asks a fourth question, and it is not about the machine at all —
 it is about the price of getting it wrong. Every obstacle on the other three
@@ -1158,10 +1436,10 @@ when it would have no size, so one function writes all of these:
 
 The window is the only obstacle in the game a rolling ball cannot pass and a
 lofted one can — the exact inverse of `beam`, which is the only one the other
-way round. **Jackpot** puts a doorway and a window in the same wall so the two
-routes are two different shots to the same place, and adds a pipe mouth behind
-the left-hand post so the luckiest line on the hole is a bad one, which is also
-true of pinball.
+way round. **Jackpot** put a doorway and a window in the same wall until
+v1.126.0, when it became a curved vault round the pin, open at the back, with a
+pipe mouth low on the left that comes out over the pin from the top of the dome
+— a hole in the table, which is the most pinball thing there is.
 
 A doorway always gets a lintel, and that is not decoration. Without one it is
 two blocks with a gap between them — which is what the older holes wrote by
@@ -1181,7 +1459,7 @@ like this and play like a wall.
 
 Both are authored the way everything else in `courses.js` is —
 `aperture(x, z, w, d, { gap, at, sill, head })`, `flipper(cx, cz, len, { rest,
-arc, speed })` — and the one number to watch is `gap` against the jambs, since
+arc, speed, hinge, snap })` — and the one number to watch is `gap` against the jambs, since
 a wall may not be thinner than 0.24 anywhere.
 
 `flipper()` is a nicer way to say it, not the only way: `wall()` takes `swing`
@@ -1223,7 +1501,7 @@ trouble as well as more of it: an angle that does the turning for you, ground
 that does it, a thing that moves, a hazard that costs you a stroke, a hole that
 is not aimed at the flag, and a hole with nothing to bounce off at all.
 
-The same climb runs across a group. The four mini courses are in order of how
+The same climb runs across a group. The three mini courses are in order of how
 much they ask for and so are the crazy, the adventure and the long ones, which
 is what `G3.COURSES` is ordered by and what `nextCourseId` hands you at the end
 of a round.
@@ -1232,8 +1510,8 @@ Because the order carries meaning, moving a hole is a change to the course and
 not a tidy-up. Nothing else depends on it — a hole's ground is seeded from its
 own *name* (`nameSeed`), so reordering a card cannot reshape a single hump.
 
-**A hole is not the hole beside it.** A hundred and eight holes on one list is a
-hundred and eight chances to write the same corridor again, and the escape is the plan
+**A hole is not the hole beside it.** Ninety holes on one list is
+ninety chances to write the same corridor again, and the escape is the plan
 rather than the furniture. Before the pass that broke this up, forty-eight of
 the sixty holes then on the card were a rectangle running north with the tee at
 one end and the cup at the other, and the only thing that made one different
@@ -1270,7 +1548,7 @@ between them a tutorial hole runs 0.3–0.9%, a skill hole 0.1–0.3% and a clos
 **A putt struck straight at the flag never drops.** A hole whose ace is the line
 at the pin asks how hard and never where. `tests.html` holds every drawn hole
 with no clock on it to that — at every weight, half a degree either side — and
-the two timing holes rebuilt to it as well (`CLOCKED`): a clock makes the check
+the timing holes rebuilt to it as well (`CLOCKED`): a clock makes the check
 twelve times dearer, since it is played at twelve moments of the slowest beat,
 so the other clocked holes are left to the tool. A putt is any club under nine
 degrees, the suite's `LOFTED` line; a lofted club at the flag is reported apart,
@@ -1288,7 +1566,9 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   whatever pace a ball brings, it leaves at the belt's — and the grass at the
   end took that pace off at one spot, which was where the pin was. 0.32% now.
 - **Caldera's only ace was the shot the hole says not to play**, the vent flown
-  straight across the crater. It has none now, which is fair for a par 4.
+  straight across the crater. It had none after this, and in v1.126.0 the
+  block came out again, the pin moved out of reach of the vent and the tube
+  became the ace (0.208%, skill; see [Cinder Cone](#cinder-cone)).
 - **Three fixes did all twelve.** A block on the line, where a wall gives the
   bold line its bank (the ice store, the ash, the crater). A lean, with the pin
   moved off the line, where the obstacle is a door or a plank the bold line has
@@ -1309,11 +1589,18 @@ What the first sweep found (v1.105.0), over the seventy-eight drawn holes:
   goes through the pad, because that is where its fan of shots starts — move
   the pad off the line and the suite's proof breaks before the straight putt
   does. The Springboard got round it with a wider lane and the kicker; Bounce
-  Alley, The Gravitron, Fumarole, Blowhole and Apogee did not, and they are the
-  open half of the list.
-- **A rock may not stand on a green** (tests.html, "nothing grows or stands out
-  of a bunker or a green"), and every drawn hole is green, so the blocks on the
-  line are walls.
+  Alley, The Gravitron, Fumarole and Apogee did not, and they were the open half
+  of the list (the first three went with their courses in v1.122.0; Apogee was
+  rebuilt in v1.146.0 with the pad off the line and a gravity well to bend the
+  flight, and the bot finds it). Blowhole was rebuilt round a hollow instead (see
+  [Cinder Cone](#cinder-cone)): the sides of the hollow bend the line on the
+  way to the vent, so the putt at the flag lands wide and the ace is aimed off
+  it.
+- **A rock may not stand on a green** was the suite's rule then, and every
+  drawn hole is green, so the blocks on the line were boxes. Since v1.147.0 the
+  rule is the long game's only (a tree from a `treeline` on a green somebody
+  else inlaid is a mistake; a stone put on a drawn hole's line is furniture),
+  so a new block can be a `crag`, a `tree` or a `meteor`.
 
 The twelve, before and after, from the coarse sweep (`--coarse`, 1° and 25
 weights) so both columns are the same measure:
@@ -1332,6 +1619,45 @@ weights) so both columns are the same measure:
 | The Mill | 0.072% closer | drops | 0.119% skill | never | 1 → 2 |
 | Plunger Lane | 0.267% skill | drops | 0.111% skill | never | 1 → 2 |
 | Pendulum | 0.144% skill | drops | 0.225% skill | never | 1 → 1 |
+
+### Where the ball finishes
+
+The lab measures a hole with its pin in. `tools/rest-map.mjs` is the question
+before that one — the same sweep with the cup parked on the tee, printed as a
+grid of where every shot came to rest:
+
+```sh
+node golf3d/tools/rest-map.mjs cinder --hole 3 --club mallet
+```
+
+A pin goes where two or three shots in a thousand finish, off the line from
+the tee. Thirty is a giveaway and none is a hole with no ace however it is
+dressed. It is how Apogee Yard was rebuilt (v1.146.0) and how three more holes
+got an ace by moving a pin or leaning a green (v1.147.0), and what it showed
+most often is one thing:
+
+**A machine that sets the ball's pace, or its place, makes the ace all or
+nothing.** A belt, a ramp at two g, a pipe and a carousel all hand the ball
+back at their own pace whatever it arrived with; a bowl brings everything to
+its middle. Every shot that reaches one finishes on the same cell, so a pin
+on that cell is holed by all of them and a pin a ball's width off it by none
+— The Carousel's pin is holed by 0.31% of the sweep where it is, by 1% a
+third of a unit nearer and by nothing a third further. Three answers, each
+used once:
+
+- **Make getting on the hard part.** The machine is the reward; the shot is
+  the door in front of it (The Carousel, Dead Weight's plank).
+- **Move the pin off the focus**, so only the shots that arrive unusually
+  reach it (The Crater: nine tenths from the middle of the bowl).
+- **Lean the ground past it.** On a fall the pace a ball has left is how far
+  across it curls, which turns a governor's fixed line back into a weight
+  (Through the Pipe's far green, Deadlift's top step).
+
+| Hole | Before | After | What changed |
+| --- | --- | --- | --- |
+| The Carousel (`works` 3, was Through the Wall) | none | 0.31% tutorial | rebuilt: four blades in a round-backed room carry the ball round and let it go by the pin |
+| Three Against Two (`clockwork` 2) | 0.006% fluke, the putt at the flag | 0.33% tutorial, never | the pin from the far end of the arm to just round the corner, short of the second bell's reach |
+| Through the Pipe (`cinder` 3) | none | 0.66% tutorial | the far green leans east and the pin is across the fall |
 
 ### Adventure golf
 
@@ -1352,7 +1678,7 @@ next.
 | **Ice** | A surface, like sand or wood: `kind: 'ice'` | `CONFIG.FRICTION` / `CONFIG.HOLD` | Keeps 72% of its speed per second where a green keeps 30% — a full putter runs 32 units instead of 9. Holds a stopped ball on a gradient of two thirds of a degree, so any fall at all is a one-way street. |
 | **Travelator** | An acceleration on a pad: `pad.push = { x, z }` | `physics.substep`, grounded branch | Drag balances it at `|push| / -ln(friction)`, so a belt has a *speed* rather than a shove, and a ball put down against the run of it is turned round instead of stopped. |
 | **Launch pad** | An upward speed given to anything that touches it: `pad.spring` | landing and rolling, both | `sqrt(2·GRAVITY·h)` reaches height h — 8.5 clears two units, 10.4 clears three. |
-| **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. |
+| **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` / `rideWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. The trip takes `warpLength()`, about 1.2 s, and changes nothing else — see [The wormhole](#the-wormhole). |
 | **Loop** | A track the ball rides round the inside of: `hole.loops = [{ x, z, yaw, R, shift }]`, `loop()` in courses.js | `physics.takeLoop` / `rideLoop` | About √(5gR) at the foot to make the top, and the boards take more — a 1.1 loop wants about 14, a firm mallet. Under that it comes off the top or rolls back out. See [The loop](#the-loop). |
 | **Gravity** | One number on the hole: `hole.gravity` | `physics.gravityOf` | Carry goes as 1/g and so does apex, so two fifths of a g is two and a half times both. The gradient a surface holds a ball on does not move at all. |
 
@@ -1393,6 +1719,73 @@ without a single wall. The exit direction belongs to the pipe rather than to
 the ball, because a pipe has a mouth and coming out of one pointing wherever
 you happened to enter would make the far end unaimable — which is the one thing
 the far end has to be.
+
+#### The wormhole
+
+For a hundred releases a pipe was a teleport, and it looked like one: a ball
+blinking out of the mouth and rolling out of the far end on the same step. The
+owner asked for a black hole that swallows it and another that opens in the sky
+and lets it out (v1.129.0), and that is now what it is — without moving a
+single number any hole was built on.
+
+**The trip is a ride, the way a loop is** (`world.warping`, physics.js "the
+wormhole"). While it is set the step is the ride and nothing else — no ground,
+no walls, no cup — and the ball is carried along a path that is a pure function
+of the time since it went in (`warpPoint`): a spiral into the middle of the
+mouth, sinking (`WARP_SWALLOW`); nowhere, while a portal opens `WARP_UP` above
+the exit and back along its heading (`WARP_DARK`); then a fall out of it that
+leaves the portal still and reaches the ground at the pace the ball will roll
+on with (`WARP_DROP`). **And it ends exactly where the teleport did**: on the
+ground at `(tx, tz)`, at the speed it went in, along the pipe's `yaw`, with no
+vertical speed, then `WARP_LOCK`. `tests.html` holds all five to the bit, with a
+wall standing across the drop that nothing is allowed to touch.
+
+So the one thing a pipe now costs is about 1.2 seconds of the clock, and the
+one place that could matter is a hole with something moving past the exit — the
+ball arrives into a later phase of it. None of the three pipe holes has one. The
+roll after the exit is sliced into steps differently from before (the step that
+lands it is not the step the teleport used), which is the frame-rate wobble any
+roll has. On the hole lab it moves a shot or two at the edge of a window and
+nothing else — the same windows, the same widest, the same card:
+
+| Hole | Ace share before | After | Caddie |
+| --- | --- | --- | --- |
+| Through the Pipe | 0.000% | 0.000% | 2 → 2 |
+| Caldera | 0.208% skill, 5 windows | 0.206% skill, 5 windows | 1 → 1 |
+| Jackpot | 0.433% tutorial, 13 windows | 0.436% tutorial, 13 windows | 1 → 1 |
+
+**The black holes are one shader** (shaders.js `BLACKHOLE_*`), ported from the
+one the owner liked in Cargo Lander: an event horizon that is properly black
+with a photon ring round it, an accretion disc of noise sampled round a circle
+(so it has no seam) in a frame that turns faster towards the middle and is
+wound by the log of the radius (so the streaks are spiral arms), and rings
+feeding in — Cargo Lander's "shrinking circles". It lies flat in the floor for a
+mouth, its bright band on the mouth's own rim and its disc darkening the ground
+three quarters of a radius past it, and it flares while it eats; it faces the
+camera for the portal, which grows from a point through the dark and closes
+after the landing. The bending of what is *behind* a black hole is not in the
+shader, because a shader cannot see behind itself: postfx.js's composite does
+it (`lens`, fed by render.js `lensList`), round the portal and a well's core —
+not round a mouth, where a round lens over a disc seen at a slant looked like a
+fault.
+
+The renderer draws the ball where the ride says, shrinking into the mouth and
+growing out of the portal (`warpScale`); the trail stops at the mouth and starts
+again at the portal rather than drawing a line across the hole; the map hides
+the ball while it is nowhere; and the camera cuts, in the dark, to a seat that
+holds the portal and the landing both (`watchWarp`), the side it was already on
+first and the first with a clear line to both. The replay carries the ride on
+its tape and asks it where the ball is, so an ace through a pipe replays
+through the portal too.
+
+**A gravity well is the same black hole** (`addWells`): the disc on the ground
+reaching out to where the pull falls to a tenth of the hole's gravity
+(`wellReach`) so it says how far the bend goes — its feeding rings hold their
+light out to that edge and a faint violet line is drawn on it (`rim`), because
+from the tee the outer half of a plain disc was too faint to read — a horizon the size of the core
+that eats the ball, a black sphere standing in it that the near half of the disc
+passes in front of, and the glow and the lens round that. It replaced a black
+ball and two flat rings (the owner on Orbit: "very ugly").
 
 And one that is about drawing rather than physics: **the ground under
 machinery is kept flat**, the same way it is under the tee and the cup
@@ -1476,16 +1869,25 @@ Three things about them were each wrong once and are worth writing down:
 - **A decal has to clear the grass.** A green wears a stack of shells a little
   over a tenth of a unit tall, so a ring painted five centimetres up is a ring
   inside a lawn — the near rim shows and the far rim is behind the blades. A
-  pipe mouth came out as a black hole with a pink smile under it.
+  pipe mouth came out as a black hole with a pink smile under it. A launch pad
+  had the same fault one level down for most of its life: the pad is a wooden
+  inlay with no grass of its own, but the green it is laid into grew a flat
+  sheet of blades straight over it, so on every hole with one the face was
+  buried and only the torus rim showed — a thin ring on the grass ("the
+  bouncing pads are not showing", on Deadlift). A flat pad's mat is now
+  punched round any bare inlay in it (`render.bareInlays`), as a landform's
+  always was.
 - **And it has to clear `INLAY_LIFT`, not equal it.** A launch pad is an inlay
   and an inlay is already lifted by that much; a ring at the same height as the
   disc it sits on comes out as a band of speckle.
 - **A flat ring is only visible from one side of itself.** Even clear of
   both, a decal round a dark hole reads from the near edge and vanishes at the
-  far one. The rims on the mouth and the launch pad are real geometry — a torus
-  standing a third of `STEP_UP` proud, which is well inside a kerb the ball
-  would climb anyway, and not solid: nothing on the course is a wall unless it
-  is in `walls`.
+  far one. The rim on the launch pad is real geometry — a torus standing a
+  third of `STEP_UP` proud, which is well inside a kerb the ball would climb
+  anyway, and not solid: nothing on the course is a wall unless it is in
+  `walls`. The pipe mouth had one too until it became a black hole (see [The
+  wormhole](#the-wormhole)): a disc that is lit, and lifted clear of the shells,
+  has no far side to lose.
 
 #### Icehouse Yard
 
@@ -1496,16 +1898,18 @@ sand, or somewhere it never arrives.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | Cold Store | 3 | Twenty units of bare ice and a patch of grass at the end. Half a swing is too much — and a stack of ice blocks on the line, so the ace is one cushion off a wall. |
+| 1 | Cold Store | 3 | The pin is on a mat beside the tee, behind the racking down the middle of the store. Putt away from it: up the ice, round the banked end and back down the other aisle — thirty units for a gap of four, which only ice can do. Short stops on the ice; the mat is where it has to die, and past it is the open door. |
 | 2 | The Salt Line | 3 | A bar of grit across the sheet with one gap in it. Sand keeps four thousandths of the ball's speed. |
 | 3 | The Draught | 3 | The sheet falls east and ice holds nothing, so the gutter of ordinary grass at the bottom of it is the hole. A pillar stands where the putt at the flag crosses the sheet. |
 | 4 | The Sluice | 3 | A belt across the corner and grit on the far side of it. The belt is a governor — whatever pace a ball brings, it leaves at the belt's — so the pin is past the spot where that pace dies, and the line up the west side has to bring some of its own. |
 | 5 | Glass Table | 3 | An iced green half a unit up. Nothing to run up, nothing to stop on, and one club in the bag that arrives and stays. |
-| 6 | The Cold Room | 3 | A bobsleigh run: an ice hall that keeps every bit of a firm mallet's pace, into a loop (the game's second, and the first not at a fair), and out on to the only grass in the building. Short of the pace the loop wants and the ice hands the ball all the way back down the hall; the belt lane up the side, against the run, is the way without the nerve. |
+| 6 | The Cold Room | 3 | The finale, and both questions at once. The green is a dais across the room with a sheer face to the tee and one way up it on the ground, an ice ramp on the left: a putt up it has one place to stop, the top, and short comes back to your feet while long goes over the back into the grit. The bold line is the mallet in off the left wall and up the ramp at an angle; the Checker flies the face and sits down, which is the safe two. |
 
 #### Helter Skelter
 
-The second of the three, and the other half of the idea: the floor is as grippy as a green has always been
+Gone since v1.122.0: The Springboard, Through the Pipe and Loop the Loop are on
+Cinder Cone now, and Crosstown, Bounce Alley and The Gravitron went with the
+course. What it was, for the record — the other half of the idea: the floor is as grippy as a green has always been
 and has machinery in it instead. **The Springboard** is the introduction and it
 is deliberately blunt — a wall too tall to fly, and a bag with nothing in it
 that flies. The pad is over on the west side and the pin on the east, with a
@@ -1541,18 +1945,32 @@ only things on the course that move a ball sideways at all.
 | 2 | Fumarole | 3 | The vent is the lift, and the shelf it throws you on to is open at both ends. Short and long cost the same thing: the lawn runs on underneath, so a miss is played again from the grass. |
 | 3 | Lava Tube | 3 | Eleven units of crater lake — more than anything in the bag carries — and two mouths in the ash in front of it. Both cross: the narrow one comes out at the pin, the wide one in the far corner with a putt to play. |
 | 4 | The Scree | 4 | A shelf with the drop down one side of it and two bands of scree that push south *and* east at once. On Crosstown a belt across the hole costs you the line; here it costs you the ball. |
-| 5 | Blowhole | 3 | Three vents, none of them a lift. A launch pad is the one obstacle in the game that neither stops the ball nor turns it — it hands the ball back travelling exactly as it was, a second later and somewhere else. |
-| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground, and no ace: the tube points at the pin across the floor, and a block in front of the pin stops the flight from the lawn that used to be one. |
+| 5 | Blowhole | 3 | A hollow in the lawn with the vent at the bottom and the green on a shelf above it. Everything rolled in is gathered on to the vent and thrown up, and the pace you came in with is how far up the shelf it lands — off the back if you came in hot. The sides bend the line, so the ace is a firm mallet in down the right of the hollow, with nothing beside the pin or behind it; a gentle putt down the middle is the safe two. |
+| 6 | Caldera | 4 | The whole course in one hole: the vent to get up, the belt along the rim to be carried along, and the tube to get in. The crater has no way into it along the ground. The lawn ends in a half circle round the vent, and the pin is in the far half of a wide crater floor, out of reach of any line through the vent, so the flight from the lawn leaves a putt across. The ace is the tube: land at the start of the belt, ride all of it, and the tube puts you in. |
 
 **Caldera is the hole the belt's own physics wrote.** A travelator has a speed
 of its own that a ball approaches from either side, so it does not matter how
 hard the shot on to the rim is hit: everything arrives at the mouth at about the
 same pace and comes out of the far end at that pace, which is a putt's worth
 across the crater floor. The machine spends the shot for you and the only thing
-you own is getting on to it. The bot, handed the hole cold, used to hole it in
-one by rolling a putter into the vent and flying the whole crater, which is
-what the block on the floor is for: that flight lands short of it now and
-leaves a putt, the same as the tube does.
+you own is getting on to it — and, nearly, where: twelve units of belt is not
+quite enough to reach the belt's own pace, so a ball that lands at the start of
+it and rides all of it comes out of the tube a little quicker, and the tube
+points at the pin from just far enough that only those reach it. That is the
+ace, about 0.2% of the sweep, all of it through the tube.
+
+It was rebuilt in v1.126.0, when the owner found the caddie stuck on it and the
+block in front of the pin "a stupid box". The vent was the cause of both. It
+stood on the line from the tee to the pin, so the putt at the flag went through
+it and flew the crater at the pin, and the block was there to stop that until
+the stronger mallet flew the block. And the lawn ran on past the vent to an open
+shore, so a ball that came off the vent soft stopped on a strip with the lake in
+front and the vent behind. Getting out of there takes two shots, back and then
+over the vent again, and a one-shot search shuffled along the lip until it ran
+out of strokes. Now the lawn ends in a half circle round the vent, railed all
+the way, so there is no grass past it. The block is gone, and the pin has moved
+to the far half of a wider crater floor, out of reach of any line through the
+vent: the flight from the lawn comes down in the near half and leaves a putt.
 
 #### Apogee Yard
 
@@ -1582,12 +2000,45 @@ carry ratio and the fact the slope does not budge.
 
 | # | Hole | g | Par | What it asks |
 | --- | --- | --- | --- | --- |
-| 1 | Hang Time | 0.5 | 3 | Fourteen units of nothing between two slabs, which is more than anything in the bag carries at home. One number, said out loud, with nothing else on the hole. |
-| 2 | Dead Weight | 2 | 3 | The inversion. Eight units of gap that nothing can fly at any power, and a plank off to the east that is not the safe route but the only one. |
-| 3 | The Crater | 0.45 | 3 | Light again, and the target is the hole: a round crater green on an island, the rail along its crest, because at this weight nothing stops on flat ground and the rim is the only thing that will. |
-| 4 | Deadlift | 2.4 | 3 | The heaviest hole on the card, and the only one with a motor in it. Two steps of one point two, no ramps, and pads at Helter Skelter's own ratings lifting something twice as heavy — each against its riser, with a funnel of two banks in front of the step to put a rolled ball on it. Played with the mini bag. |
-| 5 | Orbit | 0.5 | 3 | A gravity well in the middle of the yard (`wells`) and the cup round the back of it: swing past close enough that it bends the ball in, not so close that it keeps it. Replaced The Mouth, a pipe hole with one answer. |
-| 6 | Apogee | 0.3 | 3 | The pad throws the ball nine and a half units up and holds it there for the best part of four seconds. Two thirds of a putter is the shot; a full one is forty units and gone. |
+| 1 | Hang Time | 0.5 | 3 | Three round stones in the dust: the tee, a big one half left, and the green — further than anything carries at home, with a rim that gathers a carry landed inside it. Go for it or step across. |
+| 2 | Dead Weight | 2 | 3 | Nothing flies, so the plank is the road, and the plank is a ramp: a heavy ball runs away down it and arrives at the same pace whatever it left with. A line and no weight, and a kicker at the foot turns it on to the pin. |
+| 3 | The Crater | 0.45 | 3 | One round pad sixteen across with a wall 2.6 high, the tee on the rim, the pin on the floor between two meteorites. At this weight the mallet climbs the wall: thirty degrees wide, up the far side and back down to the flag. |
+| 4 | Deadlift | 2.4 | 3 | Two steps of one point two and no ramps. The first pad is rated at twenty: all of the mallet clears both steps in one leap and the leaning top green brings it round a post to the pin; less goes up a step at a time. |
+| 5 | Orbit | 0.5 | 3 | A round table, a gravity well in the middle (`wells`) and the cup straight behind it. Ten degrees wide, either side, and the pull bends it round the back on to the pin. |
+| 6 | Apogee | 0.3 | 3 | The pad throws the ball ten units up for four seconds and a black hole standing in the void bends the flight round on to a crescent green; the further round it lands, the nearer the flag. Putter and mallet only. |
+
+**Rebuilt in v1.146.0.** The six were slabs with a gap between them: the hole
+lab found no ace on five and the putt at the flag dropping on the sixth, and
+every plan was a rectangle, a void and a rectangle. Three things measured on
+the way are worth keeping:
+
+- **The roll does not change with the weight.** A putter runs eight units on a
+  level green at every gravity on the card. What changes is the air (carry and
+  apex go as 1/g) and what a *slope* is worth against that roll — so a light
+  hole is flight, a wall you can climb or a well, and a heavy one is a ramp or
+  a pad. A hole that is level and played along the floor is the same hole at
+  any gravity.
+- **A bowl is all or nothing.** Everything a bowl catches finishes at its
+  middle, so a pin there is holed by every firm shot or by none (6.7% against
+  0.02% for two tenths of a unit of depth). The Crater's pin is nine tenths off
+  the middle and the share is a skill shot's.
+- **A ramp at two g is a governor**, as a belt is: whatever pace goes on at the
+  top, the same comes off at the bottom. Dead Weight's ace is 74–100% of the
+  mallet wide for that reason and two degrees across.
+
+| Hole | Ace before | After | Caddie |
+| --- | --- | --- | --- |
+| Hang Time | none | 0.39% tutorial (wedge) | 2 → 1 |
+| Dead Weight | none | 0.34% tutorial | 2 → 2 |
+| The Crater | none | 0.10% skill | 3 → 2 |
+| Deadlift | none | 0.11% skill | 3 → 1 |
+| Orbit | none | 0.26% skill | 2 → 2 |
+| Apogee | 0.01% fluke, the putt at the flag | 0.04% closer, never | 1 → 2 |
+
+`stage` (a pad rounded all the way to a disc) and `meteor` (a block on a green
+drawn as a stone — a `crag` may not stand on one) are the two helpers it added
+to courses.js. A well with no ground under it is drawn at the yard's level, and
+it pulls on a ball in the air as on the ground, which is all Apogee needed.
 
 There is no water anywhere on the yard, and that is the honest choice rather
 than a saving: a ball that leaves the ground falls past `OOB_Y` and comes back
@@ -1602,15 +2053,20 @@ swing, so where the ball *stops* starts to matter as much as where it is going.
 
 The numbers it is built against, measured off a flat lie at full power:
 
-| | Putter | Driver | 7 Iron | Pitch | Wedge |
-| --- | --- | --- | --- | --- | --- |
-| Green | 8.0 | 42.5 | 21.4 | 14.1 | 12.7 |
-| Fairway | 5.7 | 31.5 | 15.5 | 10.6 | 9.4 |
-| Rough | 3.0 | 23.8 | 11.6 | 8.7 | 8.2 |
-| Sand | 1.9 | 30.3 | 14.9 | 11.3 | 10.6 |
+| | Putter | Driver | 5 Iron | 7 Iron | 9 Iron | Pitch | Wedge |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Green | 8.0 | 52.6 | 34.6 | 23.2 | 18.4 | 14.0 | 12.9 |
+| Fairway | 5.5 | 41.4 | 27.0 | 17.9 | 14.1 | 10.5 | 9.6 |
+| Rough | 3.4 | 36.1 | 23.6 | 15.8 | 12.4 | 9.2 | 8.5 |
+| Sand | 1.9 | 43.8 | 28.9 | 19.4 | 15.4 | 11.6 | 10.8 |
 
-Carry is the same everywhere — 19.4 for the driver, 9.5 for the iron, 7.6 and
-7.3 for the two wedges — and what the surface decides is what happens after it.
+(Measured at the current release. The course was first built when the driver was
+a 10° club carrying 19.4, so the figures quoted in the rest of this section are
+that bag's.)
+
+Carry is the same everywhere — 31.4 for the driver, 20.7 and 13.9 and 11.0 for
+the irons, 8.1 and 7.5 for the two wedges — and what the surface decides is what
+happens after it.
 Fairway and rough have landings of their own (`CONFIG.LANDING`): turf takes far
 more off a first bounce than a felt green does, so a drive on to grass hops once,
 runs, and stops, where with one figure for every surface a drive off a bluff
@@ -1906,67 +2362,156 @@ finishes up to twelve units off the line it was aimed down.
 
 ### Redstone Canyon
 
-The fourth long course, and the first one made of ground that is **missing**.
-Ashdown is a park, Whinstone is a dune field and Dunmore is a moor; all three
-are built out of ground that rises. Dunmore's last hole is the exception and it
-is the best decision on that card — a gorge two units deep across the fairway,
-which is neither a water hazard nor a bunker but ground you are entitled to
-play out of and will wish you had not had to. Here that happens six times, and
-the course is the argument that *where* a canyon runs changes the question
-entirely.
+The fourth long course, and the one made of ground that is **missing**. Ashdown
+is a park, Whinstone is a dune field and Dunmore is a moor; all three are built
+out of ground that rises. This one is built out of a canyon.
 
-The 2026 rebuild (PLAN.md §0) held it to the line Ashdown set: every crossing
-sits where a drive off *that* tee comes down, the par fours are fifty-odd and the
-fives about eighty, and the bot's drive no longer reaches any green on the card.
+It was a plain with gorges carved into it until the owner sent it back — "for
+the Grand Canyon inspired ones I'd like some really high cliffs as part of the
+design" — and a carved gorge cannot have them. Its walls are ground, ground
+that steep is a cosine with a grassy lip, and past a unit or so deep it is a
+trap besides (see [The gorge](#the-gorge)). So since v1.130.0 the course is
+built **the other way up**:
+
+- **The floor is the bottom of the world.** `CANYON_FLOOR`, four units down,
+  runs eighteen units past the stakes, is drawn as the surround's own bare
+  rock, and is out of play wherever it is (`pad.oob`, which
+  `physics.markOutOfBounds` reads as well as the stakes). The river is a
+  `burn` laid into it as a pond. A ball that goes over an edge falls the height
+  of the wall, lands where you can see it, and costs a stroke and the shot
+  again.
+- **Everything that is played stands on its own walls out of it.** A `butte`
+  is Coral Keys' `cliff` without the beach: a disc with `coast`'s seeded edge
+  and bays, marked `stands` (its face is solid — `surfaceUnder` treats a
+  standing pad above the ceiling as rock) and `sheer` (its face goes all the
+  way down). Fairways, greens and bunkers are laid into the tops with `lay`.
+- **Out of play is bare rock.** `rock()` marks a piece `oob` and the renderer
+  draws its top in the surround's material with no grass: the bench a rim
+  stands on (`ledge`), the band of rock behind a green, and the `temple`s —
+  stepped buttes of three tiers, each standing inside the one below, up to
+  fourteen units off the floor.
+- **The walls are banded by height.** `theme.strata` lists the canyon's beds
+  bottom up — schist at the river, Tapeats and the grey-green shale, the
+  Redwall to the plateaus, red Supai and Hermit beds up the rims, the pale
+  Coconino, the buff Kaibab cap — and `render.strataOn` colours the cut-earth
+  material by *world* height, so one bed runs level across every face on the
+  hole. Finer bedding inside each bed and a faint vertical streak keep it from
+  reading as stripes.
+- **The walls are weathered** (v1.133.0). An extruded disc is a drum, and a
+  butte drawn as one read as a stack of tins whatever its beds were. A `butte`
+  is marked `weathered`, and `render.weatherWall` draws its wall in rings and
+  pulls each ring *in* from the outline — buttresses, and deep gullies where
+  two waves agree — never past it (that outline is the face the ball plays
+  off) and never at the rim, so the cap still meets the wall. A temple is a
+  tall base and one offset summit rather than three even tiers, every wall
+  that comes down on the floor stands in a fan of scree, and the floor's own
+  edge is let down to the country (`CANYON_COUNTRY`) so its rectangle does not
+  show; the surround stays flat out past it.
+
+What decides how high anything can be is the bag. **No club lifts a ball more
+than about three and a half units off flat ground**, so a piece of ground two
+units over the shot is a full club's climb, three is out of reach, and
+everything taller is gone round or played *down* from. The tall walls on this
+course are the ones you play down off or past; the ones you play up are a unit
+and a half to two.
 
 | # | Hole | Par | What it asks |
 | --- | --- | --- | --- |
-| 1 | First Cut | 4 | Nine units of canyon across the fairway exactly where a full drive comes down — a struck one lands on the top of the far bank, anything under nine tenths of a swing is in the bottom. Carry it, or lay up short and carry it with the second. Sand short-right of a green up a short rise. |
-| 2 | The Rim | 4 | The canyon runs the length of the hole down the left and the fairway leans at it. The landing zone is pinched between the lip and a bunker on the right, and the green is a strip five wide and thirteen long laid along the lip, with sand the other side of it. |
-| 3 | Stone Bridge | 3 | Off a two-unit mesa, over a canyon flooded west of a bridge of rock and dry east of it, to a wide, shallow green on the far lip. Only a full iron carries the pool at the pin; the bridge is the run-in to the right end of the green. |
-| 4 | Long Way Round | 4 | Off a mesa with the canyon eating the east half of the fairway. Carry the bite at the flag — just in reach of a struck drive — or go round down the west lane and come in over the spring that guards the green's left. Hugging the lip on the way past is the third line. |
-| 5 | Switchback | 5 | Off a mesa and over the first crossing to a sixteen-unit island set east of the line (or lay up and take two more canyons to get home), over the second back west, and in to a green behind a bunker. |
-| 6 | Redstone | 5 | A dogleg left round a mesa that stands higher than any club lifts a ball: up the right of it, round its corner as tight as you dare, then over the canyon to a green in a hollow on the far shelf. |
+| 1 | First Cut | 4 | A gorge nine units across where the drive comes down, its far side a unit and a half over the tee — so the first thing on the hole is six units of red wall square across the line, with the river at its foot. Only a struck driver is still high enough to land on top. Lay up and climb it with the second. |
+| 2 | The Rim | 4 | A ledge: the drop and the river down one side, a band of rock three units high down the other, sand where the drive comes down. The green is out on a point below the rim with the void on three sides of it. |
+| 3 | Stone Bridge | 3 | Off a rim seven units up, down on to a mesa five below across the river — a full iron's carry with the fall adding a quarter. Or out to a bench a short iron away and across the arch of rock to the green, two small steps down. |
+| 4 | Long Way Round | 4 | Off a pinnacle eight units up, with the hole laid out below: carry the side canyon at the flag (a struck drive from up here goes forty), or go round by the west lane, a bench the fairway steps down on to and off again. |
+| 5 | Switchback | 5 | Up four benches of a cliff band, east, west and east again, each a unit and four tenths over the last and a slot clear of it. Every shot is a full one; a ball that comes back off a face goes down the slot. |
+| 6 | Redstone | 5 | Up the east of a temple fourteen units high, round its north shoulder, then over the canyon to a green on a mesa two units over the shelf you play from and seven over the floor. |
 
-Two rules came out of building it, and both are about `ravine` rather than
-about any hole:
+Three rules came out of building it:
 
-- **A crossing is banked on the far side and sheer on the near one.** Past
-  about a unit of depth that is not a style: nothing in the bag gets a ball out
-  of a lie hard against a two-unit cliff, so the wall the ball has to come back
-  up must be a ramp — and a *near* wall wide enough to play out of is a ramp a
-  drive skips clean across the canyon off.
-- **A canyon that runs *along* the hole cannot cross a row that climbs.** A
-  ravine is authored at absolute heights — lip at nought, floor at `-depth` —
-  while a tilted row carries its level into the next one, so thirty units of
-  climbing ground beside a lengthwise cut leaves the lip two and a half units
-  below the fairway next to it. What that builds is not a canyon but a trench
-  with an inside cliff nothing can escape. The Rim therefore takes its height
-  from the field and from the depth of the cut, and the only tilt laid over it
-  is a cross-fall, which lifts every pad on the hole including the canyon's
-  own. A crossing lives inside one flat row and is free of this, which is why
-  the tees on the other holes can stand on mesas.
+- **No tall wall stands on ground a ball can lie on.** The foot of every face
+  over a unit and a half is the floor, a slot down to it, or a ledge of bare
+  rock — all out. The short faces that do stand on playable ground (the band
+  behind a green, the rim beside a fairway) always have the target on the
+  other side of the ball from them.
+- **Nothing standing overlaps anything at its own height.** Two slabs with
+  their tops at one level flicker against each other, and `tests.html` fails
+  two non-inlay pads that share ground within 0.35 of each other (their order
+  in the array would decide the lie). So where two pieces of ground join it
+  is a real step — four tenths, *down* the line of play, so a ball rolls on
+  across it — and the stone bridge stands four tenths under the bench and four
+  over the mesa.
+- **A standing slab goes down to what it stands on**, which is why every piece
+  is `sheer`: a bench that overhangs a lower one and stops at its top leaves
+  daylight under the part that hangs over the floor.
 
-Two more came out of the rebuild:
+The rough is scrub and the furniture is stone: `crags` and nothing else, kept
+well in from the edges, because a stone half over the drop stands in mid-air
+and the audit catches it as `prop-afloat`.
 
-- **A mesa is a row cell with a height of its own** (`[w, rgh, MESA]`), not a
-  landform. A landform is a slope; a cell lifted 3.2 above its row is a kerb
-  taller than `STEP_UP` on every side, drawn in the canyon's rock colour, and
-  higher than any club lifts a ball — so it is gone round rather than carried,
-  which is what makes Redstone's dogleg a real one.
-- **Water goes in a hole in the ground, never on a canyon floor.** The theme's
-  surround is drawn at `surroundY` (-1.1) as one unbroken plane, and every
-  ravine floor is about two units down, so anything on a floor — a pool, or a
-  ball — is under it and out of sight; a pool cut into a floor would also stand
-  above the gravel beside it, which the audit calls an error. Stone Bridge's
-  pool is a null cell lip to lip at -0.7 instead, and the spring on Long Way
-  Round is one in the green's row.
+### Alpenglow Pass
 
-The rough is scrub and the furniture is stone: `crags` and nothing else, which
-is what a canyon rim has on it. Placing them is the one thing that needs care —
-a cluster whose scatter reaches over the cut stands in mid-air over the floor,
-and the geometry audit catches it as `prop-afloat` rather than leaving it for
-the turntable.
+The sixth long course (v1.135.0), on a new biome: high country, and the first
+long course where the height goes *up* from the hole as well as down from it.
+The owner asked for "perhaps new biome for long game maps", and for
+verticality — "really high cliffs" — on the long game generally, and a
+mountainside is the one place both are the same request.
+
+It is built out of the two vocabularies the long game already had. The
+meadows are `commons` rows, climbing and falling (`sz`), leaning (`tilt`) and
+shaped by hill fields that stay in the rough, so every fairway is inside what
+it holds a ball on and none is flat. The rock is Redstone's `butte` in granite —
+standing, sheer, weathered — for a crag a tee is perched on, a cliff band
+behind a green, a crest along a ridge — the ones nobody plays crowned with a
+faceted top (`granite`, render.addCrown) so they read as outcrops rather than
+drums. The mountains are not buttes at all: `theme.range` (render.addRange) is
+a ring of scenery terrain from past the skirt out a hundred and ten units and
+up to forty high, ridged noise for sharp crests and gullies, flat-shaded and
+coloured a triangle at a time — snow above a ragged snowline where the ground
+is gentle enough to hold it, rock on the steep faces, forest on the low
+slopes — so the horizon behind every hole is a range rather than a few
+columns by the stakes. Never solid. The ground falls away round the
+edge of every hole as the skirt does on the other long courses, a long way,
+because the valley floor (`surroundY`) is five units down.
+
+The `alpine` theme is clear high air: a deep blue sky, a pale-blue horizon,
+a high white sun, and `air: 2`, which pushes the whole fog fade back (short
+of the surround's rim) so the ranges stand sharp rather than paling into
+haze; its weather list has no grey day in it for the same reason. Meadow turf a shade yellower than a lowland's; granite banded by
+`strata` the way the canyon is, grey beds and then **snow from ten units up**,
+so every cliff and peak tall enough is capped without anything being painted
+on; a horizon range peaking at eighteen with snow on its tops; glacier water,
+milky turquoise; and its own weather list (`weather.js`), clear and fair most
+of the round with a golden hour and one grey day, and no mist or dust.
+
+What is new to draw:
+
+- **Firs** (`tree(…, { fir: true })`, `forest(…, { fir: true })`): a spire of
+  four narrowing skirts of dark needles rather than the two-cone conifer.
+- **The range** (`theme.range`) and **crowned crags** (`granite`), above.
+- **A chalet, a cairn, a chairlift and a waterfall** (`chalet`, `cairn`,
+  `lift`, `waterfall` in courses.js, `render.addAlpineProp`). Decor, so never
+  solid. The lift runs `w` along `yaw` and every tower finds the ground under
+  it; a waterfall falls from the height it is placed at to whatever water or
+  ground is at its foot.
+
+| # | Hole | Par | What it asks |
+| --- | --- | --- | --- |
+| 1 | The Perch | 3 | Off a granite crag seven and a half units up, down on to a meadow green twenty-eight away, with the glacier stream across its front and sand behind it. The fall adds a third to every club; short is wet. |
+| 2 | High Pasture | 4 | Up a climbing meadow: a brook across the flat where a full drive finishes, so the drive is the club that stops short, then over the brook and up a bank to a shelf under a snow-capped cliff band. |
+| 3 | Two Fords | 5 | Down a valley from six units up, with the stream across it twice: carry the first ford off the tee and the second is in reach; lay up and it is three shots with a ford in front of two of them. |
+| 4 | The Tarn | 4 | Off a granite knoll over a glacier tarn under a waterfall to the landing beyond, or round it on the fairway out east — and a pool off the green's west side for the short iron from over the lake. |
+| 5 | Knife Edge | 4 | Down the crest of a spur seven and a half up, leaning at a drop that is the whole west side of the hole, a granite crest on the east; the green is out on the edge, so the short way in is along the drop. |
+| 6 | Alpenglow | 4 | Off a crag, round a knoll of firs, over the stream to a green below the chalet, with the chairlift running up the mountain beside it. |
+
+**A snowfield was considered and left out.** On this bag a snow surface would
+play exactly as sand does — it holds what lands on it and takes distance off
+the next shot — so it would be a colour rather than a decision, and a new
+surface costs a friction, a landing, a hold, a sound, a texture and a place in
+every table that lists them. The snow is on the rock, where it belongs.
+
+How it measures (12 rounds with `BOT_HANDS`): 18.8 against par 24, every hole
+between two thirds of a stroke and a stroke and a quarter under par — about
+where Coral Keys sits (the course rebuilt to that tool), and a stroke or two
+closer to par than Ashdown and Dunmore. The perfect bot plays it in 11. It is
+in `tests.html`'s `REBUILT` list, so every drive on it leaves a real second.
 
 ## The plans
 
@@ -2044,7 +2589,7 @@ after the first few rounds:
 
 | Mode | Draws from | When it runs out |
 | --- | --- | --- |
-| **Anything** | all eighteen | — |
+| **Anything** | all fifteen | — |
 | **Same kind** | the last *kind* tab you looked at, not the kind you are standing in | widens to anything |
 | **New to you** | courses with no finished round on them | the ones you have played *least* |
 | **Beat a best** | courses that already have a record on them | widens to anything |
@@ -2060,7 +2605,7 @@ the kind rather than pointing at it: *right now that is mini golf*.
 Two rules hold across all four. **Never the course you are already on** — a
 surprise that hands you back the hole you are looking at is the one result
 nobody wants — and **a mode never comes back empty**. "New to you" stops
-meaning anything the moment you have played all eighteen and "beat a best"
+meaning anything the moment you have played all fifteen and "beat a best"
 means nothing before the first round is finished; a button that does nothing on
 press is worse than one that widens its net, so each mode has a written-down
 fallback, `shuffleDraw` reports whether it took it, and the option says so out
@@ -2068,7 +2613,7 @@ loud in place of its own description: *you have finished a round on all of them
 — this draws from the ones you have played least*. It **replaces** the
 description rather than joining it, because "only courses you have never
 finished" is no longer true of what the button would draw, and printing it
-beside a count of fourteen is a flat contradiction. The count is always what
+beside a count of fifteen is a flat contradiction. The count is always what
 the draw would really offer, widened net included, so the figure and the
 sentence beside it can never disagree.
 
@@ -2121,7 +2666,7 @@ never heard of it.
 
 The demo does not read them, and does not read the mode either. Both are what
 somebody wants dealt to *them*; the attract loop is showing the game to a room
-it is talking to, and it draws from all eighteen — see `demoRound`.
+it is talking to, and it draws from all fifteen — see `demoRound`.
 
 **The draw itself is pure.** `G3.shuffleDraw` and `G3.randomCourseId` in
 `courses.js` take the mode, where you are standing, which tab is open, which
@@ -2174,7 +2719,8 @@ fault everywhere else.
   quickest, and the least willing to hold a ball on a slope), `fairway` (mown
   longer, so a driver runs about a fifth less), `wood` (bridges and ramps:
   slick, you carry your speed, and a ball left on one goes back down it),
-  `sand` (a bunker eats a shot and holds whatever lands in it), `rough`.
+  `sand` (a bunker eats a shot and holds whatever lands in it, and caps the
+  long clubs played out of it — see [the bag](#the-bag)), `rough`.
   `sx`/`sz` tilt it, `bumps` curve it, `r` makes it a disc. Pads must not
   overlap unless one is clearly a bridge above another or one is an `inlay`;
   anything else fighting for the same point would make the surface lookup
@@ -2270,6 +2816,53 @@ fault everywhere else.
 - **arc** — a curved rail: `arc(cx, cz, R, a0, a1)` is chords of `bank`, one per
   ten degrees, each a rail's thickness longer than its chord so neighbours
   overlap. Angles are `atan2(z, x)`; a chord's yaw is −θ − π/2.
+- **road** — ground that bends, and the first pad in the game whose rectangle
+  is not its shape at all (v1.126.0). Every other pad is a box with something
+  done to it — a corner rounded, a side mown, a disc inscribed in it — and every
+  one of them still has four sides running along x and z, which is why every
+  bend on a drawn hole was a right angle: two rectangles meeting at a corner,
+  with the outside of the corner rounded off at best. A road is laid along a
+  centreline instead, and written the way it would be driven:
+
+  ```js
+  road({ x: 2.5, z: 0.2, dir: 0, w: 2.4, y: 1, caps: 'start' }, [
+      ['line', 4, { kerb: 'in' }],                       // straight on
+      ['arc', 3.2, Math.PI / 2, { kerb: 'in', bank: { a: 0.9, lip: 0.5, r: 2.6, span: [0, 0.7] } }],
+      ['line', 0.7, { kerb: 'in' }]                      // round a radius, then on
+  ])
+  ```
+
+  `dir` and each turn are yaws, the sense a shot's aim is measured in — 0 is up
+  the hole, and a positive turn swings the road towards +x. Each piece leaves in
+  the direction the last arrived in, so however it is written the road has no
+  kink anywhere along it; that is the whole reason it is a drive and not a list
+  of points. `caps` rounds an end (`true` for both, or `'start'` or `'end'`); an
+  end that runs on under a green stays square and stops short of the cup. A
+  road gets no rail of its own — on a ledge both sides are a brink unless
+  somebody says otherwise — and a piece's `kerb` (`'in'`, `'out'` or `'both'`,
+  on a straight the sides of the nearest turn) asks `enclose` for one, laid off
+  the ground as `railFor` lays any rail; a kerb round a turn is chords with one
+  `bend`, drawn as a single smooth kerb exactly as a rounded corner's is.
+
+  A road is a pad, so its height is not its business: its level is `y`, and a
+  `bank` on a turn is a `channel` laid along the outer edge with its profile
+  reaching the inner one — a flat gutter inside, a lip outside — which
+  `padHeight` and `padGrad` already know. The channel's rounded end is the ease
+  in and out, about `r` long, so a turn that has to be level where it finishes
+  stops its spine short with `span`. The pad's `x/z/w/d` are its bounds and
+  nothing more. What reads the shape is the same short list as for a rounded
+  corner: `physics.padContains` (`laneHas` — per piece, a band of radius or a
+  span along it and then a cross product, no `atan2`, because this is asked of
+  every pad on every substep), `physics.laneOutline` for anything that walks
+  the edge — the slab's extruded outline (`render.slabShape`) and its grass,
+  the skirt, the inspector, the editor's plan — and `render`'s ribbon of rows
+  square across the road for a banked one, whose cup would need a square patch
+  a ribbon has not got: a cup goes on a level road or on a green laid over the
+  end of one. The minimap and hole-lab.html sample `padContains` a pixel at a
+  time and draw the curve for nothing. The editor carries a road whole, draws
+  its outline and exports it as data; it has no handles for a centreline, so a
+  road is not something to drag there. **The Ledge** on Quarry Ridge is the
+  first one.
 - **contour / scoop** — the same humps, applied to a *drawn* hole, off a seed
   made from the hole's own name so a hole's ground is the same on every load.
   Every bunker on a drawn hole gets `scoop`'s dish automatically in `build()`;
@@ -2380,6 +2973,32 @@ from beside each corner, and counts any that leave the hole and would not have
 left the same lane with square corners; with `cornerRails` taken out it
 counts fifty. It also holds every real hole to a rail per rounded corner and
 no curve within reach of a tee or a cup.
+
+**Inside corners meet clean** (v1.127.0). `railFor` runs each straight rail a
+thickness past both ends of its run, which is how an *outside* corner seals: the
+two rails' ends fill the square between them. At an *inside* corner — a
+five-wide tee box into an eight-wide green, a dogleg's elbow — the rail across
+the corner already fills that square, so the overrun was a 0.3 stub of rail
+standing on the next pad's floor, and the two stubs crossed in an X: the
+owner's "X style corners sticking out", fifty-three stubs on thirteen fenced
+holes. A run now overruns an end only where the floor does not carry on past it
+(`floorPast`), so a collinear join and an outside corner overlap as before and
+an inside corner is a plain L. One hole leaned on a stub without meaning to:
+Two Ramps had two narrowing each ramp's mouth, and with them gone the putt at
+the flag went up the steep ramp and dropped, so its pin is three tenths east
+(0.122% of the coarse sweep is still an ace, off the mallet).
+
+Two more things a curve can do, both for a hole that writes its own
+`pad.round` (`roundCorners` never rounds near a gap): **a `gaps` rectangle
+opens a curve** the way it opens a straight edge, leaving the kerb in pieces
+with their open ends drawn round (`cap0`/`cap1` on the bend) — The Backboard's
+lip; and **`arc(…, { drawn: kind })`** carries a bend of its own, so a curved
+wall standing anywhere is drawn as the one smooth piece `addBend` draws a kerb
+as, in that wall kind's material and finished round at both ends — its brick
+door and stone board. The editor drops a drawn arc on import, as it drops
+every chord; it is the price of curves the editor cannot draw. A contoured pad
+may also name its terrain grid (`pad.res`) when the rule off its smallest hump
+would draw a broad curve in facets.
 
 ### Relief on a drawn hole
 
@@ -2570,6 +3189,9 @@ with what it is laid into), which made the mesa a plate floating three units
 over the fairway, and `hummocks` would otherwise roll its top, which sends a
 disc down the terrain path — drawn for ground you look *across*, so from
 above the top was simply missing. The Ait's island stands the same way.
+And then the whole of Redstone went that way (v1.130.0): none of its canyons
+is carved any more, every piece of it is a standing disc over an
+out-of-play floor — see [Redstone Canyon](#redstone-canyon).
 
 **What the suite grew when the ground did.** Four assertions arrived with the
 height, and three of the four caught something the same afternoon they were
@@ -2826,6 +3448,18 @@ Details that are easy to get wrong and are pinned by tests:
   fires. Without it a terrace swallows balls and a raised green can be holed
   from underneath.
 
+  **A pad that `stands` is not a bridge** (v1.126.0). Redstone's mesa, The
+  Ait's island and every Coral Keys cliff are laid *over* ground that runs on
+  beneath them, and to the rule above that is a deck with a pad under it: a
+  putt at the face of The Shelf rolled a unit into the rock and stopped there,
+  on beach nobody could see. So `surfaceUnder` hands back nothing at all where
+  a standing pad is over the ceiling — inside the rock, not under a deck — and
+  the backstop and the face test treat it as they treat a cliff over nothing.
+  Both also take the **corner** now: across a curved face a step can be in the
+  rock when neither of its halves is, and then both axes bounce. Let through,
+  the ball fell inside the cliff and the last-resort shove put it out through
+  the side of the cliff's bounding box, which on a headland is the sea.
+
   **The centre, not the crown.** Reading "inside a face" off the top of the
   ball leaves a radius-deep band around every riser in which the centre is
   already under the surface and nothing has fired — so a shot that grazes the
@@ -3021,15 +3655,21 @@ loft exactly as it was before.
 
 ## Putting
 
-On the long game, arriving on a green hands you the putter.
+On the long game, a ball at rest on a green is played with the putter and
+nothing else (`game.syncLie`).
 
-Nobody walks up to a ball twelve feet from the pin holding a driver, and until
-now the game made you remember not to: the club stayed in your hand from the
-tee all the way to the hole, so the commonest thing that happened on Ashdown
-Park's greens was a full swing nobody meant to play. It fires the moment a shot
-ends and never again, so a club chosen after that is a club you keep.
+Nobody walks up to a ball twelve feet from the pin holding a driver, and for a
+long time the game made you remember not to: the club stayed in your hand from
+the tee all the way to the hole, so the commonest thing that happened on Ashdown
+Park's greens was a full swing nobody meant to play. Then arriving on a green
+handed you the putter but let you put it back, so a chip off the putting
+surface was still one key away. Now the bag *is* the putter while the ball is
+on the green: `game.bag()` answers with it alone, and the picker, the number
+keys, the cycle and the autoplay caddie all ask there. Once a putt runs off the
+green the whole bag comes back. Off the green the putter stays in the bag,
+because putting from the fringe is a real shot.
 
-It fires on the **long game only**, and that restriction is what makes it safe.
+It applies to the **long game only**, and that restriction is what makes it safe.
 Seven of the ten courses are mini or crazy golf, where the floor is green from the tee
 mat to the cup and choosing loft over the thing in the way is the entire game —
 switching to a putter every time the ball stopped would be fighting the player
@@ -3297,8 +3937,9 @@ is no frame at all.
 ## The caddie: autoplay
 
 🤖 **Autoplay**, in the ☰ menu with the other things you do to a round. Press
-it and `js/bot.js`, the same greedy player that proves in `tests.html` that all
-hundred and eight holes are solvable, takes the club and plays — from wherever your ball
+it and `js/bot.js`, the same player that proves in `tests.html` that all
+ninety holes are solvable — with [a plan](#the-plan-v11280) on top of it —
+takes the club and plays — from wherever your ball
 is standing, and then **on**: the next hole when this one is holed, and the
 next course when the sixth one is. Press it again, or <kbd>Esc</kbd>, to take
 the club back.
@@ -3341,8 +3982,8 @@ hole would play out of your lie — is the most useful answer in the game to the
 question a stuck player is actually asking.
 
 It is the only way to *see* the thing the suite has only ever counted. The bot
-reads the hole (a couple of hundred whole shots simulated, which is the pause
-you are watching), picks a club, aims, loads the meter and swings — through the
+reads the hole (a few hundred whole shots simulated on the first stroke of a
+hole, fewer on the rest, which is the pause you are watching), picks a club, aims, loads the meter and swings — through the
 same four things a player touches, so what you are watching is a shot the game
 played rather than a line drawn on top of one. Then it rests a beat, looks at
 where the ball actually finished, and does it again. Each shot says which club,
@@ -3363,9 +4004,15 @@ Four details make it watchable and honest:
   `BOT_TURN + BOT_WIND` from now rather than as it is: every blade and gate on
   the hole turns during a wind-up, and a shot chosen for the wrong moment is a
   shot chosen against a different hole.
-- **It thinks on the frame after it says so.** The search stops the world for
-  about a tenth of a second, and a freeze under a message reads as thought
-  where the same freeze under a still course reads as a stall.
+- **It thinks ahead, and a slice of a frame at a time.** The plan for the
+  tee shot is made during the hole's flyover, and the plan for every shot
+  after it while the last one is still rolling, from where the plan said it
+  would stop (game.js → `aheadFly`, `aheadRoll`); the roll is stepped at the
+  plan's own 1/60, so it stops there, and the think picks the plan up if it
+  did. All of it, choosing the shot included, is `BOT_SLICE` milliseconds of
+  each frame; only on a hole with a clock is the choosing done in one go, at
+  the moment it is for. The plan is a fixed count of simulated shots, so
+  slicing it changes when it is ready and never what it says.
 - **The roll is stepped at a fixed 1/60 while it plays.** `physics.advance`
   sub-steps by speed rather than to a fixed clock, so a frame of any other
   length is a slightly different roll — and the plan was made at 1/60. Left-over
@@ -3378,6 +4025,124 @@ The bot played here has a narrower fan than the one the suite runs (`BOT_FAN`
 against the suite's 16), because there a shot costs whatever it costs and here a
 player is holding still while it thinks. `BOT_PAUSE` is the beat between shots
 and `BOT_MAX_STROKES` is where it gives up and hands the club back.
+
+### The plan (v1.128.0)
+
+The owner's note was "bot gets stuck on Dead Weight", and then "perhaps the bot
+needs some pathfinding algos as well to make a plan?" — after "bot gets stuck
+on Caldera" a round earlier. Both stalls were the same thing. A greedy search
+plays the shot that finishes nearest the cup, and that is the one shot that
+never works where the road goes away from the flag first:
+
+- **Dead Weight.** Two g, a gap nothing flies, the plank off to the east. At the
+  game's fan of 12 the tee shot stopped on the brink at (2.26, 7.85), straight
+  at the cup, and the next eleven were a putter at 1.93 east to (3.12, 7.99)
+  and back west to (1.99, 7.99): every forward shot falls off, the plank's foot
+  is a unit and a half east and *further* from the cup, and a sideways putt
+  moves 1.1 units, so it passes the rule that a shot has to go somewhere.
+- **Caldera, as it was.** The lawn ran half a unit past the vent with no rail.
+  A soft ball stopped on that lip with the lake in front and the vent behind,
+  the way out was two shots long (back, then over the vent), and the caddie
+  putted along the lip, 3.67 to 4.80 and back, until it ran out. The hole is
+  rebuilt (Cinder Cone), and the lip lives on as a synthetic hole in
+  `tests.html`.
+
+So the caddie plans now (`bot.js` → "the plan", `G3.bot.Planner`). Where shots
+come to rest are the nodes of a graph and shots are its edges; rests within half
+a unit on the same level are one node. A* over it from the ball, steered by a
+rough strokes-to-go read off the distance and the lie, until a route to the cup
+is found that nothing open could beat or the budget is spent (1,800 simulated
+shots on a hole's first stroke, 700 on each after it, with the graph kept for
+the hole). The values are backed up from the cup, and the shot is the greedy
+search run once more with those values in place of the distance, so it still
+refines and still holes out, but towards the first shot of the best route. The
+ball's own lie gets a fan of 72 lines shared between the clubs, which is what
+finds Bumper City's ace, a three-degree window off a rail. With hands it is
+something else (below). Nothing in it is random but the hands' own draw, and
+the answer does not depend on how the thinking is sliced — `tests.html` holds
+both.
+
+It is the autoplay caddie and the demo that plan; `play(…, { plan: true })` is
+the same thing headless. `tests.html`'s every-hole sweep, the hole lab and
+`par-check.mjs`/`human-check.mjs` still run the greedy search, so their numbers
+did not move.
+
+Every drawn and long hole, at the game's settings (`BOT_FAN`,
+`BOT_MAX_STROKES`), once with a perfect strike and four seeded rounds with
+`BOT_HANDS`. A stall is a hole where two or more shots end within half a unit of
+a lie already played from (a splash back to the tee counts):
+
+| | Not holed | Stalls | Against par, per hole |
+| --- | --- | --- | --- |
+| Greedy, perfect strike | 1 of 84 (Dead Weight) | 2 | −1.45 |
+| Planned, perfect strike | 0 of 84 | 0 | −1.74 |
+| Greedy, hands | 4 of 336 (Dead Weight ×3, The Cannon) | 14 | −0.56 |
+| Planned, hands | 0 of 336 | 8 | −0.90 |
+
+The first stroke of a hole costs a little more than twice what the greedy one
+did — 846 ms of thinking on average in Node against 419 ms, most of it spread
+over frames, and the longest the long game's (2.6 s at most, on Elbow Point;
+Redstone's Switchback is 2.3). The moment that stops the world is about what it
+was on a hole with a clock and shorter on every hole without one, because there
+the fan the plan already played is handed back rather than played again.
+
+#### Hands, and the wait
+
+Two things were left open, and both are in `bot.js` → `pick` and `begin`.
+
+**With hands, the caddie is the greedy player told where the traps are.** The
+first plan played a person's misses as if its perfect-strike route were theirs,
+and on Coral Keys, where every good line has the sea either side, it was a third
+of a stroke a hole worse than the greedy player. Pricing each shot on the route
+by striking it six more times through `mishit` did not help (six draws is noise,
+and the caddie spent strokes moving the ball to wherever the noise had been
+kind), and nor did scoring the misses by the plan's values: what differed was
+which shots were tried, and the plan's wider pool hands `steady` more lines that
+are perfect when perfect and nothing like it when missed. So with hands the
+choosing is the greedy search's own — its fan, its scoring, `steady` on `toGo`
+— with a stroke added for a trap (a lie the plan expanded and found no shot from
+that finishes nearer the cup, the brink's own shape) and for a lie already
+played from; the greedy search's own landing is always expanded so a trap cannot
+hide there. The plan's own choice, its misses drawn from a seed of its own, is
+played instead only when the plan rates the greedy shot's intended finish half a
+stroke worse, floored at the eye's estimate so a perfect strike's shortcut is no
+reason. Where the plan has nothing to say it is the greedy player shot for shot
+(`tests.html` holds it on The Bend).
+
+**The wait is spent where nobody is waiting.** A long bag's budget shrinks with
+the bag (two sevenths of a mini hole's), a long bag's inner nodes get a coarser
+fan, a perfectly struck shot into the cup ends its node's expansion, the
+choosing remembers the root's own refinements rather than playing them twice,
+and the choosing is sliced like the rest. And the plan is made ahead: the tee
+shot's during the flyover, every later one's while the last ball is still
+rolling (README → "It thinks ahead" above).
+
+**And the hands miss the moment.** `BOT_HANDS.time` is how far either side of
+the beat a person strikes (0.08 s), drawn only where a wall moves, so the long
+game and every still hole play exactly the rounds they did. `human-check.mjs`
+on Clockwork went from 10.8 a round to 11.8 (par 20); the long courses are
+unchanged by construction.
+
+At the game's settings over the ninety holes (v1.135.0's set, Alpenglow Pass
+included), four seeded rounds with hands; and Coral Keys and Whinstone with
+human-check's own seeds, twelve rounds:
+
+| | Not holed | Stalls | Against par | Coral Keys, hands | Whinstone, hands |
+| --- | --- | --- | --- | --- | --- |
+| Greedy, perfect strike | 1 of 90 | 2 | −1.52 | | |
+| First plan, perfect strike | 0 of 90 | 0 | −1.77 | | |
+| This plan, perfect strike | 0 of 90 | 0 | −1.74 | | |
+| Greedy, hands | 4 of 360 | 15 | −0.56 | −0.63 | −1.03 |
+| First plan, hands | 0 of 360 | 10 | −0.84 | −0.43 | −0.89 |
+| This plan, hands | 0 of 360 | 11 | −0.71 | −0.54 | −1.06 |
+
+Coral Keys is level with the greedy player within the noise of twelve rounds
+(four rounds on other seeds put it a tenth ahead), and the holes the plan was
+for keep most of what it won: Apogee Yard with hands is +1.50 a hole against
+the greedy player's +2.29. The first stroke of a long hole thinks for 0.78 s on
+average in Node, against 1.45 s for the first plan and 0.71 s for the greedy
+search alone, and 1.9 s at the worst (Redstone's Switchback, where the greedy
+search alone is 1.7 s) against 5.1 s.
 
 ## Pass and play
 
@@ -3403,9 +4168,335 @@ A shared round is nobody's personal best, so it is not recorded, the same rule
 as a round the caddie has had the club in; the range and the demo are always
 one player.
 
+## The World Tour: every hole in a world
+
+What a new game plays, and the front of the picker (v1.151.0). Fourteen holes now,
+each played **inside a world from Ethan Mollick's
+[Portals](https://github.com/emollick/ai-portals)** — the owner asked for its
+worlds to be borrowed, for courses pushed further than the fifteen had gone,
+and for a way into a round that did not have to be figured out. It is golf
+all the way through: a tee, a flag, a card, the next hole. What is borrowed
+is the place.
+
+| Hole | Played in | What it is |
+| --- | --- | --- |
+| The Butter Knife | Breakfast Kingdom | Up a ramp and over a gap to the placemat, or walk the teaspoon, a ball wide. |
+| Up the Shell | The World Turtle | 0.8 g. Along the neck and up a table mountain. No rail anywhere. |
+| The Marble Run | Marble Run, Falling Dominoes | Three chutes and a tray at the bottom the long way round, or out through the hatch at the first turn and down by the flag. Coming round that turn sets the world's dominoes going. |
+| Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
+| Slack Water | Kelp Cathedral | Two currents across the line, one each way, and a bank of still water between. A current carries a ball sideways for as long as it is in it: stop on the slack, or go through both in one putt round the weed. |
+| Loop and Rink | Carnival on the Frozen River | A loop-the-loop, then a rink where the only thing that stops a ball is the rug the flag is in. |
+| The Fairy Ring | Spore Rain | Eight toadstool bumpers round the flag and one big cap in front that throws the ball over them. |
+| The Orrery | Library with a Brass Orrery | Three arms on one spindle at three speeds. |
+| The Cloud Ladder | The Cloud Armada | Four landings at four heights, 0.7 g, nothing rolls between them. |
+| Three Doors Down | Stairway Everywhere | Four landings and three doors in the floor; one putt can take two of them to the flag. |
+| The Three-Body Problem | Airbrushed Black Hole | Three black holes and the cup where they cancel. |
+| The Forge | Black Glass and Lava | A belt running at a hammer, a pad over a river of iron, an anvil with a flag in it. |
+| The Iron River | Black Glass and Lava | Sculpted. A par four off the bridge over the lava canyon to a green far below on the east bank. |
+| The Nave | Kelp Cathedral | Sculpted. A par four down the trench, a half-pipe, to a shelf levelled into one bank. |
+| The Sugar Gate | Breakfast Kingdom | Sculpted. A par three the length of the breakfast table, played off the cloth itself between what is laid on it. |
+
+**The hole** is `portals.js → WORLDS`: `{ id, title, world, kind, caption,
+theme, tier, hole, place }`, written with `G3.authoring`. `world()` makes each
+`open`, `calm`, `bare` and unstaked — no rail unless something stands there
+(`kerb`), and off the edge is out (`OOB_Y`). A **tour** is six of them
+(`portals.deal`): picked by the showcase's weights (never played is four times
+as likely as once), never the same shelf twice running, in order of `tier`.
+`courseById('portals')` is the tour in play, `portal-library` all of them,
+`world-<id>` one by itself — also the key its stars are kept under. Records
+are against par. Between two holes the stage closes on the next world's sky
+and opens on its tee (`game.js → throughPortal`, `.portal-wipe`).
+
+**The world is the real one.** `vendor/portals/` is Portals' engine, kit,
+twelve worlds and three.js r170, unmodified (its README has the licence:
+CC BY-NC-SA 4.0, credited in the picker). `js/backdrop.mjs` — an ES module,
+loaded last under an import map, and nothing waits for it — builds the world a
+hole names with that engine and draws it into a canvas of its own;
+`render.js → stepPlace` makes that canvas the scene's background, puts the
+hole's own sky and country away (`R.outer`) and pushes the fog out. Two
+renderers and two three.js versions, one picture.
+
+**And the hole is fitted into it** (`backdrop.mjs → fitAt`). The seat behind
+the ball on the tee is put on the world's own flight path, looking the way
+the flight looks, so the view from the tee is one its makers composed. A ray
+cast straight down through the world's geometry says how high the flight is
+over the ground there, and *that height sets the scale*: forty metres up
+makes the hole a course laid across the country below; skimming a table top
+makes it a toy on the tablecloth. A second ray under the middle of the hole
+is the ground the hole stands on. Only broad, upward-facing, uninstanced
+meshes count as ground — a lantern under the flight is not somewhere to lay a
+hole. With no `place.u` the flight is searched for where it passes lowest
+over level ground (`bestU`); `PLACES` in portals.js overrides `u`, `scale`,
+`lift`, `turn`, `dx`/`dz`, or says `ground: false` for a world with nothing
+under it.
+
+**The two pictures share depth** (v1.153.0). They are drawn by two renderers
+that share no object, and until this version the golf was simply painted
+over the world: a pillar between the camera and the green was behind the
+green (the owner: "the occlusion is weird in the 3D space"). Now the world
+is drawn twice a frame — once as itself, and once with one plain material
+that writes each pixel's distance from the camera, 16 bits on a log scale in
+red and green (`backdrop.mjs → drawDepth`). The canvas is twice as tall as
+the picture: the picture on top, the distance under it. `render.js →
+addWorldPlate` draws one sheet across the view before anything else, which
+paints the top half and writes the bottom half into this renderer's own
+depth buffer, converted to its units and its projection. Everything the game
+draws after that is depth-tested against the world like any other geometry.
+Three things to know:
+
+- **Only what is solid is in the depth pass.** Sprites, particles, glows,
+  sky domes and anything cut out by an alpha map are skipped (`solid()`):
+  a plain material would draw each as the whole sheet it is cut from. A
+  world's shader-displaced surface is drawn where its undisplaced geometry
+  is.
+- **The hole's own plan is never covered.** Whatever of the world stands
+  inside a pad's box and a margin (`R.placeKeep`; the whole bounding box for a sculpted hole) is painted but pushed
+  to the far plane, so a fold of terrain cannot cut the playing surface or
+  swallow a ball. That is also what lets a sculpted hole show the world's
+  ground as its own.
+- **The world's colours come through as its makers graded them.** The sheet
+  puts the picture through postfx.js's grade backwards (tone curve, tint,
+  saturation, contrast), so the grade laid over the whole frame returns it
+  to what it was. Before, a world was graded twice and came out garish.
+
+**The Nave is the third** (v1.155.0): a par four down the Kelp Cathedral's
+trench, which is a level floor between two banks — a half-pipe — to a green
+that is a shelf levelled into one bank (`bake-ground --flat`).
+
+**How a sculpted hole and its world are one thing** (v1.157.0, the third
+go at it). The first two laid the hole's tee, fairway and green over the
+world's ground as sheets, solid and then half through, and on a phone they
+hovered: the baked ground is a smoothed copy sampled at a unit, the world's
+is a mesh with facets, and wherever the two disagreed by a hand a sheet
+stood off the land or sank into it (the owner, with three screenshots of
+Across the Shell: "quite broken… rethink that from the start"). So nothing
+is laid on anything now:
+
+- **The world's ground is pressed to the hole's** (`backdrop.mjs →
+  sculpt`, once per world and placing). Every upward-facing vertex of the
+  world's broad ground meshes inside the hole's grid is moved to the baked
+  height there — the height the ball is rolled on — with a three-unit
+  feather at the edge and a limit on how far a vertex may be moved, so a
+  cliff stays a cliff. A levelled tee is level in the world's own picture.
+  The world's instanced trees and stones standing on a tee, fairway or
+  green are taken out (`place.clear`). Nothing in `vendor/portals/` is
+  edited: this is done to the built world in memory.
+- **A fairway is paint** (`render.js → addWorldPlate`, the decals). The
+  plate already knows where each pixel of the world is in the hole's
+  coordinates; a pixel on the hole's ground and inside a tee or fairway
+  takes the turf's colour, keeping the world's light and shade, with a
+  mower's stripe and a soft edge that wanders. It follows every fold
+  because it is the land. The grid goes to the shader as a float texture.
+- **Only the green is still drawn by the game**, on ground that now matches
+  it, with a collar of the same paint. The strips the game would have
+  drawn (`R.veils`) are put away with the ghosts while the world is on
+  screen, and are the fallback without it.
+- **The world is always built at `medium`**, whatever the device: a hole is
+  baked from that level's ground, and a different level is different
+  geometry.
+
+**What a hole does to a world is undone for the next hole** (v1.158.0,
+`unsculpt`). Two holes share the breakfast table and a world is kept between
+them, so the first version left the cloth pressed to the last hole's shape.
+Two switches on a placing came with it: `press: false` clears the strips but
+moves no ground (a laid table: pressing the cloth to a bake that includes the
+teapot drew it up over the teapot), and `reach` is how far, in the hole's
+units, land may be moved (1.6 unless said). `reach` is what lets a hole be
+*groomed*: `tools/groom-ground.mjs <id> --path "x,z x,z …" --width w` blurs
+the baked grid along the line of play and leaves the country either side, and
+because the world is pressed to the grid the picture is groomed with it.
+Across the Shell's dip, which every ball finished in, was filled that way.
+
+**A world can have an event the golf sets going** (v1.157.0).
+`place.event = { from, to, secs, gate | at, say }` moves the world's own
+clock (`u`, round the hole's anchor) from `from` to `to` over `secs` the
+first time the ball passes through `gate` (`[x, z, r]` on the hole) — or
+is `at` of the way from tee to flag — or drops. `render.js → stepPlace`
+watches the ball, `G3.backdrop.play()` runs it, a new hole rewinds it, and
+`say` is toasted. The Marble Run's is the dominoes beside it going over in
+a wave as the ball comes round the first turn; the owner asked for it.
+
+**A world's own vehicle can be put away** (v1.162.2). Some worlds fly a ship
+or ride a boat with their camera, and from the tee it is a hull across the
+bottom of the picture: `place.hide` names the world's objects to hide
+(`['ship']` for the Airbrushed Abyss), and `backdrop.mjs` hides them each
+frame after the world has posed them. `place.turn` (radians) turns the hole
+on its anchor, which is how The Three-Body Problem puts the cover's black
+hole behind its flag. A grid theme can set its glass's own colours
+(`glass: { color, emissive, specular }`) and a hole's wells can be painted in
+a world's inks (`wellHot`, `wellCool`); the floor grid off the course is
+scenery now (`R.outer`), so a live world puts it away.
+
+**The world's resolution follows the frame rate, and not for the first six
+seconds** (`stepPlace`). It starts at 0.7 of the stage on a phone and 0.8
+elsewhere, drops a quarter per poor two-second window to a third, and
+comes back a step after three good ones. Nothing is measured while a world
+is still compiling its shaders: judged on those seconds, every world was
+taken to a third and left there. `?live=1` pins it.
+
+**The Iron River is the second sculpted hole** (v1.154.0), and the thirteenth
+of the tour: a par four in the Obsidian Forge, off the one bridge over its
+canyon of lava, forty metres up, to a green far below on the east bank. The
+canyon, the bridge and the ridge the ball runs down are that world's own,
+sampled at 2.5 units and baked at one. Over a sculpted hole the world's depth
+is set back half a unit instead of to the far plane (`R.placeSoft`), so the
+world's trees and rocks stand in front of the ball while a wrinkle of its
+turf, which the smoother baked copy does not have, cannot bury it.
+
+**A hole can be sculpted to its spot, and Across the Shell is** (v1.152.0).
+Its ground is not drawn by anybody: it is a headland on the south coast of
+the country on the turtle's back, read off that world's own geometry and
+baked into the hole. Two tools do it. `tools/world-ground.mjs <hole>` loads
+the world through the game and prints a height map of it (or writes a fine
+grid with `--box … --step … --json`): that is how a spot is found — the
+turtle's land turned out to be twenty-metre plateaus with cliffs to a sea at
+150. `tools/bake-ground.mjs` then takes a placing (`--pin` a golf point to a
+world point, `--yaw`, `--scale`, `--y0` for the height that is golf's zero),
+resamples the grid into golf units, smooths the mesh's facets out, levels a
+tee and a green (`--flat`), writes `js/tour-ground.js` and prints the
+`place.at` for portals.js — an exact placing, which `backdrop.anchorFor`
+uses as given instead of searching.
+
+In the hole that ground is one `rough` pad carrying a `grid` field term
+(`physics.fieldAt`: bilinear, the cell's own slope, the edge carried on
+level), with the fairway and green as square inlays carrying the *same*
+term, so every strip lies on the hills exactly. The pad and the sea under it
+are marked `ghost`: with the live world on screen they are put away
+(`render.js`, `R.ghosts`) and the ball rolls on what looks like — and
+measures as — the world's own country, with only a tee, mown strips and a
+green laid over it. Without the world the same pad is drawn, so the fallback
+has the same hills. `place.u` on such a hole is only the world's clock: the
+turtle's sun sets as its flight goes on, and 0.12 is daylight.
+
+**Without it the hole is still a hole.** Until the world has built — a second
+or two — and for good on a phone, with "Live worlds: off" in the picker
+(`render.setLive`, remembered; `&live=0|1` for a session) or where a second
+WebGL context cannot be had, the hole stands under its own theme's sky
+(`portals.js → THEMES`) with a simple stand-in set piece in this game's own
+three.js (`worlds.js → SCENES`).
+
+**Measuring one**: `node tools/portal-check.mjs` plays every hole with the
+caddie and sweeps the tee for aces; `tools/portal-shot.mjs` traces one shot.
+`tests.html` holds each to a tee and a cup on level ground, a world of its
+own, a bot that holes out within two of par, and the deal to its shape;
+`shader-tests.html` builds every stand-in. The live worlds are another
+renderer and are looked at, not asserted: `?world=<id>&live=1`, and
+`G3.backdrop.debug()` in the console says where the hole landed.
+
+### Live worlds are on by default, on a phone too
+
+They were a desktop's default only, and the owner's phone — which runs the
+game at sixty frames — showed the stand-in scenery (v1.155.0). Now
+`render.js → liveWanted` says yes unless the player has said no or the
+device reports 2 GB or less. What protects a weak machine is measured:
+`stepPlace` takes a quarter off the world's resolution each two seconds the
+frame rate is under 26, down to a third of the stage, and switches live
+worlds off (with a toast, `g3-live-off`) if it is still under 16 at the
+bottom. `backdrop.mjs` leaves a mark in localStorage while a world builds; a
+mark still there at the next visit means the build killed the page, and
+live worlds stay off until asked for. `?live=1` overrides all of it.
+
+### The wait for a world
+
+A world takes a moment to build. The hole used to come up at once on its
+stand-in scenery and the world popped in behind it mid-intro (the owner:
+"the loading is a bit off"). Now the screen that closes between two worlds
+stays closed until the world is being drawn, with a plate that says where
+you are going, and opens on the finished picture (`game.js → holdForWorld`);
+the intro flyover waits behind it. It opens at once for a world already
+built or with live worlds off, and after twenty seconds or a failed build it
+opens on the stand-in and says so. While a hole is played the next world's
+files are fetched (`backdrop.fetch`), so the next wait is the build alone.
+
+**And the build starts at the sink** (v1.162.0). A moment after the ball
+drops (`DIVE.PREPARE_AFTER`) the next world is built behind the celebration
+(`game.js → prepareNext`, `backdrop.prepare`): kept aside, never drawn, and
+swapped in at once when the next hole asks for it (`want` → `takeSpare`);
+anything else asked for throws it away. The engine is made `hold`, which
+lets a build hold the page as long as it likes; that is right behind a
+closed portal and wrong with a hole on screen, so `backdrop.mjs` replaces
+the engine's `_budget` on its instance: six milliseconds a frame while a
+world is built ahead (`early`), unlimited again the moment anything is
+`want`ed. Peak memory is unchanged — a world was always built while the last
+still stood — it is only held longer. A world swapped in like that is built
+but not drawn, so the portal still waits for its first frames, without the
+plate (`curtain.built`, `.portal-wipe.quiet`). Before v1.162.0 the plate
+never showed between two holes at all: the wipe kept its `closing` class
+while it held, and only `holding` shows the plate.
+
+**Earlier still, and with a bar that fills** (v1.163.0; the owner: "show
+progress… it's also very slow"). Three moves:
+
+- *During the demo.* `startDemo` deals the next tour ahead (`warmTour`,
+  `nextJourney`) and builds its first world aside in slices; Start
+  (`leaveDemo` → `newJourney`) takes that deal, so the first hole opens on a
+  world already built or part way there. Leaving the demo any other way drops
+  the deal and the world (`backdrop.drop`). A hole with no world no longer
+  throws a spare away (`want(null)`), nor turns its slices off.
+- *During a hole.* `prepareAhead` builds the next world once the hole has
+  been open `DIVE.PREPARE_AHEAD` seconds, at a quiet moment (aiming, no
+  flyover, the current world drawn). `prepareNext` at the sink is the
+  fallback; the files are fetched 1.5 s in rather than 4.
+- *The bar.* The engine names each step of a build (`perf.setPhase`:
+  fetch, leaf, build, compile, warm) but not how far through it is, so
+  `backdrop.progress(id)` estimates: each step is given what it took on this
+  device last time (that world's own record, else the device's running
+  average, in `localStorage` `golf3d.worldTimes`), and a step still running
+  creeps towards its end without passing it. `curtainBar` shows it with the
+  step's name and a percentage, never moving backwards, filled by `scaleX`
+  so the compositor can draw it while the build holds the page's thread.
+
+### Down the cup
+
+Between two worlds the cup is the portal (the owner's idea, v1.162.0). Once a
+hole is holed the score is shown for `C.HOLE_END.SHOW` and the game goes on by
+itself — there is no Next button since v1.166.0, and a tap on the score or
+Enter skips the wait (`game.js → tickHoleEnd`). Then the flag goes off like a rocket on a trail
+of sparks, and the camera leaves wherever it watched the drop, arcs up over
+the cup and falls into it (`render.js → startDive`, `diveCamera`, `C.DIVE`),
+stopping just over the lip where the cup fills the picture — the height
+worked out from the field of view, so a phone held either way ends on the
+inside of the hole and the ball lying in it, never on the ball's dimples.
+The wipe on to the next sky starts closing while it falls (`throughPortal`'s
+`dive`), so it opens out of the cup. The pose holds at the lip until the
+next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
+is over (`phase === 'holed'`, a picked-up ball included); reduced motion
+gets neither the dive nor the wipe.
+
+### The picker: everything side by side
+
+One page (v1.153.0). On top, three ways to be dealt a round: **Play the
+World Tour** across the width, **Showcase** and **Challenge** side by side
+under it. Then one row of tabs that files everything there is: **Worlds**
+first — every tour hole as a small sky over its own ground, playable by
+itself, with its stars or the word *new* — then the four kinds of drawn
+course and the draw (`game.js → drawMenu`, `drawHome`, `WORLDS_GROUP`). It
+opens on Worlds unless a drawn course is in play or on offer. For two
+versions the tour was a front page and the courses a second page behind a
+door; the owner wanted "the new and old style maps next to each other".
+
+It opens on **Everything** (v1.154.0): one grid in which a tour hole and a
+six-hole course are the same card — a sky over its ground, a tag in its
+kind's colour, a name, its stars — dealt alternately and each played with one
+press (`game.js → drawGrid`, `ALL_GROUP`). The owner wanted the two "both
+equally pickable"; a tab apiece still made one of them the default and the
+other a detour. The kind tabs remain for the hole-by-hole view of a course.
+
+**And it is a level select** (v1.155.0). Every tab is the same grid of the
+same card — the plan of the first hole over the theme's sky, a tag, the name,
+three pips for its stars — and pressing a card opens that card's page
+(`drawDetail`): what it is, holes/par/best/stars, one large **Play**, and
+every hole as a plan to start on. Two presses for anything, worlds and
+courses alike; the detailed list the kind tabs used to show is gone, and so
+is the fifth way of doing things it was. **Surprise me** is the third
+featured button beside Showcase and Challenge, and what it draws from is
+behind a link under the grid, not a tab. The tabs are one row of named chips
+that scrolls sideways on a phone. A bar under the title is every star there
+is; *Keep playing* is pinned to the bottom.
+
 ## The showcase: the game in eight holes
 
-A hundred and eight holes is a lot to walk before you know what is in them, and
+Ninety holes is a lot to walk before you know what is in them, and
 the order they are written in shows you six holes of one kind of golf before it
 shows you a second. The showcase is the other way in, and it is what a new game
 plays: **two holes from every kind, eight in all, each out of a different
@@ -3444,6 +4535,30 @@ order, eight different courses, each hole the hole it is at home and drawn in
 its home world, never the playtest), checks that the dice change the deal and
 that every course can come up, and that a showcase record goes to the round
 furthest under par rather than the shortest.
+
+### Stars, and the dice leaning towards what you have not played
+
+Every hole gives up to **three stars**, the same as the 2D game next door:
+three under par, two at par, one for holing out, none for a pick-up
+(`scoring.js → stars`). They are kept per hole in the save
+(`save.holes['<course>:<index>'] = { plays, best, stars }`), keyed by the
+hole's **home** course — a showcase hole is filed where it lives, so its stars
+are the same wherever you meet it. `game.js → noteHole` writes it as each hole
+ends: the play is counted for any human round (pass and play counts a hole
+once), the stars only where `finishRound` would keep a record. The demo, a
+caddie session, a dealt Challenge hole and an editor playtest write nothing.
+The banner shows the hole's stars, the picker shows each plan's best and each
+course's total, and the showcase button the total over every course.
+
+`plays` is what the dice read. A hole weighs `1 / (1 + plays)²` — never played
+is four times as likely as once, nine times as likely as twice, and never zero
+— and a course weighs its holes' average, with a save from before hole counts
+falling back to its rounds. `dealShowcase(rng, save)` picks each course by
+that and then the hole inside it; `randomCourseId` (every shuffle mode, the
+end of a shuffled round, `?course=random`) picks out of the mode's draw by it.
+With no save, or everything played alike, the weights are equal and the pick
+is exactly the even one — `weightedIndex` gives `floor(n × length)` to the
+digit, which is what the older tests holding the dice still check.
 
 ## Challenge mode: maths in a grid world
 
@@ -4519,16 +5634,16 @@ the four things that can move it says otherwise.
 
 Open `tests.html`. Over 2,460 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, the ground that does something, the
-walls you go through, all hundred and eight holes of course data, the scorecard and the
+walls you go through, all ninety holes of course data, the scorecard and the
 intro flyover's path.
 
 The one worth knowing about is the **bot** (`js/bot.js`, and the game plays it
 too — see [autoplay](#the-caddie-autoplay)): a greedy player fans
 out candidate shots on every hole, keeps the one that finishes nearest the cup,
-and plays all hundred and eight. If a hole is sealed off, unreachable, or has a cup buried where
+and plays all ninety. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It is
 deterministic, so a failure is reproducible rather than "sometimes red", it
-plays out of the same five clubs the player gets, its candidates include a wait
+plays out of the same clubs the player gets, its candidates include a wait
 before striking (the timing holes are only solvable with one, and a bot that
 always fires at `t=0` would report a false failure), and a chosen shot has to
 actually go somewhere — without that rule the greedy
@@ -4691,7 +5806,7 @@ Every one of those passed the whole of `tests.html`, on shipped holes.
 
 **`turntable.html`** is the eye's half. It draws every hole in the game with the
 game's own renderer from eight fixed angles and lays them out as one contact
-sheet per course — a hundred and eight holes in eighteen pictures. The angles are not
+sheet per course — ninety holes in fifteen pictures. The angles are not
 decoration; each is there for something the others hide:
 
 | View | What only it shows |
@@ -4703,7 +5818,7 @@ decoration; each is there for something the others hide:
 | **hero at 40°** | The picture the hole would be sold with, which is a fair question to ask of it. |
 
 ```sh
-node golf3d/tools/turntable.mjs                        # all eighteen, ~7 minutes
+node golf3d/tools/turntable.mjs                        # all fifteen, ~6 minutes
 node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
 ```
 
@@ -4824,15 +5939,15 @@ with neither: some people want a hole with weather on it and nothing else.
 ## Controls
 
 Drag back from the ball and let go; drag sideways to swing the aim, and the
-camera swings with it. Where the camera stands *relative to* that aim is the
+camera swings with it. When a stroke comes to rest the aim (and so the camera)
+turns to face the cup from wherever the ball stopped (game.js `turnToCup`),
+giving way at once to a drag, a key or the caddie. Where the camera stands *relative to* that aim is the
 [view dial](#the-view-dial), not the drag. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> that
 many tenths of a full swing (<kbd>Home</kbd> empty, <kbd>End</kbd> a full
 swing, <kbd>shift</kbd>+<kbd>End</kbd> the overdraw — the ladder itself stops
 at a full swing, because the overdraw is a thing to ask for on purpose and a
-mistyped key should not be able to spray a shot), <kbd>Z</kbd> draw,
-<kbd>X</kbd> fade, <kbd>Q</kbd> backspin, <kbd>E</kbd> topped — the same key
-again is straight (see [Shot shaping](#shot-shaping)), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
+mistyped key should not be able to spray a shot), <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 the seat — follow, side on, overview — <kbd>,</kbd><kbd>.</kbd> walk the view
 round the ball, <kbd>L</kbd> lock it where it is, <kbd>0</kbd> straighten it,
@@ -4932,6 +6047,10 @@ the same draw the picker's own button makes, so `&hole=` still counts from 1
 into whichever course came up. It is the one value of `course=` that makes a
 link *not* reproducible, which is the point of it and the reason a screenshot
 should never use it.
+
+`?world=<id>` opens one [tour hole](#the-world-tour-every-hole-in-a-world) by itself;
+`?course=portals` deals a tour, `?course=portal-library` is all of them, and
+`&live=0|1` switches the live world behind it off or on.
 
 `&fly=0` and `&fly=1` force the intro
 [flyover](#the-fourth-camera-which-is-not-a-seat) off or on for the session,

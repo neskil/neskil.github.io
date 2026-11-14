@@ -182,6 +182,33 @@
             // sail that happens to be down at the start of the clock.
             B = wl.sails ? { cx: wl.x + wl.w / 2, cz: wl.z + wl.d / 2, hw: wl.w / 2, hd: wl.d / 2, yaw: 0 }
                 : P.wallBox(wl, 0);
+            // A bumper and a rubber post are round (physics.isPost), and the
+            // plan says so rather than drawing the box nobody plays.
+            if (P.isPost && P.isPost(wl)) {
+                g.fillStyle = wl.kind === 'post' ? '#e8e8ee' : '#f0409a';
+                g.beginPath();
+                g.arc(toX(B.cx), toY(B.cz), Math.max(1.4, B.hw * scale), 0, 6.283);
+                g.fill();
+                continue;
+            }
+            // A slingshot is one triangle of rubber, drawn off its face.
+            if (wl.kind === 'slingback') continue;
+            if (wl.tri) {
+                g.fillStyle = '#f0f0f4';
+                g.beginPath();
+                g.moveTo(toX(wl.tri[0].x), toY(wl.tri[0].z));
+                g.lineTo(toX(wl.tri[1].x), toY(wl.tri[1].z));
+                g.lineTo(toX(wl.tri[2].x), toY(wl.tri[2].z));
+                g.closePath();
+                g.fill();
+                g.strokeStyle = '#ff4fa3';
+                g.lineWidth = Math.max(1, 0.12 * scale);
+                g.beginPath();
+                g.moveTo(toX(wl.tri[0].x), toY(wl.tri[0].z));
+                g.lineTo(toX(wl.tri[1].x), toY(wl.tri[1].z));
+                g.stroke();
+                continue;
+            }
             if (wl.kind === 'tree') {
                 g.fillStyle = 'rgb(' + TREE.join(',') + ')';
                 g.beginPath();

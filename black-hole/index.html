@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Black Hole | Niklas Billgren</title>
+    <meta name="description" content="A black hole ray-traced live in your browser: every pixel is a photon followed backwards through curved space. Turn it, switch gravity off, and fire light past it to see why the shadow is bigger than the hole.">
+    <meta name="theme-color" content="#05070d">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="canonical" href="https://neskil.github.io/black-hole/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Pocket Black Hole">
+    <meta property="og:description" content="A black hole ray-traced live in your browser. Turn it, switch gravity off, fire light past it.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/black-hole/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/black-hole.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="A black hole in front of a starfield, its glowing accretion disc bent up and over the shadow by gravity, beside a panel of controls and a diagram of light paths curving past the hole.">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #05070d;
+            --panel: rgba(15, 23, 42, 0.62);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #fbbf24;
+            --accent-rgb: 251, 191, 36;
+            --caught: #f87171;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button, input { font: inherit; color: inherit; }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+        #view.dragging { cursor: grabbing; }
+
+        .glass {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .bar {
+            position: fixed; top: 0.8rem; left: 0.8rem; right: 0.8rem;
+            display: flex; align-items: center; gap: 0.7rem;
+            pointer-events: none;
+        }
+        .bar > * { pointer-events: auto; }
+        .pill {
+            color: var(--muted); text-decoration: none; font-size: 0.85rem; white-space: nowrap;
+            padding: 0.4rem 0.8rem; border-radius: 999px; cursor: pointer;
+            border: 1px solid var(--panel-border); background: var(--panel);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        }
+        .pill:hover { color: var(--text); }
+        .pill[aria-pressed="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.5); }
+        h1 { font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; text-shadow: 0 1px 12px #000; white-space: nowrap; }
+        h1 span { color: var(--accent); }
+        .spacer { flex: 1; }
+
+        .panel {
+            position: fixed; top: 3.6rem; right: 0.8rem; width: 300px;
+            max-height: calc(100dvh - 4.4rem); overflow-y: auto;
+            padding: 1rem; display: flex; flex-direction: column; gap: 0.9rem;
+        }
+        .panel h2, .rays h2 {
+            font-family: 'Outfit', sans-serif; font-size: 0.72rem; font-weight: 700;
+            letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+        }
+        .toggles { display: grid; gap: 0.45rem; }
+        .toggle { display: flex; align-items: center; gap: 0.6rem; font-size: 0.88rem; cursor: pointer; }
+        .toggle input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: rgba(255,255,255,0.14); position: relative; cursor: pointer; flex: none; transition: background 0.15s; }
+        .toggle input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #e2e8f0; transition: transform 0.15s; }
+        .toggle input:checked { background: var(--accent); }
+        .toggle input:checked::after { transform: translateX(14px); background: #1c1403; }
+        .toggle small { display: block; color: var(--muted); font-size: 0.72rem; }
+
+        .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .chip {
+            font-size: 0.75rem; padding: 0.28rem 0.6rem; border-radius: 999px; cursor: pointer;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border); color: var(--muted);
+        }
+        .chip:hover { color: var(--text); }
+        .chip[aria-pressed="true"] { background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.5); color: var(--accent); }
+
+        input[type=range] { width: 100%; accent-color: var(--accent); }
+        .mass { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.05rem; }
+        .mass small { font-family: 'Inter', sans-serif; font-weight: 400; color: var(--muted); font-size: 0.78rem; }
+
+        dl { display: grid; grid-template-columns: 1fr auto; gap: 0.3rem 0.8rem; font-size: 0.82rem; }
+        dt { color: var(--muted); }
+        dd { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+        .rays {
+            position: fixed; left: 0.8rem; bottom: 0.8rem; width: min(380px, calc(100vw - 1.6rem));
+            padding: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .rays canvas { width: 100%; aspect-ratio: 16 / 10; display: block; border-radius: 10px; background: #060912; touch-action: none; cursor: ns-resize; }
+        .rays p { font-size: 0.8rem; color: var(--muted); line-height: 1.45; min-height: 2.9em; }
+        .rays p b { color: var(--text); font-weight: 600; }
+        .rays p .caught { color: var(--caught); }
+        .rays p .free { color: var(--accent); }
+        .legend { display: flex; gap: 0.9rem; font-size: 0.7rem; color: var(--muted); flex-wrap: wrap; }
+        .legend i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 0.3rem; }
+
+        .hint {
+            position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%);
+            font-size: 0.78rem; color: var(--muted); pointer-events: none; text-shadow: 0 1px 8px #000;
+            transition: opacity 0.6s;
+        }
+        #nogl { position: fixed; inset: 0; display: none; place-items: center; padding: 2rem; text-align: center; color: var(--muted); }
+
+        body.bare .panel, body.bare .rays, body.bare .hint { display: none; }
+
+        @media (max-width: 760px) {
+            .panel { top: auto; bottom: 0.8rem; left: 0.8rem; right: 0.8rem; width: auto; max-height: 46dvh; }
+            .rays { display: none; }
+            body.show-rays .rays { display: flex; bottom: auto; top: 3.6rem; }
+            body.show-rays .panel { display: none; }
+            .hint { display: none; }
+            h1 { font-size: 0.98rem; }
+            .pill { font-size: 0.78rem; padding: 0.35rem 0.6rem; }
+            .bar { gap: 0.4rem; }
+        }
+        /* Between a phone and a wide screen there is room for one panel beside the hole, not two. */
+        @media (min-width: 761px) and (max-width: 1150px) {
+            .rays { display: none; }
+            body.show-rays .rays { display: flex; }
+        }
+        @media (min-width: 1151px) { #btn-rays { display: none; } }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9GP823TGLB');
+    </script>
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebApplication",
+                "url": "https://neskil.github.io/black-hole/",
+                "description": "A black hole ray-traced live in your browser: every pixel is a photon followed backwards through curved space. Turn it, switch gravity off, and fire light past it to see why the shadow is bigger than the hole.",
+                "image": "https://neskil.github.io/assets/og/black-hole.png",
+                "name": "Pocket Black Hole",
+                "author": {
+                    "@id": "https://neskil.github.io/#niklas"
+                },
+                "isPartOf": {
+                    "@id": "https://neskil.github.io/#website"
+                },
+                "applicationCategory": "EducationalApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript and WebGL 2 support",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                }
+            },
+            {
+                "@type": "Person",
+                "@id": "https://neskil.github.io/#niklas",
+                "name": "Niklas Billgren",
+                "url": "https://neskil.github.io/",
+                "jobTitle": "Supply chain consultant",
+                "image": "https://neskil.github.io/assets/portrait.webp",
+                "sameAs": [
+                    "https://www.linkedin.com/in/niklas-eskilsson/"
+                ]
+            }
+        ]
+    }
+    </script>
+</head>
+<body>
+    <canvas id="view" aria-label="A black hole and its accretion disc, ray-traced. Drag to orbit, scroll or pinch to zoom."></canvas>
+    <div id="nogl">This one needs WebGL 2, which this browser does not offer.</div>
+
+    <header class="bar">
+        <a class="pill" href="../">← Back</a>
+        <h1>Pocket <span>Black Hole</span></h1>
+        <div class="spacer"></div>
+        <button class="pill" id="btn-rays" type="button" aria-pressed="false">Light paths</button>
+        <button class="pill" id="btn-bare" type="button" aria-pressed="true">Panels</button>
+    </header>
+
+    <aside class="panel glass" aria-label="Controls">
+        <h2>What you see</h2>
+        <div class="toggles">
+            <label class="toggle"><input type="checkbox" id="t-lens" checked><span>Gravity bends light<small>Off: the same scene in flat space</small></span></label>
+            <label class="toggle"><input type="checkbox" id="t-disc" checked><span>Accretion disc<small>Gas in orbit, from 3 to 13 radii</small></span></label>
+            <label class="toggle"><input type="checkbox" id="t-doppler" checked><span>Relativistic beaming<small>The side coming at you is brighter and bluer</small></span></label>
+            <label class="toggle"><input type="checkbox" id="t-grid"><span>Reference sky<small>A coloured grid instead of stars</small></span></label>
+            <label class="toggle"><input type="checkbox" id="t-spin" checked><span>Drift the camera</span></label>
+        </div>
+
+        <h2>How heavy</h2>
+        <div class="mass" id="mass-label"></div>
+        <input type="range" id="mass" min="0" max="10.9" step="0.01" value="6.63" aria-label="Mass, in solar masses, on a logarithmic scale">
+        <div class="chips" id="presets"></div>
+
+        <h2>Which makes it</h2>
+        <dl>
+            <dt>Horizon, across</dt><dd id="o-horizon"></dd>
+            <dt>Shadow, across</dt><dd id="o-shadow"></dd>
+            <dt>Inner disc lap</dt><dd id="o-lap"></dd>
+            <dt>Inner disc speed</dt><dd>50% of light</dd>
+            <dt>Glows at</dt><dd id="o-hawking"></dd>
+            <dt>You are at</dt><dd id="o-dist"></dd>
+            <dt>A clock here runs at</dt><dd id="o-clock"></dd>
+        </dl>
+    </aside>
+
+    <section class="rays glass" aria-label="Light paths past the hole, seen from above">
+        <h2>Fire light past it</h2>
+        <canvas id="rays" width="720" height="450"></canvas>
+        <p id="ray-say"></p>
+        <div class="legend">
+            <span><i style="color:#fbbf24"></i>escapes</span>
+            <span><i style="color:#f87171"></i>caught</span>
+            <span><i style="color:#64748b;border-top-style:dashed"></i>photon sphere</span>
+        </div>
+    </section>
+
+    <div class="hint" id="hint">Drag to orbit · scroll to zoom</div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

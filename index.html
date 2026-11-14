@@ -200,6 +200,12 @@
             --hue: 52;
         }
 
+        html[data-theme="card-orbit"] {
+            --bg-color-1: #14100e;
+            --bg-color-2: #211714;
+            --hue: 8;
+        }
+
         html[data-theme="card-fika"] {
             --bg-color-1: #171009;
             --bg-color-2: #24180e;
@@ -210,6 +216,24 @@
             --bg-color-1: #08162a;
             --bg-color-2: #0c2440;
             --hue: 205;
+        }
+
+        html[data-theme="card-black-hole"] {
+            --bg-color-1: #0b0906;
+            --bg-color-2: #1c1408;
+            --hue: 40;
+        }
+
+        html[data-theme="card-gait"] {
+            --bg-color-1: #08161a;
+            --bg-color-2: #0c2622;
+            --hue: 158;
+        }
+
+        html[data-theme="card-erosion"] {
+            --bg-color-1: #081824;
+            --bg-color-2: #0c2a3c;
+            --hue: 199;
         }
 
         html[data-theme="card-name-song"] {
@@ -567,6 +591,34 @@
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.09);
             transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+
+        /* The one chip that is a button: it sends you somewhere you have not been. */
+        .shelf-chip-random {
+            cursor: pointer;
+            line-height: inherit;
+            color: #fde68a;
+            background: rgba(251, 191, 36, 0.1);
+            border-color: rgba(251, 191, 36, 0.35);
+        }
+
+        .shelf-chip-random:hover,
+        .shelf-chip-random:focus-visible {
+            color: #fef3c7;
+            background: rgba(251, 191, 36, 0.2);
+            border-color: rgba(251, 191, 36, 0.6);
+        }
+
+        .random-count {
+            margin-left: 0.45rem;
+            padding: 0.05rem 0.45rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            background: rgba(251, 191, 36, 0.22);
+        }
+
+        .random-count:empty {
+            display: none;
         }
 
         .shelf-chip:hover,
@@ -1967,6 +2019,18 @@
             color: rgb(253, 224, 71);
         }
 
+        #card-orbit {
+            --accent-rgb: 216, 72, 56;
+            --card-bg-gradient: linear-gradient(135deg, rgba(40, 24, 20, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(64, 32, 26, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(216, 72, 56, 0.24);
+            --card-hover-border: rgba(255, 181, 63, 0.50);
+        }
+
+        #card-orbit .card-link {
+            color: rgb(255, 181, 63);
+        }
+
         #card-fika {
             --accent-rgb: 224, 164, 88;
             --card-bg-gradient: linear-gradient(135deg, rgba(40, 26, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
@@ -2059,6 +2123,42 @@
         .card:hover .plate-chip {
             transform: rotate(-3deg) scale(1.06);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 14px rgba(254, 204, 2, 0.25);
+        }
+
+        #card-black-hole {
+            --accent-rgb: 251, 191, 36;
+            --card-bg-gradient: linear-gradient(135deg, rgba(44, 32, 10, 0.66) 0%, rgba(15, 18, 28, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(70, 50, 14, 0.82) 0%, rgba(24, 24, 36, 0.75) 100%);
+            --card-border: rgba(251, 191, 36, 0.22);
+            --card-hover-border: rgba(253, 224, 138, 0.50);
+        }
+
+        #card-black-hole .card-link {
+            color: rgb(253, 224, 138);
+        }
+
+        #card-gait {
+            --accent-rgb: 52, 211, 153;
+            --card-bg-gradient: linear-gradient(135deg, rgba(12, 44, 38, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(16, 68, 56, 0.82) 0%, rgba(20, 30, 46, 0.75) 100%);
+            --card-border: rgba(52, 211, 153, 0.22);
+            --card-hover-border: rgba(134, 239, 201, 0.50);
+        }
+
+        #card-gait .card-link {
+            color: rgb(134, 239, 201);
+        }
+
+        #card-erosion {
+            --accent-rgb: 56, 189, 248;
+            --card-bg-gradient: linear-gradient(135deg, rgba(12, 38, 58, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(16, 58, 88, 0.82) 0%, rgba(20, 30, 48, 0.75) 100%);
+            --card-border: rgba(56, 189, 248, 0.22);
+            --card-hover-border: rgba(150, 220, 252, 0.50);
+        }
+
+        #card-erosion .card-link {
+            color: rgb(150, 220, 252);
         }
 
         #card-name-song {
@@ -3345,6 +3445,14 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
+            <a href="usa-quiz/" class="vault-row">
+                <div class="vault-row-icon">🇺🇸</div>
+                <div class="vault-row-body">
+                    <div class="vault-row-title">USA Quiz Night</div>
+                    <div class="vault-row-desc">Åsa, Niklas, Johan and Lena take turns. No alternatives, bonus star.</div>
+                </div>
+                <span class="vault-row-arrow">→</span>
+            </a>
             <a href="surprise/index.html" class="vault-row">
                 <div class="vault-row-icon">✨</div>
                 <div class="vault-row-body">
@@ -3420,6 +3528,7 @@
         <a class="shelf-chip" href="#shelf-lab" data-shelf-jump="lab"><span aria-hidden="true">🧪</span> Labs</a>
         <a class="shelf-chip" href="#shelf-tools" data-shelf-jump="tools"><span aria-hidden="true">🧰</span> Useful tools</a>
         <a class="shelf-chip" href="#shelf-about" data-shelf-jump="about"><span aria-hidden="true">👋</span> About me</a>
+        <button type="button" class="shelf-chip shelf-chip-random" id="random-pick" hidden><span aria-hidden="true">🎲</span> <span id="random-label">Surprise me</span><span class="random-count" id="random-count"></span></button>
     </nav>
 
     <main class="shelves">
@@ -3428,7 +3537,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-games-body">
                     <span class="shelf-icon" aria-hidden="true">🎮</span>
                     <span class="shelf-text"><span class="shelf-title">Games</span><span class="shelf-blurb">Things to play. Mostly logistics, occasionally golf.</span></span>
-                    <span class="shelf-count">6</span>
+                    <span class="shelf-count">7</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -3460,7 +3569,7 @@
                                         </svg>
                                     </div>
                                     <h3 class="card-title">Fore Dimensions</h3>
-                                    <p class="card-desc">Mini golf in two different geometries: seventy-eight flat holes across thirteen courses that open with stars, from a garden to avalanche chutes, a midnight funfair, a desk with a record player, a volcano's geysers and black holes in space, plus a generator that deals nine more, a party mode for four and an editor that checks its own work, or seventeen courses of ramps, carries, bumpers, ice, fairways, dunes and canyons to play over. Pick your dimensions.</p>
+                                    <p class="card-desc">Mini golf in two different geometries: eighty-four flat holes across fourteen courses that open with stars, from a garden to avalanche chutes, a midnight funfair, a desk with a record player, a volcano's geysers, black holes in space and a garden of puzzles, plus a generator that deals nine more, a party mode for four and an editor that checks its own work, or fourteen courses of ramps, carries, bumpers, ice, fairways, dunes and canyons to play over. Pick your dimensions.</p>
                                     <div class="card-stat-chip" id="stat-golf-hub">
                                         <span class="stat-icon">⛳</span> <span class="stat-val">2D · 3D</span>
                                     </div>
@@ -3496,11 +3605,11 @@
                                     </span>
                                     <span class="dim-body">
                                         <span class="dim-name">Loft Links 3D</span>
-                                        <span class="dim-desc">Seventeen courses in four kinds: mini golf over ramps, ledges and water carries; crazy golf past windmill blades, pinball bumpers, clockwork, a waterwheel over the millrace and a belfry of geared machines; adventure golf on ice, travelators, pipes, the steam vents of a volcano and a moon yard at six gravities; and the long game over parkland, heath, an open links of rolling dunes and a red canyon country with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
+                                        <span class="dim-desc">Fifteen courses in four kinds: mini golf over ramps, ledges, banks and water carries; crazy golf past windmill blades, pinball bumpers and a clockwork court of bars, bells and a mill race; adventure golf on ice, launch pads, belts and pipes on a volcano, and a moon yard at six gravities; and the long game over parkland, heath, an open links of rolling dunes, a red canyon country and a mountain pass under the snow, with nothing but white stakes to keep you honest. Each hole under weather of its own, and five clubs to get past them.</span>
                                         <span class="dim-stat" id="stat-golf3d"><span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span></span>
                                     </span>
                                 </a>
-                                <a class="dim-option dim-2d" href="golf/index.html?v=1.20.0">
+                                <a class="dim-option dim-2d" href="golf/index.html?v=1.21.0">
                                     <span class="dim-shot">
                                         <img data-src="assets/preview/golf.webp?v=2" alt="Pocket Links: a ball popping out of a tunnel in The Warren, past the hedge it went under, rolling for the pin." width="800"
                                             height="420" decoding="async">
@@ -3815,6 +3924,64 @@
                                     <div class="peek-stat"><span class="stat-icon">📄</span> 3 designs or your own &bull; 10 missions &bull; daily bin</div>
                                 </div>
                                 <a class="peek-launch" href="paper-plane/index.html">Fold and throw <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-metal flip-card" id="card-orbit">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-orbit-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="10" r="4.4" fill="currentColor" fill-opacity="0.18"/>
+                                            <path d="M9 13.4L4.2 21M11 14.3l-1.2 7.4M13 14.3l1.2 7.4M15 13.4l4.8 7.6"/>
+                                            <ellipse cx="12" cy="10" rx="10.2" ry="3.4" opacity="0.45" stroke-dasharray="1.4 1.6" transform="rotate(-18 12 10)"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Pocket Orbit</h3>
+                                    <p class="card-desc">Fly a cargo tug round a pocket-sized Earth with real orbital mechanics. Catch moving stations, run a delivery round, reach the Moon.</p>
+                                    <div class="card-stat-chip" id="stat-orbit">
+                                        <span class="stat-icon">🛰️</span> 7 missions
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-orbit-panel" role="dialog" aria-modal="true"
+                                aria-label="Pocket Orbit">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/orbit.webp" alt="Earth from above the North Pole with a cargo tug burning onto a transfer orbit towards Ring Station, beside a typed mission order, an amber telemetry dial and a panel of bakelite keys." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/orbit-2.webp" alt="The tug falling towards the Moon on Moonshot, its periapsis marked, as the autopilot lines up the braking burn." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/orbit-3.webp" alt="A flight report for Catch the Depot: three stars and a red rubber stamp, with the fuel spent against the star thresholds." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Pocket Orbit</div>
+                                    <p class="peek-text">Thrust the way you are going and the far side of your orbit rises; to catch something ahead of you, slow down. Seven missions teach it by doing it, from lifting periapsis out of the air through Hohmann transfers to moving stations and a delivery round, to a capture around the Moon. The dotted path is the one you will fly, ghosts show where you and your target will meet, and "Show me" hands the controls to an autopilot that narrates as it flies. Earth is NASA's Blue Marble, seen from above the pole.</p>
+                                    <div class="peek-stat"><span class="stat-icon">★</span> 7 missions &bull; autopilot demo &bull; Moon sandbox</div>
+                                </div>
+                                <a class="peek-launch" href="orbit/index.html">Begin the countdown <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4200,6 +4367,172 @@
                                     <div class="peek-stat"><span class="stat-icon">🎹</span> 6 modes &bull; 4 instruments &bull; share or save</div>
                                 </div>
                                 <a class="peek-launch" href="name-song/index.html">Hear your name <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card flip-card" id="card-black-hole">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-black-hole-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <ellipse cx="12" cy="12.6" rx="10" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.55"/>
+                                            <path d="M5.2 11.2a6.8 6.8 0 0 1 13.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                                            <circle cx="12" cy="11.6" r="3.9" fill="currentColor"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Pocket Black Hole</h3>
+                                    <p class="card-desc">A black hole ray-traced live in the browser: every pixel is a photon followed backwards through curved space.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🔭</span> Real relativity
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-black-hole-panel" role="dialog" aria-modal="true"
+                                aria-label="Pocket Black Hole">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/black-hole.webp" alt="A black hole seen just above the plane of its glowing disc: the far side of the disc is bent up and over the shadow, and the side turning towards the camera is far brighter." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/black-hole-2.webp" alt="The same hole in front of a coloured reference grid, the grid lines wrapped into rings round the shadow." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Pocket Black Hole</div>
+                                    <p class="peek-text">Turn it, zoom in, and switch gravity&#39;s bending off to see the same scene in flat space. The disc&#39;s near side outshines the far one because the gas is doing half the speed of light. Slide the mass from one Sun to tens of billions and the picture turns into kilometres and lap times, and an inset lets you fire light past the hole to find the edge of the shadow by hand.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🕳️</span> Any mass &bull; lensing on or off &bull; light paths</div>
+                                </div>
+                                <a class="peek-launch" href="black-hole/index.html">Look closer <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card flip-card" id="card-gait">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-gait-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M8 7.5l8 0M8 7.5l-3 6M16 7.5l2 6M5 13.5l1.5 6M18 13.5l-2.5 6M8 7.5l10 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/>
+                                            <circle cx="8" cy="7.5" r="1.9" fill="currentColor"/><circle cx="16" cy="7.5" r="1.9" fill="currentColor"/>
+                                            <circle cx="5" cy="13.5" r="1.6" fill="currentColor"/><circle cx="18" cy="13.5" r="1.6" fill="currentColor"/>
+                                            <circle cx="6.5" cy="19.5" r="1.6" fill="currentColor"/><circle cx="15.5" cy="19.5" r="1.6" fill="currentColor"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Gait Lab</h3>
+                                    <p class="card-desc">Draw a creature out of joints, bones and muscles and watch evolution teach it to walk. Nobody tells it how.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🧬</span> 60 a generation
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-gait-panel" role="dialog" aria-modal="true"
+                                aria-label="Gait Lab">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/gait.webp" alt="A creature of white bones and red and blue muscles striding past a distance post, with fainter also-rans behind it." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/gait-2.webp" alt="The builder: a creature drawn on a grid, joints as circles, muscles in red and bones in white." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Gait Lab</div>
+                                    <p class="peek-text">Every creature in a race has the same body and a different set of reflexes: when each muscle pulls, how hard, how fast the beat, which feet grip. Sixty race for ten seconds, the best go through, and the rest are children of the better half with a few mistakes copied in. Watch every race or skip 25 generations at a time, then draw a body of your own and share it by link.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🦿</span> 4 bodies &bull; build your own &bull; share</div>
+                                </div>
+                                <a class="peek-launch" href="gait/index.html">Start evolving <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                    </svg></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card flip-card" id="card-erosion">
+                        <div class="card-flip-inner">
+                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                                aria-controls="card-erosion-panel">
+                                <div>
+                                    <div class="card-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path d="M2.5 19l5.5-9 3 4.5 3.5-7 7 11.5z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                                            <path d="M14.5 7.5c-.6 2.400.9 3.400.2 5.400s.8 3.200.3 6.100" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                            <path d="M6 3.200v2M9.5 2.5v2M18 2.800v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="card-title">Rainmaker</h3>
+                                    <p class="card-desc">An island and the rain that wears it down, one drop at a time, into gullies, rivers and deltas.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🌧️</span> Rain or monsoon
+                                    </div>
+                                </div>
+                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
+                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" fill="none" />
+                                    </svg></span>
+                            </button>
+                            <div class="card-face card-face-back peek-back" id="card-erosion-panel" role="dialog" aria-modal="true"
+                                aria-label="Rainmaker">
+                                <button type="button" class="card-close" data-flip-close aria-label="Close">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="peek-shot">
+                                <img data-src="assets/preview/erosion.webp" alt="A green island with two snowy peaks under falling rain, its slopes scored with gullies and blue rivers running to the sea." width="800" height="420"
+                                    decoding="async">
+                                <img data-src="assets/preview/erosion-2.webp" alt="A cloudburst poured on one slope: a single wide river runs from the hills to a pale delta pushing out into the sea." width="800" height="420"
+                                    decoding="async">
+                                </div>
+                                <div class="peek-body">
+                                    <div class="peek-title">Rainmaker</div>
+                                    <p class="peek-text">Each raindrop is followed downhill on its own. It lifts rock where it runs fast and the ground is steep, and drops it where it slows, so valleys cut back into the hills and silt builds deltas at the shore. Pour a cloudburst under your finger, push up a hill or dig a channel, and flip back to see the island as it was before the weather.</p>
+                                    <div class="peek-stat"><span class="stat-icon">🏝️</span> New island every time &bull; before and after</div>
+                                </div>
+                                <a class="peek-launch" href="erosion/index.html">Make it rain <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -4741,8 +5074,12 @@
             const themeHues = {
                 'card-bil': 205,
                 'card-name-song': 275,
+                'card-black-hole': 40,
+                'card-gait': 158,
+                'card-erosion': 199,
                 'card-fika': 30,
                 'card-paper-plane': 52,
+                'card-orbit': 8,
                 'card-elevator': 38,
                 'card-terrarium': 170,
                 'card-supply-chain': 45,
@@ -5109,6 +5446,16 @@
                 const planeBest = JSON.parse(localStorage.getItem('paperplane.best') || 'null');
                 if (planeBadge && planeBest && planeBest.distance > 0) {
                     planeBadge.innerHTML = `<span class="stat-icon">✈️</span> Best: <span class="stat-val">${planeBest.distance.toFixed(1)} m</span>`;
+                }
+            } catch (e) {}
+
+            // Pocket Orbit: stars earned across its seven missions.
+            try {
+                const orbitBadge = document.getElementById('stat-orbit');
+                const orbitBest = JSON.parse(localStorage.getItem('orbit.best') || '{}');
+                const orbitStars = Object.values(orbitBest).reduce((n, b) => n + ((b && b.stars) || 0), 0);
+                if (orbitBadge && orbitStars > 0) {
+                    orbitBadge.innerHTML = `<span class="stat-icon">★</span> Stars: <span class="stat-val">${orbitStars} / 21</span>`;
                 }
             } catch (e) {}
 
@@ -6623,6 +6970,85 @@
                     shelf.querySelector('.shelf-head').focus({ preventScroll: true });
                 });
             });
+        })();
+    </script>
+    <script>
+        /* ── Surprise me ──────────────────────────────────────────────────────
+           The dice chip in the jump bar opens something you have not opened yet.
+           "Opened" is remembered per browser: every launch from this page is
+           written down with the time (the chip's own picks included), and a game
+           that has left a save behind counts too, so a visitor who went straight
+           to one by link is not sent back to it as if it were new.
+
+           While anything is unopened the pick is uniform among those, and the
+           chip counts them down. After that it deals from the ones opened longest
+           ago, so it keeps turning up what you have been away from and never the
+           thing you just closed. The About shelf is left out: a CV is not a
+           surprise. */
+        (function () {
+            const KEY = 'visited.v1';
+            const SAVES = {
+                'supply-chain/': 'scTycoonSave.v1',
+                'cargo-lander/': 'cargoLanderHighscores',
+                '3d-engine-poc/': 'cargo3d.save.v1',
+                'golf/': 'miniGolf.save.v1',
+                'golf3d/': 'loftLinks.save.v1',
+                'elevator/': 'elevator.best',
+                'paper-plane/': 'paperplane.best',
+                'orbit/': 'orbit.best',
+                'math/#game': 'mentalMathHighScore'
+            };
+            const button = document.getElementById('random-pick');
+            const label = document.getElementById('random-label');
+            const count = document.getElementById('random-count');
+            if (!button) return;
+
+            // "golf3d/index.html?v=1.10.0" and "golf3d/" are the same place; "math/#game" is not "math/".
+            const idOf = (a) => a.getAttribute('href').replace(/\?[^#]*/, '').replace(/index\.html/, '');
+            const places = [...document.querySelectorAll('.shelf:not(#shelf-about) a.peek-launch, .shelf:not(#shelf-about) a.dim-option')]
+                .map(a => ({ id: idOf(a), link: a }));
+
+            function read() {
+                let seen = {};
+                try { seen = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { }
+                for (const id in SAVES) {
+                    try { if (!seen[id] && localStorage.getItem(SAVES[id])) seen[id] = 1; } catch (e) { }
+                }
+                return seen;
+            }
+            function mark(id) {
+                const seen = read();
+                seen[id] = Date.now();
+                try { localStorage.setItem(KEY, JSON.stringify(seen)); } catch (e) { }
+            }
+            function choose(seen, random) {
+                const fresh = places.filter(p => !seen[p.id]);
+                if (fresh.length) return fresh[Math.floor(random() * fresh.length)];
+                const byAge = places.slice().sort((a, b) => seen[a.id] - seen[b.id]);
+                const oldest = byAge.slice(0, Math.max(1, Math.floor(byAge.length / 2)));
+                return oldest[Math.floor(random() * oldest.length)];
+            }
+            function refresh() {
+                const left = places.filter(p => !read()[p.id]).length;
+                label.textContent = left ? 'Something new' : 'Surprise me';
+                count.textContent = left ? left + ' left' : '';
+                button.title = left
+                    ? 'Open one of the ' + left + ' things here you have not tried yet'
+                    : 'You have opened everything. This picks one you have not been to for a while';
+            }
+
+            places.forEach(p => p.link.addEventListener('click', () => { mark(p.id); refresh(); }));
+            button.addEventListener('click', () => {
+                const pick = choose(read(), Math.random);
+                if (!pick) return;
+                mark(pick.id);
+                refresh();
+                window.location.href = pick.link.href;
+            });
+            // Coming back with the Back button restores this page from memory without rerunning it.
+            window.addEventListener('pageshow', refresh);
+            button.hidden = places.length === 0;
+            refresh();
         })();
     </script>
 </body>

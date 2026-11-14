@@ -65,7 +65,8 @@
     var EXPORT_ORDER = ['walls', 'rails', 'arcs', 'blocks', 'water', 'lava', 'sand', 'rough', 'ice', 'bumpers', 'slopes', 'hills',
                         'tunnels', 'avalanches', 'vents', 'spinners', 'belts', 'turntables', 'skaters'];
     // What a block may have standing in it. See props.js.
-    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman', 'lighthouse', 'book', 'pencil', 'tonearm', 'mug', 'inkpot', 'planet'];
+    var LOOKS = ['bed', 'tree', 'hedge', 'rock', 'castle', 'windmill', 'fan', 'tent', 'carousel', 'wheel', 'mirror', 'hut', 'pyramid', 'palm', 'snowman', 'lighthouse', 'book', 'pencil', 'tonearm', 'mug', 'inkpot', 'planet',
+                 'igloo', 'parasol', 'scarecrow', 'rocket'];
     // The zones that may be drawn as polygons. Walls at an angle are rails,
     // and a slope's rules are written for edges that run with the axes.
     var POLY_KINDS = { water: 1, lava: 1, sand: 1, rough: 1, ice: 1 };

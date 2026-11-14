@@ -40,13 +40,15 @@
     <div id="summary">…</div>
     <div class="holes" id="holes"></div>
 
-    <script src="js/config.js?v=1.109.1"></script>
-    <script src="js/physics.js?v=1.109.1"></script>
-    <script src="js/courses.js?v=1.109.1"></script>
-    <script src="js/swing.js?v=1.109.1"></script>
-    <script src="js/bot.js?v=1.109.1"></script>
-    <script src="js/lab.js?v=1.109.1"></script>
-    <script src="js/minimap.js?v=1.109.1"></script>
+    <script src="js/config.js?v=1.168.3"></script>
+    <script src="js/physics.js?v=1.168.3"></script>
+    <script src="js/courses.js?v=1.168.3"></script>
+    <script src="js/tour-ground.js?v=1.168.3"></script>
+    <script src="js/portals.js?v=1.168.3"></script>
+    <script src="js/swing.js?v=1.168.3"></script>
+    <script src="js/bot.js?v=1.168.3"></script>
+    <script src="js/lab.js?v=1.168.3"></script>
+    <script src="js/minimap.js?v=1.168.3"></script>
     <script>
     (function () {
         'use strict';
@@ -78,7 +80,7 @@
         /* The workers load the same modules this page did, by the same URLs,
            so the cache key and the build are the page's own. */
         var base = location.href.replace(/[^/]*$/, '');
-        var srcs = ['config.js', 'physics.js', 'courses.js', 'swing.js', 'bot.js', 'lab.js'].map(function (f) {
+        var srcs = ['config.js', 'physics.js', 'courses.js', 'tour-ground.js', 'portals.js', 'swing.js', 'bot.js', 'lab.js'].map(function (f) {
             return JSON.stringify(base + 'js/' + f + '?v=' + G3.VERSION);
         });
         var body = 'self.window = self; importScripts(' + srcs.join(',') + ');\n' +

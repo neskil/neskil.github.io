@@ -29,8 +29,16 @@
     /* The bag this hole is played out of, and finding a club inside it. Most
        holes are the whole default bag; some name their own (courses.bagFor),
        and on those a club that is not in the bag is not a club — asking for it
-       by id, by number key or by cycling gets you the first one that is. */
+       by id, by number key or by cycling gets you the first one that is.
+
+       On a long-game green the bag is the putter and nothing else (syncLie),
+       and this is the one place that says so: the picker, the number keys,
+       cycling and the autoplay bot all ask here, so none of them can hand
+       you a wedge on the green. */
     function bag() {
+        // `greenBag` is whatever the lie leaves you — the putter on a green,
+        // the bag without the driver in a bunker (syncLie).
+        if (state && state.greenBag) return state.greenBag;
         return (state && state.bag) || C.CLUBS;
     }
 
@@ -45,18 +53,36 @@
        par 3 a metre and a half past the 7 iron's run is a 7 iron, not a driver
        swung at half. Only clubs that fly count: a putter or a mallet rolls the
        whole way and is never what you stand on a tee box with. */
-    function teeClub(hole) {
-        var b = bag(), d = Math.sqrt(Math.pow(hole.cup.x - hole.tee.x, 2) + Math.pow(hole.cup.z - hole.tee.z, 2));
+    /* `from` and `skip` are for the shots after the tee (`nextClub`): where
+       the ball lies instead of the tee, and a club left out of the choice. */
+    function teeClub(hole, from, skip) {
+        var o = from || hole.tee;
+        var b = bag(), d = Math.sqrt(Math.pow(hole.cup.x - o.x, 2) + Math.pow(hole.cup.z - o.z, 2));
         var best = null, i, c;
         for (i = 0; i < b.length; i++) {
             c = b[i];
-            if (!c.carry || !c.total) continue;
+            if (!c.carry || !c.total || c.id === skip) continue;
             if (!best || Math.abs(c.total - d) < Math.abs(best.total - d)) best = c;
         }
         return best || state.club;
     }
 
-    function toast(msg, kind) {
+    /* The club for a mini tee that has to be chipped from. A hole flagged
+       `needsLoft` cannot be played along the floor, so the mallet the other
+       mini tees start with is the one club sure to be wrong here: the Pitch
+       if the bag has it, which is the chip, or else the club in it that flies
+       the shortest — Glass Table hands out an iron and a checker, and the
+       checker is the one it was built for. */
+    function loftClub() {
+        var b = bag(), best = null, i;
+        for (i = 0; i < b.length; i++) {
+            if (b[i].id === 'chipper') return b[i];
+            if (b[i].carry && (!best || b[i].carry < best.carry)) best = b[i];
+        }
+        return best;
+    }
+
+    function toast(msg, kind, ms) {
         // Nothing talks over the demo screen. The caddie's running
         // commentary is for a player who pressed Simulate and wants to know
         // what it is thinking; on a title card it is chatter across the one
@@ -74,7 +100,7 @@
         toast._t = setTimeout(function () {
             el.className = 'toast';
             $('stage').classList.remove('toasting');
-        }, 2300);
+        }, ms || 2300);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -207,7 +233,8 @@
     // A fresh deal, from its first tee. Play again is newRound('showcase'),
     // which is the same eight holes.
     function newShowcase() {
-        G3.SHOWCASE = G3.dealShowcase();
+        // Leaning towards the holes this save has played least.
+        G3.SHOWCASE = G3.dealShowcase(null, state && state.save ? state.save : S.load());
         newRound('showcase');
     }
 
@@ -219,12 +246,261 @@
         newRound('challenge');
     }
 
+    /* A fresh journey: six portal worlds, one hole each, leaning towards
+       the ones this save has not been to (portals.js → deal). `first` is a
+       world to begin in, for the door a player picked out of the gallery.
+       Play again is newRound('portals'), the same six. */
+    /* `avoid` is the worlds not to deal again — the tour just finished, when
+       the card's "Six new holes" asks for another. A tour dealt ahead that
+       shares one with it is put back rather than played. */
+    function newJourney(first, avoid) {
+        var dealt = !first && nextJourney;
+        nextJourney = null;
+        if (dealt && avoid && dealt.from.some(function (r) { return avoid.indexOf(r.id.slice(6)) >= 0; })) dealt = null;
+        G3.JOURNEY = dealt || G3.portals.deal(null, state && state.save ? state.save : S.load(), first, avoid);
+        newRound('portals');
+    }
+
+    /* The tour, dealt before anyone asks for it. What a new game plays is the
+       World Tour, and its first world is the long wait — fetched and built
+       after the press, with the player looking at a card. So while the demo
+       runs or the picker is up, the next tour is dealt ahead and its first
+       world is fetched, then built aside in slices (backdrop.mjs → prepare)
+       so the demo keeps its frames; Start then opens on a world that is
+       already there, or part way there. Retried while something else is
+       building (a demo hole's own world), and dropped the moment a round
+       is under way: newJourney takes this deal, anything else ignores it. */
+    var nextJourney = null, warmTimer = 0;
+    function warmTour() {
+        clearInterval(warmTimer);
+        if (!R.liveWanted || !G3.portals || !G3.portals.deal) return;
+        if (!nextJourney) {
+            try { nextJourney = G3.portals.deal(null, state && state.save ? state.save : S.load()); } catch (e) { return; }
+        }
+        var h = nextJourney && nextJourney.holes[0], id = h && h.place && h.place.world;
+        if (!id) return;
+        var fetched = false;
+        warmTimer = setInterval(function () {
+            var B = G3.backdrop;
+            if (!nextJourney) { clearInterval(warmTimer); return; }
+            // The demo was left some way other than into the tour: the deal
+            // and the world built for it are not wanted.
+            if (!demo) {
+                clearInterval(warmTimer);
+                nextJourney = null;
+                if (B && B.ahead === id && B.drop) B.drop();
+                return;
+            }
+            if (!B || B.failed(id) || B.current === id || B.ahead === id) return;
+            if (!fetched) { fetched = true; B.fetch(id); }
+            if (!B.building) B.prepare(id);
+        }, 1500);
+    }
+
+    /* One world on its own, out of the gallery: a round of one hole. */
+    function visitWorld(id) { newRound('world-' + id); }
+
+    /* From one world to the next. The screen closes on the next world's sky
+       from the middle outwards, the hole behind it is swapped, and it opens
+       again on the new tee. The swap happens while the screen is one
+       colour, so nobody sees a hole being built.
+
+       Reduced motion gets the swap and no wipe. `then` runs exactly once
+       either way, and a second press while it is closing is ignored — the
+       same latch the picker keeps (menuTaking), for the same impatient
+       thumb. */
+    var portalBusy = false;
+    function wipeSkies(el, themeName) {
+        var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
+        var hex = function (n) { return '#' + ('000000' + n.toString(16)).slice(-6); };
+        el.style.setProperty('--pw-in', hex(sky[1]));
+        el.style.setProperty('--pw-out', hex(sky[0]));
+    }
+    /* `dive` is the way out of a hole that was holed: the camera goes down
+       the cup first (render.js → startDive) — the cup is the portal — and
+       the wipe starts closing on the next sky while it is still falling, so
+       the last thing seen of a world is the inside of its hole and the
+       first thing seen of the next is the sky the wipe is painted in. The
+       swap waits for both: the dive has reached the rim by the time the
+       wipe is shut. */
+    var WIPE_CLOSE = 850;
+    function throughPortal(themeName, then, dive) {
+        var el = $('portal-wipe');
+        if (!el || reducedMotion()) { then(); return; }
+        if (portalBusy) return;
+        portalBusy = true;
+        var lead = 0;
+        if (dive && R.startDive && R.startDive(state.world.hole, state.world.ball)) {
+            lead = Math.max(0, C.DIVE.DUR * 1000 - WIPE_CLOSE);
+            if (A.rocket) A.rocket();
+        }
+        setTimeout(function () {
+            wipeSkies(el, themeName);
+            el.className = 'portal-wipe closing';
+            if (A.warpIn) A.warpIn();
+            setTimeout(function () {
+                // Whatever the swap does, the screen is not left shut on it.
+                try { then(); } finally { portalBusy = false; }
+                // A world still building keeps it shut (holdForWorld, below),
+                // and says where it is going while it does.
+                if (!curtain.up) openWipe();
+                else el.className = curtainClass();
+            }, WIPE_CLOSE);
+        }, lead);
+    }
+    function openWipe() {
+        var el = $('portal-wipe');
+        if (A.warpOpen) A.warpOpen();
+        el.className = 'portal-wipe opening';
+        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 800);
+    }
+
+    /* The wait for a world.
+
+       A tour hole is played inside a live world, and a world takes a moment
+       to build — a second or two on a desktop, several on a phone. The hole
+       used to come up at once on its plain stand-in scenery and the world
+       popped in behind it whenever it was done, in the middle of the intro
+       or the first swing (the owner: "the loading is a bit off"). Now the
+       screen that closes between two worlds stays closed until the world is
+       actually being drawn, says where you are going while it waits, and
+       opens on the finished picture. The intro flyover waits behind it
+       (modalUp).
+
+       It never waits for long, or for nothing: a world already built opens
+       at once, live worlds switched off never close it, a world that fails
+       opens on the stand-in, and so does one that has taken twenty seconds —
+       with a line to say so. */
+    var curtain = { up: false, timer: 0, t0: 0, built: false };
+    var WORLD_WAIT = 20000;
+    /* A world built ahead (prepareNext) is only waiting for its first frames
+       — a fraction of a second — and a card saying "building" would be a
+       flash of something untrue, so the wipe holds on its colour alone. */
+    function curtainClass() { return 'portal-wipe holding' + (curtain.built ? ' quiet' : ''); }
+    /* The bar under the card: how far the world's build has got, as
+       backdrop.mjs estimates it from the step the engine is on and how long
+       each step took on this device before. Never moves backwards — a step
+       that runs over its estimate holds the bar, it does not take it back. */
+    var STEP_SAYS = {
+        queue: 'Getting ready\u2026', fetch: 'Fetching the world\u2026',
+        leaf: 'Building the world\u2026', build: 'Building the world\u2026',
+        compile: 'Preparing the shaders\u2026', warm: 'Warming up the graphics\u2026',
+        show: 'Opening the portal\u2026'
+    };
+    function curtainBar(id) {
+        var B = G3.backdrop, pr = B && B.progress ? B.progress(id) : null;
+        var bar = $('pw-bar'), fill = bar && bar.firstElementChild;
+        if (!fill) return;
+        if (!pr) {
+            bar.classList.remove('known');
+            fill.style.transform = '';
+            $('pw-note').textContent = STEP_SAYS.queue;
+            return;
+        }
+        // A sliver to begin with, so a bar at nought still reads as a bar.
+        var p = Math.max(curtain.shown || 0, 0.03 + pr.p * 0.97);
+        curtain.shown = p;
+        bar.classList.add('known');
+        fill.style.transform = 'scaleX(' + p.toFixed(3) + ')';
+        $('pw-note').textContent = (STEP_SAYS[pr.step] || STEP_SAYS.build) + ' ' + Math.round(p * 100) + '%';
+    }
+    function holdForWorld(hole, i) {
+        var el = $('portal-wipe'), B = G3.backdrop;
+        clearInterval(curtain.timer);
+        var wanted = el && hole && hole.place && R.liveWanted && !demo;
+        // The world after this one: its files are fetched while this hole is
+        // played, so the next wait is the building and not the download.
+        var nx = state.course.holes[i + 1];
+        if (wanted && nx && nx.place) {
+            setTimeout(function () { if (G3.backdrop) G3.backdrop.fetch(nx.place.world); }, 1500);
+        }
+        // A world built and already drawn (the breakfast table's second
+        // hole) opens at once; one built ahead and not yet drawn waits for
+        // its first frames like any other, quietly.
+        if (!wanted) {
+            if (curtain.up) { curtain.up = false; openWipe(); }
+            return;
+        }
+        var built = !!(B && B.current === hole.place.world);
+        if (B && ((built && B.shown) || B.failed(hole.place.world))) {
+            if (curtain.up) { curtain.up = false; openWipe(); }
+            return;
+        }
+        curtain.built = built;
+        var w = G3.portals.byWorld(hole.place.world);
+        $('pw-kicker').textContent = state.course.single ? 'World Tour' : 'Hole ' + (i + 1) + ' of ' + state.course.holes.length;
+        $('pw-title').textContent = hole.name || (w ? w.title : '');
+        $('pw-world').textContent = w ? 'in ' + w.world : '';
+        curtain.shown = 0;
+        curtainBar(hole.place.world);
+        wipeSkies(el, themeAt(i));
+        curtain.up = true; curtain.t0 = Date.now();
+        if (!/closing/.test(el.className)) el.className = curtainClass();
+        curtain.timer = setInterval(function () {
+            var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
+            curtainBar(hole.place.world);
+            var live = R.live, lost = (B2 && B2.failed(hole.place.world)) || (!B2 && waited > 6000);
+            if (portalBusy || (!live && !lost && waited < WORLD_WAIT)) return;
+            // Two frames of the world on screen before it is shown.
+            if (live && waited < 350) return;
+            clearInterval(curtain.timer);
+            curtain.up = false;
+            if (live) curtainBar(hole.place.world);
+            if (!live) toast('This world is taking its time \u2014 playing on without it');
+            openWipe();
+            maybeFly();
+        }, 120);
+    }
+
+    /* The next world, built while this hole's celebration plays (backdrop.mjs
+       → prepare): a moment after the sink, so the burst and the cup's sound
+       have their frames, and only if the hole is still holed by then — a
+       restart or the menu in that moment means the build is not wanted. It
+       is built a few milliseconds a frame, so the frame rate dips a little
+       here rather than the wait between the worlds being the whole build.
+       Pass and play is left out: the same hole is played again first. */
+    /* …and sooner than that: once a hole is open and its intro has played,
+       the next world is built aside in slices while this one is played, so
+       the dive into the cup opens straight on to it. Waits for a quiet
+       moment (no flyover, no ball in flight, nothing else building) and
+       gives up when the hole changes; prepareNext, at the sink, is what
+       is left if it never found one. */
+    var aheadTimer = 0;
+    function prepareAhead() {
+        clearInterval(aheadTimer);
+        if (!state.course.isPortals || demo || !R.liveWanted) return;
+        var at = state.holeIndex, course = state.course, nx = course.holes[at + 1];
+        if (!nx || !nx.place) return;
+        var id = nx.place.world, since = Date.now();
+        aheadTimer = setInterval(function () {
+            var B = G3.backdrop;
+            if (!state || state.course !== course || state.holeIndex !== at || demo) { clearInterval(aheadTimer); return; }
+            if (!B || B.failed(id) || B.ahead === id || B.current === id) { clearInterval(aheadTimer); return; }
+            if (Date.now() - since < C.DIVE.PREPARE_AHEAD * 1000 || curtain.up || R.flying() ||
+                state.phase !== 'aim' || B.building || !B.shown) return;
+            B.prepare(id);
+        }, 1000);
+    }
+
+    function prepareNext() {
+        if (!state.course.isPortals || demo || !R.liveWanted) return;
+        var at = state.holeIndex, course = state.course, nx = course.holes[at + 1];
+        if (!nx || !nx.place) return;
+        setTimeout(function () {
+            var B = G3.backdrop;
+            if (!B || !B.prepare || !state || state.course !== course ||
+                state.holeIndex !== at || state.phase !== 'holed') return;
+            B.prepare(nx.place.world);
+        }, C.DIVE.PREPARE_AFTER * 1000);
+    }
+
     /* `again` is a hole being restarted rather than arrived at, which is the
        one difference that matters here: the intro flyover is a first look at a
        hole, and you have already had it. */
     function loadHole(i, again) {
         closeGate();
         endReplay(true);
+        hideSwingCard();
         tape = null;
         saidLocked = false;
         /* A new hole is a new hole for the caddie too. Whatever it was doing
@@ -248,14 +524,26 @@
            one of them. Kept if it survived the change, so walking down a
            course does not keep resetting you to the driver. */
         state.bag = G3.bagFor(hole);
+        state.greenBag = null;
+        state.lieBagFor = null;
+        state.lieCards = null;
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(null);
+        if (G3.bag && G3.bag.setScale) G3.bag.setScale(G3.distance.scale(hole));
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
         }
         /* Except on the long game's tee, where the club you finished the last
-           hole with is the putter autoPutt handed you on its green. Every one
+           hole with is the putter syncLie handed you on its green. Every one
            of those holes started with a putter on the tee. A tee there is a
            fresh choice, so it is made for the distance (teeClub). */
         if (hole.longGame && !state.course.isRange) state.club = teeClub(hole);
+        /* And a mini tee is the mallet's — unless the hole has to be chipped
+           from, when it is the chip's (loftClub). Left to the rule above, a driver
+           carried in from the last round fell through to the bag's first club,
+           which is the putter — nine units of roll on a lane the mallet runs
+           the length of. A hole whose own bag has no mallet keeps that rule. */
+        else if (hole.mini && hole.needsLoft && loftClub()) state.club = loftClub();
+        else if (hole.mini && clubById('mallet').id === 'mallet') state.club = clubById('mallet');
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
@@ -292,6 +580,8 @@
         syncSchool();
         state.flyPending = !again;
         showHoleCard();
+        holdForWorld(hole, i);
+        prepareAhead();
         maybeFly();
     }
 
@@ -341,7 +631,7 @@
     }
 
     function modalUp() {
-        return $('menu').classList.contains('show') ||
+        return curtain.up || $('menu').classList.contains('show') ||
                $('howto').classList.contains('show') ||
                $('scorecard').classList.contains('show');
     }
@@ -450,6 +740,12 @@
         var shot = g ? SW.apply(asked, g) : { yaw: asked.yaw, power: asked.power, spin: 0 };
         // A touch swing that quit on it gives distance away (swing.js `swipeRead`).
         if (g && g.weight) shot.power *= g.weight;
+        // A perfect full swing with a lofted club is flushed (CONFIG.FLUSH).
+        var flush = flushOf(g, frac, state.club);
+        if (flush) {
+            shot.power *= 1 + flush;
+            if (g.read) g.read.flush = flush;
+        }
         /* A scribbled one is a duff or a shank: short, and a shank sideways —
            never under what the physics will launch, so the stroke still counts. */
         if (g && g.junk) {
@@ -460,11 +756,23 @@
         // strike delivered (swing.js `shape`) — picked on the ball, or drawn
         // with the swipe, which brings its own measure of how well it was.
         shot = SW.shape(shot, g && g.junk ? 'straight' : (g && g.shapeName) || shapeNow(), state.club.loft, state.club.bite,
-            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0, state.world.hole);
+            P.gravityOf(state.world.hole), g ? (g.shapeOff !== undefined ? g.shapeOff : g.off) : 0, state.world.hole, frac);
+        /* A backspin swipe: as much of the spin this club at this swing can
+           make as the release asked for (swing.js `spinBite`). Written after
+           launch as well, because launch caps a bite under 1 and a wedge past
+           a full swing is allowed to check back. */
+        var ask = g && g.read && g.read.spin ? g.read.spin.ask : 0;
+        if (ask) shot.bite = SW.spinBite(shot.bite, ask, state.club.loft, frac);
+        // Last, so nothing above can put back what a bunker takes away
+        // (physics.fromLie): out of sand a long club has a lower ceiling.
+        shot.power = P.fromLie(shot.power, state.club, lie && lie.pad.kind);
         if (!P.launch(state.world, shot.yaw, shot.power, shot.loft, shot.bite, shot.topped)) return;
+        if (ask) state.world.ball.bite = shot.bite;
         // The range asks of every shot whether it went past the line (see
         // judgeRangeShot), and the gate is gone by the time it lands.
         state.shotOver = state.aim.power > state.club.power + 1e-9;
+        // A dev swing on the card: this round will not be recorded.
+        if (!sim && !demo && styleLive() !== 'swipe' && !state.course.isRange) state.devSwing = true;
         // A shape's strike is not a lesson's, and nor is a swipe: the school
         // teaches the meter.
         if (g && state.course.isRange && !g.shape && !g.swipe && !g.arc && !g.needle) markGateLesson(g);
@@ -475,6 +783,9 @@
         // approach after a drawn drive — and nobody asked for that one.
         setShape('straight');
 
+        /* Not under the demo: its orbit has no club at address, so a
+           follow-through there was a lone club swinging in mid-air. */
+        if (G3.bag && G3.bag.address && !demo) G3.bag.address.strike(frac);
         hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
@@ -496,6 +807,14 @@
         A.putt(feel);
         state.aim.power = 0;
         syncHud();
+    }
+
+    // What a flush adds to the pace: nothing unless the strike was judged
+    // perfect, the club flies, and the meter was near a full swing.
+    function flushOf(g, frac, club) {
+        if (!g || !g.perfect || g.junk || (club.loft || 0) < 9 * Math.PI / 180) return 0;
+        var f = Math.max(0, Math.min(1, (frac - C.FLUSH_FROM) / (1 - C.FLUSH_FROM)));
+        return C.FLUSH * f * f * (3 - 2 * f);
     }
 
     /* ── the range and its swing school ───────────────────────────────────
@@ -528,19 +847,20 @@
     }
 
     /* Every ball on the range says how far it went, how much of that was in
-       the air, and where it stopped in terms of the boards — "38 m" means
-       little until it is "just past the 30". */
+       the air, and where it stopped in terms of the boards — "212 m" means
+       little until it is "just past the 200". */
     function judgeRangeShot(w) {
         var d = Math.hypot(w.ball.x - w.hole.tee.x, w.ball.z - w.hole.tee.z);
         var t = targetUnder(w.hole, w.ball.x, w.ball.z);
         var where = t ? 'on the ' + t.dist + ' m green' : null;
         if (!where) {
             var near = null, ts = w.hole.targets || [], i;
-            for (i = 0; i < ts.length; i++) if (ts[i].dist <= d) near = ts[i];
+            for (i = 0; i < ts.length; i++) if (ts[i].dist <= d * G3.distance.scale(w.hole)) near = ts[i];
             where = near ? 'past the ' + near.dist + ' m board' : 'short of the first board';
         }
-        toast(state.club.name + ' · ' + d.toFixed(1) + ' m' +
-              (w.carry ? ' (carry ' + w.carry.toFixed(1) + ')' : '') + ' — ' + where,
+        var D = G3.distance;
+        toast(state.club.name + ' · ' + D.said(d, w.hole) +
+              (w.carry ? ' (carry ' + D.said(w.carry, w.hole).replace(' m', '') + ')' : '') + ' — ' + where,
               t ? 'good' : undefined);
         if (school.lesson === 'line' && !state.shotOver) {
             if (t) creditLesson('line', 'On the ' + t.dist + ' m green, dead on the cone.');
@@ -593,7 +913,9 @@
 
     // Shown on the range only, and drawn whenever a lesson or its count changes.
     function syncSchool() {
-        var on = !!(state && state.course && state.course.isRange);
+        // The school teaches the meter's gate, so it is only up when the
+        // meter is the swing — which is dev mode now (see "swing styles").
+        var on = !!(state && state.course && state.course.isRange) && styleLive() === 'meter';
         if (!school.progress) loadSchool();
         $('school').hidden = !on;
         if (on) drawSchool();
@@ -708,42 +1030,35 @@
         if (g.read) return;
         if (g.shape) { sayShape(g); return; }
         if (g.swipe || g.arc || g.needle) { saySwipe(g); return; }
-        if (g.perfect) { toast('Flushed it — all of the overdraw, none of the spray'); return; }
+        if (g.perfect) { toast('Pure strike. Full power, on line.'); return; }
         var a = Math.abs(g.off);
-        var way = g.off < 0 ? 'pulled' : 'pushed';
-        if (a < 0.34) toast('A touch ' + (g.off < 0 ? 'early' : 'late') + ' — ' + way + ' a little');
-        else if (a < 0.75) toast('Off the middle — ' + way + ', and it will bend');
-        else toast(g.struck ? 'Thrashed it — ' + way + ' miles' : 'Never swung — the club came through on its own', 'bad');
+        var side = g.off < 0 ? 'left' : 'right';
+        var when = g.off < 0 ? 'early' : 'late';
+        if (!g.struck) toast('No strike. The swing ran out.', 'bad');
+        else if (a < 0.34) toast('A bit ' + when + '. Ball goes a bit ' + side + '.');
+        else if (a < 0.75) toast('Too ' + when + '. Ball curves ' + side + '.');
+        else toast('Much too ' + when + '. Ball goes far ' + side + '.', 'bad');
     }
 
     /* ── shot shaping ───────────────────────────────────────────────────────
 
        Draw, fade, backspin or topped — whichever of them the club in hand can
        play (CONFIG `shapes`; swing.js `shape` for what each does to the ball,
-       and why each one has to be struck). The button above the meter is a
-       ball with a dot where the club will meet it, and pressing it opens a
-       bigger ball to move the dot on: the top tops it, underneath spins it
-       back, either side bends it that way. It replaced a chip that cycled
-       through five words, which was a menu you had to read every time and
-       said nothing about what any of them did. A key each from the keyboard
-       still: Z draw, X fade, Q backspin, E topped, and the same key again to
-       go back to straight. On a club with no shapes the button is hidden
-       rather than greyed: a control that is there and does nothing is a
-       question every shot. */
+       and why each one has to be struck). There is no picker for them any
+       more: the ball with a dot above the meter, and the bigger ball it opened
+       to move the dot on ("Where do you hit it?"), came out on the owner's
+       request. On the touch swing a draw or a fade is swung — the bow of the
+       swipe — and so is backspin, by letting go at three quarters; every
+       other shot is struck straight. */
     var SHAPE_SAYS = { straight: 'Straight', draw: 'Draw', fade: 'Fade', backspin: 'Backspin', topped: 'Topped' };
-    var SHAPE_KEYS = { z: 'draw', x: 'fade', q: 'backspin', e: 'topped' };
-    /* Where on the ball each one is struck, as a fraction of the radius
-       (+x right, +y down — the screen's way), and the few words under it on
-       the pad. The ball button's dot and the pad's dots both read `at`. */
-    var SHAPE_INFO = {
-        topped:   { at: [0, -0.62], says: 'low, and runs' },
-        draw:     { at: [-0.62, 0], says: 'curves left' },
-        straight: { at: [0, 0],     says: '' },
-        fade:     { at: [0.62, 0],  says: 'curves right' },
-        backspin: { at: [0, 0.62],  says: 'stops dead' }
-    };
 
-    function shapesOf(club) { return ['straight'].concat((club || state.club).shapes || []); }
+    /* On the touch swing backspin is not picked, it is swung: let go at about
+       three quarters of the way back up (swing.js `swipeSpin`). */
+    function shapesOf(club) {
+        var list = (club || state.club).shapes || [];
+        if (styleLive() === 'swipe') list = list.filter(function (n) { return n !== 'backspin'; });
+        return ['straight'].concat(list);
+    }
 
     function shapeNow() {
         if (!state) return 'straight';
@@ -754,88 +1069,24 @@
     function setShape(name) {
         if (!state) return;
         state.aim.shape = SW.SHAPES.indexOf(name) >= 0 ? name : 'straight';
-        syncShape();
-    }
-
-    function canShape() {
-        return !!(state && state.phase === 'aim' && !gate && !swipe && !arc && !needle && state.club.shapes);
-    }
-
-    // A key: that shape, or back to straight if it is the one already set.
-    function keyShape(name) {
-        if (!canShape() || shapesOf().indexOf(name) < 0) return false;
-        setShape(shapeNow() === name ? 'straight' : name);
-        A.tick(0.4);
-        return true;
-    }
-
-    function buildShapePad() {
-        var ball = $('sp-ball');
-        SW.SHAPES.forEach(function (name) {
-            var info = SHAPE_INFO[name];
-            var b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'sp-opt sp-' + name;
-            b.dataset.shape = name;
-            b.style.setProperty('--x', info.at[0]);
-            b.style.setProperty('--y', info.at[1]);
-            b.innerHTML = '<i class="sp-dot" aria-hidden="true"></i><span class="sp-label"><b>' +
-                SHAPE_SAYS[name] + '</b>' + (info.says ? '<small>' + info.says + '</small>' : '') + '</span>';
-            b.addEventListener('click', function () {
-                if (!canShape() || b.disabled) return;
-                setShape(name);
-                A.tick(0.4);
-                toggleShapePad(false);
-            });
-            ball.appendChild(b);
-        });
-    }
-
-    function toggleShapePad(open) {
-        var pad = $('shape-pad');
-        if (open === undefined) open = pad.hidden;
-        if (open && !canShape()) open = false;
-        pad.hidden = !open;
-        $('btn-shape').setAttribute('aria-expanded', open ? 'true' : 'false');
-        if (open) syncShape();
-    }
-
-    function syncShape() {
-        var el = $('btn-shape');
-        if (!el || !state) return;
-        var now = shapeNow();
-        el.hidden = !state.club.shapes;
-        if (el.hidden && !$('shape-pad').hidden) toggleShapePad(false);
-        el.classList.toggle('on', now !== 'straight');
-        $('shape-val').textContent = SHAPE_SAYS[now];
-        $('shape-dot').style.setProperty('--x', SHAPE_INFO[now].at[0]);
-        $('shape-dot').style.setProperty('--y', SHAPE_INFO[now].at[1]);
-        el.setAttribute('aria-label', 'Shot shape: ' + SHAPE_SAYS[now] + '. Press to change.');
-        var can = shapesOf();
-        Array.prototype.forEach.call($('sp-ball').children, function (b) {
-            b.disabled = can.indexOf(b.dataset.shape) < 0;
-            b.classList.toggle('on', b.dataset.shape === now);
-            b.setAttribute('aria-pressed', b.dataset.shape === now ? 'true' : 'false');
-        });
     }
 
     /* A shaped strike says what happened to the shape, because that is what
        was asked for: clean, over-cooked or under-cooked, in that shape's own
        words. */
     var SHAPE_MISS = {
-        draw: ['Hooked it — that draw kept turning', 'Hung out right — the draw never came back'],
-        fade: ['Pulled it — the fade never turned', 'Sliced it — the fade kept going'],
-        backspin: ['Caught it thin — no spin on that one', 'Caught it thin — no spin on that one'],
-        topped: ['Dug it in — even lower than you wanted', 'Got under it — that one is up in the air']
+        draw: ['Too much curve. Ball hooks left.', 'Too little curve. Ball stays right.'],
+        fade: ['Too little curve. Ball stays left.', 'Too much curve. Ball slices right.'],
+        backspin: ['Thin strike. No spin.', 'Thin strike. No spin.'],
+        topped: ['Too low.', 'Too high.']
     };
 
     function sayShape(g) {
-        if (g.perfect) { toast('Shaped it — a clean ' + SHAPE_SAYS[g.shape].toLowerCase(), 'good'); return; }
-        if (!g.struck) { toast('Never swung — the club came through on its own', 'bad'); return; }
+        if (g.perfect) { toast(SHAPE_SAYS[g.shape] + '. Good strike.', 'good'); return; }
+        if (!g.struck) { toast('No strike. The swing ran out.', 'bad'); return; }
         var a = Math.abs(g.off);
         var said = SHAPE_MISS[g.shape][g.off < 0 ? 0 : 1];
-        toast(a < 0.34 ? 'Nearly — ' + said.charAt(0).toLowerCase() + said.slice(1) + ', a little' : said,
-            a < 0.75 ? undefined : 'bad');
+        toast(a < 0.34 ? 'Almost. ' + said : said, a < 0.75 ? undefined : 'bad');
     }
 
     /* ── swing styles ───────────────────────────────────────────────────────
@@ -855,17 +1106,27 @@
        that are gestures, and drives the arc and the needle's tap. */
     var STYLES = ['meter', 'swipe', 'arc', 'needle'];
     var STYLE_INFO = {
-        meter:  { icon: '\u25AD', name: 'Meter', says: 'Drag the bar, press Swing. Past the white line, strike in the green.' },
-        swipe:  { icon: '\uD83D\uDC46', name: 'Touch swing', says: 'Pull down from the ball and swipe up through it. Straight is straight.' },
-        arc:    { icon: '\u25E0', name: 'Arcade', says: 'Three taps: start the swing, stop the power, strike as the needle comes home.' },
-        needle: { icon: '\u2194', name: 'Needle', says: 'Pull down to load, let go, and tap while the needle is in the middle.' }
+        meter:  { icon: '\u25AD', name: 'Meter', says: 'Drag the bar. Press Swing. Past the white line, strike in the green zone.' },
+        swipe:  { icon: '\uD83D\uDC46', name: 'Touch swing', says: 'Pull down. Swipe up through the ball. For backspin, let go at ¾.' },
+        arc:    { icon: '\u25E0', name: 'Arcade', says: 'Tap three times: start, set the power, strike when the needle comes back.' },
+        needle: { icon: '\u2194', name: 'Needle', says: 'Pull down. Let go. Tap when the needle is in the middle.' }
     };
+    /* The touch swing is the game's swing (the owner's call). The other three
+       stay, behind dev mode — ?dev=1 turns it on and ?dev=0 off, and the
+       choice is kept — and a round struck with any of them is not recorded
+       (`finishRound`): a record is a claim about the one swing everyone plays. */
+    var dev = (function () {
+        var m = /[?&]dev=([01])/.exec(location.search || '');
+        try {
+            if (m) localStorage.setItem(C.DEV_KEY, m[1]);
+            return localStorage.getItem(C.DEV_KEY) === '1';
+        } catch (e) { return !!m && m[1] === '1'; }
+    })();
     var styleWanted = (function () {
         try {
             var v = localStorage.getItem(C.STYLE_KEY);
-            if (STYLES.indexOf(v) >= 0) return v;
-            return localStorage.getItem(C.SWIPE_KEY) === '1' ? 'swipe' : 'meter';
-        } catch (e) { return 'meter'; }
+            return STYLES.indexOf(v) >= 0 ? v : 'swipe';
+        } catch (e) { return 'swipe'; }
     })();
     /* ── touch swing settings ──
 
@@ -875,22 +1136,25 @@
        course. Kept as one JSON key; anything missing or unknown in it falls
        back to CONFIG.SWIPE.DEFAULT. */
     var TUNE_ROWS = [
+        { key: 'assist', label: 'Easy strike', opts: [['off', 'Off'], ['on', 'On']] },
         { key: 'where', label: 'Courses', opts: [['all', 'Every course'], ['long', 'Long game']] },
         { key: 'feel', label: 'Line', opts: [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']] },
         { key: 'timing', label: 'Timing', opts: [['off', 'Off'], ['rhythm', 'Rhythm'], ['snap', 'Snap']] },
         { key: 'shapes', label: 'Swipe shapes', opts: [['off', 'Off'], ['on', 'Curve to bend']] }
     ];
     var TUNE_SAYS = {
-        where: { all: 'Your swing style on every course, mini golf included.',
-                 long: 'Your swing style on the long game and the range; the meter elsewhere.' },
-        feel: { easy: 'A swipe can lean about 8° and still be straight.',
-                normal: 'About 3½° of lean is forgiven; a real drift costs you.',
-                hard: 'Under 2° — a swipe has to be ruler-straight.' },
+        assist: { off: 'Full rules. A miss costs more past 100% and on the green.',
+                  on: 'Easy rules. Misses cost less. No extra cost past 100%.' },
+        where: { all: 'Use this swing on all courses.',
+                 long: 'Use this swing on the long game and the range only.' },
+        feel: { easy: 'You can lean about 8°. It is still straight.',
+                normal: 'You can lean about 3½°. More goes off line.',
+                hard: 'You can lean less than 2°.' },
         timing: { off: 'Only the line counts.',
-                  rhythm: 'Swipe up at the same pace you pulled down.',
-                  snap: 'Swipe up in about a fifth of a second, however far you pulled — length and speed together.' },
-        shapes: { off: 'A curved swipe is just a crooked one.',
-                  on: 'Bow the swipe out right and back for a draw, left for a fade.' }
+                  rhythm: 'Swipe up at the speed you pulled down. Not too fast, not too slow.',
+                  snap: 'Swipe up in about 0.2 seconds.' },
+        shapes: { off: 'A curved swipe is a bad swipe.',
+                  on: 'Curve the swipe right for a draw. Curve it left for a fade.' }
     };
     var tune = (function () {
         var raw = {};
@@ -905,6 +1169,7 @@
 
     function setTune(key, value) {
         tune[key] = value;
+        SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
         syncStyle();
         A.tick(0.4);
@@ -916,6 +1181,7 @@
         TUNE_ROWS.forEach(function (r) {
             var row = document.createElement('div');
             row.className = 'tn-row';
+            row.dataset.key = r.key;
             row.innerHTML = '<span class="tn-label">' + r.label + '</span>';
             var seg = document.createElement('div');
             seg.className = 'tn-seg';
@@ -950,7 +1216,10 @@
 
     // The style that hits *this* shot: the one picked, where the trial runs.
     function styleLive() {
-        if (!state || !state.course || styleWanted === 'meter') return 'meter';
+        if (!state || !state.course) return 'meter';
+        // Outside dev mode it is the touch swing, everywhere.
+        if (!dev) return 'swipe';
+        if (styleWanted === 'meter') return 'meter';
         if (state.course.isRange || tune.where === 'all') return styleWanted;
         var c = G3.courseById(holeRef(state.holeIndex).id) || state.course;
         return c.group === 'long' ? styleWanted : 'meter';
@@ -969,9 +1238,11 @@
         if (swipe) endSwipe();
         toggleStylePad(false);
         syncStyle();
+        syncSchool();
         A.tick(0.5);
         toast(STYLE_INFO[name].name + (name !== 'meter' && styleLive() === 'meter'
-            ? ' — set Courses to every course to use it here' : ' — ' + STYLE_INFO[name].says));
+            ? '. Set Courses to all courses to use it here.' : '. ' + STYLE_INFO[name].says) +
+            (name !== 'swipe' ? ' Rounds with it are not recorded.' : ''));
     }
 
     function buildStylePad() {
@@ -1003,8 +1274,18 @@
     function syncStyle() {
         var live = styleLive(), open = styleOpen();
         var lane = live === 'swipe' || live === 'needle';
-        $('btn-style').classList.toggle('on', styleWanted !== 'meter');
-        $('style-now').textContent = STYLE_INFO[styleWanted].name;
+        var shown = dev ? styleWanted : 'swipe';
+        $('btn-style').classList.toggle('on', dev && shown !== 'swipe');
+        $('style-now').textContent = STYLE_INFO[shown].name + (dev ? ' (dev)' : '');
+        /* Outside dev mode the panel is the touch swing's settings and
+           nothing else: no list of styles, and no "which courses" row,
+           since the touch swing is played everywhere. */
+        $('style-pad').classList.toggle('dev', dev);
+        $('style-list').hidden = !dev;
+        $('st-sub').textContent = dev ? 'Dev mode. Other styles do not count for records.' : 'Settings for the touch swing.';
+        Array.prototype.forEach.call(document.querySelectorAll('#tune-rows .tn-row'), function (row) {
+            if (row.dataset.key === 'where') row.hidden = !dev;
+        });
         Array.prototype.forEach.call($('style-list').children, function (b) {
             b.classList.toggle('on', b.dataset.style === styleWanted);
             b.setAttribute('aria-pressed', b.dataset.style === styleWanted ? 'true' : 'false');
@@ -1035,7 +1316,11 @@
     // What syncStyle last drew for, so the cheap check in syncSwing can tell
     // whether anything has changed without touching the layout.
     function styleKey() {
-        return styleWanted + styleLive() + styleOpen() + !!arc + !!needle + tune.where;
+        // Whether the bag is up, too: the lane is narrowed off where the bag
+        // stands (`laneWidth`), and there is no bag on the first frames or
+        // while the flyover has it put away.
+        return styleWanted + styleLive() + styleOpen() + !!arc + !!needle + tune.where +
+            !!(G3.bag && G3.bag.state.rig && G3.bag.state.rig.visible);
     }
 
     /* The lane (the touch swing and the needle's pull) runs from a little
@@ -1050,7 +1335,31 @@
         var bottom = Math.round(ctl.top - stage.top - 34);
         lane.style.top = top + 'px';
         lane.style.height = Math.max(120, bottom - top) + 'px';
+        lane.style.width = laneWidth(stage, top, Math.max(120, bottom - top)) || '';
         if (!swipe) drawSwipe();
+    }
+
+    /* On a phone held upright the lane's lower corner stood over the bag:
+       the stylesheet's width (72% of the stage, at most 300px) is about the
+       middle of the screen less the two corners, and the bag *is* the left
+       corner. A press there already goes to the bag (`onSwipeDown`), but a
+       dashed box drawn across the clubs reads as one thing on top of
+       another, and the part of the lane over the bag's hit boxes was lane
+       that did not swing. So where the two would meet the lane narrows,
+       evenly, until it clears the bag (bag.js `screenBox`) by a small gap —
+       never below LANE_MIN, still a comfortable thumb's width either side of
+       the ball. Returns a CSS width, or nothing to leave the stylesheet's. */
+    var LANE_MIN = 200, LANE_GAP = 10;
+    function laneWidth(stage, top, height) {
+        var bag = G3.bag && G3.bag.screenBox && R.state.camera
+            ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
+        if (!bag) return null;
+        var natural = Math.min(stage.width * 0.72, 300);
+        var bagTop = bag.top * stage.height, bagRight = bag.right * stage.width;
+        if (bagTop >= top + height) return null;               // the bag is below the lane
+        var left = (stage.width - natural) / 2;
+        if (bagRight + LANE_GAP <= left) return null;           // already clear
+        return Math.round(Math.max(LANE_MIN, stage.width - 2 * (bagRight + LANE_GAP))) + 'px';
     }
 
     // How far a pull may go: the whole meter is the lane plus the run down
@@ -1064,9 +1373,14 @@
         var live = styleLive();
         if (swipe || (live !== 'swipe' && live !== 'needle') || !styleOpen() || needle) return;
         if (e.button !== undefined && e.button > 0) return;
+        /* The lane is a box over the canvas, and on a short phone screen (an
+           iPhone, with Safari's bars taking their share) its lower corner
+           stands over the top of the bag. A press there that lands on the bag
+           is a press on the bag: handed to the canvas, whose own pointer
+           capture then brings the rest of the gesture with it. */
+        if (R.pickAt && R.pickAt(ndcX(e), ndcY(e))) { onDown(e); return; }
         e.preventDefault();
         e.stopPropagation();
-        toggleShapePad(false);
         try { $('swipe').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         var now = performance.now() / 1000;
         swipe = {
@@ -1104,6 +1418,7 @@
             // ways until the thumb lets go.
             swipe.low = { x: swipe.x0, y: Math.max(swipe.y0, y), t: t };
             loadFromPull(y);
+            clubFollows(y);
             return;
         }
         if (y >= swipe.low.y) {
@@ -1116,6 +1431,7 @@
             swipe.up.push([x, y]);
             if (swipe.low.y - y > C.SWIPE.TURN_PX) swipe.through = true;
         }
+        clubFollows(y);
         if (swipe.through && y <= swipe.y0) {
             // Where it came back over the start line, between the last two
             // samples — a fast swipe crosses it between frames.
@@ -1123,6 +1439,15 @@
             f = Math.max(0, Math.min(1, f));
             swipeStrike({ x: prev.x + (x - prev.x) * f, y: swipe.y0, t: prev.t + (t - prev.t) * f });
         }
+    }
+
+    /* The club behind the ball goes where the thumb goes: back as it comes
+       down, and down again as it comes up (bag.js `address`). */
+    function clubFollows(y) {
+        if (!G3.bag || !G3.bag.address) return;
+        var depth = swipe.low.y - swipe.y0;
+        var up = swipe.needle || depth <= 0 ? 0 : (swipe.low.y - y) / depth;
+        G3.bag.address.swing(state.aim.power / state.club.power, up);
     }
 
     function loadFromPull(y) {
@@ -1139,20 +1464,51 @@
             startNeedle();
             return;
         }
-        // Let go before coming back through: no shot. The meter empties so
-        // nothing half-loaded is left lying on it for Swing to find.
+        /* Let go on the way back up, short of the start: a backspin strike,
+           if the club has loft and the thumb got far enough (SWIPE.SPIN_AT).
+           Most spin at about three quarters of the way. Anything else is no
+           shot, and the meter empties so nothing half-loaded is left lying on
+           it for Swing to find. */
+        if (!wasNeedle && pulled && swipe.through && e.type === 'pointerup' && (state.club.loft || 0) > 0) {
+            var depth = swipe.low.y - swipe.y0;
+            var at = depth > 0 ? (swipe.low.y - e.clientY) / depth : 0;
+            if (SW.swipeSpin(at) >= 0) {
+                var now = (e.timeStamp > 0 ? e.timeStamp : performance.now()) / 1000;
+                swipeStrike({ x: e.clientX, y: e.clientY, t: now }, at);
+                return;
+            }
+        }
         endSwipe();
         setPower(0);
-        if (pulled && !wasNeedle) toast('No swing — swipe up past where you started to hit it');
+        if (pulled && !wasNeedle) {
+            toast((state.club.loft || 0) > 0
+                ? 'No shot. Swipe up past the start, or let go at ¾ for backspin.'
+                : 'No shot. Swipe up past the start.');
+        }
     }
 
     function endSwipe() {
         $('swipe').classList.remove('held');
         swipe = null;
+        if (G3.bag && G3.bag.address) G3.bag.address.rest();
         drawSwipe();
     }
 
-    function swipeStrike(cross) {
+    /* The driver anywhere but the tee is the hardest swing in the bag
+       (CONFIG.DECK). The tee is where the hole put it, as runKind reads it;
+       the range is all tee. */
+    function offDeck() {
+        if (!state || !state.club || state.club.id !== 'driver' || state.course.isRange) return false;
+        var hole = state.world.hole, b = state.world.ball;
+        return Math.abs(b.x - hole.tee.x) + Math.abs(b.z - hole.tee.z) >= 0.5;
+    }
+
+    function deckHard(over) {
+        return offDeck() ? SW.deckOver(over) : over;
+    }
+
+    // `upTo` is set for a backspin strike: how far back up the thumb let go.
+    function swipeStrike(cross, upTo) {
         var sw = swipe;
         if (state.aim.power < C.MIN_POWER) {
             endSwipe();
@@ -1160,16 +1516,19 @@
             return;
         }
         var picked = shapeNow() !== 'straight' ? shapeNow() : null;
-        var over = SW.shapeOver(picked, P.overdraw(state.aim.power, state.club.power));
+        var over = deckHard(SW.shapeOver(picked, P.overdraw(state.aim.power, state.club.power)));
         // A shape picked on the ball wins; otherwise a bowed swipe may draw
         // one, if the club can bend and the setting is on.
         var bendable = (state.club.shapes || []).filter(function (n) { return n === 'draw' || n === 'fade'; });
         var read = SW.swipeRead({
-            pts: sw.pts, x0: sw.x0, y0: sw.y0, low: sw.low, cross: cross,
+            pts: sw.pts, x0: sw.x0, y0: sw.y0, low: sw.low, cross: cross, upTo: upTo,
             through: sw.up.concat([[cross.x, cross.y]])
         }, {
             over: over, feel: tune.feel, timing: tune.timing,
-            shapes: !picked && tune.shapes === 'on' && bendable.length ? bendable : null
+            rawOver: P.overdraw(state.aim.power, state.club.power),
+            putt: (state.club.loft || 0) < 9 * Math.PI / 180,
+            shapes: !picked && tune.shapes === 'on' && bendable.length ? bendable : null,
+            deck: offDeck()
         });
         var g = SW.swipeGate(read);
         g.shape = picked || (read.shape && read.shape.name) || null;
@@ -1182,33 +1541,92 @@
 
     /* ── the swing card ──
 
-       After a touch swing, a small card docked in the top-left corner of the
-       stage says why the ball went where it did: the swipe drawn small against a straight line and
-       the lean that was forgiven, and a line for each thing that was read.
-       It stays while the ball flies and goes when the next swing starts. */
-    var cardTimer = 0;
+       After a touch swing, a card over the controls says why the ball went
+       where it did: the swipe drawn small against a straight line and the lean
+       that was forgiven, and a line for each thing that was read.
+
+       It is the lesson, so it waits to be read: no timer. It goes when it is
+       tapped, when the next swing starts, or when the hole changes — and it
+       fades (`fadeSwingCard`) the moment the ball drops or the player starts
+       aiming the next one, a drag on the course or a nudge of ‹ ›. By then it
+       has been read or it is not going to be, and left up it sat over the
+       flag for the whole of the next putt. It used to be a small corner card
+       gone after five seconds, which was usually before the ball had stopped
+       and always before anyone had read it. */
 
     function showSwingCard(read, frac, drawn, sw, cross) {
         var card = $('swing-card');
-        var rows = SW.swipeReport(read, { frac: frac });
-        $('sc2-rows').innerHTML = rows.map(function (r) {
-            return '<li class="' + r.tier + '"><b>' + r.what + '</b><span>' + r.says + '</span></li>';
-        }).join('');
+        fillSwingRows(read, frac);
         var gr = SW.grade(SW.swipeGate(read));
         $('sc2-grade').textContent = gr.word;
         $('sc2-grade').className = 'sc2-grade ' + gr.tier;
         drawCardSwipe(drawn, sw, cross, read);
+        clearTimeout(cardFade);
         card.hidden = false;
-        card.classList.remove('show');
+        card.classList.remove('show', 'fading');
         void card.offsetWidth;
         card.classList.add('show');
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(hideSwingCard, 5000);
+        placeSwingCard();
+    }
+
+    function fillSwingRows(read, frac) {
+        $('sc2-rows').innerHTML = SW.swipeReport(read, { frac: frac }).map(function (r) {
+            // A bar for every reading; a line that is not one (the lie) has none.
+            var bar = r.score === null || r.score === undefined ? '<i class="sc2-bar none"></i>'
+                : '<i class="sc2-bar"><i style="width:' + Math.round(Math.max(0.04, r.score) * 100) + '%"></i></i>';
+            return '<li class="' + r.tier + '"><b>' + r.what + '</b>' + bar + '<span>' + r.says + '</span></li>';
+        }).join('');
+        placeSwingCard();
+    }
+
+    /* At the top of the course, under the topbar and the View row — whichever
+       of them reaches lower, since either can float over the stage or stand
+       above it depending on the layout. It used to sit just over the
+       controls, where on a phone it covered the bag and the foot of the
+       lane; up here it is out of the thumb's way and over sky and far
+       fairway, which is what the eye is on while the ball is in the air. */
+    function placeSwingCard() {
+        var card = $('swing-card');
+        if (card.hidden) return;
+        var stage = $('stage').getBoundingClientRect();
+        var low = stage.top;
+        // The hole's own panel too, when it is open: it hangs off the topbar
+        // over the course, and the card used to come up underneath it.
+        ['.topbar', '#viewctl', '#hud-detail'].forEach(function (sel) {
+            var el = document.querySelector(sel);
+            if (!el || el.hidden || !el.offsetParent) return;
+            var r = el.getBoundingClientRect();
+            if (r.height && r.bottom > low && r.bottom < stage.top + stage.height * 0.4) low = r.bottom;
+        });
+        card.style.top = Math.round(low - stage.top + 10) + 'px';
+        /* A message said while the card is up — "Water — one-stroke
+           penalty", say — goes under the card rather than across it. The
+           toast's own place is a fixed height that, on a phone, is the
+           middle of the card's rows. */
+        // Off the layout, not the screen: the card slides in from 8px up
+        // (`cardIn`), and measured mid-slide it ends short of where it lands.
+        var bottom = card.offsetTop + card.offsetHeight;
+        $('stage').style.setProperty('--card-bottom', Math.round(bottom + 8) + 'px');
+        $('stage').classList.add('card-up');
     }
 
     function hideSwingCard() {
-        clearTimeout(cardTimer);
+        clearTimeout(cardFade);
         $('swing-card').hidden = true;
+        $('swing-card').classList.remove('fading');
+        $('stage').classList.remove('card-up');
+    }
+
+    /* The same, eased out rather than cut. The toast's place under the card
+       is given back straight away, so a message said during the fade does not
+       land where the card was. */
+    var cardFade = 0;
+    function fadeSwingCard() {
+        var card = $('swing-card');
+        if (card.hidden || card.classList.contains('fading')) return;
+        card.classList.add('fading');
+        $('stage').classList.remove('card-up');
+        cardFade = setTimeout(hideSwingCard, 400);
     }
 
     // The swipe, scaled into the card's little box (60 × 100), with the
@@ -1220,9 +1638,16 @@
         var k = (H - 2 * pad) / depth;
         function X(x) { return W / 2 + (x - sw.low.x) * k; }
         function Y(y) { return pad + (y - sw.y0) * k; }
-        $('sc2-trail').setAttribute('points', pts.map(function (p) {
+        var line = pts.map(function (p) {
             return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1);
-        }).join(' '));
+        }).join(' ');
+        /* The swipe twice: a dark casing under the coloured line, so it reads
+           on sky, turf and snow now that the card has no plate behind it —
+           and a dot where the thumb struck, which is the end the eye wants. */
+        $('sc2-case').setAttribute('points', line);
+        $('sc2-trail').setAttribute('points', line);
+        var end = pts[pts.length - 1];
+        attrs('sc2-end', { cx: end ? X(end[0]) : W / 2, cy: end ? Y(end[1]) : pad });
         var tol = SW.swipeTol(read.over, read.feel), half = Math.tan(tol) * (H - 2 * pad);
         $('sc2-cone').setAttribute('points', [W / 2, H - pad, W / 2 - half, pad, W / 2 + half, pad].join(' '));
         attrs('sc2-ideal', { x1: W / 2, y1: H - pad, x2: W / 2, y2: pad });
@@ -1242,10 +1667,34 @@
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
         attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
+        /* Where to let go for backspin, once there is a pull to measure it on.
+           Over the thumb, not over where it went in: the swipe up is read
+           from the bottom of the pull (the cone stands there too), and a
+           thumb drifts sideways on the way back — so a tick left on the start
+           column ended up beside the path the thumb was actually taking. */
+        /* And inside the lane, always. It used to be put away by drawing it
+           at y = −99, but the SVG lets its drawing spill out of the box (the
+           trail has to follow a thumb that leaves it), so "away" was a line
+           and the word "spin" floating a hundred pixels over the lane, across
+           the course and the stroke card. Now it is hidden when it is not
+           wanted, and clamped to the lane when it is, with the word on
+           whichever side of the tick has room. */
+        var spinOn = !!(s && !s.needle && (state.club.loft || 0) > 0 && s.low.y - s.y0 > 30);
+        var spinY = 0, spinX = x0;
+        if (spinOn) {
+            spinY = Math.max(8, Math.min(r.height - 8, s.low.y - r.top - C.SWIPE.SPIN_AT.IDEAL * (s.low.y - s.y0)));
+            spinX = Math.max(20, Math.min(r.width - 20, s.low.x - r.left));
+        }
+        var labelLeft = spinX + 24 + 34 > r.width;
+        $('sw-spin').setAttribute('visibility', spinOn ? 'visible' : 'hidden');
+        $('sw-spin-label').setAttribute('visibility', spinOn ? 'visible' : 'hidden');
+        $('sw-spin-label').setAttribute('text-anchor', labelLeft ? 'end' : 'start');
+        attrs('sw-spin', { x1: spinX - 18, y1: spinY, x2: spinX + 18, y2: spinY });
+        attrs('sw-spin-label', { x: labelLeft ? spinX - 24 : spinX + 24, y: spinY + 4 });
         var cone = '';
         if (s && s.through) {
             var tx = s.low.x - r.left, ty = s.low.y - r.top;
-            var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
+            var over = deckHard(SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power)));
             var half = Math.tan(SW.swipeTol(over)) * (ty - y0);
             cone = [tx, ty, tx - half, y0, tx + half, y0].join(' ');
         }
@@ -1268,7 +1717,6 @@
     function pressArc() {
         if (!styleOpen()) return;
         if (!arc) {
-            toggleShapePad(false);
             arc = SW.arcStart(shapeNow());
             setPower(0);
             A.tick(0.5);
@@ -1306,7 +1754,7 @@
             // Set before it had climbed far enough to hit anything.
             setPower(0);
             syncStyle();
-            toast('Too soft — let the needle climb before you set the power');
+            toast('Too soft. Let the needle climb, then set the power.');
             return;
         }
         var g = SW.arcGate(a);
@@ -1367,7 +1815,7 @@
 
     /* ── the needle ── */
     function startNeedle() {
-        var over = SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power));
+        var over = deckHard(SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power)));
         needle = SW.needleStart(over);
         A.tick(0.75);
         syncStyle();
@@ -1421,24 +1869,16 @@
 
     function saySwipe(g) {
         if (g.perfect) {
-            toast(g.arc ? 'Struck on the line — pure' : g.needle ? 'Dead centre — pure' : 'Straight through it — pure', 'good');
+            toast('Pure strike.', 'good');
             return;
         }
         var a = Math.abs(g.off);
-        var way = g.off < 0 ? 'left' : 'right';
-        var did = g.off < 0 ? 'pulled' : 'pushed';
-        if (g.arc) {
-            var when = g.off < 0 ? 'early' : 'late';
-            if (!g.struck) { toast('Never struck — the needle ran out', 'bad'); return; }
-            toast((a < 0.34 ? 'A touch ' + when : a < 0.75 ? 'Struck ' + when : 'Way ' + when) +
-                ' — ' + did + (a < 0.34 ? ' a little' : a < 0.75 ? ', and it will bend' : ' miles'),
-                a < 0.75 ? undefined : 'bad');
-            return;
-        }
-        var verb = g.needle ? 'Needle ' : 'Swiped ';
-        if (a < 0.34) toast(verb + 'a touch ' + way + ' — ' + did + ' a little');
-        else if (a < 0.75) toast(verb + way + ' — ' + did + ', and it will bend');
-        else toast(verb + 'way ' + way + ' — ' + did + ' miles', 'bad');
+        var side = g.off < 0 ? 'left' : 'right';
+        if (g.arc && !g.struck) { toast('No strike. The needle ran out.', 'bad'); return; }
+        var why = g.arc ? (g.off < 0 ? 'early' : 'late') : side;
+        if (a < 0.34) toast('A bit ' + why + '. Ball goes a bit ' + side + '.');
+        else if (a < 0.75) toast('Too ' + why + '. Ball curves ' + side + '.');
+        else toast('Much too ' + why + '. Ball goes far ' + side + '.', 'bad');
     }
 
     /* ── the grade ──
@@ -1463,12 +1903,15 @@
        already loaded is kept as a fraction of the swing, so swapping clubs
        mid-aim changes the shot rather than resetting it. */
     function pickClub(club) {
-        if (!club || club === state.club) return;
+        // Only out of the bag in hand, so the green's putter-only bag holds
+        // for every caller, G3.game.pickClub included.
+        if (!club || club === state.club || bag().indexOf(club) < 0) return;
         var frac = state.aim.power / state.club.power;
         state.club = club;
         state.aim.power = Math.min(maxPower(club), frac * club.power);
         syncClubs();
         syncPower();
+        if (state.phase === 'aim' && offDeck()) toast('Driver off the fairway: harder to strike');
     }
 
     // dir is +1 or -1; wraps round the bag either way, so a swipe the wrong
@@ -1482,6 +1925,12 @@
 
     function handleEvents(ev) {
         var b = state.world.ball, now = performance.now();
+        // A pop bumper rings and lights, whichever bounce it also was.
+        // A slingshot's kicker is the same coil, so it answers the same way.
+        if (ev.bumped || ev.kicked) {
+            if (A.pop) A.pop(P.groundSpeed(b));
+            if (R.bumped) R.bumped(ev.bumped || ev.kicked);
+        }
         if (ev.bounce && now - lastBounceAt > 60) {
             lastBounceAt = now;
             A.bounce(P.groundSpeed(b));
@@ -1504,6 +1953,14 @@
         }
         if (ev.out) A.out();
         if (ev.sunk) R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z);
+        // A pipe (physics.js, "the wormhole"): swallowed, the sky opening,
+        // and the landing on the far side, which is a landing like any other.
+        if (ev.warp && A.warpIn) A.warpIn();
+        if (ev.warpOpen && A.warpOpen) A.warpOpen();
+        if (ev.warpOut) {
+            A.land(P.groundSpeed(b) + 6);
+            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, 6);
+        }
     }
 
     function resetRangeBall() {
@@ -1540,50 +1997,166 @@
             return;
         }
         state.phase = 'aim';
+        if (!state.course.isRange) turnToCup();
         if (state.course.isRange) {
             judgeRangeShot(w);
             setTimeout(function () {
                 if (state && state.course.isRange) resetRangeBall();
             }, 2000);
         } else {
-            autoPutt();
+            syncLie();
+            nextClub();
         }
         syncHud();
     }
 
-    /* On the green, take the putter out.
+    /* The driver goes back in the bag after the shot it was taken out for.
+       It is the tee club: off the deck it is the hardest swing in the bag
+       (swing.js `deckOver`), and a second shot that started with it still in
+       hand was nearly always a second shot struck with it by accident, the
+       way the putter used to follow you onto the tee. So once the ball comes
+       to rest on a long hole with the driver in hand, the club is swapped for
+       the one whose run best fits what is left, the driver left out of the
+       choice. It is a suggestion, not a rule: pick the driver back up and it
+       swings — it only goes back on the next shot. The green's putter and the
+       bunker's swap (syncLie) come first and leave nothing for this to do. */
+    function nextClub() {
+        var hole = state.world.hole;
+        if (!hole.longGame || !state.club || state.club.id !== 'driver') return;
+        // Back on the tee after a penalty: the drive again, driver and all.
+        if (!offDeck()) return;
+        var c = teeClub(hole, state.world.ball, 'driver');
+        if (!c || c === state.club) return;
+        pickClub(c);
+        toast(c.name + ' for the next one');
+    }
+
+    /* After every stroke the aim swings round to face the cup from wherever
+       the ball stopped, and the camera rides the aim — so the next shot starts
+       looking at the flag rather than down the line of the last one. A short
+       eased turn rather than a cut, and it gives way the moment anything else
+       turns the aim (a drag, a key, the bot): `set` is the yaw it last wrote,
+       and a different one means someone else has hold of it. */
+    var aimTurn = null;
+    var AIM_TURN_SECONDS = 0.65;
+
+    function turnToCup() {
+        var b = state.world.ball, cup = state.world.hole.cup;
+        if (Math.hypot(cup.x - b.x, cup.z - b.z) < 1e-3) return;
+        var to = Math.atan2(cup.x - b.x, cup.z - b.z);
+        aimTurn = { from: state.aim.yaw, to: turnTowards(state.aim.yaw, to, 1), t: 0, set: state.aim.yaw };
+    }
+
+    function tickAimTurn(dt) {
+        if (!aimTurn) return;
+        if (sim || demo || state.phase !== 'aim' || state.aim.yaw !== aimTurn.set) { aimTurn = null; return; }
+        aimTurn.t = Math.min(1, aimTurn.t + dt / AIM_TURN_SECONDS);
+        var e = aimTurn.t * aimTurn.t * (3 - 2 * aimTurn.t);
+        state.aim.yaw = aimTurn.set = aimTurn.from + (aimTurn.to - aimTurn.from) * e;
+        if (aimTurn.t >= 1) aimTurn = null;
+    }
+
+    /* On the green, the putter and nothing else.
 
        Nobody walks up to a ball twelve feet from the pin holding a driver, and
-       until now the game made you remember not to: the club stayed in your
-       hand from the tee all the way to the hole, so the commonest thing that
-       happened on Ashdown Park's greens was a full swing nobody meant to play.
-       Arriving on a putting surface now hands you the putter, once, and you
-       are free to put it back — this only ever fires the moment a shot ends,
-       so a club chosen after that is a club you keep.
+       for a long time the game made you remember not to: the club stayed in
+       your hand from the tee all the way to the hole, so the commonest thing
+       that happened on Ashdown Park's greens was a full swing nobody meant to
+       play. Then arriving on a green handed you the putter but let you put it
+       back, and a chip off the putting surface was still one key away — a
+       shot no real course allows, played from the one place every club but
+       one is the wrong club.
 
-       It fires on the **long game only**, and that restriction is the whole
-       reason this is safe. Five of the seven courses are mini golf, where the
-       floor is green from the tee mat to the cup and choosing loft over the
-       thing in the way is the entire game — switching to a putter every time
-       the ball stopped would be fighting the player on every stroke of
-       Tidewater and Highland. `hole.longGame` is read off the ground rather
-       than off the course id (courses.build), so a hole with fairway and rough
-       on it gets this and a lane does not. */
-    function autoPutt() {
-        var hole = state.world.hole;
-        if (!hole.longGame) return;
-        var putter = null, b = bag(), i;
-        for (i = 0; i < b.length; i++) if (b[i].id === 'putter') putter = b[i];
-        if (!putter || state.club === putter) return;
-        var b = state.world.ball;
-        var lie = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-        if (!lie || lie.pad.kind !== 'green') return;
-        pickClub(putter);
-        toast('On the green — putter');
+       So a ball at rest on a long-game green is played with the putter, and
+       the bag says so: `bag()` is the putter alone until the ball is off the
+       green again, at which point the whole bag comes back. Off the green the
+       putter stays in it, because putting from the fringe is a real shot.
+
+       It is the **long game only**, and that restriction is the whole reason
+       this is safe. Most of the courses are mini golf, where the floor is
+       green from the tee mat to the cup and choosing loft over the thing in
+       the way is the entire game — taking the bag away there would end it.
+       `hole.longGame` is read off the ground rather than off the course id
+       (courses.build), so a hole with fairway and rough on it gets this and a
+       lane does not; the range is left alone, because its tee mat is green. */
+    /* And in a bunker, the bag without the driver.
+
+       A club whose `sand` is 0 cannot be swung from sand (physics.playable),
+       so while the ball sits in a bunker the bag is everything else — the
+       irons capped (physics.fromLie), the wedges and the putter whole. If the
+       driver was in your hand it is swapped for the next club down the bag
+       that will play, which is the 5 iron. Any hole but the range, whose tee
+       mat is all there is to stand on. */
+    function syncLie() {
+        var hole = state.world.hole, b = state.world.ball, putter = null, i;
+        for (i = 0; i < state.bag.length; i++) if (state.bag[i].id === 'putter') putter = state.bag[i];
+        var under = state.course.isRange ? null : P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        var kind = under ? under.pad.kind : null;
+        var lieBag = null, why = null;
+        if (putter && hole.longGame && kind === 'green') {
+            lieBag = [putter];
+            why = 'green';
+        } else if (kind === 'sand') {
+            lieBag = state.bag.filter(function (c) { return P.playable(c, kind); });
+            if (lieBag.length && lieBag.length < state.bag.length) why = 'sand';
+            else lieBag = null;
+        }
+        if (why === (state.lieBagFor || null)) return;
+        state.greenBag = lieBag;
+        state.lieBagFor = why;
+        // The cards in the bag say what each club reaches from here.
+        state.lieCards = why === 'sand' ? lieCards(lieBag, kind) : null;
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(state.lieCards);
+        if (G3.bag && G3.bag.setBag) G3.bag.setBag(bag());
+        if (why === 'green' && state.club !== putter) {
+            pickClub(putter);
+            toast('On the green — putter');
+        } else if (why === 'sand' && lieBag.indexOf(state.club) < 0) {
+            // The next club down the bag that will play from here.
+            var at = state.bag.indexOf(state.club), next = lieBag[0];
+            for (i = at + 1; i < state.bag.length; i++) {
+                if (lieBag.indexOf(state.bag[i]) >= 0) { next = state.bag[i]; break; }
+            }
+            pickClub(next);
+            toast('In the bunker — no driver from sand');
+        } else {
+            syncClubs();
+        }
+    }
+
+    /* A club's card as the lie leaves it: carry, total and power at the
+       ceiling the lie allows (physics.lieCeiling), measured exactly as the
+       club's own card is — a full swing on a flat, windless fairway
+       (tests.html, "what the card says"). Only for a club the lie caps;
+       the rest keep their own card. Measured once a club and kept. */
+    var lieCardMemo = {};
+    function lieCards(clubs, kind) {
+        var out = null;
+        clubs.forEach(function (club) {
+            var cap = P.lieCeiling(club, kind);
+            if (!(cap < club.power) || !club.total) return;
+            var key = club.id + '|' + kind;
+            if (!lieCardMemo[key]) {
+                var field = {
+                    pads: [G3.authoring.pad(-60, -10, 120, 160, 0, 'fairway', 0, 0)],
+                    water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 }
+                };
+                var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
+                P.launch(w, 0, cap, club.loft, club.bite);
+                for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
+                var carry = w.firstLand ? w.firstLand.z : 0;
+                P.settle(w);
+                lieCardMemo[key] = { power: Math.round(cap * 10) / 10, carry: carry, total: w.ball.z };
+            }
+            (out = out || {})[club.id] = lieCardMemo[key];
+        });
+        return out;
     }
 
     function holeComplete(pickedUp) {
         var hole = state.course.holes[state.holeIndex];
+        // In the cup: the stroke that put it there needs no explaining.
+        fadeSwingCard();
         if (state.course.isRange) {
             /* Out of 'rolling' at once: a holed ball stays done, and left in
                that phase the frame loop asks again every frame until the reset
@@ -1591,7 +2164,7 @@
             state.phase = 'holed';
             A.ace();
             var d = Math.hypot(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
-            toast('In the cup from ' + d.toFixed(1) + ' m!', 'good');
+            toast('In the cup from ' + G3.distance.said(d, hole) + '!', 'good');
             // Holed is on a green by any reading — it counts for the line lesson.
             if (school.lesson === 'line' && !state.shotOver) creditLesson('line', 'Holed it, inside the line.');
             setTimeout(function () {
@@ -1603,6 +2176,7 @@
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
         syncSwing();
+        var noted = noteHole(hole);
 
         var t = S.term(state.strokes, hole.par);
         if (pickedUp) A.out();
@@ -1626,13 +2200,16 @@
                 ' · par ' + hole.par;
             $('banner').className = 'banner show';
         }
+        drawBannerStars(noted);
         var up = multi() ? nextToPlay() : -1;
+        if (up < 0 && !last) prepareNext();
         if (multi()) {
             $('banner-detail').textContent = state.players[state.turn].name + ' · ' +
                 $('banner-detail').textContent;
         }
-        $('banner-next').textContent = up >= 0 ? state.players[up].name + ' to play →'
-            : last ? 'See the card →' : 'Next hole →';
+        /* No button to press: the score is shown for a beat and the game
+           walks on by itself (tickHoleEnd). A tap or Enter skips the wait. */
+        endWait = C.HOLE_END.SHOW + (last ? C.HOLE_END.LAST : 0);
         /* An ace gets shown again, at once: an instant replay, the moment
            the drop has landed, with the banner held back until it is over —
            Autoplay included, since the replay holds the frame and the walk
@@ -1725,7 +2302,11 @@
     function tickReplay(dt) {
         var r = replay, RP = C.REPLAY, RE = G3.replay;
         var end = RE.length(r.tape);
-        var rate = r.t < 0 ? 1 : RE.rate(r.tape, r.t, r.ball);
+        /* The hold after the drop runs on the wall clock. It used to take the
+           tape's rate like the rest, and once the ball is in the cup that rate
+           is SLOW — so HOLD's 1.8 seconds played as nearly five, with nothing
+           moving on screen, before the banner came back. */
+        var rate = r.t < 0 || r.t >= end ? 1 : RE.rate(r.tape, r.t, r.ball);
         r.t += dt * rate;
         if (r.t >= end + RP.HOLD) { endReplay(false); return; }
 
@@ -1746,6 +2327,9 @@
             if (ev & RE.LAND) A.land(spd);
             if (ev & RE.RIM) A.rim(spd);
             if (ev & RE.SUNK) { R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z); A.ace(); }
+            if ((ev & RE.WARP) && A.warpIn) A.warpIn();
+            if ((ev & RE.OPEN) && A.warpOpen) A.warpOpen();
+            if (ev & RE.OUT) A.land(spd + 6);
         }
         if (s.i > r.i) r.i = s.i;
         if (!r.cut && r.t >= r.tape.cutT) {
@@ -1753,12 +2337,33 @@
             R.cutReplay(r.world.hole, s);
         }
         r.world.time = s.time;
+        // Inside a pipe the renderer needs the ride, for the portal and the
+        // size of the ball; the tape carries it (replay.js `frame`).
+        r.world.warping = r.t >= 0 ? s.warping : null;
         r.world.moving = r.t >= 0 && r.t < end;
         r.world.sunk = r.t >= end;
         R.frame(dt * rate, r.world, replayIntent);
     }
 
+    /* ── on to the next hole by itself ───────────────────────────────────
+
+       The banner used to wait on "Next hole →" — a press that only ever
+       meant "yes, go on". Now the score holds for HOLE_END.SHOW and the game
+       goes on to the next hole, the next player, or the card. The clock only
+       runs while the score is actually on screen: not under the ace replay
+       (which holds the banner back), a menu, or the portal. Autoplay and the
+       demo keep their own walk (tickWalk), so they are left alone here. */
+    var endWait = 0;
+    function tickHoleEnd(beat) {
+        if (!endWait || demo || auto) return;
+        if (state.phase !== 'holed') { endWait = 0; return; }
+        if (!$('banner').classList.contains('show') || modalUp() || portalBusy) return;
+        endWait -= beat;
+        if (endWait <= 0) { endWait = 0; nextHole(); }
+    }
+
     function nextHole() {
+        endWait = 0;
         hideBanner();
         // Pass and play: the same hole again for whoever has not played it,
         // and only then on — with player one teeing off first.
@@ -1773,6 +2378,12 @@
             setTurn(0);
         }
         if (state.holeIndex < state.course.holes.length - 1) {
+            if (state.course.isPortals) {
+                var to = state.holeIndex + 1;
+                endReplay(true);
+                throughPortal(themeAt(to), function () { loadHole(to); }, state.phase === 'holed');
+                return;
+            }
             loadHole(state.holeIndex + 1);
         } else {
             finishRound();
@@ -1797,18 +2408,56 @@
        rounds have always been thrown away. */
     function finishRound() {
         var res;
-        if (autoUsed || multi()) {
+        if (autoUsed || multi() || state.devSwing) {
             res = {
                 save: state.save, isBest: false, unrecorded: true, shared: multi() && !autoUsed,
+                why: autoUsed ? 'caddie' : state.devSwing ? 'dev' : 'shared',
                 totals: S.totals(state.scores, state.course.holes)
             };
         } else {
             res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes,
-                                { byPar: !!(state.course.isShowcase || state.course.isChallenge) });
+                                { byPar: !!(state.course.isShowcase || state.course.isChallenge || state.course.isPortals) });
             state.save = S.save(res.save);
         }
         state.phase = 'finished';
         openCard(res);
+    }
+
+    /* The hole into the save, under its home course and number — a
+       showcase hole is filed where it lives, so its stars are the same stars
+       wherever you meet it. Its play is counted for the showcase's and the
+       shuffle's dice whoever played it; its stars only for a round that could
+       set a record (finishRound says why). Nothing at all for the demo or a
+       session the caddie has played, for a dealt Challenge hole that will
+       never come round again, or for a draft in the editor.
+
+       Returns what the banner should say, or null for nothing. */
+    function noteHole(hole) {
+        if (demo || autoUsed) return null;
+        var ref = holeRef(state.holeIndex), home = G3.courseById(ref.id);
+        if (!home || home.playtest || home.isChallenge || home.isShowcase || home.isRange) return null;
+        // Pass and play: one play per hole, however many balls went round it.
+        var counted = multi() && state.players.some(function (p, j) {
+            return j !== state.turn && typeof p.scores[state.holeIndex] === 'number';
+        });
+        var solo = !multi() && !state.devSwing;
+        if (!counted) {
+            var res = S.recordHole(state.save, ref.id, ref.index, state.strokes, hole.par, { scored: solo });
+            state.save = S.save(res.save);
+            return solo ? res : null;
+        }
+        return null;
+    }
+
+    // Three stars under the term, and a word when they beat what you held.
+    function drawBannerStars(res) {
+        var el = $('banner-stars');
+        if (!el) return;
+        el.hidden = !res;
+        if (!res) return;
+        el.innerHTML = '<span class="bs-stars">' + S.starText(res.stars) + '</span>' +
+            (res.moreStars && res.was.plays > 0 ? '<span class="bs-new">new best</span>' : '');
+        el.setAttribute('aria-label', res.stars + (res.stars === 1 ? ' star' : ' stars'));
     }
 
     function hideBanner() { $('banner').className = 'banner'; }
@@ -1859,7 +2508,7 @@
                strokes it took were strokes on a different eight holes. */
             $('best-round').textContent = rec.best === null
                 ? '\u2014'
-                : state.course.isShowcase || state.course.isChallenge ? S.formatVsPar(rec.bestVsPar)
+                : state.course.isShowcase || state.course.isChallenge || state.course.isPortals ? S.formatVsPar(rec.bestVsPar)
                 : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
 
             $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
@@ -1892,6 +2541,11 @@
        course's, and that course is where you would go to play the rest. */
     function courseLabel() {
         var c = state.course;
+        // A journey says how far through it you are, in worlds.
+        if (c.isPortals) {
+            return c.single ? 'World Tour \u00B7 one hole'
+                : 'World Tour \u00B7 hole ' + (state.holeIndex + 1) + ' of ' + c.holes.length;
+        }
         if (!c.isShowcase) return c.name;
         return c.name + ' \u00B7 ' + G3.courseById(holeRef(state.holeIndex).id).name;
     }
@@ -1930,10 +2584,11 @@
            backswing is not a puzzle, it is a surprise. So the card names the
            clubs whenever there are not five of them. */
         $('hc-meta').textContent = 'Par ' + hole.par + ' · ' +
-            Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z).toFixed(1) + ' m' +
+            G3.distance.toFlag(Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z), hole) +
             (state.bag !== C.CLUBS
                 ? ' · ' + state.bag.map(function (c) { return c.name; }).join(' + ') + ' only'
                 : '') +
+            (hole.inWorld ? ' · in ' + hole.inWorld : '') +
             (state.weather ? ' · ' + state.weather.icon + ' ' + state.weather.label : '');
         $('hole-card').classList.add('show');
         // The card and the overlay's drawer say the same thing; whichever was
@@ -1998,6 +2653,9 @@
         var dpr = canvas.width / (canvas.clientWidth || canvas.width);
         var b = state.world.ball;
         var dot = $('mm-ball');
+        // Nowhere, for the moment it is between the two ends of a pipe.
+        var gone = !!state.world.warping && P.warpPhase(state.world.warping).phase === 'dark';
+        dot.style.visibility = gone ? 'hidden' : '';
         dot.style.left = ((b.x - miniMapTf.ox) * miniMapTf.scale / dpr) + 'px';
         dot.style.top = ((b.z - miniMapTf.oz) * miniMapTf.scale / dpr) + 'px';
     }
@@ -2015,7 +2673,7 @@
             compactQuery = window.matchMedia(
                 '(max-width: 900px), (max-height: 560px), (pointer: coarse)');
         }
-        var on = (compactQuery ? compactQuery.matches : false) || !!fullscreenElement();
+        var on = (compactQuery ? compactQuery.matches : false) || isFull();
         var was = document.body.classList.contains('compact-ui');
         document.body.classList.toggle('compact-ui', on);
         if (!on) closeTopMenu();
@@ -2102,20 +2760,107 @@
     }
 
     /* How far there is left to go, which is the number the club choice is
-       really about. Updated every frame while the ball is rolling — and, like
+       really about — rounded, and not at all inside NEAR
+       (G3.distance). Updated every frame while the ball is rolling — and, like
        syncWind above, spending most of those frames writing the string that is
        already there, which is a layout the browser did not need to do. Both
        are one string compare away from being free, so that is what they are. */
     var lastDistance = null;
 
     function syncDistance() {
-        var b = state.world.ball, cup = state.course.holes[state.holeIndex].cup;
+        var hole = state.course.holes[state.holeIndex], b = state.world.ball, cup = hole.cup;
         var d = Math.hypot(cup.x - b.x, cup.z - b.z);
-        var text = state.world.sunk ? 'in' : d.toFixed(1) + ' m';
+        var text = state.world.sunk ? 'in' : G3.distance.toFlag(d, hole);
         if (text === lastDistance) return;
         lastDistance = text;
         $('to-cup').textContent = text;
         $('shud-dist').textContent = text;
+    }
+
+    /* ── how far, roughly ──
+
+       The distance above is the question and the meter answered it in units
+       of power, so choosing a club meant learning thirteen numbers by feel.
+       This says it in metres — roughly: the band a full swing of the club in
+       hand lands in, thirty per cent wide (G3.distance.band). It used to be
+       exact, with the loaded shot's run beside it and a flag on the meter at
+       the pull that ran the ball to the cup, and that was the shot played for
+       you: drag until the ball sits on the flag. What is left is the club's
+       reach and the flag's distance, and the pull in between is yours.
+
+       Measured, not guessed: the club in hand, struck as loaded (shape and
+       all), on a flat, windless field of the ground it will mostly be played
+       over — fairway on the long game, where the picker's carry and roll are
+       measured too, the green once on it, and the floor of the lane on a mini
+       hole. "≈" because there is no slope, wind or wall on that field. One
+       table per club, ground, shape and gravity, made on first ask and read
+       by interpolation. */
+    var RUN_STEPS = 26;
+    var runTables = {};
+    var lastRun = null;
+
+    // What the ball is sitting on, as the strike will read it.
+    function lieKind() {
+        var b = state.world.ball;
+        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
+        return lie ? lie.pad.kind : null;
+    }
+
+    function runKind() {
+        var hole = state.world.hole, b = state.world.ball;
+        var kind = lieKind();
+        /* A tee mat is green underfoot and a drive off it lands on fairway:
+           measured on green, the range's driver read sixty units. */
+        var onTee = Math.abs(b.x - hole.tee.x) + Math.abs(b.z - hole.tee.z) < 0.5;
+        if (hole.longGame) return kind === 'green' && !onTee ? 'green' : 'fairway';
+        return kind && kind !== 'sand' && C.FRICTION[kind] !== undefined ? kind : 'green';
+    }
+
+    function runTable(club, kind, shape, gravity) {
+        var key = club.id + '|' + kind + '|' + shape + '|' + gravity;
+        if (runTables[key]) return runTables[key];
+        var field = {
+            pads: [G3.authoring.pad(-150, -20, 300, 320, 0, kind)],
+            water: [], walls: [], gravity: gravity,
+            tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 1000, y: 0 }
+        };
+        var top = maxPower(club), out = [], i, p, s, w;
+        for (i = 0; i <= RUN_STEPS; i++) {
+            p = top * i / RUN_STEPS;
+            out.push(0);
+            if (p < C.MIN_POWER) continue;
+            s = { yaw: 0, power: P.deliver(p, club.power), loft: club.loft, bite: club.bite || 0, spin: 0, topped: false };
+            if (shape !== 'straight') s = SW.shape(s, shape, club.loft, club.bite, P.gravityOf(field), 0, field, p / club.power);
+            w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0);
+            if (!P.launch(w, s.yaw, s.power, s.loft, s.bite, s.topped)) continue;
+            w.spin = s.spin || 0;
+            P.settle(w);
+            out[i] = Math.sqrt(w.ball.x * w.ball.x + w.ball.z * w.ball.z);
+        }
+        return (runTables[key] = out);
+    }
+
+    // The run at a power, off the table.
+    function runAt(t, power, club) {
+        var f = Math.max(0, Math.min(RUN_STEPS, power / maxPower(club) * RUN_STEPS));
+        var i = Math.min(RUN_STEPS - 1, Math.floor(f));
+        return t[i] + (t[i + 1] - t[i]) * (f - i);
+    }
+
+    /* Asked every frame while aiming, and a string compare away from free:
+       the key is everything the answer depends on. */
+    function syncRun() {
+        var club = state.club, hole = state.world.hole, kind = runKind();
+        // Out of a bunker a long club's full swing is its sand ceiling, and
+        // the readout says so rather than promising the fairway's distance.
+        var cap = P.lieCeiling(club, lieKind());
+        var capped = cap < club.power;
+        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, capped].join('|');
+        if (key === lastRun) return;
+        lastRun = key;
+        var t = runTable(club, kind, shapeNow(), hole.gravity || 1);
+        $('power-dist').textContent = (capped ? 'sand: max ' : 'full ') +
+            G3.distance.bandText(runAt(t, capped ? cap : club.power, club), hole);
     }
 
     /* The meter reads in fractions of the club in hand, and it runs past 100%:
@@ -2154,7 +2899,7 @@
         // The number alone does not say what 100% means on this track, and a
         // screen reader is the one place the white line is invisible.
         $('power-track').setAttribute('aria-valuetext', Math.round(swing * 100) + '%' +
-            (over ? ' — past a full swing, the shot will spray' : ' of a full swing'));
+            (over ? ' — past a full swing, the shot can go wild' : ' of a full swing'));
         syncSwing();
     }
 
@@ -2255,7 +3000,6 @@
         $('club-chip').setAttribute('aria-label',
             'Club in hand: ' + state.club.name + '. Press to pick another.');
         drawPowerTicks(state.club);
-        syncShape();
         syncPicker();
     }
 
@@ -2289,14 +3033,19 @@
         $('picker-name').textContent = club.name;
         $('picker-blurb').textContent = club.blurb;
         /* The figures the club's own card carries (bag.js), written out:
-           loft, power, carry distance, and rollout / bite. */
-        var carryText = club.carry ? ' · carry <b>' + club.carry + 'm</b>' : '';
-        var totalText = club.total ? ' · roll <b>' + club.total + 'm</b>' : '';
+           loft, reach and bite. */
+        // Rough, like the meter's: a band, in the hole's own metres.
+        // Out of a bunker, the reach the sand leaves it (syncLie, lieCards).
+        var card = (state.lieCards && state.lieCards[club.id]) || club;
+        var totalText = card.total ? ' · reach <b>' + G3.distance.bandText(card.total, state.world.hole) + '</b>' +
+            (card !== club ? ' from sand' : '') : '';
         var biteText = club.bite ? ' · bite <b>' + Math.round(club.bite * 100) + '%</b>' : '';
+        // One line on a phone: the key only where there is a keyboard
+        // (style.css hides .pk-key on touch), and the power units left to the
+        // card — a reach in metres is what anyone chooses a club by.
         $('picker-stats').innerHTML =
-            'Key <b>' + club.key + '</b> · loft <b>' +
-            Math.round(club.loft * 180 / Math.PI) + '°</b> · full swing <b>' +
-            club.power + '</b>' + carryText + totalText + biteText +
+            '<span class="pk-key">Key <b>' + club.key + '</b> · </span>loft <b>' +
+            Math.round(club.loft * 180 / Math.PI) + '°</b>' + totalText + biteText +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
 
         var container = $('picker-clubs');
@@ -2396,6 +3145,9 @@
                 btnEl.setAttribute('aria-checked', isSelected ? 'true' : 'false');
                 btnEl.setAttribute('tabindex', isActive ? '0' : '-1');
             }
+            // Measured again now the text row is there: on the first open it
+            // was built after the band was taken.
+            if (needsRebuild) measurePickerBand();
         }
     }
 
@@ -2411,7 +3163,13 @@
         var stage = $('stage').getBoundingClientRect();
         var ctl = document.querySelector('.controls');
         if (!stage.height || !ctl) return;
+        // The lower of the stats line and the text row of clubs under it —
+        // the row is only drawn where there is a pointer to use it with, and
+        // the cards were laid out under the stats alone, so on a desktop the
+        // row sat across the heads.
         var text = $('picker-stats').getBoundingClientRect();
+        var row = $('picker-clubs') ? $('picker-clubs').getBoundingClientRect() : null;
+        if (row && row.height > 2 && row.bottom > text.bottom) text = row;
         var bar = ctl.getBoundingClientRect();
         /* The shot controls stand down while the picker is up (see
            `.stage.picker-open .controls`), and the clubs get the strip they
@@ -2622,6 +3380,8 @@
                 if (Math.abs(e.clientX - look.x) < look.slop &&
                     Math.abs(e.clientY - look.y) < look.slop) return;
                 look.live = true;
+                // Aiming the next one: the last one's card has had its turn.
+                if (state.phase === 'aim') fadeSwingCard();
                 look.x = e.clientX;
                 look.y = e.clientY;
             }
@@ -2775,6 +3535,7 @@
 
     function nudgeAim(by) {
         if (!state || state.phase !== 'aim' || gate) return;
+        fadeSwingCard();
         state.aim.yaw += by;
     }
 
@@ -3179,7 +3940,7 @@
             return;
         }
         if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) {
-            // Enter on "Watch again" is a press of that button, not of Next.
+            // Enter on "Watch again" is a press of that button, not a skip.
             if (e.target === $('banner-replay')) return;
             e.preventDefault(); nextHole(); return;
         }
@@ -3195,7 +3956,6 @@
            in here that asks for the modifier rather than offering it. */
         else if (k === 'Home') { setPower(0); e.preventDefault(); }
         else if (k === 'End') { setPower(fine ? maxPower() : state.club.power); e.preventDefault(); }
-        else if (SHAPE_KEYS[k.toLowerCase()]) { keyShape(SHAPE_KEYS[k.toLowerCase()]); }
         else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 
@@ -3232,15 +3992,88 @@
         return document.fullscreenElement || document.webkitFullscreenElement || null;
     }
 
+    /* Whether the browser will really do it. An iPhone's Safari carries the
+       method and then refuses it for anything that is not a video — it says
+       so in `fullscreenEnabled`, which is the question to ask rather than
+       whether the function exists. */
+    function nativeFs() {
+        var el = $('viewport');
+        if (!(el.requestFullscreen || el.webkitRequestFullscreen)) return false;
+        var en = document.fullscreenEnabled;
+        if (en === undefined) en = document.webkitFullscreenEnabled;
+        return en !== false;
+    }
+
+    // Opened from the Home Screen: there are no browser bars to take back.
+    function standalone() {
+        if (navigator.standalone === true) return true;
+        return !!(window.matchMedia &&
+            (window.matchMedia('(display-mode: standalone)').matches ||
+             window.matchMedia('(display-mode: fullscreen)').matches));
+    }
+
+    function canFull() { return !standalone(); }
+    function isFull() { return !!fullscreenElement() || pageFull; }
+
+    /* ── the page standing in for fullscreen ─────────────────────────────
+
+       Where the real thing is not on offer — an iPhone — ⛶ still does what it
+       says as far as a page can: the course is pinned over everything else at
+       the height Safari is showing, the scoreboard folds into the overlay, and
+       the page behind it stops scrolling. It is said once that Add to Home
+       Screen is how to lose Safari's own bars as well, because that is the one
+       thing a page cannot do for itself. */
+    var pageFull = false;
+
+    function syncPageH() {
+        if (!pageFull) return;
+        var vv = window.visualViewport;
+        var h = vv ? vv.height : window.innerHeight;
+        document.documentElement.style.setProperty('--page-h', Math.round(h) + 'px');
+    }
+
+    function onPageResize() {
+        if (!pageFull) return;
+        syncPageH();
+        R.resize();
+        measurePickerBand();
+    }
+
+    function setPageFull(on) {
+        if (pageFull === on) return;
+        pageFull = on;
+        document.documentElement.classList.toggle('page-full', on);
+        $('viewport').classList.toggle('page-full', on);
+        if (on) {
+            window.scrollTo(0, 0);
+            syncPageH();
+            if (!fsSeen()) {
+                var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                toast(ios
+                    ? 'Safari keeps its own bars. For true fullscreen: Share → Add to Home Screen'
+                    : 'This browser keeps its own bars. Add to Home Screen to lose them too', '', 6000);
+            }
+        } else {
+            document.documentElement.style.removeProperty('--page-h');
+        }
+        onFullscreenChange();
+    }
+
     function toggleFullscreen() {
+        if (pageFull) { setPageFull(false); return; }
         var el = $('viewport');
         if (fullscreenElement()) {
             (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        } else if (el.requestFullscreen || el.webkitRequestFullscreen) {
-            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-        } else {
-            toast('This browser will not do fullscreen here');
+            return;
         }
+        if (!nativeFs()) { setPageFull(true); return; }
+        // Refused after all (a frame without permission, a browser that
+        // overstated itself): the page version is still better than nothing.
+        try {
+            var p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+            if (p && p.catch) p.catch(function () { setPageFull(true); });
+        } catch (e) { setPageFull(true); }
     }
 
     /* ── starting fullscreen ──────────────────────────────────────────
@@ -3253,8 +4086,7 @@
        bars come and go with the scroll anyway, and a fullscreen nobody asked
        for is a page they cannot find the way out of. */
     function fsAutoAvailable() {
-        var el = $('viewport');
-        if (!(el.requestFullscreen || el.webkitRequestFullscreen)) return false;
+        if (!nativeFs()) return false;
         return !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
     }
 
@@ -3266,7 +4098,7 @@
     // Quietly: a press that was not allowed to (a wheel, an Escape) is
     // refused by the browser, and that refusal is nobody's error.
     function enterFullscreen() {
-        if (fullscreenElement()) return;
+        if (isFull()) return;
         var el = $('viewport');
         var go = el.requestFullscreen || el.webkitRequestFullscreen;
         if (!go) return;
@@ -3307,7 +4139,7 @@
     }
 
     function onFullscreenChange() {
-        var on = !!fullscreenElement();
+        var on = isFull();
         syncFsSwitch();
         $('btn-full').classList.toggle('on', on);
         document.body.classList.toggle('is-full', on);
@@ -3338,8 +4170,8 @@
     }
     function syncFsReminder() {
         var el = $('btn-full');
-        var can = !!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen);
-        el.classList.toggle('reminding', can && !fsSeen() && !fullscreenElement());
+        el.style.display = canFull() ? '' : 'none';
+        el.classList.toggle('reminding', canFull() && !fsSeen() && !isFull());
     }
 
     function fsPromptDismissed() {
@@ -3358,11 +4190,11 @@
     function maybeShowFsPrompt() {
         // Not over the demo: the offer is for somebody about to play.
         if (demo) return;
-        if (fsPromptDismissed() || fullscreenElement()) return;
-        if (!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen)) return;
+        if (fsPromptDismissed() || isFull()) return;
+        if (!canFull()) return;
         clearTimeout(fsPromptTimer);
         fsPromptTimer = setTimeout(function () {
-            if (fsPromptDismissed() || fullscreenElement()) return;
+            if (fsPromptDismissed() || isFull()) return;
             $('fs-prompt').classList.add('show');
             document.body.classList.add('fs-offering');
             fsPromptTimer = setTimeout(function () {
@@ -3558,6 +4390,18 @@
        different kind. */
 
     var menuGroup = null;      // which tab is open
+    /* The tour's holes are a tab like any kind of golf: the first one, and
+       the one the picker opens on unless a drawn course is on offer. It is
+       not a kind the draw can reach for, so it lives here and not in
+       COURSE_GROUPS. */
+    var ALL_GROUP = {
+        id: 'all', name: 'Everything', icon: '\u2756', tint: '#e4dcc4',
+        blurb: 'Every world and every course, side by side.'
+    };
+    var WORLDS_GROUP = {
+        id: 'worlds', name: 'Worlds', icon: '\u25CE', tint: '#dcc28a',
+        blurb: 'The World Tour\u2019s holes, each inside a world from Portals, one at a time.'
+    };
     /* …and the last *kind* tab that was, which is not always the same thing:
        the draw is a tab of its own now, and "same kind" still has to mean a
        kind of golf. So the shuffle tab borrows the one you were last looking
@@ -3565,6 +4409,7 @@
        outside the picker, where the kind is the one you are standing on. */
     var menuKind = null;
     var menuSuggest = null;    // …and the course being offered, if any
+    var menuPick = null;       // the card whose page is open, or null for the grid
     /* A course has been picked and the round is being built. Loading one is the
        longest thing a press on this page can start, and a phone that has not
        repainted yet is a phone still collecting taps: without this the second
@@ -3582,32 +4427,274 @@
         }
         // Challenge mode is no kind of golf in the list, so the picker opens
         // where it would with nothing in hand.
+        if (c && c.isPortals) return ALL_GROUP.id;
         if (c && c.isChallenge) return G3.COURSE_GROUPS[0].id;
         return c ? c.group : G3.COURSE_GROUPS[0].id;
+    }
+
+    // …and the kind of golf, where the worlds' tab is no answer.
+    function kindOf(id) {
+        var g = groupOf(id);
+        return g === WORLDS_GROUP.id || g === ALL_GROUP.id ? G3.COURSE_GROUPS[0].id : g;
     }
 
     function openMenu(suggestId) {
         menuTaking = false;
         menuSuggest = suggestId || null;
-        menuGroup = suggestId ? groupOf(suggestId) :
-            (state && state.course ? groupOf(state.course.id) : G3.COURSE_GROUPS[0].id);
-        /* Never on the draw: the list is what was asked for, and a picker that
-           opens on the tab that picks for you has answered the question
-           instead of asking it. */
-        menuKind = menuGroup;
+        /* It opens on everything. A course on offer (the end of a round
+           nudging at the next) opens on that course's page, one press from
+           playing it, with its own kind's tab behind it. */
+        menuGroup = suggestId ? groupOf(suggestId) : ALL_GROUP.id;
+        menuPick = suggestId || null;
+        menuKind = state && state.course ? kindOf(state.course.id) : G3.COURSE_GROUPS[0].id;
+        if (suggestId) menuKind = menuGroup;
+        $('menu').className = 'modal show';
+        drawMenu();
+    }
+
+    /* The whole picker: the three dealt rounds on top, then the tabs and
+       whichever panel is open. The cards are drawn after the dialog is
+       showing — their plans are sized off cells that have to be laid out to
+       have a size (drawPlans). */
+    function drawMenu() {
+        drawHome();
         drawShowcase();
         drawChallenge();
         drawShuffle();
         drawTabs();
         var focus = drawCourses();
-        /* With nothing on offer and a showcase nobody has started behind the
-           list, the showcase is what is on offer. */
-        if (!suggestId && showcaseWaiting()) focus = $('menu-showcase');
-        $('menu').className = 'modal show';
-        // Keyboard and screen reader land on the course being offered, or on
-        // the first one in the open tab if nothing is.
-        if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
         drawPlans();
+        /* With nothing on offer, what is on offer is the round waiting
+           behind the list — or the tour. */
+        if (!menuSuggest) focus = showcaseWaiting() ? $('menu-showcase') : $('menu-portals');
+        // How much of all of it is done, across the top.
+        var got = 0, max = 0;
+        pickables().forEach(function (o) { got += o.got; max += o.max; });
+        $('menu-progress-text').textContent = '\u2605 ' + got + ' / ' + max;
+        $('menu-progress-bar').style.width = (max ? Math.round(100 * got / max) : 0) + '%';
+        // Keyboard and screen reader land on what is being offered.
+        if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
+    }
+
+    function hexOf(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
+
+    // A journey nobody has started is behind the list: that one is on offer.
+    function journeyWaiting() {
+        return !!(state && state.course && state.course.isPortals && !state.course.single &&
+                  state.world && state.strokes === 0 && !anyPlayed());
+    }
+
+    /* The front page. The door says what pressing it does — carry on, or
+       begin — and wears the sky of a world this save has not been to. Under
+       it, every world there is, each drawn as its own sky over its own
+       ground and each a door to that one world: the ones this save has holed
+       out in carry their stars, the rest say "new". Nothing is locked. A
+       gallery of grey blanks was the first version, and it was a second list
+       to be puzzled by on the one page whose job is not to have one. */
+    function drawHome() {
+        var save = state && state.save ? state.save : S.load();
+        var PW = G3.portals, found = 0, stars = 0;
+        PW.WORLDS.forEach(function (w) {
+            var r = S.holeRecord(save, 'world-' + w.id, 0);
+            if (r.plays > 0) found++;
+            stars += r.stars || 0;
+        });
+
+        var rec = S.courseRecord(save, 'portals');
+        var waiting = journeyWaiting();
+        var mid = state && state.course && state.course.isPortals && !state.course.single &&
+            state.phase !== 'finished' && !waiting;
+        $('menu-portals-title').textContent = mid ? 'Start a new World Tour' : 'Play the World Tour';
+        $('menu-portals-sub').textContent =
+            PW.LENGTH + ' holes, each in a different world, and a new six every round.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.') +
+            (stars ? ' \u2605 ' + stars + ' of ' + PW.WORLDS.length * 3 + ' stars.' : '');
+        // The eye wears the sky of the world the door opens on.
+        var first = waiting ? G3.THEMES[themeAt(0)] : G3.THEMES[PW.WORLDS[found % PW.WORLDS.length].theme];
+        $('menu-portals').style.setProperty('--eye-a', hexOf(first.sky[0]));
+        $('menu-portals').style.setProperty('--eye-b', hexOf(first.sky[1]));
+        syncLive();
+    }
+
+    /* Everything that can be picked, as one list of the same shape of
+       thing: a tour hole and a six-hole course differ in what they are, not
+       in how they are shown or chosen. */
+    function pickables() {
+        var save = state && state.save ? state.save : S.load(), out = [];
+        G3.portals.WORLDS.forEach(function (w) {
+            var rec = S.holeRecord(save, 'world-' + w.id, 0);
+            out.push({ key: 'world-' + w.id, group: WORLDS_GROUP.id, tint: WORLDS_GROUP.tint, tag: 'World',
+                th: G3.THEMES[w.theme], name: w.title, where: w.world, blurb: w.hole.blurb || w.caption,
+                course: G3.courseById('world-' + w.id), holes: 1, par: w.hole.par,
+                best: rec.best === undefined ? null : rec.best, played: rec.plays > 0,
+                got: rec.stars || 0, max: 3, sculpted: !!(w.place && w.place.at) });
+        });
+        G3.COURSE_GROUPS.forEach(function (g) {
+            G3.coursesInGroup(g.id).forEach(function (c) {
+                var rec = S.courseRecord(save, c.id), got = S.courseStars(save, c);
+                out.push({ key: c.id, group: g.id, tint: g.tint, tag: g.name,
+                    th: G3.THEMES[c.theme] || G3.THEMES.seaside, name: c.name, where: '', blurb: c.blurb,
+                    course: c, holes: c.holes.length, par: S.coursePar(c.holes),
+                    best: rec.best, bestVsPar: rec.bestVsPar, played: rec.best !== null || got.got > 0,
+                    got: got.got, max: got.max });
+            });
+        });
+        return out;
+    }
+    function pickable(key) {
+        var all = pickables();
+        for (var i = 0; i < all.length; i++) if (all[i].key === key) return all[i];
+        return null;
+    }
+    function starPips(got, max) {
+        // Three pips whatever the total: none, some, most, all.
+        var n = got <= 0 ? 0 : got >= max ? 3 : got * 2 >= max ? 2 : 1;
+        return '<span class="pips" aria-label="' + got + ' of ' + max + ' stars">' +
+            '★★★'.slice(0, n) + '<i>' + '★★★'.slice(n) + '</i></span>';
+    }
+
+    /* The grid: one card for each, and the same card for all of them — the
+       plan of its first hole over its own sky, a tag in its kind's colour,
+       its name, and three pips for its stars. Every tab is this grid,
+       narrowed. Pressing a card does not start anything: it opens that
+       card's page (drawDetail), which is where a round is started — the way
+       a level is chosen in a game, and the same two presses for all of it.
+       On "Everything" worlds and courses are dealt alternately, so neither
+       kind is the one you scroll to. */
+    function drawGrid(filter) {
+        var host = $('menu-worlds');
+        host.innerHTML = '';
+        var all = pickables(), worlds = [], courses = [], list = [];
+        all.forEach(function (o) {
+            if (filter !== ALL_GROUP.id && o.group !== filter) return;
+            (o.group === WORLDS_GROUP.id ? worlds : courses).push(o);
+        });
+        for (var i = 0; i < Math.max(worlds.length, courses.length); i++) {
+            if (worlds[i]) list.push(worlds[i]);
+            if (courses[i]) list.push(courses[i]);
+        }
+        list.forEach(function (o) {
+            var el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'world' + (o.played ? '' : ' unfound') + (o.key === menuSuggest ? ' up-next' : '');
+            el.setAttribute('role', 'listitem');
+            el.style.setProperty('--w-tint', o.tint);
+            el.title = o.blurb;
+            el.innerHTML =
+                '<span class="world-sky" style="background:linear-gradient(' + hexOf(o.th.sky[0]) + ',' + hexOf(o.th.sky[1]) + ')">' +
+                '<canvas class="cc-map" data-course="' + o.key + '" data-hole="0"></canvas>' +
+                '<span class="world-tag">' + o.tag + '</span>' +
+                (o.played ? '' : '<span class="world-new">new</span>') + '</span>' +
+                '<span class="world-text"><span class="world-name">' + o.name + '</span>' +
+                '<span class="world-meta">' + (o.holes === 1 ? 'Par ' + o.par : o.holes + ' holes') +
+                starPips(o.got, o.max) + '</span></span>';
+            el.addEventListener('click', function () {
+                menuPick = o.key;
+                drawCourses();
+                drawPlans();
+            });
+            host.appendChild(el);
+        });
+        $('menu-worlds-label').textContent = list.length + (list.length === 1 ? ' to play' : ' to play') +
+            ' · pick one to see it';
+        host.scrollTop = 0;
+        return host.firstChild;
+    }
+
+    /* One card's page. What it is and where, how you have done on it, every
+       hole of it as a plan you can start on, and one large button that
+       plays it. A tour hole has one plan; a course has six. Back is the
+       grid it came from. */
+    function drawDetail(key) {
+        var o = pickable(key), host = $('menu-detail');
+        host.innerHTML = '';
+        if (!o) return null;
+        var save = state && state.save ? state.save : S.load();
+        host.style.setProperty('--cg-tint', o.tint);
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'linkish md-back';
+        back.textContent = '← Back';
+        back.addEventListener('click', function () { menuPick = null; drawCourses(); drawPlans(); });
+        host.appendChild(back);
+
+        var head = document.createElement('div');
+        head.className = 'md-head';
+        head.style.background = 'linear-gradient(' + hexOf(o.th.sky[0]) + ',' + hexOf(o.th.sky[1]) + ')';
+        head.innerHTML = '<span class="world-tag">' + o.tag + '</span>' +
+            (key === menuSuggest ? '<span class="world-new">up next</span>' : '') +
+            '<span class="md-title"><b>' + o.name + '</b>' +
+            (o.where ? '<span>in ' + o.where + (o.sculpted ? ' · on its own ground' : '') + '</span>' : '') + '</span>';
+        host.appendChild(head);
+
+        var blurb = document.createElement('p');
+        blurb.className = 'md-blurb';
+        blurb.textContent = o.blurb;
+        host.appendChild(blurb);
+
+        var stats = document.createElement('div');
+        stats.className = 'md-stats';
+        stats.innerHTML =
+            '<span><b>' + o.holes + '</b>' + (o.holes === 1 ? 'hole' : 'holes') + '</span>' +
+            '<span><b>' + o.par + '</b>par</span>' +
+            '<span><b>' + (o.best === null || o.best === undefined ? '—' : o.best) + '</b>best</span>' +
+            '<span><b class="md-gold">★ ' + o.got + '/' + o.max + '</b>stars</span>';
+        host.appendChild(stats);
+
+        var strip = document.createElement('div');
+        strip.className = 'cc-holes' + (o.holes === 1 ? ' one' : '');
+        var shape = 0;
+        o.course.holes.forEach(function (hole) {
+            var b = hole.bounds;
+            shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
+        });
+        // The cells take the course's own proportions (a lane is tall, a
+        // links hole nearly square), averaged and clamped.
+        strip.style.setProperty('--cc-shape', Math.max(0.4, Math.min(1.5, shape / o.holes)).toFixed(3));
+        o.course.holes.forEach(function (hole, i) {
+            var cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'cc-hole';
+            var hr = S.holeRecord(save, o.key, i);
+            cell.title = hole.name + ' — par ' + hole.par +
+                (hr.plays ? ' · ' + hr.stars + (hr.stars === 1 ? ' star' : ' stars') : ' · not played yet');
+            cell.innerHTML =
+                '<canvas class="cc-map" data-course="' + o.key + '" data-hole="' + i + '"></canvas>' +
+                '<span class="cc-num">' + (i + 1) + '</span>' +
+                '<span class="cc-par">' + hole.par + '</span>' +
+                (hr.plays ? '<span class="cc-stars" aria-hidden="true">' + S.starText(hr.stars) + '</span>' : '');
+            cell.addEventListener('click', function () { takeCourse(o.key, i); });
+            strip.appendChild(cell);
+        });
+        if (o.holes > 1) {
+            var hint = document.createElement('p');
+            hint.className = 'sh-label';
+            hint.textContent = 'Or start on a hole';
+            host.appendChild(hint);
+        }
+        host.appendChild(strip);
+
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'md-play';
+        go.innerHTML = '<b>Play</b><span>' + (o.holes === 1 ? o.name : 'from hole 1') + '</span>';
+        go.addEventListener('click', function () { takeCourse(o.key); });
+        host.insertBefore(go, o.holes > 1 ? host.querySelector('.sh-label') : strip);
+        return go;
+    }
+
+    function syncLive() {
+        var on = R.liveWanted, el = $('menu-live');
+        el.textContent = 'Live worlds: ' + (on ? 'on' : 'off');
+        el.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    function takeJourney() {
+        if (menuTaking) return;
+        maybeAutoFullscreen();
+        if (journeyWaiting()) { closeMenu(); return; }
+        menuTaking = true;
+        newJourney();
     }
 
     /* The tabs. Each carries the group's mark, its name and how many courses
@@ -3626,13 +4713,14 @@
     function drawTabs() {
         var host = $('menu-tabs');
         host.innerHTML = '';
+        host.appendChild(menuTab(ALL_GROUP, G3.portals.WORLDS.length +
+            G3.COURSES.filter(function (c) { return !c.playtest; }).length, 'menu-worlds-panel'));
+        host.appendChild(menuTab(WORLDS_GROUP, G3.portals.WORLDS.length, 'menu-worlds-panel'));
         G3.COURSE_GROUPS.forEach(function (group) {
             var courses = G3.coursesInGroup(group.id);
             if (!courses.length) return;
             host.appendChild(menuTab(group, courses.length, 'menu-list'));
         });
-        host.appendChild(menuTab(G3.SHUFFLE_GROUP,
-            G3.shuffleDraw(shuffleOpts()).courses.length, 'shuffle'));
 
         var g = openTab();
         $('menu-tab-blurb').textContent = g.blurb;
@@ -3641,13 +4729,15 @@
            not have to repaint it. The draw's panel owns its own, which is also
            the fallback every tinted rule in this dialog resolves against —
            see style.css, `#menu .modal-inner`. */
-        if (g.id !== G3.SHUFFLE_GROUP.id) $('menu-list').style.setProperty('--cg-tint', g.tint);
+        if (g.id !== G3.SHUFFLE_GROUP.id && g !== WORLDS_GROUP && g !== ALL_GROUP) $('menu-list').style.setProperty('--cg-tint', g.tint);
         $('shuffle').style.setProperty('--cg-tint', G3.SHUFFLE_GROUP.tint);
     }
 
     /* Whichever of the five is open — a kind of golf, or the draw. */
     function openTab() {
         if (menuGroup === G3.SHUFFLE_GROUP.id) return G3.SHUFFLE_GROUP;
+        if (menuGroup === WORLDS_GROUP.id) return WORLDS_GROUP;
+        if (menuGroup === ALL_GROUP.id) return ALL_GROUP;
         var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
         return g || G3.COURSE_GROUPS[0];
     }
@@ -3673,12 +4763,13 @@
             (menuSuggest && groupOf(menuSuggest) === group.id && !on
                 ? '<span class="mt-dot" title="up next"></span>' : '');
         tab.addEventListener('click', function () {
-            if (menuGroup === group.id) return;
+            if (menuGroup === group.id && !menuPick) return;
             menuGroup = group.id;
+            menuPick = null;
             // "Same kind" means the kind you are looking at, so the draw and
             // its counts move with the tabs — and the draw's own tab, which is
             // not a kind, leaves that pointing where it last was.
-            if (group.id !== G3.SHUFFLE_GROUP.id) menuKind = group.id;
+            if (group.id !== G3.SHUFFLE_GROUP.id && group !== WORLDS_GROUP && group !== ALL_GROUP) menuKind = group.id;
             drawShuffle();
             drawTabs();
             drawCourses();
@@ -3687,127 +4778,37 @@
         return tab;
     }
 
-    /* The cards of the open tab. Returns what focus should land on.
-
-       On the draw's tab there are no cards: the list steps aside for
-       `#shuffle` and the button that makes the draw is what focus lands on.
-       Emptying the list rather than merely hiding it is what keeps the plans
-       cheap — `drawPlans` walks whatever cells it finds, and a hidden tab's
-       are cells with no laid-out size to be drawn at. */
+    /* What is under the tabs. One of three things is ever on screen: the
+       grid of the open tab, the page of the card picked from it, or — from
+       the link under the featured row — what "Surprise me" draws from.
+       Returns what focus should land on. */
     function drawCourses() {
-        var save = state ? state.save : S.load();
-        var host = $('menu-list');
-        host.innerHTML = '';
         var onDraw = menuGroup === G3.SHUFFLE_GROUP.id;
-        host.hidden = onDraw;
+        $('menu-list').hidden = true;
         $('shuffle').hidden = !onDraw;
+        $('menu-worlds-panel').hidden = onDraw || !!menuPick;
+        $('menu-detail').hidden = onDraw || !menuPick;
+        $('menu-tabs').hidden = !!menuPick && !onDraw;
+        $('menu-tab-blurb').hidden = !!menuPick && !onDraw;
+        // A card's page has the dialog to itself.
+        $('menu-featured').hidden = !!menuPick && !onDraw;
         if (onDraw) return $('shuffle-go');
-        var focus = null, firstHead = null;
-
-        G3.coursesInGroup(menuGroup).forEach(function (course) {
-            var rec = S.courseRecord(save, course.id);
-            var par = S.coursePar(course.holes);
-            // Expanded from the start on a wide screen, where the strip of
-            // plans never crowded anything out. On a phone every card starts
-            // closed except the one the picker is nudging you towards, so
-            // opening the list costs one screen rather than four.
-            var opened = !document.body.classList.contains('compact-ui') || course.id === menuSuggest;
-            var card = document.createElement('div');
-            card.className = 'course-card' + (course.id === menuSuggest ? ' up-next' : '') +
-                (opened ? ' expanded' : '');
-
-            var stripId = 'cc-holes-' + course.id;
-
-            var topRow = document.createElement('div');
-            topRow.className = 'cc-top';
-
-            var top = document.createElement('button');
-            top.type = 'button';
-            top.className = 'cc-head';
-            top.innerHTML =
-                '<span class="cc-name">' + course.name +
-                (course.id === menuSuggest ? '<span class="cc-next">up next</span>' : '') + '</span>' +
-                '<span class="cc-blurb">' + course.blurb + '</span>' +
-                '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
-                ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
-                '</span>';
-            top.addEventListener('click', function () { takeCourse(course.id); });
-            topRow.appendChild(top);
-
-            // Only the strip of hole plans collapses — the head above stays
-            // a one-tap "start from hole 1", same as before this button
-            // existed, so folding a card away never costs that shortcut.
-            var toggle = document.createElement('button');
-            toggle.type = 'button';
-            toggle.className = 'cc-toggle';
-            toggle.setAttribute('aria-controls', stripId);
-            toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
-            toggle.setAttribute('aria-label', 'Hole plans for ' + course.name);
-            toggle.title = 'Show hole plans';
-            toggle.textContent = '⌄';
-            toggle.addEventListener('click', function () {
-                var open = card.classList.toggle('expanded');
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            });
-            topRow.appendChild(toggle);
-            card.appendChild(topRow);
-
-            var strip = document.createElement('div');
-            strip.className = 'cc-holes';
-            strip.id = stripId;
-            /* The cells are shaped like the course's own holes. A mini golf
-               lane is two and a half times as deep as it is wide and a links
-               hole is nearly square; one aspect ratio for both letterboxes
-               whichever it was not chosen for, and six thin green ribbons in
-               six square frames is a picker that shows you nothing. Averaged
-               over the course and clamped, because one odd hole should not
-               reshape the other five. */
-            var shape = 0;
-            course.holes.forEach(function (hole) {
-                var b = hole.bounds;
-                shape += (b.maxX - b.minX) / Math.max(0.001, b.maxZ - b.minZ);
-            });
-            shape = Math.max(0.4, Math.min(1.5, shape / course.holes.length));
-            strip.style.setProperty('--cc-shape', shape.toFixed(3));
-
-            course.holes.forEach(function (hole, i) {
-                var cell = document.createElement('button');
-                cell.type = 'button';
-                cell.className = 'cc-hole';
-                cell.title = hole.name + ' — par ' + hole.par;
-                // The plan pass below reads these rather than counting its
-                // way through the DOM, so the ordering above is free to change.
-                cell.setAttribute('data-course', course.id);
-                cell.setAttribute('data-hole', i);
-                cell.innerHTML =
-                    '<canvas class="cc-map"></canvas>' +
-                    '<span class="cc-num">' + (i + 1) + '</span>' +
-                    '<span class="cc-par">' + hole.par + '</span>';
-                cell.addEventListener('click', function () { takeCourse(course.id, i); });
-                strip.appendChild(cell);
-            });
-            card.appendChild(strip);
-            host.appendChild(card);
-            if (!firstHead) firstHead = top;
-            if (course.id === menuSuggest) focus = top;
-        });
-
-        host.scrollTop = 0;
-        return focus || firstHead;
+        if (menuPick) { $('menu-worlds').innerHTML = ''; return drawDetail(menuPick); }
+        $('menu-detail').innerHTML = '';
+        return drawGrid(menuGroup);
     }
 
     /* Drawn after the modal is up, so the canvases have a laid-out size to be
        measured against — and one frame later, so the picker appears at once
-       rather than after a tab's worth of holes has been rasterised. Only the
-       open tab is drawn, which is most of what made this cheap again. */
+       rather than after a screen of plans has been rasterised. Only what is
+       on screen has canvases at all: the grid or one card's page. */
     function drawPlans() {
         if (!G3.minimap) return;
-        var host = $('menu-list');
         requestAnimationFrame(function () {
-            var cells = host.querySelectorAll('.cc-hole'), k;
+            var cells = $('menu').querySelectorAll('canvas[data-course]'), k;
             for (k = 0; k < cells.length; k++) {
-                G3.minimap.into(cells[k].querySelector('.cc-map'),
-                    cells[k].getAttribute('data-course'),
+                if (!cells[k].clientWidth) continue;
+                G3.minimap.into(cells[k], cells[k].getAttribute('data-course'),
                     parseInt(cells[k].getAttribute('data-hole'), 10));
             }
         });
@@ -3888,7 +4889,7 @@
         return {
             mode: shuffleMode,
             from: state && state.course ? state.course.id : null,
-            group: menuKind || (state && state.course ? groupOf(state.course.id) : null),
+            group: menuKind || (state && state.course ? kindOf(state.course.id) : null),
             kinds: shuffleKindIds(),
             save: state ? state.save : null
         };
@@ -4068,10 +5069,13 @@
     /* The showcase button's second line: what it is, and once you have one
        on the card, how your best went. */
     function drawShowcase() {
-        var rec = S.courseRecord(state && state.save ? state.save : S.load(), 'showcase');
+        var save = state && state.save ? state.save : S.load();
+        var rec = S.courseRecord(save, 'showcase');
+        var all = S.totalStars(save, G3.COURSES.filter(function (c) { return !c.playtest; }));
         $('menu-showcase-sub').textContent =
-            'Two holes from every kind of golf, eight in all. A new deal every round.' +
-            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.');
+            'Two holes from every kind of golf, eight in all, leaning towards ones you have not played.' +
+            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.') +
+            (all.got ? ' \u2605 ' + all.got + ' of ' + all.max + ' stars.' : '');
     }
 
     // The round behind the list is a showcase nobody has started yet.
@@ -4171,6 +5175,8 @@
             t = typeof sc === 'number' ? S.term(sc, holes[i].par) : null;
             rows += '<tr><td class="n">' + (i + 1) + '</td>' +
                 '<td class="nm">' + holes[i].name +
+                (typeof sc === 'number' && !state.course.isChallenge
+                    ? '<span class="card-stars">' + S.starText(S.stars(sc, holes[i].par)) + '</span>' : '') +
                 (state.course.isShowcase
                     ? '<span class="card-from">' + G3.courseById(holeRef(i).id).name + '</span>'
                     : '') + '</td>' +
@@ -4185,7 +5191,12 @@
            having: a card that says nothing about *not* being kept is a card
            that has quietly lost somebody a record they thought they set. */
         $('card-sub').textContent = state.course.name +
-            (res && res.unrecorded ? ' — not recorded: the caddie has had the club this session.'
+            (res && res.unrecorded ? (res.why === 'dev' ? ' — not recorded. You used a dev swing.'
+                : res.why === 'shared' ? ' — not recorded. Pass and play rounds are not kept.'
+                : ' — not recorded. The caddie played this session.')
+             : state.course.isPortals && !state.course.single && res && tourMedal(res.totals)
+                ? ' — ' + tourMedal(res.totals) + (res.isBest ? ' Your best tour yet.' : '')
+             : res && res.isBest && state.course.isPortals && !state.course.single ? ' — your best tour yet, against par.'
              : res && res.isBest && state.course.isShowcase ? ' — your best showcase yet, against par.'
              : res && res.isBest ? ' — a new personal best.' : '');
         $('card-body').innerHTML =
@@ -4269,6 +5280,10 @@
            is where the records live and where the categories are. Mid-round
            the same card is just a scorecard, so the button goes away. */
         var next = $('card-next');
+        /* A finished round is not closed into nothing — the course behind it
+           is over, and the card used to leave you standing on it. Its third
+           button is the course list instead (closeCard opens it). */
+        $('card-close').textContent = res ? 'Choose a course' : 'Close';
         if (res) {
             next.hidden = false;
             /* Shuffle is the mode where this button stops naming where you are
@@ -4276,7 +5291,9 @@
                the card before the press. */
             /* And a showcase offers another one. It is a draw already, so it
                outranks the shuffle switch: the deal is the surprise. */
-            next.textContent = state.course.isShowcase
+            next.textContent = state.course.isPortals
+                ? '\u25CE Six new holes'
+                : state.course.isShowcase
                 ? '\u2726 Deal another showcase'
                 : state.course.isChallenge
                 ? '\u223F New ground, new cups'
@@ -4288,7 +5305,24 @@
         }
     }
 
-    function closeCard() { $('scorecard').className = 'modal'; maybeFly(); }
+    /* What a finished tour was worth, said on its card: gold three or more
+       under its par, silver at par or better, bronze for getting round. A
+       tour is six different holes every time, so the medal — like the
+       record — is against par and never a count of strokes. */
+    function tourMedal(t) {
+        if (!t || t.played < state.course.holes.length) return '';
+        return t.vsPar <= -3 ? '\uD83E\uDD47 A gold tour, ' + S.formatVsPar(t.vsPar) + '.'
+            : t.vsPar <= 0 ? '\uD83E\uDD48 A silver tour, ' + S.formatVsPar(t.vsPar) + '.'
+            : '\uD83E\uDD49 A bronze tour, ' + S.formatVsPar(t.vsPar) + '.';
+    }
+
+    /* Closing the card of a finished round — the button or Esc — opens the
+       course list: there is nothing left to play on the course behind it. */
+    function closeCard() {
+        $('scorecard').className = 'modal';
+        if (state && state.phase === 'finished') { openMenu(); return; }
+        maybeFly();
+    }
 
     /* ── the bot plays it ───────────────────────────────────────────────
 
@@ -4336,7 +5370,12 @@
         // through the turn and the wind-up — and `shot`, `fromYaw` and `toYaw`
         // are filled in by planShot when there is something to aim at.
         sim = { stage: 'rest', t: C.BOT_PAUSE, strokes: 0, at: 0, said: false,
-                shot: null, fromYaw: 0, toYaw: 0 };
+                shot: null, fromYaw: 0, toYaw: 0, job: null, ms: 0 };
+        // A fresh plan for every start: the lies it has played from are this
+        // attempt's, and a graph from the last time round is not worth the
+        // risk. The one exception is a plan begun during this hole's flyover
+        // (aheadFly), which was begun fresh for exactly this.
+        if (!(ahead && ahead.plan.hole === state.world.hole)) { caddie = null; ahead = null; }
         state.aim.power = 0;
         syncPower();
         syncSim();
@@ -4345,6 +5384,7 @@
     function stopSim(why) {
         if (!sim) return;
         sim = null;
+        ahead = null;
         simAcc = 0;
         syncSim();
         if (why) toast(why);
@@ -4387,16 +5427,17 @@
             return;
         }
         if (sim.stage === 'rest') {
+            aheadRoll();
             sim.t -= beat;
             if (sim.t <= 0) { sim.stage = 'think'; sim.said = false; }
             return;
         }
         if (sim.stage === 'think') {
             if (state.phase !== 'aim' || modalUp()) return;
-            // Said on one frame, done on the next: the search stops the world
-            // for a moment and this is what stands in front of it.
+            // Said on one frame, thought on the frames after it: the plan is
+            // made a slice at a time (thinkSim), and this stands in front of it.
             if (!sim.said) { sim.said = true; toast('The caddie is reading the hole…'); return; }
-            planShot();
+            thinkSim();
             return;
         }
         if (sim.stage === 'turn') {
@@ -4428,7 +5469,9 @@
             if (state.world.time >= sim.at) playPlanned();
             return;
         }
-        // 'watch': the roll is the game's business until it ends.
+        // 'watch': the roll is the game's business until it ends — and the
+        // caddie's next plan is already being made from where it will stop.
+        aheadRoll();
         if (state.phase === 'aim') {
             if (sim.strokes >= C.BOT_MAX_STROKES) {
                 stopSim('The caddie is out of strokes — your club again');
@@ -4439,16 +5482,115 @@
         }
     }
 
+    /* The caddie's plan for the hole (bot.js, "the plan"): a graph of where
+       shots come to rest, kept for every stroke on the hole so the later ones
+       cost little. Keyed by the hole and the bag, because the long game hands
+       over the putter alone on a green and a plan made with a driver in the
+       bag is a plan for somebody else. */
+    var caddie = null;     // { hole, bag, planner }
+    var ahead = null;      // a plan begun before the caddie's turn (aheadFly, aheadRoll)
+
+    function caddieFor(hole, b) {
+        if (!caddie || caddie.hole !== hole || caddie.bag !== b) {
+            caddie = { hole: hole, bag: b, planner: new G3.bot.Planner(hole, b, {
+                fan: C.BOT_FAN,
+                // From a ball stopping to the next one struck: the rest, the
+                // turn and the wind-up. What a node's clock is moved on by.
+                gap: C.BOT_PAUSE + C.BOT_TURN + C.BOT_WIND
+            }) };
+        }
+        return caddie.planner;
+    }
+
+    /* A plan, made a slice at a time: the route (Planner.step), and then on
+       a hole with nothing moving the choosing as well (Planner.pick, a
+       Search run a few shots at a time). On a hole with a clock the choosing
+       is left for planShot, at the moment it is for. The plan is a fixed
+       number of simulated shots whatever the frames are doing, so slicing
+       it changes when it is ready and never what it says. */
+    function job(from, time) {
+        var pl = caddieFor(state.world.hole, bag());
+        pl.begin(from, time);
+        return { plan: pl, from: from, routed: false, pick: null, shot: undefined, ms: 0 };
+    }
+
+    // One slice of a job; true once nothing is left to do but choose or strike.
+    function work(j) {
+        var t0 = performance.now();
+        while (j.shot === undefined && performance.now() - t0 < C.BOT_SLICE) {
+            if (!j.routed) j.routed = j.plan.step(4);
+            else if (j.plan.moves) break;
+            else if (!j.pick) j.pick = j.plan.pick(j.from, 0);
+            else if (j.pick.run(4)) j.shot = j.plan.finish(j.pick);
+        }
+        j.ms += performance.now() - t0;
+        return j.shot !== undefined || (j.routed && j.plan.moves);
+    }
+
+    /* The thinking is mostly done before the caddie's turn comes. During a
+       hole's flyover the ball is on the tee and nobody is going to move it,
+       and while a ball the caddie struck is rolling it is going exactly where
+       the plan said it would — the roll is stepped at the plan's own 1/60 —
+       so the next plan is begun from there, and is taken up at the think if
+       the ball came to rest where it was meant to. A long hole's first shot
+       is a second or two of the long game's physics, and it is spent behind
+       the flyover and the roll instead of in front of the swing. */
+    function aheadFly() {
+        if (!state.world || state.phase !== 'aim' || !G3.bot) return;
+        if (ahead && ahead.plan.hole !== state.world.hole) ahead = null;
+        if (!ahead) {
+            var b = state.world.ball;
+            caddie = null;
+            ahead = job({ x: b.x, y: b.y, z: b.z }, state.world.time + C.BOT_TURN + C.BOT_WIND);
+        }
+        work(ahead);
+    }
+
+    function sameLie(a, b) {
+        return Math.abs(a.x - b.x) < 1e-4 && Math.abs(a.z - b.z) < 1e-4 && Math.abs(a.y - b.y) < 1e-3;
+    }
+
+    // While it rolls, from where the shot said it would stop; once it has,
+    // from where it did.
+    function aheadRoll() {
+        var w = sim.shot && sim.shot.world, b = state.world.ball, at, t;
+        if (state.phase === 'aim') {
+            at = { x: b.x, y: b.y, z: b.z };
+            t = state.world.time + Math.max(0, sim.t) + C.BOT_TURN + C.BOT_WIND;
+        } else if (w && !w.sunk && !w.splash && !w.out) {
+            at = { x: w.ball.x, y: w.ball.y, z: w.ball.z };
+            t = w.time + C.BOT_PAUSE + C.BOT_TURN + C.BOT_WIND;
+        } else {
+            return;
+        }
+        if (ahead && !sameLie(ahead.from, at)) ahead = null;
+        if (!ahead) ahead = job(at, t);
+        work(ahead);
+    }
+
+    function thinkSim() {
+        var w = state.world, b = w.ball, a = ahead;
+        if (!sim.job) {
+            ahead = null;
+            sim.job = a && a.plan === caddieFor(w.hole, bag()) && sameLie(a.from, b) ? a
+                : job({ x: b.x, y: b.y, z: b.z }, w.time + C.BOT_TURN + C.BOT_WIND);
+        }
+        if (work(sim.job)) planShot();
+    }
+
     function planShot() {
-        var w = state.world, b = w.ball;
-        var from = { x: b.x, y: b.y, z: b.z };
+        var w = state.world, j = sim.job;
         var lead = C.BOT_TURN + C.BOT_WIND;
         var t0 = performance.now();
         /* Planned for the world the wind-up is about to arrive in, not the one
            it is leaving: every blade and gate on the hole will have turned by
            `lead` before this shot is struck, and a shot chosen for the wrong
-           moment is chosen against a different hole. */
-        var shot = G3.bot.bestShot(w.hole, from, w.time + lead, bag(), { fan: C.BOT_FAN });
+           moment is chosen against a different hole. The route was worked out
+           over the frames before; on a hole with a clock the shot itself is
+           chosen now, for now. */
+        var shot = j.shot !== undefined ? j.shot : j.plan.choose(j.from, w.time + lead);
+        sim.job = null;
+        sim.ms = j.ms + performance.now() - t0;
         if (!shot) { stopSim('The caddie cannot see a shot from there'); return; }
         sim.shot = shot;
         sim.at = w.time + lead + shot.wait;
@@ -4461,18 +5603,28 @@
         // The club is taken now: it is the one part of a shot that happens
         // before the address rather than during it.
         pickClub(shot.club);
+        // And struck straight: the plan simulated the club as it comes, with
+        // no draw, fade or spin a player may have left picked on the ball.
+        setShape('straight');
         if (G3.bag) G3.bag.setExpanded(false);
         syncPicker();
         setPower(0);
         toast(shot.club.name + ' — ' + shot.power.toFixed(1) +
               (shot.wait ? ', on the beat' : '') +
-              ' · ' + shot.sims + ' shots tried in ' +
-              Math.round(performance.now() - t0) + 'ms');
+              ' · ' + shot.sims + ' shots tried in ' + Math.round(sim.ms) + 'ms');
     }
 
     function playPlanned() {
         sim.stage = 'watch';
         sim.strokes++;
+        /* The demo plays like a person: the shot it chose, struck with a
+           person's miss (CONFIG.DEMO_HANDS). Autoplay keeps the perfect
+           stroke — that is the player's round, played to be scored. */
+        if (demo && C.DEMO_HANDS && G3.bot.mishit) {
+            var m = G3.bot.mishit(state.club, state.aim.yaw, state.aim.power, C.DEMO_HANDS, Math.random);
+            state.aim.yaw = m.yaw;
+            setPower(m.power);
+        }
         // Through the same door the Swing button uses. The bot never draws
         // past a full swing, so no gate arms and `shoot` goes straight to it.
         shoot();
@@ -4509,8 +5661,9 @@
             return;
         }
         // The hole introduces itself first. The flyover is the best thing on
-        // the screen and a caddie with nowhere to be can wait it out.
-        if (R.flying()) return;
+        // the screen and a caddie with nowhere to be can wait it out — and
+        // make its plan for the tee shot meanwhile.
+        if (R.flying()) { aheadFly(); return; }
         if (!w.playing) {
             w.playing = true;
             startSim();
@@ -4595,6 +5748,11 @@
         stopSim(null);
         if (state.holeIndex < state.course.holes.length - 1) {
             loadHole(state.holeIndex + 1);
+            return;
+        }
+        if (state.course.isPortals) {
+            newJourney();
+            toast('Autoplay — another tour');
             return;
         }
         if (state.course.isShowcase) {
@@ -4699,39 +5857,39 @@
         document.body.classList.add('demo');
         $('demo').hidden = false;
         demoRound();
+        warmTour();
     }
 
-    /* A course drawn the way the picker's die draws one, and a hole out of the
-       middle of it as readily as the first: a demo that always opens on the
-       same tee is a screenshot, not a demonstration. The draw is
-       deliberately not the player's remembered shuffle mode, nor the kinds
-       they have left the draw — "new to you" and the rest are about a round
-       you are going to play, and this is not one; and the ticks say what
-       somebody wants dealt to them, not what the game may show a room it is
-       talking to. But it does take `from`, so the next course is never the
-       one that has just been on screen. */
+    /* One hole at a time, out of any course, and never one this machine has
+       already been shown: `G3.demoDraw` walks every hole once before it
+       repeats any, and the list of what has been on screen lives in
+       localStorage so it carries across visits. Each hole the caddie finishes
+       is followed by a fresh draw rather than the next hole of the same
+       course — a demo that walks one course is six holes of one world, and
+       this one is the whole game. The draw is deliberately not the player's
+       shuffle mode, nor the kinds they have ticked: those are about a round
+       somebody is going to play, and this is not one. */
+    function demoSeen() {
+        try {
+            var v = JSON.parse(localStorage.getItem(C.DEMO_SEEN_KEY) || '[]');
+            return Array.isArray(v) ? v : [];
+        } catch (e) { return []; }
+    }
+
     function demoRound() {
-        var id = G3.randomCourseId({
-            mode: 'any',
-            from: state && state.course ? state.course.id : null
-        });
-        var course = G3.courseById(id);
+        var last = state && state.course && !state.course.isShowcase ?
+            G3.demoKey(state.course.id, state.holeIndex) : null;
+        var d = G3.demoDraw(demoSeen(), { last: last });
+        try { localStorage.setItem(C.DEMO_SEEN_KEY, JSON.stringify(d.seen)); } catch (e) { /* ignore */ }
         demo.playing = false;
         demo.wait = 0;
-        newRound(id, Math.floor(Math.random() * course.holes.length));
+        newRound(d.id, d.hole);
         syncDemo();
     }
 
     function demoNext() {
-        demo.playing = false;
-        demo.wait = 0;
         stopSim(null);
-        if (state.holeIndex < state.course.holes.length - 1) {
-            loadHole(state.holeIndex + 1);
-            syncDemo();
-        } else {
-            demoRound();
-        }
+        demoRound();
     }
 
     function syncDemo() {
@@ -4763,7 +5921,7 @@
         if (!demo) return;
         maybeAutoFullscreen();
         stopDemo();
-        newShowcase();
+        newJourney();
         /* That round was built with nothing in front of it, so its sweep has
            already started and the picker is about to stand over it. Cut it and
            put it back to pending: it then plays when the picker closes, which
@@ -4834,6 +5992,7 @@
         // would not, and the demo taking a screen somebody is watching play
         // itself is the one interruption nobody asked for.
         else tickIdle(now);
+        tickHoleEnd(Math.min(0.25, raw));
         if (sim) tickSim(Math.min(0.25, raw));
 
         if (state.phase === 'rolling') {
@@ -4866,6 +6025,8 @@
             tickGate(dt);
             tickArc(dt);
             tickNeedle(dt);
+            tickAimTurn(dt);
+            syncRun();
             // Gates and blades keep their own time whether or not the ball is
             // rolling, so the preview you aim with is the course you will hit.
             state.world.time += dt;
@@ -4883,7 +6044,10 @@
         // One object, refilled: the renderer reads it within the call and the
         // preview compares its fields against the last frame's, so handing it a
         // fresh literal every frame was sixty allocations a second for nothing.
-        intent.show = state.phase === 'aim';
+        // Not under the open bag: the aim is drawn over everything (depth
+        // test off), so it came through the picker's dark backdrop as a
+        // green chevron among the cards.
+        intent.show = state.phase === 'aim' && !(G3.bag && G3.bag.isExpanded());
         intent.yaw = state.aim.yaw;
         // What the club delivers, not what the meter reads: past a full swing
         // the two are different (physics.deliver) and the cone has to draw the
@@ -4899,7 +6063,8 @@
         intent.bend = intent.spin = 0;
         intent.topped = false;
         if (shapeNow() !== 'straight') {
-            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole), 0, state.world.hole);
+            var fly = SW.shape(intent, shapeNow(), state.club.loft, state.club.bite, P.gravityOf(state.world.hole), 0, state.world.hole,
+                state.aim.power / state.club.power);
             intent.loft = fly.loft;
             intent.power = fly.power;
             intent.bite = fly.bite;
@@ -4907,11 +6072,14 @@
             intent.spin = fly.spin;
             intent.topped = !!fly.topped;
         }
+        // And out of a bunker, the cap the strike will put on it.
+        intent.power = P.fromLie(intent.power, state.club, lieKind());
         // How far past a full swing this is, 0..1. The renderer opens the cone
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
+        if (!loaderGone) hideLoader();
 
         // The sweep can end on any frame and nothing else would notice.
         syncFlyHint();
@@ -4919,6 +6087,25 @@
         // After the frame, so the inspector's outlines are placed from the
         // same clock the course was just drawn on.
         if (G3.debug && G3.debug.on) G3.debug.frame(state.world, dt);
+    }
+
+    /* ── the loading screen ─────────────────────────────────────────────────
+
+       index.html opens on #loader, a plate over the whole page with a ball
+       chipping into a cup, and it stays up until the first frame of the course
+       has actually been drawn. Before it, the page painted its chrome — the
+       topbar, the meter, the bag's empty corner — while three.js parsed and the
+       shaders compiled, and then the demo arrived and took half of that away
+       again. Lifting the curtain off a frame that already exists is what makes
+       the first thing anybody sees the game, whichever screen boot() chose. */
+    var loaderGone = false;
+
+    function hideLoader() {
+        loaderGone = true;
+        var el = $('loader');
+        if (!el) return;
+        el.classList.add('gone');
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
     }
 
     /* ── boot ───────────────────────────────────────────────────────────── */
@@ -4937,12 +6124,14 @@
         canvas = $('board');
         if (!window.THREE) {
             $('fallback').className = 'fallback show';
+            hideLoader();
             return;
         }
         try {
             R.init(canvas);
         } catch (e) {
             $('fallback').className = 'fallback show';
+            hideLoader();
             return;
         }
 
@@ -4998,15 +6187,33 @@
         window.addEventListener('keydown', onActivity, true);
         window.addEventListener('wheel', onActivity, { capture: true, passive: true });
         window.addEventListener('pointermove', noteActivity, { passive: true });
+        /* Android reads a held finger as a long press, and a long press is the
+           context menu — the copy/share bar, or the link and image sheet.
+           Holding is how half of this game is played (the aim nudges repeat
+           while held, the meter is pressed and then dragged), so over the game
+           a touch long press is refused. The text half of it is the
+           `user-select` rule on `.viewport`; this is the menu half. A mouse's
+           right click keeps its menu. */
+        var lastPointer = '';
+        window.addEventListener('pointerdown', function (e) { lastPointer = e.pointerType; }, true);
+        $('viewport').addEventListener('contextmenu', function (e) {
+            var kind = e.pointerType || lastPointer;
+            if (kind && kind !== 'mouse') e.preventDefault();
+        });
         window.addEventListener('resize', function () {
             R.resize();
             syncCompact();
             measurePickerBand();
             if (state) drawPowerTicks(state.club);
             if (state) syncStyle();
+            placeSwingCard();
         });
 
-        $('banner-next').addEventListener('click', nextHole);
+        // The whole banner is the skip: a tap anywhere on the score goes on.
+        $('banner').addEventListener('click', function (e) {
+            if (e.target === $('banner-replay') || !state || state.phase !== 'holed') return;
+            nextHole();
+        });
         $('banner-replay').addEventListener('click', playReplay);
         window.addEventListener('pointerdown', skipReplay, true);
         window.addEventListener('keydown', skipReplay, true);
@@ -5022,10 +6229,9 @@
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
         $('btn-swing').addEventListener('click', shoot);
-        buildShapePad();
-        $('btn-shape').addEventListener('click', function () { toggleShapePad(); });
         buildStylePad();
         buildTune();
+        SW.setAssist(tune.assist === 'on');
         $('btn-style').addEventListener('click', function () { toggleStylePad(); });
         $('style-close').addEventListener('click', function () { toggleStylePad(false); });
         $('arc').addEventListener('pointerdown', function (e) {
@@ -5036,15 +6242,16 @@
         });
         $('needle').addEventListener('pointerdown', pressNeedle);
         $('swipe').addEventListener('pointerdown', onSwipeDown);
+        // The swing card is read, then tapped away (showSwingCard). Taken here
+        // so the tap does not also land on the course and turn the aim.
+        $('swing-card').addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            hideSwingCard();
+        });
         $('swipe').addEventListener('pointermove', onSwipeMove);
         $('swipe').addEventListener('pointerup', onSwipeUp);
         $('swipe').addEventListener('pointercancel', onSwipeUp);
-        // A press anywhere else closes the shape pad, the way a menu shuts.
-        document.addEventListener('pointerdown', function (e) {
-            if ($('shape-pad').hidden) return;
-            if (e.target.closest && (e.target.closest('#shape-pad') || e.target.closest('#btn-shape'))) return;
-            toggleShapePad(false);
-        }, true);
         document.addEventListener('pointerdown', function (e) {
             if ($('style-pad').hidden) return;
             if (e.target.closest && (e.target.closest('#style-pad') || e.target.closest('#btn-style'))) return;
@@ -5113,8 +6320,21 @@
         $('hole-name').addEventListener('click', function () { showHoleCard(true); });
         $('hud-toggle').addEventListener('click', function () { toggleHudDetail(); });
         $('btn-menu').addEventListener('click', toggleTopMenu);
-        // Anything picked out of the menu is the last thing the menu is for.
-        $('topbar-menu').addEventListener('click', closeTopMenu);
+        // The two folds open in place; everything else picked out of the
+        // menu is the last thing the menu is for. Toggles in Settings stay
+        // open so several can be flipped in a row.
+        $('topbar-menu').addEventListener('click', function (e) {
+            var t = e.target && e.target.closest ? e.target.closest('button, a') : null;
+            if (t && t.getAttribute('data-fold')) {
+                var g = $(t.getAttribute('data-fold'));
+                var o = !g.classList.contains('open');
+                g.classList.toggle('open', o);
+                t.setAttribute('aria-expanded', o ? 'true' : 'false');
+                return;
+            }
+            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-style') return;
+            closeTopMenu();
+        });
         // A press anywhere else shuts it, the way a menu should.
         document.addEventListener('pointerdown', function (e) {
             if (!$('topbar-menu').classList.contains('open')) return;
@@ -5134,10 +6354,18 @@
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
         document.addEventListener('fullscreenchange', onFullscreenChange);
         document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', onPageResize);
+        window.addEventListener('resize', onPageResize);
         $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
-            closeCard();
+            $('scorecard').className = 'modal';
+            if (state.course.isPortals) {
+                // Six worlds this tour did not have, leaning (as every deal
+                // does) to the ones this save has played least.
+                newJourney(null, state.course.from.map(function (r) { return r.id.slice(6); }));
+                return;
+            }
             if (state.course.isShowcase) {
                 newShowcase();
                 return;
@@ -5157,6 +6385,24 @@
             openMenu(G3.nextCourseId(state.course.id));
         });
         $('shuffle-go').addEventListener('click', function () { takeRandom(); });
+        $('menu-surprise').addEventListener('click', function () { maybeAutoFullscreen(); takeRandom(); });
+        $('menu-draw-settings').addEventListener('click', function () {
+            menuPick = null;
+            menuGroup = menuGroup === G3.SHUFFLE_GROUP.id ? ALL_GROUP.id : G3.SHUFFLE_GROUP.id;
+            drawShuffle(); drawTabs(); drawCourses(); drawPlans();
+        });
+        $('menu-portals').addEventListener('click', takeJourney);
+        // The live worlds behind the tour's holes, on or off (render.js → setLive).
+        $('menu-live').addEventListener('click', function () { R.setLive(!R.liveWanted); syncLive(); });
+        // render.js gave up on the live world for this machine.
+        window.addEventListener('g3-live-off', function (e) {
+            toast(e.detail === 'crash'
+                ? 'Live worlds are off for this visit: the last one did not finish loading. Courses switches them back on.'
+                : 'Live worlds are off for this visit: this device was struggling. Courses switches them back on.');
+            syncLive();
+        });
+        // Something in the world happened because of the golf (render.js → stepPlace).
+        window.addEventListener('g3-world-event', function (e) { toast(e.detail); });
         $('menu-showcase').addEventListener('click', takeShowcase);
         $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the
@@ -5203,10 +6449,14 @@
         // driver taking a picture of the game should never be handed a demo,
         // and one taking a picture of the demo should not have to wait for it.
         if (q.demo === '0' || q.demo === '1') demoOverride = q.demo === '1';
+        // &live=0|1: the live world behind a tour hole, off or on for the session.
+        if (q.live === '0' || q.live === '1') R.state.liveOverride = q.live === '1';
         /* ?course=random draws one the same way the picker's button does,
            under whatever mode is remembered. The rest of the query string
            still means what it did: ?hole= counts from 1 into whatever course
            came up. */
+        // ?world=<id>: one portal world by itself (portals.js).
+        if (q.world && G3.portals.byId(q.world)) q.course = 'world-' + q.world;
         if (q.course === 'random') q.course = G3.randomCourseId(shuffleOpts());
         if (q.course) {
             var course = G3.courseById(q.course);
@@ -5225,7 +6475,7 @@
             /* Something has to be on screen behind the menu, and it may as
                well be the round the menu is offering first: a showcase, the
                same one leaving the demo deals. */
-            newShowcase();
+            newJourney();
             openMenuArriving();
         }
 

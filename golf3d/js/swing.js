@@ -46,6 +46,15 @@
 
     var C = G3.CONFIG;
 
+    /* Easy strike (CONFIG.ASSIST), one switch for every style. Kept here
+       rather than passed through every call because every clean zone in the
+       file reads it; off unless game.js turns it on, so the tests see the
+       game as it plays by default. */
+    var assist = false;
+    function setAssist(on) { assist = !!on; }
+    function assisted() { return assist; }
+    function easeWin() { return assist ? C.ASSIST.WIN : 1; }
+
     /* Where a full swing sits on a bar that runs to the end of the overdraw.
        The white line the player can already see, as a fraction. */
     function markAt() { return 1 / (1 + C.OVERDRAW); }
@@ -68,12 +77,12 @@
     // difficulty, and both are read off the same curve.
     function windowFor(over) {
         var e = ease(over);
-        return C.SWING.WIN_MAX + (C.SWING.WIN_MIN - C.SWING.WIN_MAX) * e;
+        return (C.SWING.WIN_MAX + (C.SWING.WIN_MIN - C.SWING.WIN_MAX) * e) * easeWin();
     }
 
     function speedFor(over) {
         var e = ease(over);
-        return C.SWING.SPEED_MIN + (C.SWING.SPEED_MAX - C.SWING.SPEED_MIN) * e;
+        return (C.SWING.SPEED_MIN + (C.SWING.SPEED_MAX - C.SWING.SPEED_MIN) * e) * (assist ? C.ASSIST.SPEED : 1);
     }
 
     /* Is the gate even armed? The first sliver of overdraw is free — it always
@@ -147,11 +156,16 @@
                 is not a thing golf should ever say.
 
        A clean strike returns the shot untouched. That is the prize, and it is
-       the whole reason to take the gate on. */
+       the whole reason to take the gate on.
+
+       `g.mult` scales all three — the touch swing's overdraw and putting
+       multipliers (`swipeRead`) — and Easy strike takes a share off. */
     function apply(shot, g) {
         var s = G3.physics.spray(g ? g.over : 0);
         var off = g ? g.off : 0;
         if (!off) return { yaw: shot.yaw, power: shot.power, spin: 0 };
+        var k = (g.mult || 1) * (assist ? C.ASSIST.COST : 1);
+        off *= k;
         /* +yaw is left on screen, and so is +spin (physics bends a ball
            toward rising yaw). Early is left — a pull that draws — so the sign
            is flipped: `off` is negative for early. It ran the other way until
@@ -160,7 +174,7 @@
            ball went the opposite way. */
         return {
             yaw: shot.yaw - off * s.yaw,
-            power: shot.power * (1 - Math.abs(off) * s.power),
+            power: shot.power * Math.max(0.3, 1 - Math.abs(off) * s.power),
             spin: -off * s.yaw * C.SWING.SPIN
         };
     }
@@ -198,6 +212,37 @@
        (SHAPE.SPIN_MAX) for the short flights that would want a corkscrew. */
     var SHAPES = ['straight', 'draw', 'fade', 'backspin', 'topped'];
 
+    /* How much backspin a strike can put on, 0 for a putt: the loft's share
+       (CONFIG.SPIN.LOFT, between the points) times the meter's fraction, up to
+       the top of the overdraw. A wedge at 130% spins it over three times as
+       hard as a 7 iron at half a swing does. `frac` left out is a full swing. */
+    function spinCap(loft, frac) {
+        var d = (loft || 0) * 180 / Math.PI, T = C.SPIN.LOFT, k = T[T.length - 1][1], i;
+        for (i = 1; i < T.length; i++) {
+            if (d <= T[i][0]) { k = T[i - 1][1] + (T[i][1] - T[i - 1][1]) * (d - T[i - 1][0]) / (T[i][0] - T[i - 1][0]); break; }
+        }
+        var f = frac === undefined ? 1 : Math.max(0, Math.min(1 + C.OVERDRAW, frac));
+        return Math.max(0, k) * f;
+    }
+
+    /* The bite a strike lands with when `ask` (0..1) of the spin it can make
+       is asked for: on top of the club's own, and capped at SPIN.MAX. */
+    function spinBite(bite, ask, loft, frac) {
+        var add = C.SPIN.BITE * spinCap(loft, frac) * Math.max(0, Math.min(1, ask || 0));
+        return Math.min(Math.max(C.SPIN.MAX, bite || 0), (bite || 0) + add);
+    }
+
+    /* The touch swing's backspin: let go on the way back up, short of the
+       start. `at` is how far back up the thumb got, 0 at the bottom of the
+       pull and 1 at the start line. Returns the spin asked for, 0..1, or -1
+       when it is too short to be a swing at all (SWIPE.SPIN_AT). */
+    function swipeSpin(at) {
+        var S = C.SWIPE.SPIN_AT;
+        if (!(at >= S.MIN)) return -1;
+        var miss = Math.max(0, Math.abs(at - S.IDEAL) - S.FLAT);
+        return Math.max(0, Math.min(1, 1 - miss / S.SPAN));
+    }
+
     function bendOf(name) { return name === 'draw' ? 1 : name === 'fade' ? -1 : 0; }
 
     // Does this shot need striking? Any shape at all, or the overdraw's own rule.
@@ -211,18 +256,28 @@
         return (name && name !== 'straight') ? Math.max(C.SHAPE.GATE, over || 0) : (over || 0);
     }
 
+    /* The driver off the deck (CONFIG.DECK): any lie but the tee. It swings
+       as if it were already that far into the overdraw — the line's clean
+       band and the tempo's narrow by TIGHTEN, the way they do past a full
+       swing — but the miss is not multiplied, because nothing was overdrawn
+       (`swipeMult` reads the meter's own overdraw, not this). */
+    function deckOver(over) {
+        return Math.max(C.DECK.OVER, over || 0);
+    }
+
     /* `shot` is { yaw, power, spin } — the shot after the gate's push or pull,
        if there was a gate. `off` is that gate's timing (−1 early … +1 late,
        0 clean); it decides how much of the shape arrives. Returns the shot to
        launch, plus `loft`, `bite`, and `bend` (how far off the aim it starts). */
-    function shape(shot, name, loft, bite, grav, off, hole) {
+    function shape(shot, name, loft, bite, grav, off, hole, frac) {
         var S = C.SHAPE;
         var out = { yaw: shot.yaw, power: shot.power, spin: shot.spin || 0,
                     loft: loft || 0, bite: bite || 0, bend: 0 };
         off = off || 0;
         if (name === 'backspin') {
             // A clean one bites; a miss catches it thin and the spin is gone.
-            out.bite = Math.min(0.95, out.bite + S.BACKSPIN * (1 - Math.abs(off)));
+            // As much as this club at this swing can make (`spinCap`).
+            out.bite = Math.min(0.95, out.bite + S.BACKSPIN * spinCap(loft, frac) * (1 - Math.abs(off)));
             out.power *= 1 - Math.abs(off) * S.MISS_POWER;
             return out;
         }
@@ -304,16 +359,17 @@
 
     // How crooked a swipe may be and still be clean — narrower the further
     // the meter was pulled, on the gate's own curve.
-    function swipeTol(over, feel) {
-        return feelOf(feel).TOL * (1 - C.SWIPE.TIGHTEN * ease(over));
+    function swipeTol(over, feel, putt) {
+        if (assist) return feelOf(feel).TOL * C.ASSIST.TOL;
+        return feelOf(feel).TOL * (1 - C.SWIPE.TIGHTEN * ease(over)) * (putt ? C.SWIPE.PUTT.TOL : 1);
     }
 
     /* The line as the gate's number: 0 inside the tolerance, then out to ±1
        over the feel's SPAN. Right is +, which is the gate's "late": both push
        the ball right (`apply`), so a swipe that drifts right sends the ball
        the way the thumb went. */
-    function swipeOff(angle, over, feel) {
-        var a = Math.abs(angle || 0), tol = swipeTol(over, feel);
+    function swipeOff(angle, over, feel, putt) {
+        var a = Math.abs(angle || 0), tol = swipeTol(over, feel, putt);
         if (a <= tol) return 0;
         return Math.min(1, (a - tol) / feelOf(feel).SPAN) * (angle > 0 ? 1 : -1);
     }
@@ -339,16 +395,31 @@
     /* The timing, as a signed amount: 0 clean, negative rushed, positive
        lazy (quit on it), out to ±1. Read in doublings (log2), because "twice
        too fast" and "half as fast" are the same size of mistake. */
-    function swipeTempo(times, mode) {
+    function swipeTempo(times, mode, over) {
         var T = C.SWIPE.TIMING[mode];
         if (!T || !(times.through > 0)) return { amount: 0, ratio: 1, said: null };
+        // Narrower past a full swing, like the line; wider on Easy strike.
+        var narrow = assist ? 1 : 1 - C.SWIPE.TIGHTEN * ease(over);
+        var tol = assist ? T.TOL + C.ASSIST.TEMPO : T.TOL * narrow;
         var ratio = mode === 'rhythm'
             ? (times.back > 0 ? times.back / times.through : 1)        // >1: the swipe was the quicker half
             : T.TARGET / times.through;                                // >1: quicker than the target
         var l = Math.log(ratio) / Math.LN2 - Math.log(T.IDEAL || 1) / Math.LN2;
         var a = Math.abs(l);
-        var amount = a <= T.TOL ? 0 : Math.min(1, (a - T.TOL) / T.SPAN) * (l > 0 ? -1 : 1);
-        return { amount: amount, ratio: ratio, said: amount < 0 ? 'rushed' : amount > 0 ? 'lazy' : 'clean' };
+        var amount = a <= tol ? 0 : Math.min(1, (a - tol) / T.SPAN) * (l > 0 ? -1 : 1);
+        var why = amount ? 'rhythm' : null;
+        /* Rhythm alone let an even swing of any speed through: a flick down
+           and a flick up, or a crawl both ways, both read as clean. So the
+           swipe up is also held to a sensible pace, and costs a little when
+           it is not. Whichever of the two is the bigger miss is the one. */
+        if (mode === 'rhythm' && T.PACE) {
+            var lp = Math.log(T.PACE / times.through) / Math.LN2, ap = Math.abs(lp);
+            var ptol = assist ? T.PACE_TOL + C.ASSIST.TEMPO : T.PACE_TOL * narrow;
+            var pace = ap <= ptol ? 0 : Math.min(1, (ap - ptol) / T.PACE_SPAN) * (lp > 0 ? -1 : 1) * T.PACE_W;
+            if (Math.abs(pace) > Math.abs(amount)) { amount = pace; why = 'pace'; }
+        }
+        return { amount: amount, ratio: ratio, why: why,
+                 said: amount < 0 ? 'rushed' : amount > 0 ? 'lazy' : 'clean' };
     }
 
     /* How far the through-swing bowed out from the straight line between its
@@ -367,6 +438,54 @@
             if (Math.abs(d) > Math.abs(best)) best = d;
         }
         return -best / len;
+    }
+
+    /* How wide the whole gesture was, across the line of the swipe up: the
+       pull and the swipe both, as a fraction of the swipe's length. `pts` is
+       the gesture ([x, y, t]…, the strike last), `turn` the bottom of the
+       pull and `cross` the strike. Pull straight down and swipe straight back
+       up and it is 0; down one side and up the other is the width of the
+       loop. Also says which way the swipe was going at the end — its last
+       TAIL of length, against the line — since that is the way it pulls or
+       pushes the ball: −1 finishing left, +1 right, 0 dead on. */
+    function swipeWide(pts, turn, cross, through) {
+        var dx = cross.x - turn.x, dy = cross.y - turn.y;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (!(len > 0) || !pts || !pts.length) return { width: 0, finish: 0 };
+        var lo = 0, hi = 0, i, d;
+        for (i = 0; i < pts.length; i++) {
+            // Signed distance from the line, positive to the right of it.
+            d = ((pts[i][0] - turn.x) * dy - (pts[i][1] - turn.y) * dx) / len;
+            if (-d < lo) lo = -d;
+            if (-d > hi) hi = -d;
+        }
+        var finish = 0, path = through || [];
+        if (path.length > 1) {
+            // Walk back from the strike until TAIL of the length is covered.
+            var want = C.SWIPE.WIDE.TAIL * len, got = 0, k = path.length - 1;
+            while (k > 0 && got < want) {
+                var ex = path[k][0] - path[k - 1][0], ey = path[k][1] - path[k - 1][1];
+                got += Math.sqrt(ex * ex + ey * ey);
+                k--;
+            }
+            var tx = path[path.length - 1][0] - path[k][0], ty = path[path.length - 1][1] - path[k][1];
+            // The tail's heading against the line's: + is clockwise on screen,
+            // which, for a line running up the screen, is finishing right.
+            var cr = (dx * ty - dy * tx);
+            finish = Math.abs(cr) < 1e-9 ? 0 : cr > 0 ? 1 : -1;
+        }
+        return { width: (hi - lo) / len, finish: finish };
+    }
+
+    /* What the width costs the line: nothing up to FREE (and a shape drawn
+       on purpose gets its own bow on top of that), then up to MAX of a full
+       miss over SPAN, the way the swipe was heading at the end. */
+    function wideOff(wide, bow, shaped, bowSign) {
+        var W = C.SWIPE.WIDE;
+        var excess = wide.width - W.FREE - (shaped ? Math.abs(bow || 0) : 0);
+        if (!(excess > 0)) return 0;
+        var way = wide.finish || -(bowSign || 0) || 1;
+        return Math.min(1, excess / W.SPAN) * W.MAX * way;
     }
 
     /* The bow as a shape: null below the threshold (a straight swing), else
@@ -444,23 +563,49 @@
            through: [[x, y]…] the swipe up only }
        and `opt` is { over, feel, timing, shapes: names the club can bend, or
        null for none }. */
+    /* What a miss costs on this swipe, as a multiple of what it would at a
+       full swing: more past one (SWIPE.OVER_MULT), more on a putt, and never
+       on Easy strike. `rawOver` is the meter's own overdraw, not a shape's
+       difficulty — asking for a draw is not swinging past 100%. */
+    function swipeMult(rawOver, putt) {
+        if (assist) return 1;
+        return (1 + C.SWIPE.OVER_MULT * Math.max(0, Math.min(1, rawOver || 0))) * (putt ? C.SWIPE.PUTT.MULT : 1);
+    }
+
     function swipeRead(g, opt) {
         opt = opt || {};
         var over = Math.max(0, Math.min(1, opt.over || 0));
+        var putt = !!opt.putt;
+        var mult = swipeMult(opt.rawOver === undefined ? over : opt.rawOver, putt);
         var angle = swipeAngle(g.low, g.cross);
-        var line = swipeOff(angle, over, opt.feel);
+        var line = swipeOff(angle, over, opt.feel, putt);
         var times = swipeTimes(g.pts, g.y0, g.low.y, g.cross.t);
-        var tempo = swipeTempo(times, opt.timing);
+        /* A backspin swipe stops short (`g.upTo` of the way back up), so its
+           swipe up covered less ground: timed as if it had gone the whole way,
+           or every spin shot would read as rushed. */
+        var spin = null;
+        if (g.upTo !== undefined && g.upTo < 1) {
+            times.through *= 0.9 / Math.max(0.2, g.upTo - 0.1);
+            spin = { at: g.upTo, ask: Math.max(0, swipeSpin(g.upTo)) };
+        }
+        var tempo = swipeTempo(times, opt.timing, over);
         var bow = swipeBow(g.through, g.low, g.cross);
         var shape = opt.shapes ? swipeShape(bow, opt.shapes) : null;
+        var wide = swipeWide(g.pts, g.low, g.cross, g.through);
+        var loop = wideOff(wide, bow, !!shape, bow > 0 ? 1 : bow < 0 ? -1 : 0);
         // Rushing comes over the top and pulls it; quitting on it blocks it
-        // right. On top of whatever the line already did.
-        var off = Math.max(-1, Math.min(1, line + tempo.amount * C.SWIPE.TIMING.LINE));
-        var weight = 1 - Math.max(0, tempo.amount) * C.SWIPE.TIMING.POWER_LOSS;
+        // right. On top of whatever the line already did, and the loop.
+        var off = Math.max(-1, Math.min(1, line + loop + tempo.amount * C.SWIPE.TIMING.LINE));
+        // Quitting on it costs distance, more so past a full swing; on a putt
+        // a snatch runs it long as well (SWIPE.PUTT.JAB).
+        var cost = assist ? C.ASSIST.COST : 1;
+        var weight = 1 - Math.min(0.7, Math.max(0, tempo.amount) * C.SWIPE.TIMING.POWER_LOSS * mult * cost);
+        if (putt && !assist) weight += Math.max(0, -tempo.amount) * C.SWIPE.PUTT.JAB;
         var mess = swipeMess(g.pts, g.y0, g.low.y - g.y0);
         return {
-            angle: angle, line: line, times: times, tempo: tempo, timing: opt.timing || 'off',
-            bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel,
+            angle: angle, line: line, wide: wide, loop: mess.junk ? 0 : loop, times: times, tempo: tempo, timing: opt.timing || 'off', putt: putt, mult: mult,
+            spin: mess.junk ? null : spin,
+            bow: bow, shape: mess.junk ? null : shape, off: off, weight: weight, over: over, feel: opt.feel, deck: !!opt.deck,
             mess: mess, junk: mess.junk ? swipeJunk(opt.rand) : null,
             perfect: !mess.junk && off === 0 && tempo.amount === 0 && (!shape || shape.cook === 0)
         };
@@ -483,6 +628,7 @@
         var g = swiped(read.over, read.off, read.feel);
         g.perfect = read.perfect;
         g.weight = read.weight;
+        g.mult = read.mult || 1;
         if (read.junk) { g.junk = read.junk; g.perfect = false; return (g.read = read, g); }
         if (read.shape) { g.shapeName = read.shape.name; g.shapeOff = read.shape.off; }
         g.read = read;
@@ -491,52 +637,79 @@
 
     /* Why it went where it went, one short line per thing that was read:
        what it was, what it said, and whether that was good. game.js prints it
-       on a small card after the shot, beside a drawing of the swipe — short,
-       because the card sits over the course the ball is flying across. */
+       on a small card after the shot, beside a drawing of the swipe.
+
+       The words follow the owner's ask: short, plain, written as a person
+       would say it — close to ASD-STE100. One fact per line, simple words,
+       no slang ("snatched", "quit on it"), a number only where it helps. */
+    /* Each line's bar on the card: how much of that part of the swing was
+       clean, 1 down to 0, read off the same −1…+1 the strike itself used. */
+    function score(off) { return 1 - Math.min(1, Math.abs(off || 0)); }
+
+    // "2.5×", or just "much" past five — a big number reads as a glitch.
+    function times(k) { return k >= 5 ? 'much' : k.toFixed(1) + '×'; }
+
     function swipeReport(read, power) {
         var out = [];
         if (read.junk) {
-            out.push({ what: 'Swing', says: 'a scribble, not a swing — ' +
-                (read.junk.kind === 'duff' ? 'duffed' : 'shanked'), tier: 'bad' });
-            out.push({ what: 'Path', says: read.mess.ratio.toFixed(1) + '× a clean swing\'s', tier: 'bad' });
+            out.push({ what: 'Swing', says: 'Not a swing. Ball ' +
+                (read.junk.kind === 'duff' ? 'duffed.' : 'shanked.'), tier: 'bad', score: 0 });
+            out.push({ what: 'Path', says: 'Too long and not straight.', tier: 'bad', score: 0 });
             return out;
         }
         var deg = Math.round(Math.abs(read.angle) * 180 / Math.PI);
         var side = read.angle > 0 ? 'right' : 'left';
-        out.push(read.line === 0
-            ? { what: 'Line', says: deg ? 'straight (' + deg + '° ' + side + ')' : 'dead straight', tier: 'good' }
-            : { what: 'Line', says: deg + '° ' + side + ' — ' + (read.angle > 0 ? 'pushed' : 'pulled'),
-                tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad' });
-        var t = read.tempo, tm = read.times;
+        var loop = read.loop || 0;
+        if (loop) {
+            // The loop is the bigger story: say it, and which way it sent it.
+            var both = Math.max(-1, Math.min(1, read.line + loop));
+            var way = both > 0 ? 'right' : 'left';
+            out.push({ what: 'Line', tier: Math.abs(both) < 0.5 ? 'meh' : 'bad', score: score(both),
+                       says: 'Too wide a loop. Ball goes ' + way + '.' });
+        } else {
+            out.push(read.line === 0
+                ? { what: 'Line', says: deg ? 'Straight (' + deg + '° ' + side + ').' : 'Straight.', tier: 'good', score: 1 }
+                : { what: 'Line', says: deg + '° ' + side + '. Ball goes ' + side + '.',
+                    tier: Math.abs(read.line) < 0.5 ? 'meh' : 'bad', score: score(read.line) });
+        }
+        var t = read.tempo, tm = read.times, ms = Math.round(tm.through * 1000) + ' ms';
+        var tier = t.amount === 0 ? 'good' : Math.abs(t.amount) < 0.5 ? 'meh' : 'bad';
         if (read.timing === 'rhythm' && t.said) {
             var r = t.ratio;
-            out.push(t.said === 'clean'
-                ? { what: 'Tempo', says: 'even', tier: 'good' }
-                : t.said === 'rushed'
-                    ? { what: 'Tempo', says: 'rushed — up ' + r.toFixed(1) + '× quicker', tier: t.amount > -0.5 ? 'meh' : 'bad' }
-                    : { what: 'Tempo', says: 'lazy — up ' + (1 / r).toFixed(1) + '× slower', tier: t.amount < 0.5 ? 'meh' : 'bad' });
+            out.push({ what: 'Tempo', tier: tier, score: score(t.amount), says: t.said === 'clean' ? 'Even.'
+                : t.why === 'pace' ? (t.said === 'rushed' ? 'Too fast, ' : 'Too slow, ') + ms + '.'
+                : 'Up ' + times(t.said === 'rushed' ? r : 1 / r) + (t.said === 'rushed' ? ' faster' : ' slower') + ' than down.' });
         } else if (read.timing === 'snap' && t.said) {
-            var ms = Math.round(tm.through * 1000) + ' ms';
-            out.push(t.said === 'clean'
-                ? { what: 'Speed', says: 'crisp, ' + ms, tier: 'good' }
-                : t.said === 'rushed'
-                    ? { what: 'Speed', says: 'snatched, ' + ms, tier: t.amount > -0.5 ? 'meh' : 'bad' }
-                    : { what: 'Speed', says: 'quit on it, ' + ms, tier: t.amount < 0.5 ? 'meh' : 'bad' });
+            out.push({ what: 'Speed', tier: tier, score: score(t.amount), says: (t.said === 'clean' ? 'Good, '
+                : t.said === 'rushed' ? 'Too fast, ' : 'Too slow, ') + ms + '.' });
         }
         if (read.shape) {
-            var nm = read.shape.name;
-            out.push(read.shape.cook === 0
-                ? { what: 'Shape', says: nm + ' — clean', tier: 'good' }
-                : read.shape.cook > 0
-                    ? { what: 'Shape', says: nm + ' — too much, ' + (nm === 'draw' ? 'hooks' : 'slices'), tier: 'meh' }
-                    : { what: 'Shape', says: nm + ' — too little', tier: 'meh' });
+            var nm = read.shape.name === 'draw' ? 'Draw' : 'Fade';
+            out.push({ what: 'Shape', tier: read.shape.cook === 0 ? 'good' : 'meh', score: score(read.shape.cook),
+                says: nm + (read.shape.cook === 0 ? '. Good.' : read.shape.cook > 0 ? '. Too much curve.' : '. Too little curve.') });
+        }
+        if (read.spin) {
+            var S = C.SWIPE.SPIN_AT, a = read.spin.ask;
+            out.push({ what: 'Spin', tier: a >= 0.95 ? 'good' : a > 0 ? 'meh' : 'bad', score: a,
+                says: a >= 0.95 ? 'Full backspin.'
+                    : (a > 0 ? Math.round(a * 100) + '%. ' : 'None. ') +
+                      (read.spin.at < S.IDEAL ? 'Let go later.' : 'Let go sooner.') });
         }
         if (power) {
             var pc = Math.round(power.frac * 100);
             var lost = Math.round((1 - read.weight) * 100);
-            out.push({ what: 'Power', says: pc + '%' + (lost ? ', −' + lost + '% lazy' : ''),
-                       tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good' });
+            var said = pc + '%.';
+            if (lost > 0) said += ' Lost ' + lost + '%.';
+            else if (lost < 0) said += ' ' + (-lost) + '% too hard.';
+            if (read.flush) said += ' Pure strike, +' + Math.round(read.flush * 100) + '%.';
+            // Past a full swing, say what it multiplied: it is why the miss
+            // went as far wrong as it did.
+            if (read.mult > 1.05 && !read.perfect && (pc > 100 || read.putt)) said += ' Miss ×' + read.mult.toFixed(1) + '.';
+            out.push({ what: 'Power', says: said, tier: lost ? 'meh' : pc > 100 ? 'hot' : 'good',
+                       score: read.weight > 1 ? Math.max(0, 2 - read.weight) : Math.max(0, read.weight) });
         }
+        // Why the bands were tighter than usual: no bar, it is not a reading.
+        if (read.deck) out.push({ what: 'Lie', says: 'Driver off the fairway. Harder.', tier: 'meh', score: null });
         return out;
     }
 
@@ -561,7 +734,7 @@
 
     function arcWin(over) {
         var A = C.ARC;
-        return A.WIN_MAX + (A.WIN_MIN - A.WIN_MAX) * ease(over);
+        return (A.WIN_MAX + (A.WIN_MIN - A.WIN_MAX) * ease(over)) * easeWin();
     }
 
     // `shape` is the shot shape asked for, which makes the zone the shape's.
@@ -633,7 +806,7 @@
         var N = C.NEEDLE, e = ease(over);
         return { over: Math.max(0, Math.min(1, over || 0)), t: 0, pos: -1,
                  period: N.PERIOD_MAX + (N.PERIOD_MIN - N.PERIOD_MAX) * e,
-                 win: N.WIN_MAX + (N.WIN_MIN - N.WIN_MAX) * e,
+                 win: (N.WIN_MAX + (N.WIN_MIN - N.WIN_MAX) * e) * easeWin(),
                  done: false, struck: false, off: 0, perfect: false };
     }
 
@@ -663,20 +836,87 @@
 
        One word for how a strike went, whichever style made it, popped up over
        the stage the moment the ball leaves. The toast underneath says which
-       way it went; this says how well, in the size a glance takes in. */
+       way it went; this says how well, in the size a glance takes in.
+
+       The misses get a handful of words each rather than one, because the
+       miss is the strike you see most and the same word every time stops
+       being read. The worst used to be "Sprayed", which is range talk and
+       meant nothing to the people playing; every word for a miss now says
+       which side it went (off < 0 is left), and the worst ones say it the way
+       a golfer shouts it. Short on purpose — it is drawn in capitals, at
+       9vw, on one line, on a phone held upright. */
+    var WORDS = {
+        offL:  ['Pulled', 'Tugged it', 'Left-ish', 'Drifted left'],
+        offR:  ['Pushed', 'Nudged right', 'Right-ish', 'Drifted right'],
+        badL:  ['Hooked!', 'Way left', 'Fore left!', 'Snap hook', 'Yikes'],
+        badR:  ['Sliced!', 'Way right', 'Fore right!', 'Banana ball', 'Oof'],
+        whiff: ['Whiff', 'Air shot', 'Fresh air'],
+        duff:  ['Duffed', 'Chunked', 'Fat one', 'Dug in'],
+        shank: ['Shanked', 'Shank!', 'Sideways?!']
+    };
+
+    /* Which of a list, off the strike itself rather than a dice roll: the
+       big word and the swing card's word are worked out separately for the
+       same shot, and they have to agree. Two shots are never measured the
+       same to the last decimal, so it still changes from shot to shot. */
+    function wordFor(list, g) {
+        var seed = Math.abs(g.off || 0) * 7919.37 + (g.over || 0) * 104.729 + (g.t || 0) * 31.7;
+        var u = seed - Math.floor(seed);
+        return list[Math.min(list.length - 1, Math.floor(u * list.length))];
+    }
+
     function grade(g) {
         if (!g) return null;
-        if (!g.struck) return { word: 'Whiff', tier: 'bad' };
-        if (g.junk) return { word: g.junk.kind === 'duff' ? 'Duffed' : 'Shanked', tier: 'bad' };
+        if (!g.struck) return { word: wordFor(WORDS.whiff, g), tier: 'bad' };
+        if (g.junk) return { word: wordFor(g.junk.kind === 'duff' ? WORDS.duff : WORDS.shank, g), tier: 'bad' };
         if (g.perfect) return { word: 'Perfect', tier: 'perfect' };
         var a = Math.abs(g.off);
         if (a < 0.2) return { word: 'Great', tier: 'great' };
         if (a < 0.45) return { word: 'Good', tier: 'good' };
-        if (a < 0.75) return { word: g.off < 0 ? 'Pulled' : 'Pushed', tier: 'off' };
-        return { word: 'Sprayed', tier: 'bad' };
+        var left = g.off < 0;
+        if (a < 0.75) return { word: wordFor(left ? WORDS.offL : WORDS.offR, g), tier: 'off' };
+        return { word: wordFor(left ? WORDS.badL : WORDS.badR, g), tier: 'bad' };
+    }
+
+    /* ── the club at the ball ──────────────────────────────────────────── */
+
+    /* The club in hand stands behind the ball (bag.js `address`), and the
+       touch swing swings it: the thumb going down takes it back, the thumb
+       coming up brings it down, and it meets the ball as the thumb crosses
+       the line it started on — which is the instant the shot is struck. So
+       the picture is the gesture, not an animation played after it.
+
+       Both of these answer in *turns*: nought is the club at address, -1 the
+       top of the biggest backswing there is and +1 the fullest finish. How
+       many degrees a turn is belongs to whoever draws it, because that
+       depends on where the camera is standing (bag.js `backMax`).
+
+       `load` is the swing as a fraction of a full one (power / club power)
+       and `up` how far back up to the line the thumb has come, 0..1. A
+       putter goes back half as far for the same pull: it is a stroke, not
+       a swing. */
+    var CLUB = { PUTT: 0.5, PUTT_THROUGH: 0.3, TAU: 0.085 };
+
+    function clubPose(load, up, putt) {
+        var back = Math.max(0, Math.min(1 + C.OVERDRAW, load || 0)) / (1 + C.OVERDRAW);
+        var u = Math.max(0, Math.min(1, up || 0));
+        return -(putt ? CLUB.PUTT : 1) * back * (1 - u);
+    }
+
+    /* After the ball: from wherever the club was when the shot was struck
+       on to a finish the size of the swing, eased so it is quickest through
+       the ball. `t` is seconds since the strike. */
+    function clubThrough(from, t, frac, putt) {
+        var k = 1 - Math.exp(-Math.max(0, t) / CLUB.TAU);
+        var f = Math.max(0, Math.min(1, frac || 0));
+        var end = putt ? CLUB.PUTT_THROUGH * (0.3 + 0.7 * f) : 0.4 + 0.6 * f;
+        return from + (end - from) * k;
     }
 
     G3.swing = {
+        clubPose: clubPose,
+        clubThrough: clubThrough,
+        WORDS: WORDS,
         arms: arms,
         markAt: markAt,
         windowFor: windowFor,
@@ -685,10 +925,17 @@
         tick: tick,
         press: press,
         apply: apply,
+        setAssist: setAssist,
+        assisted: assisted,
+        spinCap: spinCap,
+        spinBite: spinBite,
+        swipeSpin: swipeSpin,
+        swipeMult: swipeMult,
         SHAPES: SHAPES,
         bendOf: bendOf,
         armsShape: armsShape,
         shapeOver: shapeOver,
+        deckOver: deckOver,
         shape: shape,
         swipeLoad: swipeLoad,
         swipeAngle: swipeAngle,
@@ -697,6 +944,7 @@
         swipeTimes: swipeTimes,
         swipeTempo: swipeTempo,
         swipeBow: swipeBow,
+        swipeWide: swipeWide,
         swipeShape: swipeShape,
         swipeMess: swipeMess,
         swipeJunk: swipeJunk,

@@ -119,6 +119,13 @@
 
     function padFill(pad, index) {
         var geo = new THREE.PlaneGeometry(pad.w, pad.d);
+        if (pad.lane) {
+            // A road washes its own outline, not its box.
+            var cx0 = pad.x + pad.w / 2, cz0 = pad.z + pad.d / 2;
+            geo = new THREE.ShapeGeometry(new THREE.Shape(P.laneOutline(pad.lane, 0.2).map(function (q) {
+                return new THREE.Vector2(q[0] - cx0, -(q[1] - cz0));
+            })));
+        }
         geo.rotateX(-Math.PI / 2);
         // The same shear the renderer gives the pad itself, so the wash lies
         // on the ramp rather than through it.
@@ -162,6 +169,11 @@
                 var rr = P.padRadius(pad, a);
                 pts.push(at(cx + Math.cos(a) * rr, cz + Math.sin(a) * rr));
             }
+            return line(pts, COLOUR[pad.kind] || COLOUR.green, true);
+        }
+        // A road's box is only its bounds; its edge is the one physics walks.
+        if (pad.lane) {
+            P.laneOutline(pad.lane, OUTLINE_STEP).forEach(function (q) { pts.push(at(q[0], q[1])); });
             return line(pts, COLOUR[pad.kind] || COLOUR.green, true);
         }
 

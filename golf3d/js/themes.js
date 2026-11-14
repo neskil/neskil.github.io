@@ -41,6 +41,16 @@
                 of the sky this camera has above the horizon. 7 is a coast
                 across the water, 12 is an alp. Leave it out and the horizon is flat, which is
                 what a course played indoors or inside a works wants.
+     air        how much further than usual the fog starts and ends (the
+                mountain's thin air, render.buildHole), and half as much again
+                for a camera looking down (render.overFog) — so from above the
+                hole stands clear and only the country round it fades. The
+                long courses have it; the links keeps the least, because sea
+                haze at the height of a ball is part of the place. Leave it
+                out for 1.
+     range      mountains between the hole and the horizon (render.addRange):
+                `peak` how tall, `depth` how far they run, `snowline` and
+                `treeline` as fractions of the peak, and the three colours.
      relief     how many units the surrounding ground rolls, out where it can
                 no longer touch the hole. Leave it out for a floor that is
                 meant to be a floor.
@@ -81,6 +91,7 @@
             side: '#8d7355'
         },
         lagoon: {
+            air: 1.3,
             sky: [0x1f86c8, 0xbfe9f4],
             fog: 0xbfe9f4,
             sun: 0xfff7e6, sunPos: [7, 17, -6], ambient: 0x9adfe8, ambientI: 0.62,
@@ -111,6 +122,7 @@
             side: '#7d7566'
         },
         parkland: {
+            air: 1.8,
             /* The one course that is not mini golf, and the palette says so:
                a long summer afternoon over a lot of grass. The surround is a
                `floor` rather than water or rock because what lies beyond the
@@ -128,6 +140,7 @@
             side: '#8f7a55'
         },
         links: {
+            air: 1.3,
             /* Open country under a big cold sky. The one theme whose surround
                matters: on every other course it is scenery beyond a fence, and
                here it is the horizon the hole runs into, so it is tinted to
@@ -242,6 +255,7 @@
            a high thin overcast, a cool sun, and a surround tinted to the
            heather so the hole runs out into more of the same country. */
         heath: {
+            air: 1.7,
             sky: [0x6b7fa8, 0xd6d2df],
             fog: 0xd6d2df,
             /* Low, for the same reason Whinstone's is low and it matters more
@@ -358,20 +372,69 @@
            course is every wall of every ravine, so it is doing real work
            rather than trimming an edge. */
         canyon: {
+            air: 1.6,
             sky: [0x5c7fb4, 0xecd0ac],
             fog: 0xecd0ac,
             sun: 0xffd9a2, sunPos: [-14, 9, 8], ambient: 0xc9a582, ambientI: 0.55,
             grass: ['#7c9c4a', '#6f9042'],
             rail: 0xb08a63,
-            /* Below the canyon floors (about -2), not above them. At -1.1 the
-               desert plane cut straight through every canyon on the course:
-               each read as a tan box a unit deep, and a ball lying on a floor,
-               or a pool laid on one, could not be seen at all. */
-            surroundY: -2.7, surround: 'rock', ground: '#8d4f34',
+            /* Just under the canyon floor (courses.js, CANYON_FLOOR = -4),
+               which is where the country is: since v1.130.0 every piece of
+               the course stands on its own walls out of that floor, so the
+               surround is the floor carried on to the horizon rather than a
+               desert plane the canyons are cut into. It used to sit at -1.1
+               and then -2.7, and each time it cut through the bottom of
+               something. */
+            surroundY: -4.6, surround: 'rock', ground: '#8d4f34',
             relief: 3.9,
             ridge: { colour: '#7d3f2b', cap: '#d9955c', peak: 12, rough: 0.52 },
             water: 0x2f7f9a,
-            side: '#a85c39'
+            side: '#a85c39',
+            /* The beds, bottom up, as the Grand Canyon has them and at the
+               heights the course is built to (render.strataOn): dark schist
+               at the river, the brown Tapeats and the grey-green shale over
+               it, the Redwall from the canyon floor's shoulder to the
+               plateaus the fairways are on, red Supai and Hermit beds up the
+               rims, the pale Coconino band near the top, and the buff
+               Kaibab capping the tallest buttes. */
+            strata: [
+                [-99, '#4b3b37'], [-3.3, '#7a5337'], [-2.3, '#86795b'], [-1.1, '#927461'],
+                [-0.2, '#a9553a'], [1.6, '#b3603e'], [2.4, '#a24d33'], [4.2, '#b8683f'],
+                [5.4, '#8f402b'], [6.8, '#d9c49b'], [8.0, '#b7946a'], [9.2, '#cfb68e']
+            ]
+        },
+        /* High country (Alpenglow Pass): clear thin air, a deep blue overhead
+           paling to the snowfields on the horizon, and a high white sun that
+           still rakes across a meadow because the meadow is never level. The
+           fog is the pale blue of distance rather than a haze, so the ranges
+           read sharp. Meadow turf a shade yellower than a lowland's; granite
+           for the cut face, banded the way `strata` bands the canyon's — grey
+           beds, a darker one, and snow from ten units up, so a cliff tall
+           enough is snow-capped on its own; and the tarn and the stream the
+           milky turquoise of glacier water. */
+        alpine: {
+            sky: [0x1f5fc4, 0xb2cfec],
+            fog: 0xb2cfec,
+            air: 2.0,
+            sun: 0xfffaf0, sunPos: [-11, 13, 8], ambient: 0xa8c2df, ambientI: 0.6,
+            grass: ['#74ad4c', '#679f44'],
+            rail: 0xd9d4c8,
+            surroundY: -5.4, surround: 'rock', ground: '#3f5a3a',
+            relief: 4.6,
+            ridge: { colour: '#3e4957', cap: '#f6f9fc', peak: 18, rough: 0.64 },
+            /* …and the range itself, near enough to be mountains rather than
+               a skyline (render.addRange): faceted granite from past the
+               skirt out a hundred and ten units, up to forty high, snow above
+               half of that where the ground is gentle enough to hold it, dark
+               forest on the low slopes. */
+            range: { peak: 40, depth: 110, gap: 8, snowline: 0.56, treeline: 0.22,
+                rock: '#5c6067', snow: '#f2f6fa', forest: '#2a4430' },
+            water: 0x4cc4c4,
+            side: '#6b6e74',
+            strata: [
+                [-99, '#55585d'], [-2.5, '#63666b'], [1.2, '#6e7176'], [3.4, '#5e6166'],
+                [5.0, '#76797e'], [7.6, '#84878c'], [10.0, '#eef2f6']
+            ]
         },
         /* The yard where the ball weighs a different amount on every hole, and
            the palette has one job: to make that look like a reason rather than

@@ -60,19 +60,23 @@
     <canvas id="gl"></canvas>
 
     <script src="vendor/three.min.js"></script>
-    <script src="js/config.js?v=1.109.1"></script>
-    <script src="js/themes.js?v=1.109.1"></script>
-    <script src="js/physics.js?v=1.109.1"></script>
-    <script src="js/courses.js?v=1.109.1"></script>
-    <script src="js/audit.js?v=1.109.1"></script>
-    <script src="js/textures.js?v=1.109.1"></script>
-    <script src="js/shaders.js?v=1.109.1"></script>
-    <script src="js/postfx.js?v=1.109.1"></script>
-    <script src="js/weather.js?v=1.109.1"></script>
-    <script src="js/flyover.js?v=1.109.1"></script>
-    <script src="js/models.js?v=1.109.1"></script>
-    <script src="js/life.js?v=1.109.1"></script>
-    <script src="js/render.js?v=1.109.1"></script>
+    <script src="js/config.js?v=1.168.3"></script>
+    <script src="js/themes.js?v=1.168.3"></script>
+    <script src="js/physics.js?v=1.168.3"></script>
+    <script src="js/courses.js?v=1.168.3"></script>
+    <script src="js/tour-ground.js?v=1.168.3"></script>
+    <script src="js/portals.js?v=1.168.3"></script>
+    <script src="js/audit.js?v=1.168.3"></script>
+    <script src="js/textures.js?v=1.168.3"></script>
+    <script src="js/shaders.js?v=1.168.3"></script>
+    <script src="js/postfx.js?v=1.168.3"></script>
+    <script src="js/weather.js?v=1.168.3"></script>
+    <script src="js/flyover.js?v=1.168.3"></script>
+    <script src="js/models.js?v=1.168.3"></script>
+    <script src="js/life.js?v=1.168.3"></script>
+    <script src="js/worlds.js?v=1.168.3"></script>
+    <script src="js/sandfx.js?v=1.168.3"></script>
+    <script src="js/render.js?v=1.168.3"></script>
 
     <script>
     (function () {
@@ -183,8 +187,9 @@
                    of white rectangles is not a picture of the hole. */
                 var at = place(hole, view), fog = R.state.scene.fog;
                 if (fog) {
-                    fog.near = Math.max(R.state.fogNear, at.dist * 0.85);
-                    fog.far = Math.max(R.state.fogFar, at.dist * 1.5 + at.radius * 2.2);
+                    var over = R.overFog(at.dist, at.radius);
+                    fog.near = over.near;
+                    fog.far = over.far;
                 }
                 if (R.state.fx) G3.postfx.render(R.state.scene, R.state.camera, null, 1 / 60);
                 else R.state.renderer.render(R.state.scene, R.state.camera);

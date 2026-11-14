@@ -1,8 +1,10 @@
 # Claude Code — Project Context (golf3d)
 
-**Loft Links**: eighteen six-hole courses of 3D golf in four groups — mini,
-crazy, adventure and the long game — on vendored three.js (r128), ES5-flavoured
-plain JavaScript, no build step. Open `index.html` and it runs.
+**Loft Links**: a World Tour of twenty holes, each played inside a world from
+Ethan Mollick's Portals and dealt six at a time — what a new game plays — in
+front of fifteen six-hole courses of 3D golf in four groups (mini, crazy, adventure and the long game), on vendored
+three.js (r128), ES5-flavoured plain JavaScript, no build step. Open
+`index.html` and it runs.
 
 Doc map: **[README.md](README.md)** owns the architecture, the file roles and
 load order, why each shader is written the way it is, the course-authoring
@@ -56,6 +58,12 @@ point at them.
   commit that added it — its workers load `js/` by the page's own version, so
   a stale string there measures an old build. If a fifth page ever loads
   `js/`, it goes in this list on the same commit.
+- **The hole editor does not have to keep up** (the owner's call, v1.135.0).
+  A new wall kind, pad, decor kind or hole shape is not taught to the editor
+  on the same change, and no test holds the editor to every drawn hole.
+  Catching it up is one job of its own, done when the owner asks for it — it
+  waits in PLAN.md §2. The `?v=` bump above still covers `level-editor.html`:
+  that is the browser cache, not a feature.
 
 ## Verification
 
@@ -77,13 +85,13 @@ for a headless driver to read.
 | `shader-tests.html` | The half the above structurally cannot do: compiles every shader for real through the real `render.js`, both water paths, the runtime quality switch, the uniform boundary, one `frame()`, and every theme. | a GL context |
 | `ui-tests.html` | The page rather than the game: index.html's own markup under the real stylesheet, with the scripts stripped out. Sweeps every `var(--x)` in `style.css` for one that is undefined where the rule lands, and lights every chip to check a switched-on control still reads. See README → "The chrome, which neither suite could see either". | nothing |
 
-And one tool that is not a suite. `turntable.html` draws all hundred and eight holes
+And one tool that is not a suite. `turntable.html` draws all ninety holes
 from eight fixed angles — tee, plan, four compass bearings, a five-degree graze
 and a hero shot — as one contact sheet per course, with `js/audit.js`'s findings
 printed under each row:
 
 ```sh
-node golf3d/tools/turntable.mjs                        # all eighteen, ~7 min
+node golf3d/tools/turntable.mjs                        # all fifteen, ~6 min
 node golf3d/tools/turntable.mjs quarry --hole 4 --tile 640 --views graze,hero
 ```
 
@@ -104,6 +112,25 @@ node golf3d/tools/hole-lab.mjs --coarse               # every drawn hole, ~15 mi
 
 Run it after moving a drawn hole's tee or cup or anything on the line between
 them; `hole-lab.html?course=<id>` draws the same traces on the hole's plan.
+
+And before choosing where a pin goes, the map of where shots finish with no
+pin at all (README → "Where the ball finishes"):
+
+```sh
+node golf3d/tools/rest-map.mjs cinder --hole 3 --club mallet
+```
+
+And for the long game, the card a person would score rather than the perfect
+one (README → `tools/human-check.mjs`):
+
+```sh
+node golf3d/tools/par-check.mjs keys                  # the perfect bot: the hole's shape
+node golf3d/tools/human-check.mjs keys --rounds 12    # the bot with hands: is it fair
+```
+
+Run both after reshaping a long hole. The perfect bot strikes every ball where
+it meant to, so it cannot tell a needle from a fairway; Coral Keys scored ten
+under for it and was the course people found too hard.
 
 `shader-tests.html` skips its GPU half with a note (not a failure) when there
 is no WebGL, so it is safe to run anywhere; on this box it runs on SwiftShader:
@@ -135,7 +162,64 @@ uniform boundary each fails a *different* named assertion. If you change the
 suite, re-run that exercise — a shader test that cannot fail is worse than
 none, because it reads as coverage.
 
+## Designing a hole
+
+The owner's standard for a course is **variety and the right level of
+challenge** (v1.146.0–v1.147.0: "the courses are a bit too similar and don't
+really have the game play feeling"). What that has meant in practice:
+
+- **Start from the plan, not the furniture.** Look at the course's contact
+  sheet (`tools/turntable.mjs <course> --views plan,tee,hero`) before drawing
+  anything. If the new hole's plan is a shape the course already has — and
+  above all if it is a rectangle with something across it — change the plan.
+- **Build a hole round one thing only it does**, and let the ground or the
+  machine do it: a wall the ball climbs, a ramp it runs away down, a blade
+  that carries it. A hole that is level and played along the floor is the
+  same hole whatever is stood on it.
+- **Measure it, in this order**: `rest-map.mjs` for where a pin can go,
+  `hole-lab.mjs` for the ace share (README → "The hole lab" has the bands: an
+  opener 0.3–0.9%, a skill hole 0.1–0.3%, a closer 0.05–0.15%), then the
+  turntable and the game for what it looks like. Every par 3 should have a
+  bold line a person can read from the tee and a safe way that costs a stroke.
+- **The suite is there to catch faults, not to pick the design.** If a test
+  fails a hole that plays well and looks right, read the test before bending
+  the hole: ask what fault it was written to catch and whether this is one.
+  Narrow the test to the fault (and say why at the site) rather than work
+  round it — a box where a rock was wanted, a tee moved off a rim, a pad left
+  square. Do not loosen the ones that are the game's own rules: a putt at the
+  flag never drops, a needs-loft hole has no way along the floor, a green
+  holds a ball, the audit's geometry faults.
+- **A count is a floor, never a quota.** "There are N bunkers to check" exists
+  so a check cannot pass by finding nothing. Rebuilding a hole may move it.
+
 ## Things that will bite
+
+- **Live worlds are on by default, everywhere, and only the player turns them
+  off** (the owner, v1.155.0 and again v1.167.1: "on by default"). The switch
+  in Courses is the one thing that writes `golf3d.live`. The safety nets in
+  `render.js` — a build left unfinished last visit, a frame rate that will not
+  come up — switch them off **for that visit only** (`R.liveSession`) and try
+  again next time. Twice a safety net wrote the stored setting instead and
+  turned the worlds off for good, the second time on every new phone: the
+  "unfinished build" mark is *this* visit's while a world builds, so it is read
+  once at load (`crashedLast`) and never again. Don't make an automatic
+  switch-off persistent, and don't read that mark after load.
+
+- **A tour hole is not a course hole, and the course rules are not its
+  rules.** `portals.js → world()` builds every one open, unrailed and
+  unstaked, and `tests.html` holds them to their own short list. The hole
+  lab's ace bands and "a putt at the flag never drops" are the drawn
+  courses'. After touching one, run `node tools/portal-check.mjs`.
+- **`vendor/portals/` is somebody else's, under CC BY-NC-SA 4.0, and is not
+  edited.** It is Portals' engine and worlds on three.js r170, a second
+  three.js beside this game's r128; they never share an object. Everything
+  that adapts it is `js/backdrop.mjs`. The two pictures share depth through
+  one canvas — the world's picture in the top half, each pixel's distance in
+  the bottom — which `render.js → addWorldPlate` writes into this renderer's
+  depth buffer, so the world can stand in front of the hole. Change the
+  packing on one side and you change it on the other. README → "The World
+  Tour" has that, how a hole is fitted, and how to look at one
+  (`?world=<id>&live=1`, `G3.backdrop.debug()`). The suites cannot see it.
 
 - **A `color-mix()` over an undefined custom property is a dropped
   declaration, not a fallback colour.** The picker's tint used to be declared
@@ -167,9 +251,10 @@ none, because it reads as coverage.
   `sails` turns a windmill's four sails in the upright plane (`mill`).
   Anything that filters for movers has to ask about all four — the renderer's
   `R.movers` (sails are a `rotor` there, not a box), the tests' gate-window
-  assertion, the editor's ported copy of that assertion, its ghost boxes, its
-  plan-repaint trigger, its `cloneShape` and its export, and the bot's "does
-  this hole need a wait before striking", which missed flippers until v1.66.0.
+  assertion and the bot's "does this hole need a wait before striking", which
+  missed flippers until v1.66.0. The editor has its own copies (a ported
+  gate-window assertion, ghost boxes, a plan-repaint trigger, `cloneShape`,
+  its export); those wait for its catch-up, per the standing instruction.
   The minimap draws sails as the line they turn in. If you add a fifth kind of
   motion, grep for `w.move || w.spin` before you do anything else.
 - **A pad may now *do* something as well as be somewhere**: `push` is a
@@ -182,7 +267,9 @@ none, because it reads as coverage.
   A hole's `loops` are the fourth: a track the ball is carried round, and
   while it rides (`world.ride`) the step skips the ground, the walls and the
   cup entirely — so a new per-step rule that has to hold on a loop goes in
-  `rideLoop`, not after it.
+  `rideLoop`, not after it. A pipe's trip is the same kind of ride
+  (`world.warping`, `rideWarp`), and the same goes for it — README → "The
+  wormhole".
 - **The intro flyover ends *at* the live seat, not near it.** `flyover.js` is
   handed the pose `render.js`'s `seatFor` has just worked out and makes it the
   last key of the path, re-read every frame; that exactness is the whole
@@ -206,7 +293,8 @@ none, because it reads as coverage.
   wall wide enough to play out of is a ramp a drive bounces clean across the
   gorge off. See README → "The gorge".
 - **A pad's rectangle is not its outline any more.** `build` rounds a fenced
-  hole's outside corners (`pad.round`), so anything new that reasons about
+  hole's outside corners (`pad.round`), and a `road` (`pad.lane`) is a curve
+  whose box is only its bounds, so anything new that reasons about
   where a pad's ground is must ask `physics.padContains` rather than read
   `x`/`w`/`z`/`d`, and anything that draws a slab goes through `slabShape`.
   README → "Rounded corners".

@@ -39,12 +39,16 @@
     <script src="js/themes.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
+    <script src="js/tour-ground.js"></script>
+    <script src="js/portals.js"></script>
     <script src="js/textures.js"></script>
     <script src="js/shaders.js"></script>
     <script src="js/postfx.js"></script>
     <script src="js/weather.js"></script>
     <script src="js/models.js"></script>
     <script src="js/life.js"></script>
+    <script src="js/worlds.js"></script>
+    <script src="js/sandfx.js"></script>
     <script src="js/render.js"></script>
 
     <script>
@@ -157,7 +161,8 @@
             WATER_VS: SH.WATER_VS, WATER_FS: SH.WATER_FS,
             TURF_FS_HEAD: SH.TURF_FS_HEAD, TURF_FS_BODY: SH.TURF_FS_BODY,
             SUR_FS_HEAD: SH.SUR_FS_HEAD, SUR_FS_BODY: SH.SUR_FS_BODY,
-            RIDGE_VS: SH.RIDGE_VS, RIDGE_FS: SH.RIDGE_FS
+            RIDGE_VS: SH.RIDGE_VS, RIDGE_FS: SH.RIDGE_FS,
+            BLACKHOLE_VS: SH.BLACKHOLE_VS, BLACKHOLE_FS: SH.BLACKHOLE_FS
         };
 
         Object.keys(SOURCES).forEach(function (k) {
@@ -594,6 +599,78 @@
             });
         }
 
+        /* The black holes (render.js "the black hole", v1.129.0): one shader
+           in two shapes — flat on the ground for a pipe's mouth and a well's
+           disc, `FACING` the camera for the sky portal and the glow round a
+           well's core — and the lensing in postfx's composite. Built on the
+           real holes that have them, and then a ball put down a pipe and
+           drawn frame by frame through the whole ride, which is the only way
+           the portal's uniforms and the lens are ever written. */
+        if (glOK) {
+            section('THE BLACK HOLES');
+            var bhDecl = declaredUniforms(SH.BLACKHOLE_FS).concat(declaredUniforms(SH.BLACKHOLE_VS));
+            [['cinder', 2, 'a pipe'], ['apogee', 4, 'a well']].forEach(function (pick) {
+                var c = G3.courseById(pick[0]), h = c.holes[pick[1]];
+                drainErrors();
+                var built = attempt('a hole with ' + pick[2] + ' builds and draws', function () {
+                    R.buildHole(h, c.theme, null);
+                    renderOnce();
+                });
+                if (!built.ok) return;
+                var mats = R.state.holeMats || [];
+                var facing = mats.filter(function (m) { return 'FACING' in m.defines; }).length;
+                assert(pick[2] + ': both shapes of the shader are on the hole',
+                    mats.length >= 2 && facing >= 1 && facing < mats.length,
+                    mats.length + ' materials, ' + facing + ' facing');
+                var errs = drainErrors(), bad = unlinkedPrograms();
+                assert(pick[2] + ': every program links, and nothing is logged',
+                    errs.length === 0 && bad.length === 0, errs.concat(bad).join(' | ').slice(0, 400));
+                mats.forEach(function (m, i) {
+                    bhDecl.forEach(function (n) {
+                        if (BUILT_IN.indexOf(n) > -1) return;
+                        if (m.uniforms[n] === undefined) assert(pick[2] + ' material ' + i + ' supplies `' + n + '`', false);
+                    });
+                    Object.keys(m.uniforms).forEach(function (n) {
+                        if (!usesName(SH.BLACKHOLE_FS, n) && !usesName(SH.BLACKHOLE_VS, n)) {
+                            assert('the black hole shader still reads `' + n + '`', false);
+                        }
+                    });
+                });
+                assert(pick[2] + ': the uniforms agree on both sides', bhDecl.length > 8);
+            });
+
+            (function () {
+                var c = G3.courseById('cinder'), h = c.holes[2], wp = h.warps[0];
+                R.buildHole(h, c.theme, null);
+                drainErrors();
+                var seen = { shrunk: false, gone: false, portal: false, lens: false, back: false };
+                var ran = attempt('a ball drawn all the way through a pipe', function () {
+                    var world = P.createWorld(h, { x: wp.x, z: wp.z - wp.r * 0.9 }, 0);
+                    P.launch(world, 0, 3, 0);
+                    for (var i = 0; i < 160; i++) {
+                        P.advance(world, 1 / 60, {});
+                        R.frame(1 / 60, world, { yaw: 0, power: 0 });
+                        var ph = world.warping ? P.warpPhase(world.warping).phase : null;
+                        var k = R.state.ball.scale.x;
+                        if (ph === 'swallow' && k < 0.9) seen.shrunk = true;
+                        if (ph === 'dark' && !R.state.ball.visible) seen.gone = true;
+                        if (ph === 'drop' && R.state.mouths[0].portal.visible) seen.portal = true;
+                        if (ph === 'drop' && R.state.fx && G3.postfx.state.uComp.lens.value.some(function (v) { return v.w > 0.3; })) seen.lens = true;
+                        if (!world.warping && seen.portal && k === 1 && R.state.ball.visible) seen.back = true;
+                    }
+                });
+                if (!ran.ok) return;
+                assert('the ball shrinks into the mouth', seen.shrunk);
+                assert('…is nowhere while the sky opens', seen.gone);
+                assert('…and drops out of a portal that is there to see', seen.portal);
+                if (R.state.fx) assert('the portal bends the picture behind it (postfx lens)', seen.lens);
+                assert('and it is back at full size once it has landed', seen.back);
+                var errs = drainErrors(), bad = unlinkedPrograms();
+                assert('drawing the ride logs nothing and every program links',
+                    errs.length === 0 && bad.length === 0, errs.concat(bad).join(' | ').slice(0, 400));
+            })();
+        }
+
         /* The life on the long game (life.js) and the wind in the trees. A
            pond hole on the parkland, because it is the one place every kind
            of it turns up at once: a flock overhead, a pair of ducks on the
@@ -637,10 +714,11 @@
                out of the way: no vertex of any prop stands within a unit of the
                hole's own footprint, where the ball could pass through it, or in
                the corridor behind the tee the camera watches the shot from. */
-            var drawnThemes = 0, worldFault = '';
+            var drawnThemes = 0, drawnCourses = 0, worldFault = '';
             G3.COURSES.forEach(function (course) {
                 if (course.group === 'long' || !course.holes[0] || course.holes[0].open) return;
                 var h = course.holes[0];
+                drawnCourses++;
                 var ok = attempt(course.id + ': its world builds', function () {
                     R.buildHole(h, course.theme, null);
                     for (var k = 0; k < 4; k++) R.frame(0.25, P.createWorld(h, { x: h.tee.x, z: h.tee.z }, 0), { yaw: 0, power: 0 });
@@ -672,9 +750,40 @@
                     }
                 });
             });
-            assert('every drawn theme has a world round its holes', drawnThemes >= 13 && !/no world|fairway/.test(worldFault),
+            assert('every drawn theme has a world round its holes', drawnCourses >= 9 && drawnThemes === drawnCourses && !/no world|fairway/.test(worldFault),
                 drawnThemes + ' themes; ' + worldFault);
             assert('and nothing in it stands on a hole or between the camera and the shot', !worldFault, worldFault);
+        }
+
+        /* The World Tour's holes: every one builds with its simple set piece
+           (worlds.js — what stands round a hole until its live world has
+           loaded, and for good where it never does) and draws a frame
+           without a word from the driver. The live worlds themselves are
+           another renderer and another three.js (backdrop.mjs) and are not
+           this suite's to compile. */
+        if (G3.portals && G3.worlds) {
+            section('WORLD TOUR');
+            drainErrors();
+            var tourFault = '', tourCount = 0;
+            G3.portals.WORLDS.forEach(function (w) {
+                if (tourFault) return;
+                var got = attempt(w.id + ' builds', function () {
+                    R.buildHole(w.hole, w.theme, null);
+                    renderOnce();
+                });
+                var errs = drainErrors();
+                if (!got.ok || errs.length || unlinkedPrograms().length) {
+                    tourFault = w.id + ': ' + errs.join(' | ').slice(0, 300);
+                    return;
+                }
+                if (!G3.worlds.SCENES[w.hole.scene]) { tourFault = w.id + ' has no set piece'; return; }
+                if (!R.state.outer || R.state.outer.children.length < 2) { tourFault = w.id + ' has no outer group to put away'; return; }
+                tourCount++;
+            });
+            assert('every tour hole builds with its set piece and draws clean',
+                !tourFault && tourCount === G3.portals.WORLDS.length, tourFault);
+            assert('with no live world drawn, the hole keeps its own sky',
+                R.state.live === false && R.state.outer.visible === true && !R.state.scene.background);
         }
 
         } catch (e) {

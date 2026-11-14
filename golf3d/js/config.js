@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.109.1';
+G3.VERSION = '1.168.3';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -98,9 +98,10 @@ G3.CONFIG = {
        up a ramp looking like a bug because it was one.
 
        These are the tangents of an angle of repose, so 0.22 is about twelve
-       degrees. That is steep for a green and it is not a free choice: the
-       cup on Tidewater's 'Short Side' sits on a lie of 0.16, and a green that
-       will not hold a ball beside its own hole is a green nobody can putt on.
+       degrees. That is steep for a green and it was not a free choice: the
+       cup on Tidewater's old 'Short Side' sat on a lie of 0.16 (it is on a
+       lean of a fortieth since v1.122.0), and a green that will not hold a
+       ball beside its own hole is a green nobody can putt on.
        It was 0.18 (and the fairway 0.26, the rough 0.40) until a ball that
        had all but stopped on a hillside kept creeping off it once too often;
        a fifth more grip is what makes a slow ball on a bank stay put.
@@ -213,6 +214,16 @@ G3.CONFIG = {
        the top of the bar a decision instead of a mistake. */
     OVER_GAIN: 0.14,
 
+    /* A flushed full swing (game.js `strike`): a lofted club struck Perfect
+       — whichever style judged it — from FLUSH_FROM of a full swing up gets
+       FLUSH more pace, eased in to all of it at 100%. Owner's call: a hit at
+       100% read as weak. Only a perfect strike earns it, and only past what
+       the cone previews, so the courses — tuned on the bot's clean ceiling —
+       and the cards keep their numbers; it is the prize for the strike. Pace,
+       not distance: about twice it comes off the run. */
+    FLUSH: 0.045,
+    FLUSH_FROM: 0.85,
+
     /* Sidespin, the one thing a shot can carry that is not in its velocity.
        Only the swing gate puts it there (see swing.js): a pull draws and a
        push fades, so a mishit keeps being the same mishit all the way to the
@@ -226,27 +237,38 @@ G3.CONFIG = {
     SPIN_ACCEL: 0.55,
     SPIN_LAND: 0.25,
 
-    /* The long game's flight: backspin, as lift (physics.carryFlight). A
-       struck ball is pushed square to the way it is going by AIR_LIFT times
-       its own speed, and the spin wears off at AIR_DECAY per second, so the
-       lift is strong off the face and nearly gone by the time the ball comes
-       down. Without it every shot was a parabola — up at the launch angle,
-       the top exactly halfway, down at the launch angle — which is a thrown
-       ball, not a struck one. With it a drive starts low, climbs, peaks past
-       halfway and drops in steeper than it rose, and the iron hangs.
+    /* The flight: backspin, as lift (physics.carryFlight). A struck ball is
+       pushed square to the way it is going by its lift times its own speed,
+       and the spin wears off at AIR_DECAY per second, so the lift is strong
+       off the face and nearly gone by the time the ball comes down. Without
+       it every shot was a parabola — up at the launch angle, the top exactly
+       halfway, down at the launch angle — which is a thrown ball, not a
+       struck one. With it a drive starts low, climbs, peaks past halfway and
+       drops in steeper than it rose, and the irons hang.
 
        There is no drag, on purpose. Lift does no work, so the ball lands as
        fast as it left and the turf's run is the run it was tuned for; drag
        took a fifth off every drive's total for a shape that the decaying
        lift gives on its own.
 
-       AIR_LOFT is which launches fly it: the driver and the iron, and a
-       topped one of either, wherever they are played. The pitch and the
-       wedge are steep enough that a parabola is what they look like anyway,
-       and mini golf's chips are built on the plain arc. */
-    AIR_LIFT: 1.4,
+       AIR_LIFT is the lift by loft, in degrees, read between the points
+       (physics.liftFor). A more lofted face spins the ball harder, and on a
+       real course that is what keeps the top of every full swing at much the
+       same height: a tour 7 iron peaks as high as a drive, and a wedge only
+       a little under it. The first lift was one figure that stopped at 32°
+       and left the pitch and the wedge on the plain arc, which put the
+       iron's top at two metres and the pitch's under that against the
+       driver's three and a half — a bag of skimmers under one real flight.
+
+       The points are the bag's own lofts, each solved together with its
+       club's power (CLUBS) for a top between three and three and a half
+       metres and the run the club already had, so no club's finishing spot
+       moved. They are solved, not drawn, which is why they fall again past
+       the 7 iron: a 45° face already launches the ball at the sky and needs
+       less help getting there than a 22° one. A topped shot is struck
+       without spin and gets none. */
+    AIR_LIFT: [[12, 1.4], [17, 1.89], [22, 2.39], [32, 2.05], [45, 1.4], [58, 0.48]],
     AIR_DECAY: 3,
-    AIR_LOFT: 32 * Math.PI / 180,
 
     /* The swing gate itself — what a shot past a full swing has to do to keep
        its line. All of the difficulty is these numbers.
@@ -312,7 +334,7 @@ G3.CONFIG = {
        the thumb has to come back up before the backswing counts as over, so a
        wobble at the bottom is not a swing. */
     SWIPE: {
-        DEFAULT: { feel: 'normal', timing: 'snap', shapes: 'on', where: 'all' },
+        DEFAULT: { assist: 'off', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
             easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
             normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },
@@ -320,12 +342,33 @@ G3.CONFIG = {
         },
         TIGHTEN: 0.45,
         TIMING: {
-            rhythm: { IDEAL: 1, TOL: 0.6, SPAN: 1.6 },
+            /* Rhythm also asks for a sensible pace: the swipe up near PACE
+               seconds, PACE_TOL doublings either side clean, PACE_SPAN more
+               the worst — and weighed at PACE_W, so an even swing that is
+               far too quick or too slow costs a little, not a lot. */
+            rhythm: { IDEAL: 1, TOL: 0.6, SPAN: 1.6, PACE: 0.25, PACE_TOL: 1, PACE_SPAN: 1.5, PACE_W: 0.6 },
             snap:   { TARGET: 0.22, TOL: 0.55, SPAN: 1.4 },
             LINE: 0.6,
             POWER_LOSS: 0.3
         },
-        BOW: { MIN: 0.09, IDEAL: 0.18, TOL: 0.06, SPAN: 0.14 },
+        /* MIN was 0.09, IDEAL 0.18: a right thumb's own arc up a full pull
+           bows 0.10–0.17 without trying, so a swipe meant straight was read
+           as a clean fade — graded Perfect, and the ball started left and
+           sliced. A shape now has to be drawn on purpose. (Measured on
+           branch ccr-c36dd4d6, which never reached master.) */
+        BOW: { MIN: 0.15, IDEAL: 0.22, TOL: 0.06, SPAN: 0.14 },
+        /* How wide the whole swing was (swing.js `swipeWide`): the pull and
+           the swipe up together, measured across the line of the swipe, as a
+           fraction of its length. A thumb that goes down one side and comes
+           up the other — a loop — read as straight before, because only the
+           two ends of the swipe up were looked at. FREE is let go: a thumb's
+           own arc, retraced, is about 0.17, plus room for a shake on the way
+           down. Past it the line is charged up to MAX of a full miss, over
+           SPAN; the last quarter of the swipe up says which way (a thumb
+           finishing across the line to the left pulls it left). Kept mild on
+           the owner's word — lower MAX if it plays too hard. A shape drawn on
+           purpose is not charged twice: its bow comes off the width first. */
+        WIDE: { FREE: 0.22, SPAN: 0.3, MAX: 0.5, TAIL: 0.25 },
         /* A scribble rather than a swing (swing.js `swipeMess`, `swipeJunk`):
            a path more than RATIO times as long as a clean pull-and-swipe of
            the same depth (plus SLACK px), or more than TURNS changes between
@@ -339,8 +382,50 @@ G3.CONFIG = {
             DUFF: 0.5, DUFF_POWER: [0.12, 0.25], DUFF_YAW: 6 * Math.PI / 180,
             SHANK_POWER: [0.15, 0.3], SHANK_YAW: [35 * Math.PI / 180, 65 * Math.PI / 180], SHANK_RIGHT: 0.75
         },
-        TURN_PX: 14
+        TURN_PX: 14,
+        /* Past a full swing a bad swipe costs more than its share: every
+           consequence — the push or pull, the bend, the weight — is
+           multiplied by 1 + OVER_MULT × the overdraw, so the top of the bar
+           costs 1.75× what the same swipe costs at 100%. It was 2.5×, which
+           the owner found a lot for a swing a quarter past full. The tempo's
+           clean band narrows there by TIGHTEN, like the line's. */
+        OVER_MULT: 0.75,
+        /* Putting (a club with no loft). TOL is the line's clean band as a
+           share of the feel's, MULT what a miss costs over a full swing's, and
+           JAB how much long a fully rushed stroke runs — on a putt a snatch
+           goes long, where everywhere else a miss only ever comes up short. */
+        PUTT: { TOL: 0.55, MULT: 1.4, JAB: 0.22 },
+        /* Backspin by touch (swing.js `swipeSpin`): swipe up, and let go
+           before you reach the start. Where you let go, as a share of the way
+           back up, is the spin: all of it within FLAT of IDEAL, none by SPAN
+           past that either side. Under MIN is no shot at all — a thumb that
+           slipped, not a swing. A club with no loft has no spin to give, so
+           letting go early with a putter is still no shot. */
+        SPIN_AT: { MIN: 0.45, IDEAL: 0.75, FLAT: 0.05, SPAN: 0.25 }
     },
+
+    /* What backspin a strike can put on the ball, whichever way it is asked
+       for (the backspin shape, or the touch swing's snap). A wedge spins a
+       ball far harder than a long iron, and a full swing far harder than a
+       half one: the bite asked for is BITE × the loft's share (LOFT, read
+       between the points, degrees) × the meter's fraction (to 130%). MAX is
+       the ceiling, and it is over 1 — a wedge flushed past a full swing
+       lands and checks back a little. The top point is the wedge's loft, and
+       it moved with the wedge (58° to 52°, v1.124.0): past the last point the
+       share holds, so the wedge keeps all the spin it had. */
+    SPIN: {
+        LOFT: [[0, 0], [12, 0.3], [22, 0.7], [32, 1], [45, 1.15], [52, 1.3]],
+        BITE: 0.62,
+        MAX: 1.12
+    },
+
+    /* Easy strike (the Swing panel's toggle, swing.js `setAssist`): every
+       style's strike made forgiving. WIN widens the gate's, the arc's and the
+       needle's clean zones, SPEED slows the meter's marker, TOL widens the
+       swipe's lean, TEMPO adds doublings to its clean tempo band, and COST is
+       what share of a miss's push, pull and weight still lands. Off, the
+       overdraw and putting multipliers above apply; on, they do not. */
+    ASSIST: { WIN: 1.6, SPEED: 0.75, TOL: 2, TEMPO: 0.6, COST: 0.5 },
 
     /* The arcade arc (swing.js `arc…`), in fractions of the dial per second.
        SPEED is the climb, BACK the swing back — a touch slower, because the
@@ -387,6 +472,13 @@ G3.CONFIG = {
        on the same 0..1 scale as the overdraw. The misses: MISS_TURN is how much
        of the bend a full-late strike loses (and a full-early one adds),
        MISS_POWER the weight a miss costs the spin shots. */
+    /* The driver anywhere but the tee (swing.js `deckOver`, game.js
+       `offDeck`): no peg under it and the flattest face in the bag, so it is
+       swung as if OVER of the way into the overdraw — the touch swing's line
+       and tempo bands about a fifth narrower. The meter is not overdrawn, so
+       the miss is not multiplied. */
+    DECK: { OVER: 0.7 },
+
     SHAPE: {
         TURN: 20 * Math.PI / 180,
         SPIN_MAX: 2.4,
@@ -403,8 +495,9 @@ G3.CONFIG = {
        that carries furthest on flat ground and so reads like the right
        number — but it is a *clamp*, and the bag's highest club sat one
        degree under it. Anything genuinely lofted was quietly flattened
-       back to a wedge. A lob wedge is 58° in the real bag and it is 58°
-       here, so the ceiling has to be above it. */
+       back to a wedge. A lob wedge is 58° in the real bag and it was 58°
+       here, so the ceiling had to be above it; the wedge is 52° now (see
+       the club) and the ceiling stayed where it was. */
     MAX_LOFT: 62 * Math.PI / 180,
 
     /* The bag. A club is a loft and a ceiling on power, and that is the whole
@@ -415,7 +508,19 @@ G3.CONFIG = {
        still a tap.
 
        Order matters: it is the order they appear in the bag and the order the
-       number keys select. */
+       number keys select.
+
+       `sand` is what the club keeps out of a bunker: its ceiling there, as a
+       fraction of its own. An iron cannot be swung at full length out of
+       sand — the meter still runs and the swing is still yours, it is just
+       that nothing past that fraction of the club's power reaches the ball,
+       so a half swing out of a bunker is the half swing it always was. The
+       5 iron keeps about eighteen metres, the 7 iron thirteen and a half and
+       the 9 iron twelve, so the ladder down the bag holds from sand. The
+       driver's is 0: it is not in the bag at all while the ball is in a
+       bunker (game.js syncLie). The two wedges and the putter have no `sand`
+       — those are the clubs built to come out of one, and they lose nothing
+       (physics.fromLie). */
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
@@ -438,7 +543,7 @@ G3.CONFIG = {
            two units more of it, because more of the distance is in the air. */
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 12 * Math.PI / 180, power: 24, carry: 31.4, total: 41.4,
+            loft: 12 * Math.PI / 180, power: 24, carry: 31.4, total: 41.4, sand: 0,
             shapes: ['draw', 'fade', 'topped'],
             blurb: 'The reach club. Up and away, and it still runs.'
         },
@@ -451,12 +556,33 @@ G3.CONFIG = {
            under half a driver, and it stops. At 30° it flew twelve and climbed
            nearly two, so it got over a tree as well as a pond; at 22° with the
            flight's lift it flies thirteen and climbs two, and finishes where
-           it did. */
+           it did. With the lift every loft gets now (AIR_LIFT) it climbs three
+           and a quarter — as high as a drive, the way a real 7 iron does —
+           and comes down at 47° rather than 33°, still finishing at eighteen. */
+        /* The irons either side of the 7 are the gaps the long game's own
+           holes leave. A par 5 is seventy to ninety metres, so the second
+           shot after a drive is twenty-five to forty-five — past the 7 iron's
+           eighteen and short of a driver's forty, which left a driver swung
+           at two thirds off the fairway as the only answer. The par 4s leave
+           nine to eighteen, where the 7 iron and the pitch were four metres
+           of run apart with nothing in between. */
         {
-            id: 'iron', name: '7 Iron', short: '7i', key: '3',
-            loft: 22 * Math.PI / 180, power: 14.7, carry: 13.1, total: 17.9,
+            id: 'iron5', name: '5 Iron', short: '5i', key: '3',
+            loft: 17 * Math.PI / 180, power: 17.9, carry: 20.7, total: 27.0, sand: 0.80,
+            shapes: ['draw', 'fade', 'backspin', 'topped'],
+            blurb: 'The long iron. The second shot on a par 5, and the long par 3.'
+        },
+        {
+            id: 'iron', name: '7 Iron', short: '7i', key: '4',
+            loft: 22 * Math.PI / 180, power: 14.4, carry: 13.9, total: 17.9, sand: 0.85,
             shapes: ['draw', 'fade', 'backspin', 'topped'],
             blurb: 'The long approach. Carries what the driver runs into.'
+        },
+        {
+            id: 'iron9', name: '9 Iron', short: '9i', key: '5',
+            loft: 32 * Math.PI / 180, power: 13.3, carry: 11.0, total: 14.1, sand: 0.90,
+            shapes: ['draw', 'fade', 'backspin', 'topped'],
+            blurb: 'The short iron. High at the flag, and it still releases a little.'
         },
         /* The top of the bag is set at the lofts these clubs really carry:
            a pitching wedge is 45° and a lob wedge is 58°, and at 22° and 42°
@@ -468,16 +594,31 @@ G3.CONFIG = {
            face without touching the ceiling would have moved every landing
            spot on the course: 11.7 at 45° and 12.1 at 58° carry what 14 at
            22° and 11.5 at 42° carried. What changes is the height and the
-           stopping, which is the whole reason to reach for either. */
+           stopping, which is the whole reason to reach for either.
+
+           Then the lift reached them (AIR_LIFT): on the plain arc the pitch
+           topped out under two metres, lower than the iron, and the wedge
+           under three. Lifted, the pitch climbs three and the wedge three and
+           a half, and both finish where they did. The run these two cards
+           used to give, 14.6 and 13.0, was older than the turf they land on;
+           the card is measured now (tests.html, "what the card says"). */
         {
-            id: 'chipper', name: 'Pitch', short: 'PW', key: '4',
-            loft: 45 * Math.PI / 180, power: 11.7, carry: 7.6, total: 14.6,
+            id: 'chipper', name: 'Pitch', short: 'PW', key: '6',
+            loft: 45 * Math.PI / 180, power: 12.3, carry: 8.1, total: 10.5,
             shapes: ['backspin', 'topped'],
             blurb: 'Up steep and down steeper. Stops near where it lands.'
         },
+        /* The wedge was 58° and 12.7 of pace for a long while, and it read as
+           the weakest swing in the bag: a full one fell short of the pitch
+           beside it. More pace at 58° sends it up past every other club's
+           apex (tests.html, "every full swing tops out within a stride of the
+           drive") before it buys much distance, so the face came down to 52°
+           with the pace up to 13.3: a sixth more carry and run, a full one
+           finishing just past the pitch, and it still lands steeper than
+           anything else in the bag. */
         {
-            id: 'wedge', name: 'Wedge', short: 'LW', key: '5',
-            loft: 58 * Math.PI / 180, power: 12.1, carry: 7.3, total: 13.0,
+            id: 'wedge', name: 'Wedge', short: 'LW', key: '7',
+            loft: 52 * Math.PI / 180, power: 13.3, carry: 8.8, total: 11.2,
             shapes: ['backspin'],
             blurb: 'The lob. Straight up over water, sand and trees.'
         }
@@ -490,15 +631,19 @@ G3.CONFIG = {
        you may only putt down is a good hole and a putter is the wrong club for
        it: 10.5 of power runs about nine units, which is most of a mini golf
        lane and nowhere near a hole in one, so a putting hole played with the
-       putter is two safe taps and no decision in either of them. Seventeen
+       putter is two safe taps and no decision in either of them. Twenty
        runs the length of one, which turns the same hole into a single
        committed shot that is either in or fifteen units past — and that is the
        hole. It is not in the default bag because a flat club with that much
-       reach would quietly become the answer to half the course. */
+       reach would quietly become the answer to half the course.
+
+       It was seventeen (13.3 on a green) until v1.126.0, when the owner found
+       it short in the hand: a mallet is the club you reach for when a putter
+       will not get there, and it should not need the whole swing to do it. */
     EXTRA_CLUBS: [
         {
-            id: 'mallet', name: 'Mallet', short: 'ML', key: '6',
-            loft: 0, power: 17, carry: 0, total: 13.3,
+            id: 'mallet', name: 'Mallet', short: 'ML', key: '8',
+            loft: 0, power: 20, carry: 0, total: 15.8,
             blurb: 'A putter with a hammer behind it. Rolls flat, and rolls a long way.'
         },
         /* The first club in the bag that is not a loft and a ceiling.
@@ -519,8 +664,8 @@ G3.CONFIG = {
            are built on the assumption that arriving and staying are two
            different problems. */
         {
-            id: 'checker', name: 'Checker', short: 'CK', key: '7',
-            loft: 38 * Math.PI / 180, power: 13.5, bite: 0.78, carry: 9.9, total: 11.5,
+            id: 'checker', name: 'Checker', short: 'CK', key: '9',
+            loft: 38 * Math.PI / 180, power: 13.1, bite: 0.78, carry: 10.0, total: 10.4,
             blurb: 'Lands and stops. The one club that gives up its run on purpose.'
         }
     ],
@@ -547,6 +692,20 @@ G3.CONFIG = {
     MINI_GROUPS: ['mini', 'crazy', 'adventure'],
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
+    /* A pop bumper (courses.bumper, physics.popBumper) is not a rail: it is
+       round, it gives back more than a rail does, and it fires. `give` is the
+       share of the speed it was struck at that comes back off it, and `kick`
+       is the least it sends the ball away at whatever it was struck at — a
+       ball that dribbles up to one is thrown off it at walking pace, which is
+       what the coil under a real one is for and the whole of why a pinball
+       table is not a lane with posts in it. */
+    BUMPER: { give: 0.8, kick: 1.8 },
+    /* A slingshot (courses.sling, physics.collideWalls): the same coil behind
+       a rubber face instead of round a post. It fires off its face at `kick`
+       or `give` of what it was met with, but only past `trip` — under that the
+       ball is rolling along it, not hitting it, and a kicker that fired at a
+       ball leaning on it would never let it go. */
+    SLING: { give: 1.0, kick: 4.5, trip: 0.35 },
     BOUNCE: 0.34,         // vertical speed kept after landing
     LAND_GRIP: 0.86,      // horizontal speed kept on each landing
     LAND_REST: 0.55,      // slower than this after a bounce and it settles
@@ -609,6 +768,34 @@ G3.CONFIG = {
     SPRING_DECAY: 0.62,
     WARP_LOCK: 0.4,
     WARP_MOUTH: 0.18,
+
+    /* The trip through a pipe (physics.js, "the wormhole", v1.129.0). It
+       used to be instant: the ball vanished from the mouth and was rolling
+       out of the far end on the same step, which read as a glitch rather
+       than a journey. Now it is a ride in three parts, each a fixed length so
+       the whole trip costs the player the same wait whatever went in:
+
+         WARP_SWALLOW  the ball spirals into the mouth and sinks out of sight,
+                       WARP_TURNS times round on the way, WARP_SINK down;
+         WARP_DARK     nothing to see but a hole opening in the sky over the
+                       exit — WARP_UP above the ground there, and back along
+                       the exit's heading by as much as the ball will roll in
+                       half the drop (clamped to WARP_BACK), so the arc comes
+                       down moving the way it is about to roll;
+         WARP_DROP     the ball falls out of it and lands on the exit.
+
+       A little over a second in all, which is as long as it can be before it
+       stops being a show and starts being a wait. None of these numbers
+       touches where the ball comes out or how fast: the ride ends on exactly
+       the spot, heading and pace the instant pipe gave, so every hole built
+       on a pipe plays as it did, a second later. */
+    WARP_SWALLOW: 0.42,
+    WARP_DARK: 0.2,
+    WARP_DROP: 0.55,
+    WARP_TURNS: 1.25,
+    WARP_SINK: 0.45,
+    WARP_UP: 3.0,
+    WARP_BACK: [0.4, 2.4],
 
     /* A loop-the-loop (physics.js, "the loop"). LOOP_MOUTH is how far past the
        foot of the loop a rolling ball is still caught by it — a step's worth,
@@ -766,6 +953,33 @@ G3.CONFIG = {
         MAX_FRAMES: 6000    // a tape longer than this stops recording
     },
 
+    /* The end of a hole: how long the score is shown before the game goes
+       on by itself (game.js `tickHoleEnd`). There is no Next button — the
+       owner: "why wait?" — but a tap on the score or Enter skips it. */
+    HOLE_END: {
+        SHOW: 2.2,          // the score, then on
+        LAST: 0.8           // a little longer before the card opens
+    },
+
+    /* Down the cup, between two worlds of the tour (render.js → startDive,
+       game.js → throughPortal). The camera leaves wherever it was watching
+       the ball drop, comes over the cup and falls into it, ending at the
+       lip looking down, where everything is the inside of the hole; the
+       wipe on to the next world's sky starts closing while it falls. */
+    DIVE: {
+        DUR: 2.0,           // seat to rim; the wipe closes over the last 0.85 s (game.js WIPE_CLOSE)
+        OVER: 1.2,          // the top of the arc: this far back from the cup…
+        UP_MIN: 2.2,        // …and at least this high over it…
+        UP_MAX: 5,          // …and no higher than this
+        LIP_FILL: 0.36,     // it stops where the picture's wider half reaches this far across the lip…
+        END_MIN: 0.3,       // …but no lower over it than this…
+        END_MAX: 1.2,       // …and no higher
+        PIN_LIFT: 30,       // the flag launches this far straight up…
+        PIN_BY: 0.5,        // …in this share of the dive, then is gone
+        PREPARE_AFTER: 1.2, // the next world starts building this long after the sink, if it has not already…
+        PREPARE_AHEAD: 6    // …which it does once a hole has been open this long, at the first quiet moment
+    },
+
     /* The demo's own camera. Nobody is aiming, so the seat behind the ball is
        the one seat the picture does not need: what a demo is for is the hole,
        and a hole is a shape best read from off to one side and moving.
@@ -829,6 +1043,10 @@ G3.CONFIG = {
     SWIPE_KEY: 'loftLinks.touchSwing',
     // The swing panel's settings (feel, timing, shapes, where), as JSON.
     TUNE_KEY: 'loftLinks.swingTune',
+    /* Dev mode ('1' or absent), switched with ?dev=1 and ?dev=0 and kept.
+       It shows the swing styles other than the touch swing (game.js "swing
+       styles"); a round struck with one of them is not recorded. */
+    DEV_KEY: 'loftLinks.dev',
     /* Pass-and-play: how many are sharing the device, 1 to 4 (game.js →
        "pass and play"), and the ball each of them plays. White is player one's
        because it is the ball everybody already has; the other three are a
@@ -868,6 +1086,39 @@ G3.CONFIG = {
        what the mode is for — you are meant to be able to follow it. */
     BOT_FAN: 12,
     BOT_PAUSE: 1.1,
+    /* Milliseconds of each frame the caddie may spend on its plan (bot.js,
+       "the plan"; game.js, thinkSim). The plan is a fixed count of simulated
+       shots, so this sets how long the thinking takes and how smooth the
+       frames stay meanwhile, never which shot it ends in. Nothing on screen
+       moves while it thinks, so a frame rate in the thirties costs nothing
+       to look at, and a phone already spending most of a frame drawing
+       gets the plan made in a couple of seconds rather than six. */
+    BOT_SLICE: 20,
+    /* The bot's hands, for when it is standing in for a person rather than
+       proving a hole can be done (bot.js, `opts.hands`; tools/human-check.mjs).
+
+       The greedy bot strikes every ball exactly where it meant to, and picks
+       its weight out of thousands of trial shots — so its card says a hole
+       *can* be played, and nothing at all about whether it is fair. Coral Keys
+       scored ten under par for it and was too hard for people: a line that
+       finishes nearest the flag in a perfect world is very often the line
+       that finishes in the sea a few degrees either side of it.
+
+       These are a decent amateur's misses, as one standard deviation: how far
+       off the line the ball leaves and how far off the weight. Aim on screen
+       is exact, so the line is the small one; the weight is a meter read by
+       eye, and that is where people actually miss. A putt is a shorter,
+       steadier stroke, so it has its own pair. */
+    BOT_HANDS: {
+        yaw: 3 * Math.PI / 180, power: 0.08,
+        putt: { yaw: 1.5 * Math.PI / 180, power: 0.09 },
+        /* And the moment, in seconds: a person meaning to strike on a beat
+           strikes a little either side of it. It is drawn only where a wall
+           moves (bot.js, `late`), so the long game and every still hole play
+           exactly the rounds they did — and the crazy courses stop reading
+           easier to human-check than people find them. */
+        time: 0.08
+    },
     /* The wind-up: how long the aim takes to swing round to the shot it has
        chosen, and how long the meter then takes to fill. Together they are the
        lead the plan is made for — see planShot — so lengthening either one
@@ -896,10 +1147,85 @@ G3.CONFIG = {
        not a demo, it is a page that will not sit still. Anything at all
        resets it: a key, a press, a wheel, or a mouse crossing the window. */
     DEMO_IDLE: 45,
-    DEMO_HOLD: 2.6
+    /* The holes the demo has already shown on this machine, so a visitor who
+       comes back is not shown the same one again (courses.js `demoDraw`). */
+    DEMO_SEEN_KEY: 'loftLinks.demoSeen',
+    DEMO_HOLD: 2.6,
+    /* The demo caddie's misses, one standard deviation each, drawn on every
+       stroke after it has chosen it (game.js `playPlanned`). Looser than
+       BOT_HANDS on purpose: the perfect bot aced hole after hole, and a demo
+       that never misses shows a game nobody will play like that. The line is
+       a few degrees, the weight about an eighth, and a putt misses too. */
+    DEMO_HANDS: {
+        yaw: 4 * Math.PI / 180, power: 0.12,
+        putt: { yaw: 2.5 * Math.PI / 180, power: 0.12 }
+    }
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names
    ids out of this list; nothing else may. */
 G3.CONFIG.ALL_CLUBS = G3.CONFIG.CLUBS.concat(G3.CONFIG.EXTRA_CLUBS);
 G3.CONFIG.LANDING_DEFAULT = { grip: G3.CONFIG.LAND_GRIP, bounce: G3.CONFIG.BOUNCE };
+
+/* Metres, as a player reads them.
+
+   The simulation is in world units and the mini golf courses read them as
+   metres, which is right for a lane. The long game is the same physics at
+   about a fifth of a real course's size — a full drive runs forty-one units —
+   and printing that as "41 m" made the driver a pitching wedge. So the long
+   game (and the range, which is a long hole) reads LONG_M metres to the unit:
+   the driver's card total comes out near 230 m, the middle of a real
+   amateur's drive, and a par 5 of seventy to ninety units is 400 to 500 m.
+   Only the words change; nothing the ball does reads this.
+
+   And the words are rough on purpose. An exact distance to the flag and an
+   exact run for the club in hand turned picking a club and a pull into a
+   sum, so neither is said exactly any more: the flag is rounded (G3.distance's
+   `step`), a club is a band BAND either side of its full swing
+   (thirty per cent wide, the spread a real player gets out of one club), and
+   inside NEAR there is no number at all — that is a green to read, not a
+   figure to match. */
+G3.CONFIG.LONG_M = 5.5;
+G3.CONFIG.BAND = 0.15;
+G3.CONFIG.NEAR = 20;
+
+G3.distance = (function (C) {
+    function scale(hole) { return hole && hole.longGame ? C.LONG_M : 1; }
+    /* Rounded to a step that fits the number: whole metres on a mini lane,
+       fives up to a hundred, tens past it. Tens everywhere turned a mini
+       hole into "< 20 m" and the mallet's reach into "20–20 m". */
+    function step(m) { return m < 30 ? 1 : m < 100 ? 5 : 10; }
+    function round(m) { var k = step(m); return Math.round(m / k) * k; }
+    /* NEAR is the long game's metres; on a lane it is the same distance
+       in units — a green to read, at either scale. */
+    function near(s) { return Math.max(1, Math.round(C.NEAR * s / C.LONG_M)); }
+    return {
+        scale: scale,
+        round: round,
+        near: function (hole, s) { return near(s || scale(hole)); },
+        // A distance that has happened (a shot's length): exact enough to brag about.
+        said: function (units, hole) {
+            var m = units * scale(hole);
+            return (m < C.NEAR ? m.toFixed(1) : String(Math.round(m))) + ' m';
+        },
+        // The flag: rounded, and nothing inside NEAR.
+        toFlag: function (units, hole) {
+            var m = units * scale(hole), n = near(scale(hole));
+            return m < n ? '< ' + n + ' m' : '≈ ' + round(m) + ' m';
+        },
+        // A club's full swing as a band; [lo, hi] in metres, or null inside NEAR.
+        band: function (units, hole, s) {
+            s = s || scale(hole);
+            var m = units * s, n = near(s);
+            var lo = round(m * (1 - C.BAND)), hi = round(m * (1 + C.BAND));
+            if (hi < n) return null;
+            lo = Math.max(n, lo);
+            if (hi <= lo) hi = lo + step(lo);
+            return [lo, hi];
+        },
+        bandText: function (units, hole, s) {
+            var b = this.band(units, hole, s);
+            return b ? b[0] + '–' + b[1] + ' m' : '< ' + near(s || scale(hole)) + ' m';
+        }
+    };
+})(G3.CONFIG);

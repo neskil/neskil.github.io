@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Pocket Orbit | Niklas Billgren</title>
+    <meta name="description" content="Fly a cargo tug around a small planet with real orbital mechanics. Burn at the right moment, catch moving stations, run a delivery round and swing out to the Moon. Speed up to slow down.">
+    <meta name="theme-color" content="#08090c">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="canonical" href="https://neskil.github.io/orbit/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Pocket Orbit">
+    <meta property="og:description" content="Real orbital mechanics, pocket-sized. Catch stations, run deliveries, reach the Moon.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/orbit/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/orbit.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Earth seen from above the North Pole, a cargo tug burning onto a dotted transfer orbit towards Ring Station, with flight controls along the bottom.">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Special+Elite&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* A 1957 control room: matte enamel-painted steel, riveted plates,
+           cream bakelite keys with indicator lamps, amber readouts behind
+           black glass, and orders typed on paper. Nothing glossy or see-through. */
+        :root {
+            --bg: #08090c;
+            --steel: #4a5a4f;           /* enamel green-grey */
+            --steel-dark: #2c3630;
+            --steel-edge: #171c18;
+            --steel-light: #6b7d70;
+            --paper: #e8dcc0;
+            --paper-dark: #cdbd98;
+            --paper-edge: #a8966c;
+            --ink: #2b2419;
+            --ink-soft: #5b4f3c;
+            --red: #b8322a;
+            --red-dark: #7d1f19;
+            --amber: #ffb53f;
+            --amber-dim: #7a5216;
+            --bakelite: #e2d5b4;
+            --bakelite-edge: #8f8064;
+            --lamp-pro: #7ed957;
+            --lamp-retro: #ffb53f;
+            --lamp-radial: #79c6e8;
+            --lamp-target: #ff6a4d;
+            --display: 'Oswald', 'Arial Narrow', sans-serif;
+            --type: 'Special Elite', 'Courier New', monospace;
+            --mono: 'Share Tech Mono', ui-monospace, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        [hidden] { display: none !important; }
+
+        html, body { height: 100%; overflow: hidden; }
+
+        body {
+            background: var(--bg);
+            color: var(--paper);
+            font-family: var(--display);
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none;
+        }
+
+        button { font: inherit; color: inherit; }
+
+        :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+
+        #sky {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        /* ── Materials ── */
+
+        /* Painted steel, with a rivet in each corner. */
+        .plate {
+            background-color: var(--steel);
+            background-image:
+                radial-gradient(circle at 7px 7px, #8a9a8e 0 1.5px, #1d241f 2.2px, transparent 2.8px),
+                radial-gradient(circle at calc(100% - 7px) 7px, #8a9a8e 0 1.5px, #1d241f 2.2px, transparent 2.8px),
+                radial-gradient(circle at 7px calc(100% - 7px), #8a9a8e 0 1.5px, #1d241f 2.2px, transparent 2.8px),
+                radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #8a9a8e 0 1.5px, #1d241f 2.2px, transparent 2.8px);
+            border: 2px solid var(--steel-edge);
+            border-radius: 4px;
+            box-shadow: inset 0 1px 0 var(--steel-light), inset 0 -2px 0 var(--steel-dark), 4px 4px 0 #000;
+        }
+
+        /* Typed paper: flat, faintly ruled, with a hard shadow. */
+        .paper {
+            background-color: var(--paper);
+            background-image: repeating-linear-gradient(0deg, transparent 0 23px, rgba(91, 79, 60, 0.07) 23px 24px);
+            color: var(--ink);
+            border: 1px solid var(--paper-edge);
+            border-radius: 2px;
+            box-shadow: 4px 4px 0 #000;
+            font-family: var(--type);
+        }
+
+        /* Telegraph tape: a cream strip with ticker type. */
+        .tape {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--type);
+            border-top: 2px dashed var(--paper-edge);
+            border-bottom: 2px dashed var(--paper-edge);
+            box-shadow: 3px 3px 0 #000;
+        }
+
+        /* ── Top bar ── */
+        .bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: max(0.6rem, env(safe-area-inset-top)) 0.8rem 0.6rem;
+            pointer-events: none;
+        }
+
+        .bar > * { pointer-events: auto; }
+
+        .back, .chip {
+            color: var(--paper);
+            text-decoration: none;
+            font-family: var(--display);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.3rem 0.75rem;
+            border-radius: 3px;
+            border: 2px solid var(--steel-edge);
+            background: var(--steel);
+            box-shadow: inset 0 1px 0 var(--steel-light), 3px 3px 0 #000;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .back:hover, .chip:hover { background: var(--steel-light); }
+
+        .back:active, .chip:active { transform: translate(2px, 2px); box-shadow: inset 0 1px 0 var(--steel-light), 1px 1px 0 #000; }
+
+        h1 {
+            font-family: var(--display);
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            white-space: nowrap;
+            color: var(--paper);
+        }
+
+        h1::before { content: '★'; color: var(--red); margin-right: 0.4rem; }
+
+        h1 span { color: var(--red); }
+
+        .bar .spacer { flex: 1; pointer-events: none; }
+
+        #total { color: var(--amber); font-family: var(--mono); }
+
+        /* ── Mission order (top left) ── */
+        #mission {
+            position: fixed;
+            left: 0.8rem;
+            top: 3.4rem;
+            width: min(330px, calc(100vw - 1.6rem));
+            padding: 0.7rem 0.85rem 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .m-head {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            border-bottom: 2px solid var(--ink);
+            padding-bottom: 0.3rem;
+        }
+
+        .m-num {
+            font-family: var(--display);
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #fff;
+            background: var(--red);
+            padding: 0.05rem 0.4rem;
+            white-space: nowrap;
+        }
+
+        #m-name {
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex: 1;
+        }
+
+        #m-fold {
+            border: 0;
+            background: transparent;
+            color: var(--ink);
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 0 0.2rem;
+        }
+
+        #m-goals { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.86rem; }
+
+        #m-goals li { display: flex; gap: 0.45rem; align-items: baseline; color: var(--ink-soft); }
+
+        #m-goals li::before { content: '☐'; }
+
+        #m-goals li.now { color: var(--ink); }
+
+        #m-goals li.done { text-decoration: line-through; text-decoration-color: var(--red); }
+
+        #m-goals li.done::before { content: '☒'; color: var(--red); text-decoration: none; }
+
+        .fuel { display: flex; flex-direction: column; gap: 0.25rem; }
+
+        .fuel-label {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--display);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--ink-soft);
+        }
+
+        .fuel-label b { color: var(--ink); font-family: var(--mono); font-size: 0.85rem; font-weight: 400; letter-spacing: 0; }
+
+        /* A fuel gauge: a black well, the fuel painted in stripes. */
+        .fuel-bar {
+            position: relative;
+            height: 12px;
+            background: repeating-linear-gradient(90deg, #d98a2b 0 6px, #c47722 6px 8px);
+            border: 2px solid var(--ink);
+            margin-bottom: 0.7rem;
+        }
+
+        #fuel-used {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            background: #241f17;
+        }
+
+        .tick {
+            position: absolute;
+            top: -5px;
+            bottom: -5px;
+            width: 2px;
+            background: var(--red);
+        }
+
+        .tick span {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--display);
+            font-size: 0.62rem;
+            color: var(--red);
+            white-space: nowrap;
+        }
+
+        .fuel.spent .tick { opacity: 0.35; }
+
+        #m-tip {
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--ink);
+            border-left: 3px solid var(--red);
+            padding-left: 0.55rem;
+        }
+
+        #m-tip button {
+            border: 0;
+            background: none;
+            color: var(--red);
+            cursor: pointer;
+            font-family: var(--display);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.72rem;
+            margin-left: 0.25rem;
+        }
+
+        .m-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+        /* Buttons on paper: inked outlines, the main one a red stamp. */
+        .btn {
+            border: 2px solid var(--ink);
+            background: transparent;
+            color: var(--ink);
+            border-radius: 2px;
+            padding: 0.3rem 0.75rem;
+            font-family: var(--display);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            box-shadow: 2px 2px 0 var(--ink);
+        }
+
+        .btn:hover { background: var(--paper-dark); }
+
+        .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+
+        .btn-primary { background: var(--red); border-color: var(--red-dark); color: #fff3e0; box-shadow: 2px 2px 0 var(--red-dark); }
+
+        .btn-primary:hover { background: #a02a23; }
+
+        #mission.folded .fold-away { display: none; }
+
+        /* ── Instruments (top right): amber figures behind black glass ── */
+        #telemetry {
+            position: fixed;
+            right: 0.8rem;
+            top: 3.4rem;
+            padding: 0.85rem 0.95rem;
+            min-width: 200px;
+        }
+
+        .dial {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 0.1rem 0.9rem;
+            background: #0b0c08;
+            border: 2px solid var(--steel-edge);
+            box-shadow: inset 0 0 0 1px #000, inset 0 2px 6px #000;
+            padding: 0.45rem 0.6rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #a89a78;
+        }
+
+        .dial b {
+            color: var(--amber);
+            font-family: var(--mono);
+            font-weight: 400;
+            font-size: 0.86rem;
+            text-align: right;
+            letter-spacing: 0;
+            white-space: nowrap;
+            text-shadow: 0 0 6px rgba(255, 181, 63, 0.45);
+        }
+
+        .dial .sep { grid-column: 1 / -1; height: 1px; background: #3a3424; margin: 0.25rem 0; }
+
+        .dial .tgt { color: var(--lamp-target); }
+
+        #t-dockable.ok { color: var(--lamp-pro); text-shadow: 0 0 6px rgba(126, 217, 87, 0.5); }
+
+        #t-dockable.no { color: var(--lamp-target); text-shadow: 0 0 6px rgba(255, 106, 77, 0.5); }
+
+        .plate-label {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--paper);
+            margin-bottom: 0.35rem;
+            text-align: center;
+        }
+
+        /* ── Tape and telegrams ── */
+        #caption {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(var(--controls-h, 140px) + 0.7rem);
+            max-width: min(560px, calc(100vw - 1.6rem));
+            padding: 0.35rem 1rem;
+            font-size: 0.86rem;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        #caption.demo::before { content: 'AUTOPILOT ▸ '; color: var(--red); }
+
+        #toasts {
+            position: fixed;
+            left: 50%;
+            top: 30%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            pointer-events: none;
+            width: max-content;
+            max-width: calc(100vw - 2rem);
+        }
+
+        .toast {
+            padding: 0.4rem 1.1rem;
+            font-size: 1rem;
+            text-align: center;
+            text-transform: uppercase;
+            animation: toast 2.6s steps(1, end) forwards, ticker 0.35s steps(6, end);
+        }
+
+        .toast.good { color: #2f5d1e; }
+
+        .toast.warn { color: var(--red); }
+
+        @keyframes toast {
+            0%, 85% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes ticker { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+        /* ── Control panel (bottom) ── */
+        #controls {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: stretch;
+            gap: 0.6rem;
+            padding: 0.6rem 0.8rem max(0.7rem, env(safe-area-inset-bottom));
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #controls > * { pointer-events: auto; }
+
+        .group {
+            display: grid;
+            gap: 0.4rem;
+            padding: 0.7rem 0.8rem;
+        }
+
+        .engine { grid-template-columns: repeat(4, auto); }
+
+        .clock { grid-template-columns: repeat(4, auto); align-items: center; }
+
+        /* Bakelite keys: they go down when pressed, and the burn keys carry a lamp. */
+        .key {
+            position: relative;
+            border: 2px solid #1b1a15;
+            border-bottom-width: 5px;
+            border-bottom-color: var(--bakelite-edge);
+            background: var(--bakelite);
+            color: var(--ink);
+            border-radius: 4px;
+            padding: 0.42rem 0.6rem 0.35rem;
+            font-family: var(--display);
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            min-width: 3.3rem;
+            min-height: 2.7rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.12rem;
+            touch-action: none;
+            line-height: 1.1;
+            box-shadow: 0 2px 0 #000;
+        }
+
+        .key small { font-family: var(--mono); font-size: 0.62rem; font-weight: 400; color: var(--ink-soft); }
+
+        .key:hover { background: #ece1c3; }
+
+        .key:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        .key.held, .key[aria-pressed="true"], .key:active:not(:disabled) {
+            transform: translateY(3px);
+            border-bottom-width: 2px;
+            box-shadow: none;
+            background: #d4c6a2;
+        }
+
+        .key[data-burn]::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3b3a33;
+            border: 1px solid #111;
+            box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+            margin-bottom: 0.1rem;
+        }
+
+        .key[data-burn="pro"] { --lamp: var(--lamp-pro); }
+        .key[data-burn="retro"] { --lamp: var(--lamp-retro); }
+        .key[data-burn="out"], .key[data-burn="in"] { --lamp: var(--lamp-radial); }
+        .key[data-burn="match"], .key[data-burn="approach"] { --lamp: var(--lamp-target); }
+
+        .key[data-burn].held::before { background: var(--lamp); box-shadow: 0 0 6px 2px var(--lamp); }
+
+        #fine[aria-pressed="true"], #pause[aria-pressed="true"] { color: var(--red); }
+
+        /* The warp counter: an odometer window. */
+        #warp {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: center;
+            height: 2.7rem;
+            min-width: 3.6rem;
+            padding: 0 0.4rem;
+            background: #0b0c08;
+            border: 2px solid var(--steel-edge);
+            box-shadow: inset 0 2px 6px #000;
+            color: var(--amber);
+            font-family: var(--mono);
+            font-size: 1rem;
+            text-shadow: 0 0 6px rgba(255, 181, 63, 0.45);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Dialogs: typed orders on a sheet ── */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(4, 5, 7, 0.82);
+            padding: 1rem;
+            z-index: 10;
+        }
+
+        .dialog {
+            width: min(580px, 100%);
+            max-height: calc(100dvh - 2rem);
+            overflow: auto;
+            padding: 0 1.2rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            box-shadow: 8px 8px 0 #000;
+        }
+
+        .sheet-head {
+            margin: 0 -1.2rem;
+            padding: 0.45rem 1.2rem;
+            background: var(--red);
+            color: #fff3e0;
+            font-family: var(--display);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .dialog h2 {
+            font-family: var(--display);
+            font-size: 1.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--ink);
+        }
+
+        .dialog h2 span { color: var(--red); }
+
+        .dialog p { color: var(--ink); font-size: 0.88rem; line-height: 1.55; }
+
+        #levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.55rem; }
+
+        .lv {
+            text-align: left;
+            border: 2px solid var(--ink);
+            background: #f2e9d3;
+            border-radius: 2px;
+            padding: 0.55rem 0.65rem;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            color: var(--ink);
+            box-shadow: 3px 3px 0 var(--ink);
+        }
+
+        .lv:hover:not(:disabled) { background: #fff7e4; }
+
+        .lv:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+        .lv:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; border-style: dashed; }
+
+        .lv-top { display: flex; align-items: center; gap: 0.45rem; }
+
+        .lv-num {
+            display: inline-grid;
+            place-items: center;
+            width: 1.6rem;
+            height: 1.6rem;
+            border-radius: 50%;
+            border: 2px solid var(--red);
+            color: var(--red);
+            font-family: var(--display);
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+
+        .lv-name { font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; flex: 1; }
+
+        .lv-stars { color: var(--red); font-size: 0.85rem; letter-spacing: 1px; }
+
+        .lv-blurb { color: var(--ink-soft); font-family: var(--type); font-size: 0.74rem; line-height: 1.45; }
+
+        .dim { color: rgba(43, 36, 25, 0.2); }
+
+        #res-stars { font-size: 2.4rem; color: var(--red); letter-spacing: 6px; text-align: center; margin-top: 0.6rem; }
+
+        /* The verdict, rubber-stamped. */
+        #res-title {
+            align-self: center;
+            text-align: center;
+            color: var(--red);
+            border: 3px solid var(--red);
+            padding: 0.15rem 0.8rem;
+            transform: rotate(-3deg);
+            font-size: 1.5rem;
+        }
+
+        #res-lines { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.86rem; color: var(--ink-soft); text-align: center; }
+
+        #res-lines b { color: var(--ink); font-family: var(--mono); font-weight: 400; }
+
+        .row { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+
+        .help { font-size: 0.76rem; color: var(--ink-soft); line-height: 1.8; }
+
+        .help kbd {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            background: var(--bakelite);
+            border: 1px solid var(--ink);
+            border-bottom-width: 3px;
+            border-radius: 3px;
+            padding: 0 0.3rem;
+            color: var(--ink);
+        }
+
+        @media (hover: none) { .desktop-only { display: none; } .key small.k { display: none; } }
+
+        @media (max-width: 700px) {
+            h1 { font-size: 0.95rem; letter-spacing: 0.08em; }
+            #mission { top: 3rem; padding: 0.5rem 0.65rem 0.6rem; width: min(270px, calc(100vw - 1.6rem)); }
+            /* A strip of instruments just above the controls, out of the way of the view. */
+            #telemetry { top: auto; bottom: var(--controls-h, 140px); left: 0.4rem; right: 0.4rem; min-width: 0; padding: 0.45rem 0.55rem; }
+            #telemetry .plate-label { display: none; }
+            .dial { grid-template-columns: auto 1fr auto 1fr; font-size: 0.6rem; padding: 0.3rem 0.45rem; gap: 0.05rem 0.6rem; }
+            .dial .sep { display: none; }
+            #caption { bottom: calc(var(--controls-h, 140px) + var(--tele-h, 0px) + 0.5rem); }
+            .dial b { font-size: 0.74rem; }
+            #mission:not(.folded) ~ #telemetry { display: none; }
+            #telemetry .opt { display: none; }
+            #controls { gap: 0.4rem; padding-left: 0.4rem; padding-right: 0.4rem; }
+            .key { min-width: 2.9rem; min-height: 2.5rem; padding: 0.35rem 0.3rem 0.3rem; font-size: 0.7rem; letter-spacing: 0.03em; }
+            .group { padding: 0.5rem; gap: 0.35rem; }
+            .engine { grid-template-columns: repeat(4, 1fr); width: 100%; }
+            .clock { grid-template-columns: auto auto 2.8rem auto 1fr 1fr 1fr; width: 100%; }
+            #controls { padding-top: 0.4rem; }
+            .clock .key { min-width: 2.3rem; }
+            #warp { min-width: 2.8rem; height: 2.5rem; font-size: 0.85rem; }
+            .back { padding: 0.25rem 0.55rem; }
+        }
+
+        @media (max-width: 480px) {
+            .chip-label { display: none; }
+            .bar { gap: 0.4rem; }
+        }
+
+        @media (max-width: 340px) {
+            .bar h1 { display: none; }
+        }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9GP823TGLB');
+    </script>
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "VideoGame",
+                "url": "https://neskil.github.io/orbit/",
+                "description": "Fly a cargo tug around a small planet with real orbital mechanics. Burn at the right moment, catch moving stations, run a delivery round and swing out to the Moon. Speed up to slow down.",
+                "image": "https://neskil.github.io/assets/og/orbit.png",
+                "name": "Pocket Orbit",
+                "author": {
+                    "@id": "https://neskil.github.io/#niklas"
+                },
+                "isPartOf": {
+                    "@id": "https://neskil.github.io/#website"
+                },
+                "applicationCategory": "GameApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript and Canvas support",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                }
+            },
+            {
+                "@type": "Person",
+                "@id": "https://neskil.github.io/#niklas",
+                "name": "Niklas Billgren",
+                "url": "https://neskil.github.io/",
+                "jobTitle": "Supply chain consultant",
+                "image": "https://neskil.github.io/assets/portrait.webp",
+                "sameAs": [
+                    "https://www.linkedin.com/in/niklas-eskilsson/"
+                ]
+            }
+        ]
+    }
+    </script>
+</head>
+<body>
+    <canvas id="sky" aria-label="The planet seen from above, with your ship, its predicted path, the stations and their orbits."></canvas>
+
+    <header class="bar">
+        <a class="back" href="../index.html">← Back</a>
+        <h1>Pocket <span>Orbit</span></h1>
+        <span class="spacer"></span>
+        <button type="button" class="chip" id="sound" aria-pressed="true" title="Sound (N)">🔊</button>
+        <button type="button" class="chip" id="open-levels" title="Missions (L)"><span class="chip-label">Missions </span><span id="total"></span></button>
+    </header>
+
+    <section id="mission" class="paper" aria-label="Mission">
+        <div class="m-head">
+            <span class="m-num" id="m-num"></span>
+            <span id="m-name"></span>
+            <button type="button" id="m-fold" aria-expanded="true" aria-controls="mission" title="Fold the mission card">▾</button>
+        </div>
+        <ul id="m-goals"></ul>
+        <div class="fuel" id="fuel">
+            <div class="fuel-label"><span>Δv left</span><b id="fuel-left"></b></div>
+            <div class="fuel-bar" id="fuel-bar"><div id="fuel-used"></div></div>
+        </div>
+        <p id="m-tip" class="fold-away"></p>
+        <div class="m-actions fold-away">
+            <button type="button" class="btn btn-primary" id="demo" title="Let the autopilot fly it (H)">▶ Show me</button>
+            <button type="button" class="btn" id="restart" title="Start the mission again (R)">↺ Restart</button>
+            <button type="button" class="btn" id="view" title="Camera (V)">View: Auto</button>
+        </div>
+    </section>
+
+    <section id="telemetry" class="plate" aria-label="Telemetry" aria-live="off">
+        <div class="plate-label">Telemetry</div>
+        <div class="dial">
+        <span class="opt">Clock</span><b class="opt" id="t-clock"></b>
+        <span class="opt">Orbiting</span><b class="opt" id="t-ref"></b>
+        <span>Altitude</span><b id="t-alt"></b>
+        <span class="opt">Speed</span><b class="opt" id="t-speed"></b>
+        <span>Apoapsis</span><b id="t-ap"></b>
+        <span>Periapsis</span><b id="t-pe"></b>
+        <span class="sep tgt-row"></span>
+        <span class="tgt tgt-row" id="t-name">Target</span><b class="tgt-row" id="t-dist"></b>
+        <span class="tgt-row">Rel. speed</span><b class="tgt-row" id="t-dockable"></b>
+        <span class="tgt-row opt">Closest</span><b class="tgt-row opt" id="t-closest"></b>
+        </div>
+    </section>
+
+    <div id="caption" class="tape" hidden></div>
+    <div id="toasts" aria-live="polite"></div>
+
+    <div id="controls">
+        <div class="group engine plate" role="group" aria-label="Engine (hold to burn)">
+            <button type="button" class="key" data-burn="retro">Retro<small class="k">S</small></button>
+            <button type="button" class="key" data-burn="pro">Prograde<small class="k">W</small></button>
+            <button type="button" class="key" data-burn="in">Rad. in<small class="k">A</small></button>
+            <button type="button" class="key" data-burn="out">Rad. out<small class="k">D</small></button>
+            <button type="button" class="key" data-burn="match" title="Burn against your speed relative to the target">Match<small class="k">M</small></button>
+            <button type="button" class="key" data-burn="approach" title="Burn straight at the target">Approach<small class="k">F</small></button>
+            <button type="button" class="key" id="fine" aria-pressed="false" title="Fine throttle, 20% (hold Shift)">Fine<small class="k">⇧</small></button>
+        </div>
+        <div class="group clock plate" role="group" aria-label="Time">
+            <button type="button" class="key" id="pause" aria-pressed="false" title="Pause (Space)">❚❚<small class="k">␣</small></button>
+            <button type="button" class="key" id="slower" title="Slower (,)">−<small class="k">,</small></button>
+            <output id="warp">1×</output>
+            <button type="button" class="key" id="faster" title="Faster (.)">+<small class="k">.</small></button>
+            <button type="button" class="key" data-warpto="ap" title="Warp to apoapsis (Z)">→ Ap<small class="k">Z</small></button>
+            <button type="button" class="key" data-warpto="pe" title="Warp to periapsis (X)">→ Pe<small class="k">X</small></button>
+            <button type="button" class="key" data-warpto="meet" title="Warp to the closest approach (C)">→ Meet<small class="k">C</small></button>
+        </div>
+    </div>
+
+    <div class="overlay" id="levels-overlay" hidden>
+        <div class="dialog paper" role="dialog" aria-modal="true" aria-labelledby="levels-title">
+            <div class="sheet-head"><span>★ Flight orders</span><span>Pocket Orbit programme</span></div>
+            <h2 id="levels-title">Pocket <span>Orbit</span></h2>
+            <p>You fly a small cargo tug around a pocket-sized Earth, and the physics are real. Thrust the way you are going and the far side of your orbit rises. Thrust backwards and you fall into a lower, faster orbit. To catch something ahead of you, you slow down.</p>
+            <div id="levels"></div>
+            <p class="help desktop-only">
+                <kbd>W</kbd> <kbd>S</kbd> prograde / retrograde · <kbd>A</kbd> <kbd>D</kbd> radial in / out · <kbd>M</kbd> match · <kbd>F</kbd> approach · hold <kbd>Shift</kbd> for fine thrust<br>
+                <kbd>,</kbd> <kbd>.</kbd> time warp · <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> warp to Ap / Pe / closest · <kbd>Space</kbd> pause · <kbd>V</kbd> camera · scroll to zoom · click a station to target it
+            </p>
+            <div class="row"><button type="button" class="btn" id="close-levels">Close</button></div>
+        </div>
+    </div>
+
+    <div class="overlay" id="result" hidden>
+        <div class="dialog paper" role="dialog" aria-modal="true" aria-labelledby="res-title">
+            <div class="sheet-head"><span>★ Flight report</span><span id="res-mission"></span></div>
+            <div id="res-stars"></div>
+            <h2 id="res-title"></h2>
+            <div id="res-lines"></div>
+            <div class="row">
+                <button type="button" class="btn" id="res-retry">↺ Try again</button>
+                <button type="button" class="btn" id="res-levels">Missions</button>
+                <button type="button" class="btn btn-primary" id="res-next">Next mission →</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

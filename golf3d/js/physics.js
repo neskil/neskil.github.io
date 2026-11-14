@@ -179,6 +179,14 @@
             dx = x - (L[0] + ex * t); dz = z - (L[1] + ez * t);
         } else if (m.ring) {
             var g = m.ring, ox = x - g.cx, oz = z - g.cz;
+            /* A filled ring is a table: everything inside the circle is on
+               the spine, so the profile is at its full height all the way
+               across and the flank falls away from the rim (courses
+               `mesa`). Level ground, exactly — which is what a cup needs. */
+            if (g.fill && ox * ox + oz * oz <= g.R * g.R) {
+                _sp.x = 0; _sp.z = 0;
+                return 0;
+            }
             var ang = Math.atan2(oz, ox);
             if (g.a0 !== undefined) {
                 // An arc: an angle outside it is measured from the nearer
@@ -254,6 +262,23 @@
                     g.x += dr * dx - dt * dz;
                     g.z += dr * dz + dt * dx;
                 }
+            } else if (t.grid) {
+                /* A baked height map: the ground of somewhere else, sampled
+                   on a square grid and read back bilinearly (the World
+                   Tour's holes sculpted to a Portals world — portals.js,
+                   tools/bake-ground.mjs). Off the grid it is the edge
+                   carried on, level. The slope is the cell's own, so it
+                   steps at a cell edge the way the mesh drawn from the same
+                   samples does. */
+                var G = t.grid, fx = (x - G.x0) / G.d, fz = (z - G.z0) / G.d;
+                fx = fx < 0 ? 0 : fx > G.nx - 1 ? G.nx - 1 : fx;
+                fz = fz < 0 ? 0 : fz > G.nz - 1 ? G.nz - 1 : fz;
+                var ix = Math.min(G.nx - 2, Math.floor(fx)), iz = Math.min(G.nz - 2, Math.floor(fz));
+                var ux = fx - ix, uz = fz - iz, o = iz * G.nx + ix, H = G.h;
+                var h00 = H[o], h10 = H[o + 1], h01 = H[o + G.nx], h11 = H[o + G.nx + 1];
+                f += (t.a === undefined ? 1 : t.a) * ((h00 * (1 - ux) + h10 * ux) * (1 - uz) + (h01 * (1 - ux) + h11 * ux) * uz);
+                if (fx > 0 && fx < G.nx - 1) g.x += (t.a === undefined ? 1 : t.a) * ((h10 - h00) * (1 - uz) + (h11 - h01) * uz) / G.d;
+                if (fz > 0 && fz < G.nz - 1) g.z += (t.a === undefined ? 1 : t.a) * ((h01 - h00) * (1 - ux) + (h11 - h10) * ux) / G.d;
             } else if (t.gauss) {
                 dx = x - t.gauss[0]; dz = z - t.gauss[1];
                 v = t.a * Math.exp(-(dx * dx + dz * dz) / (2 * t.s * t.s));
@@ -390,6 +415,18 @@
         for (i = 0; i < w.terms.length; i++) {
             s += w.terms[i][1] * Math.sin(w.terms[i][0] * ang + w.terms[i][2]);
         }
+        /* Bays (courses.island): the sea let into the shore round one bearing,
+           `[bearing, depth, half-width]`, depth a fraction of the radius and
+           the profile a raised cosine, so the shore turns into a bay without a
+           corner at either end of it. */
+        if (w.bays) {
+            for (i = 0; i < w.bays.length; i++) {
+                c = ang - w.bays[i][0];
+                c -= Math.round(c / (Math.PI * 2)) * Math.PI * 2;
+                if (c < 0) c = -c;
+                if (c < w.bays[i][2]) s -= w.bays[i][1] * 0.5 * (1 + Math.cos(Math.PI * c / w.bays[i][2]));
+            }
+        }
         return r * (1 + s);
     }
 
@@ -407,6 +444,8 @@
             return q <= rr * rr;
         }
         if (z < pad.z || z > pad.z + pad.d) return false;
+        // A road (courses.road): the box is only its bounds — see laneHas.
+        if (pad.lane) return x >= pad.x && x <= pad.x + pad.w && laneHas(pad.lane, x, z);
         /* Holes in the ground (Challenge mode's `voids`): circles where the
            pad is simply not there, so a ball rolling over one drops through. */
         if (pad.voids) {
@@ -499,6 +538,140 @@
         return x < e.lo ? e.lo : x > e.hi ? e.hi : x;
     }
 
+    /* ── the road ──
+
+       Every pad above is a rectangle with something done to it — a corner
+       rounded, a side mown, a disc inscribed in it — and every one of them
+       still has four sides that run along x and z. Which is why every bend on
+       a drawn hole was a right angle: a road that turns was two rectangles
+       meeting at a corner, and the best that could be done for it was to
+       round the outside of that corner off.
+
+       `pad.lane` is ground laid along a line rather than over a box: a road of
+       one width whose centreline is a chain of straights and arcs of circles,
+       each leaving in the direction the last one arrived in, so the road bends
+       without a kink anywhere along it (courses.road writes one the way a
+       driver would — so far straight on, then round a radius through so many
+       degrees). The pad's x/z/w/d are its bounds and nothing more, so
+       everything that only wants to know roughly where a pad is — the hole's
+       bounds, the camera, the slab's depth — is unchanged; everything that
+       asks where the ground actually *is* comes here.
+
+         hw     half the road's width
+         cap0   true for a round end where the road starts, cap1 where it
+         cap1   finishes; otherwise it stops square across itself
+         segs   the pieces, in order, each `s0` along the road from its start:
+                  a straight  { x0, z0, ux, uz, len }
+                  an arc      { cx, cz, R, a0, sweep, len } — angles atan2's,
+                              as courses.arc measures them, the sweep signed
+                              and never more than half a turn, so the wedge
+                              below is two cross products and no atan2
+
+       Height is not the road's business. A road is a pad, so its level is
+       pad.y and anything shaped into it is `bumps` like any other pad's — a
+       banked turn is a `channel` laid along the outside of an arc — and
+       padHeight and padGrad never learn the road is there.
+
+       Asked of every pad under the ball on every substep, so the cheap answers
+       go first: the bounds (padContains), then per piece the band of radius or
+       the span along it, and the sideways test last. */
+    var LANE_EPS = 1e-9;
+    function laneHas(L, x, z) {
+        var segs = L.segs, hw = L.hw, i, g, px, pz, t, q;
+        for (i = 0; i < segs.length; i++) {
+            g = segs[i];
+            if (g.R) {
+                px = x - g.cx; pz = z - g.cz;
+                q = px * px + pz * pz;
+                if (q < g.in2 || q > g.out2) continue;
+                // Inside the wedge: past the start radius and short of the
+                // end one, both in the turn's own sense.
+                if ((g.sx * pz - g.sz * px) * g.turn < -LANE_EPS) continue;
+                if ((g.ex * pz - g.ez * px) * g.turn > LANE_EPS) continue;
+                return true;
+            }
+            px = x - g.x0; pz = z - g.z0;
+            t = px * g.ux + pz * g.uz;
+            if (t < -LANE_EPS || t > g.len + LANE_EPS) continue;
+            t = px * g.uz - pz * g.ux;
+            if (t <= hw && t >= -hw) return true;
+        }
+        if (L.cap0) {
+            px = x - L.x0; pz = z - L.z0;
+            if (px * px + pz * pz <= hw * hw) return true;
+        }
+        if (!L.cap1) return false;
+        px = x - L.x1; pz = z - L.z1;
+        return px * px + pz * pz <= hw * hw;
+    }
+
+    /* Where a road is at `s` along it: the point on the centreline and the
+       unit vector square to it on the side a positive (yaw-wise) turn bends
+       towards, written into `out` as [x, z, nx, nz]. Not hot — the renderer
+       walks a road with it once, to draw it, and the rails are laid off it —
+       so it is a plain search through the pieces. */
+    function lanePoint(L, s, out) {
+        var segs = L.segs, i, g, t, a;
+        out = out || [0, 0, 0, 0];
+        for (i = 0; i < segs.length - 1 && s > segs[i].s0 + segs[i].len; i++) { /* find it */ }
+        g = segs[i];
+        t = Math.max(0, Math.min(g.len, s - g.s0));
+        if (!g.R) {
+            out[0] = g.x0 + g.ux * t; out[1] = g.z0 + g.uz * t;
+            out[2] = g.uz; out[3] = -g.ux;
+            return out;
+        }
+        a = g.a0 + g.sweep * t / g.len;
+        out[0] = g.cx + Math.cos(a) * g.R; out[1] = g.cz + Math.sin(a) * g.R;
+        // A positive turn of yaw is clockwise in atan2's sense (turn -1) and
+        // bends towards its centre, so that side's normal points inwards on
+        // it and outwards on a turn the other way.
+        out[2] = g.turn * Math.cos(a); out[3] = g.turn * Math.sin(a);
+        return out;
+    }
+
+    /* Where to sample a road so that no chord is longer than `step`: both
+       ends of every straight, and an arc cut evenly. Shared by the outline
+       below and by the renderer's ribbon, so the two agree to the vertex. */
+    function laneCuts(L, step) {
+        var cuts = [], i, k, g, n;
+        for (i = 0; i < L.segs.length; i++) {
+            g = L.segs[i];
+            n = g.R ? Math.max(2, Math.ceil(g.len / step)) : 1;
+            for (k = 0; k < n; k++) cuts.push(g.s0 + g.len * k / n);
+        }
+        cuts.push(L.length);
+        return cuts;
+    }
+
+    /* A road's outline, walked once round anticlockwise (atan2's sense, as
+       every other outline in the game is walked): along the side a positive
+       turn bends towards, round the far end, back along the other side and
+       round the near end. `step` is the longest chord on a curve. */
+    function laneOutline(L, step) {
+        var cuts = laneCuts(L, step), near = [], far = [], out, i, k, p = [0, 0, 0, 0];
+        var m = Math.max(4, Math.ceil(Math.PI * L.hw / step));
+        for (i = 0; i < cuts.length; i++) {
+            lanePoint(L, cuts[i], p);
+            near.push([p[0] + p[2] * L.hw, p[1] + p[3] * L.hw]);
+            far.push([p[0] - p[2] * L.hw, p[1] - p[3] * L.hw]);
+        }
+        out = near;
+        // A round end, from the + side round to the - side through `dir`.
+        function end(x, z, nx, nz, dx, dz) {
+            for (k = 1; k < m; k++) {
+                var t = Math.PI * k / m, c = Math.cos(t), s = Math.sin(t);
+                out.push([x + (nx * c + dx * s) * L.hw, z + (nz * c + dz * s) * L.hw]);
+            }
+        }
+        lanePoint(L, L.length, p);
+        if (L.cap1) end(p[0], p[1], p[2], p[3], -p[3], p[2]);
+        for (i = far.length - 1; i >= 0; i--) out.push(far[i]);
+        lanePoint(L, 0, p);
+        if (L.cap0) end(p[0], p[1], -p[2], -p[3], p[3], -p[2]);
+        return out;
+    }
+
     /* The floor of the cup, as a pad the rest of the code can treat like any
        other. It has no footprint of its own: surfaceUnder() hands it back for
        points inside the cup, and its friction is what stops a ball that has
@@ -513,15 +686,41 @@
        Inside the cup there is no green at all — the ground there is the floor
        of the hole, a cup's depth below. That one substitution is what makes the
        cup a hole rather than a rule: a ball whose centre crosses the rim runs
-       out of support and falls, exactly as it would over any other edge. */
+       out of support and falls, exactly as it would over any other edge.
+
+       And under a pad that `stands` there is no ground at all (v1.126.0). A
+       standing disc — Redstone's mesa, The Ait's island, every cliff on Coral
+       Keys — is ground of its own with sides, drawn as a solid slab all the
+       way down, and it is laid *over* ground that carries on underneath it:
+       the commons under the mesa, the island's beach under a headland or a
+       shelf. To the ceiling rule that is exactly a bridge. A ball on the beach
+       looked up, saw the cliff's top above its ceiling, passed over it, and
+       was handed the beach running on beneath — so the kerb backstop never
+       fired (there was ground ahead the ball could stand on) and neither did
+       the mid-air face test (there was support at the ball's own height). A
+       putt rolled straight into the face of The Shelf and came to rest a unit
+       inside the cliff, on sand nobody could see; a low iron flew into it and
+       out of the far side. Redstone's mesa, "short and left meets rock and
+       comes back", let the ball roll under three units of rock.
+
+       So a standing pad that is over the ceiling here is a statement that the
+       point is *inside* it, and nothing below can be stood on. That is the
+       answer a cliff over nothing already got, which is what the backstop and
+       the face test were written for: no support, ground above, so a face.
+       It costs a flag read on the branch that was already skipping the pad,
+       which is only taken beside a riser or under a bridge, and a bridge does
+       not stand. */
     var INLAY_EPS = 1e-6;
 
     function surfaceUnder(hole, x, z, ceil) {
-        var best = null, bestY = -Infinity, pads = hole.pads, i, h;
+        var best = null, bestY = -Infinity, pads = hole.pads, i, h, buried = false;
         for (i = 0; i < pads.length; i++) {
             if (!padContains(pads[i], x, z)) continue;
             h = padHeight(pads[i], x, z);
-            if (h > ceil) continue;
+            if (h > ceil) {
+                if (pads[i].stands) buried = true;
+                continue;
+            }
             /* Highest wins, as it always has. The second clause is the one
                exception the game allows to "pads must not overlap": a pad
                marked `inlay` is laid *into* the one below it at the same
@@ -538,6 +737,11 @@
                 bestY = h; best = pads[i];
             }
         }
+        /* Inside a standing pad, below its top: in the rock, not under a deck.
+           Before the cup on purpose — a cup cut into a clifftop green is a
+           shaft in that rock too, and below the green the shaft's floor is the
+           only floor there is, as it is on any green with nothing under it. */
+        if (buried) return null;
 
         var cup = hole.cup;
         if (cup && best !== null && Math.abs(bestY - cup.y) < 0.06) {
@@ -642,7 +846,11 @@
     function markOutOfBounds(world, events) {
         var b = world.ball;
         if (world.sunk || world.splash || world.out) return;
-        if (!outOfBounds(world.hole, b.x, b.z)) return;
+        /* …or on ground that is out wherever it is: a pad marked `oob` (the
+           floor of Redstone's canyon, far below everything that is played) is
+           somewhere a ball can be seen to land and may never be played from. */
+        var lie = surfaceUnder(world.hole, b.x, b.z, b.y + C.STEP_UP);
+        if (!outOfBounds(world.hole, b.x, b.z) && !(lie && lie.pad.oob)) return;
         world.out = true;
         events.out = true;
     }
@@ -671,20 +879,173 @@
         return null;
     }
 
+    /* ── the wormhole ───────────────────────────────────────────────────
+
+       What happens between the two ends (v1.129.0). For a hundred releases
+       a pipe was a teleport: the step that found the ball over a mouth put
+       it down rolling out of the far end, and the player saw a ball blink
+       out of one place and into another — which reads as a bug, not as a
+       pipe. The owner asked for a black hole that swallows it and another
+       that opens in the sky and lets it out.
+
+       So taking a pipe starts a ride, `world.warping`, and while it is set
+       the step is the ride and nothing else — no ground, no walls, no cup,
+       no water, no question of being at rest — exactly as it is on a loop
+       (`world.ride`). The ball is *carried*, along a path that is a pure
+       function of the time since it went in (`warpPoint`), in three parts
+       (CONFIG.WARP_SWALLOW / WARP_DARK / WARP_DROP):
+
+         swallow  a spiral into the middle of the mouth, turning the way the
+                  ball was already going round it and sinking as it goes.
+                  The ball's own velocity is carried in and faded out over
+                  the first part of it, so it does not stop dead at the rim.
+         dark     the ball is nowhere; it sits at the sky portal, unseen,
+                  while the renderer opens the portal round it.
+         drop     out of the portal and down to the exit: a fall from rest
+                  in the height, and in the run a curve that leaves the
+                  portal still and reaches the ground at the pace the ball
+                  will roll on with, so the landing carries straight into the
+                  roll instead of jerking.
+
+       And the ride ends where the teleport always did: on the ground at
+       exactly (tx, tz), at exactly the speed it went in, along exactly the
+       pipe's yaw, with no vertical speed — then the lock, as before. So the
+       only thing the ride changes about any shot is the clock, about a
+       second of it, and every hole built round a pipe is the hole it was.
+       The one place that second could matter is a hole with something
+       moving on it, where the ball now arrives a second later into a
+       different phase of the machine.
+
+       The path is not physics and does not pretend to be: nothing collides
+       with it, it cannot be stopped, and it is the same path every time for
+       the same entry. Which is what lets the bot, the lab and the tests run
+       it headless and get the answer the screen will show, and what lets
+       the replay carry it as numbers (`cloneWarp`). The renderer draws the
+       ball where this says and both black holes round it (render.js, "the
+       black hole"). */
     function takeWarp(world, events) {
-        var b = world.ball;
-        var w = warpUnder(world.hole, b);
-        if (!w) return;
+        var b = world.ball, hole = world.hole;
+        var w = warpUnder(hole, b);
+        if (!w) return false;
         var sp = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
-        var out = surfaceTop(world.hole, w.tx, w.tz);
-        b.x = w.tx; b.z = w.tz;
-        b.y = (out ? out.y : 0) + C.BALL_R;
-        b.vx = Math.sin(w.yaw) * sp;
-        b.vz = Math.cos(w.yaw) * sp;
+        var out = surfaceTop(hole, w.tx, w.tz);
+        var dx = b.x - w.x, dz = b.z - w.z;
+        var D = Math.max(C.WARP_BACK[0], Math.min(C.WARP_BACK[1], sp * C.WARP_DROP * 0.5));
+        var ey = (out ? out.y : 0) + C.BALL_R;
+        world.warping = {
+            w: w, sp: sp, t: 0,
+            // Where it went in, and how it was going: the spiral starts here.
+            x0: b.x, y0: b.y, z0: b.z, vx0: b.vx, vz0: b.vz,
+            r0: Math.sqrt(dx * dx + dz * dz), a0: Math.atan2(dz, dx),
+            // Round the way it was already turning about the middle.
+            turn: dx * b.vz - dz * b.vx < 0 ? -1 : 1,
+            /* The exit, and the portal over it. `k` is the curve of the run
+               down: s^k from the portal to the exit, which leaves at rest and
+               arrives at sp when k = sp·DROP/D — exactly 2, uniform
+               acceleration, wherever the back distance was not clamped. */
+            ey: ey, back: D,
+            k: Math.max(1, Math.min(6, sp * C.WARP_DROP / D)),
+            px: w.tx - Math.sin(w.yaw) * D, py: ey + C.WARP_UP, pz: w.tz - Math.cos(w.yaw) * D
+        };
+        world.grounded = false;
+        world.fall = null;
+        events.warp = true;
+        placeOnWarp(world);
+        return true;
+    }
+
+    function warpLength() { return C.WARP_SWALLOW + C.WARP_DARK + C.WARP_DROP; }
+
+    /* Which part of the ride `t` seconds in is, and how far through it:
+       { phase: 'swallow' | 'dark' | 'drop', s: 0..1 }. */
+    function warpPhase(wr, t, out) {
+        out = out || {};
+        if (t === undefined) t = wr.t;
+        if (t < C.WARP_SWALLOW) { out.phase = 'swallow'; out.s = t / C.WARP_SWALLOW; }
+        else if (t < C.WARP_SWALLOW + C.WARP_DARK) { out.phase = 'dark'; out.s = (t - C.WARP_SWALLOW) / C.WARP_DARK; }
+        else { out.phase = 'drop'; out.s = Math.min(1, (t - C.WARP_SWALLOW - C.WARP_DARK) / C.WARP_DROP); }
+        return out;
+    }
+
+    // Where the ball's middle is `t` seconds into the ride, into out.x/y/z.
+    var _wph = {};
+    function warpAt(wr, t, out) {
+        var w = wr.w, ph = warpPhase(wr, t, _wph), s = ph.s;
+        if (ph.phase === 'swallow') {
+            var r = wr.r0 * (1 - Math.pow(s, 1.5));
+            var a = wr.a0 + wr.turn * C.WARP_TURNS * 2 * Math.PI * s * s;
+            var carry = t * (1 - s) * (1 - s);
+            out.x = w.x + Math.cos(a) * r + wr.vx0 * carry;
+            out.z = w.z + Math.sin(a) * r + wr.vz0 * carry;
+            out.y = wr.y0 - C.WARP_SINK * s * s;
+        } else if (ph.phase === 'dark') {
+            out.x = wr.px; out.y = wr.py; out.z = wr.pz;
+        } else {
+            var run = wr.back * Math.pow(s, wr.k);
+            out.x = wr.px + Math.sin(w.yaw) * run;
+            out.z = wr.pz + Math.cos(w.yaw) * run;
+            out.y = wr.ey + (wr.py - wr.ey) * (1 - s * s);
+        }
+        return out;
+    }
+
+    /* The ball's place and velocity `t` seconds in, for anything that wants
+       the ride without a world — the renderer's portal, the replay, the
+       tests. The velocity is a difference over a millisecond either side,
+       kept inside the part of the ride `t` is in, because it is only ever
+       for looking at: the camera's pull, the trail, the spin of the ball. */
+    var _wa = { x: 0, y: 0, z: 0 }, _wb = { x: 0, y: 0, z: 0 }, _wq = {};
+    function warpPoint(wr, t, out) {
+        out = out || {};
+        if (t === undefined) t = wr.t;
+        warpAt(wr, t, out);
+        var ph = warpPhase(wr, t, _wq).phase, h = 1e-3, lo = t - h, hi = t + h;
+        var a0 = ph === 'swallow' ? 0 : ph === 'dark' ? C.WARP_SWALLOW : C.WARP_SWALLOW + C.WARP_DARK;
+        var a1 = ph === 'swallow' ? C.WARP_SWALLOW : ph === 'dark' ? C.WARP_SWALLOW + C.WARP_DARK : warpLength();
+        lo = Math.max(a0, lo); hi = Math.min(a1 - 1e-9, hi);
+        warpAt(wr, lo, _wa); warpAt(wr, hi, _wb);
+        var span = hi - lo;
+        out.vx = span > 0 ? (_wb.x - _wa.x) / span : 0;
+        out.vy = span > 0 ? (_wb.y - _wa.y) / span : 0;
+        out.vz = span > 0 ? (_wb.z - _wa.z) / span : 0;
+        out.phase = ph;
+        return out;
+    }
+
+    var _wp = {};
+    function placeOnWarp(world) {
+        var b = world.ball, p = warpPoint(world.warping, world.warping.t, _wp);
+        b.x = p.x; b.y = p.y; b.z = p.z;
+        b.vx = p.vx; b.vy = p.vy; b.vz = p.vz;
+    }
+
+    /* A step of the ride. The phase changes are events, for the sound and
+       the light: `warpOpen` the moment the sky portal starts to open, and
+       `warpOut` on the landing — after which the ball is on the ground at the
+       exit, rolling, exactly where the instant pipe used to leave it. */
+    function rideWarp(world, dt, events) {
+        var wr = world.warping, was = wr.t;
+        wr.t += dt;
+        if (was < C.WARP_SWALLOW && wr.t >= C.WARP_SWALLOW) events.warpOpen = true;
+        if (wr.t < warpLength()) { placeOnWarp(world); return; }
+        var b = world.ball, w = wr.w;
+        b.x = w.tx; b.z = w.tz; b.y = wr.ey;
+        b.vx = Math.sin(w.yaw) * wr.sp;
+        b.vz = Math.cos(w.yaw) * wr.sp;
         b.vy = 0;
+        world.warping = null;
         world.grounded = true;
         world.warpFor = C.WARP_LOCK;
-        events.warp = true;
+        events.warpOut = true;
+    }
+
+    // A copy that can be stepped on its own; the pipe and the numbers that
+    // were fixed when the ball went in are shared, only the clock is not.
+    function cloneWarp(wr) {
+        if (!wr) return null;
+        var c = {}, k;
+        for (k in wr) if (Object.prototype.hasOwnProperty.call(wr, k)) c[k] = wr[k];
+        return c;
     }
 
     /* ── the loop ───────────────────────────────────────────────────────
@@ -907,11 +1268,29 @@
            blade (wallPointVelocity). A bat that swept through the ball without
            hitting it would look exactly like this and play like a wall. */
         if (w.swing) {
-            var sw = w.swing;
+            var sw = w.swing, rate;
             var ph = t * sw.speed + (sw.phase || 0);
-            var half = (sw.to - sw.from) / 2;
-            yaw += sw.from + half * (1 - Math.cos(ph));
-            spin += half * Math.sin(ph) * sw.speed;
+            if (sw.snap) {
+                snapAt(sw.snap, ph, SNAP);
+                yaw += sw.from + (sw.to - sw.from) * SNAP.p;
+                rate = (sw.to - sw.from) * SNAP.dp * sw.speed;
+            } else {
+                var half = (sw.to - sw.from) / 2;
+                rate = half * Math.sin(ph) * sw.speed;
+                yaw += sw.from + half * (1 - Math.cos(ph));
+            }
+            spin += rate;
+            /* A hinged one (courses.flipper with `hinge`) turns about one end,
+               the way a real flipper does, so its middle goes round the hinge
+               at `reach` along the bat — and a middle that moves has a
+               velocity, which is what makes wallPointVelocity's rigid turn
+               about the middle the same turn about the hinge. */
+            if (sw.hinge) {
+                cx = sw.hinge.x + Math.cos(yaw) * sw.reach;
+                cz = sw.hinge.z - Math.sin(yaw) * sw.reach;
+                vx += rate * (cz - sw.hinge.z);
+                vz -= rate * (cx - sw.hinge.x);
+            }
         }
         // `out` lets a caller reuse one object rather than allocate per call —
         // the solver across thousands of substeps, the renderer once per mover
@@ -926,6 +1305,62 @@
         B.src = w;
         if (w.sails) millSail(w.sails, t, B);
         return B;
+    }
+
+    /* A flipper that fires (courses.flipper with `snap`): the way a real one
+       moves, which is not a sine. It lies at rest most of the beat, comes up
+       through its whole arc in a sliver of it at a constant rate — the punch,
+       and the only part of the beat with any pace in it — holds at the top,
+       and falls back eased. A ball the bat meets on the way up leaves with
+       the bat's own speed at that point added (wallPointVelocity), which at
+       the tip is several times a putt's; one that meets it at rest or held
+       is turned the way a rail turns it.
+
+       `up`, `hold` and `down` are shares of the beat (one turn of phase);
+       what is left over is rest. `p` is the share of the arc, `dp` its rate
+       per radian of phase. */
+    var SNAP = { p: 0, dp: 0 };
+    function snapAt(s, ph, out) {
+        var f = ph / (2 * Math.PI);
+        f -= Math.floor(f);
+        if (f < s.up) {
+            out.p = f / s.up; out.dp = 1 / s.up;
+        } else if (f < s.up + s.hold) {
+            out.p = 1; out.dp = 0;
+        } else if (f < s.up + s.hold + s.down) {
+            var u = (f - s.up - s.hold) / s.down;
+            out.p = (1 + Math.cos(Math.PI * u)) / 2;
+            out.dp = -Math.PI * Math.sin(Math.PI * u) / (2 * s.down);
+        } else {
+            out.p = 0; out.dp = 0;
+        }
+        out.dp /= 2 * Math.PI;
+        return out;
+    }
+
+    /* Whether a ball at (x, z) is somewhere a firing bat will sweep. A ball
+       that comes to a stop there is not at rest, because the bat is about to
+       hit it: the shot carries on until it does (substep's rest test), the way
+       a ball that rolls down on to a real flipper is flipped rather than left
+       lying in its path to be swept through. The arc is tried at eight angles
+       past rest, which at a radian's arc is a sixth of a unit at the tip —
+       inside the ball's own width. */
+    var SWEEP = { cx: 0, cz: 0, hw: 0, hd: 0, yaw: 0 };
+    function inSweep(hole, x, z) {
+        var walls = hole.walls, i, k, w, sw, yaw;
+        for (i = 0; i < walls.length; i++) {
+            w = walls[i]; sw = w.swing;
+            if (!sw || !sw.snap || !sw.hinge) continue;
+            SWEEP.hw = w.w / 2; SWEEP.hd = w.d / 2;
+            for (k = 1; k <= 8; k++) {
+                yaw = (w.yaw || 0) + sw.from + (sw.to - sw.from) * k / 8;
+                SWEEP.yaw = yaw;
+                SWEEP.cx = sw.hinge.x + Math.cos(yaw) * sw.reach;
+                SWEEP.cz = sw.hinge.z - Math.sin(yaw) * sw.reach;
+                if (circleBox(x, z, C.BALL_R, SWEEP)) return true;
+            }
+        }
+        return false;
     }
 
     /* A windmill's sails: the fourth way a wall moves, and the first that
@@ -1034,6 +1469,7 @@
             out: false,
             sprung: 0,          // springs fired this shot; each is worth less
             warpFor: 0,         // seconds before a mouth will swallow again
+            warping: null,      // inside a pipe: see "the wormhole"
             ride: null,         // on a loop: { loop, frame, th, v, base }
             fall: null,         // off the top of one, and inside it
             loopFor: 0,         // seconds before a loop will take the ball again
@@ -1058,6 +1494,7 @@
             out: w.out,
             sprung: w.sprung || 0,
             warpFor: w.warpFor || 0,
+            warping: cloneWarp(w.warping),
             ride: w.ride ? { loop: w.ride.loop, frame: w.ride.frame, th: w.ride.th,
                 v: w.ride.v, base: w.ride.base } : null,
             loopFor: w.loopFor || 0,
@@ -1077,7 +1514,7 @@
        loft and the same power. The simulation still does not hear the word
        "club": it is handed an angle, a speed and now a number for how much the
        first bounce costs. config.js decides which club supplies which. */
-    /* ── the long game's flight ─────────────────────────────────────────
+    /* ── the flight ─────────────────────────────────────────────────────
 
        A struck ball with backspin on it is lifted, square to the way it is
        going, and the spin wears off as it flies (CONFIG.AIR_*). That is the
@@ -1087,13 +1524,24 @@
        climbs, hangs past halfway and falls more steeply than it rose, which
        is the shape a drive has and a parabola never does.
 
-       Only the long clubs' launches fly it (`flies`, CONFIG.AIR_LOFT): the
-       driver and the iron, wherever they are handed out. The pitch and the
-       wedge go up and come down steeply either way, and mini golf's chips
-       are built on the plain arc. `hole` is taken for the day a course wants
-       its own air; nothing reads it yet. */
+       How hard a launch is lifted depends on its loft (`liftFor`,
+       CONFIG.AIR_LIFT, read between the bag's own lofts): every face spins
+       the ball, so the wedges climb on their spin the way the irons do
+       rather than flying a plain arc. `hole` is taken for the day a course
+       wants its own air; nothing reads it yet. */
+    function liftFor(hole, loft) {
+        var t = C.AIR_LIFT, deg = loft * 180 / Math.PI, i, a, b;
+        if (!(loft > 0)) return 0;
+        if (deg <= t[0][0]) return t[0][1];
+        for (i = 1; i < t.length; i++) {
+            a = t[i - 1]; b = t[i];
+            if (deg <= b[0]) return a[1] + (b[1] - a[1]) * (deg - a[0]) / (b[0] - a[0]);
+        }
+        return t[t.length - 1][1];
+    }
+
     function flies(hole, loft) {
-        return loft > 0 && loft <= C.AIR_LOFT;
+        return liftFor(hole, loft) > 0;
     }
 
     function carryFlight(world, dt) {
@@ -1119,7 +1567,7 @@
         var g = gravityOf(hole);
         var vy = Math.sin(loft) * power, h = Math.cos(loft) * power;
         if (!flies(hole, loft)) return 2 * vy / g;
-        var lift = C.AIR_LIFT, y = 0, t = 0, dt = C.SIM_DT / 4, lf, k;
+        var lift = liftFor(hole, loft), y = 0, t = 0, dt = C.SIM_DT / 4, lf, k;
         while (t < 30) {
             lf = lift * dt;
             k = 1 - lf * vy / h;
@@ -1160,12 +1608,13 @@
         world.overCup = false;
         world.sprung = 0;
         world.warpFor = 0;
+        world.warping = null;
         world.ride = null;
         world.fall = null;
         world.loopFor = 0;
         world.firstLand = null;
         world.carry = 0;
-        world.lift = !topped && flies(world.hole, l) ? C.AIR_LIFT : 0;
+        world.lift = topped ? 0 : liftFor(world.hole, l);
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -1193,6 +1642,28 @@
         var t = overdraw(power, ceiling);
         if (!t) return power;
         return power * (1 + C.OVER_GAIN * t * t);
+    }
+
+    /* What a club can deliver from where the ball lies — today, that is
+       whether it is in a bunker. Out of sand an iron keeps CONFIG's
+       `club.sand` of its ceiling and no more: a cap rather than a scale, so a
+       half swing out of a bunker is the same half swing it always was, and
+       only the top of the meter is gone. A club with no `sand` — the putter,
+       both wedges, anything from EXTRA_CLUBS — loses nothing, and one whose
+       `sand` is 0 (the driver) cannot be played from there at all (playable).
+
+       `kind` is the surface under the ball (surfaceUnder's pad.kind). The
+       shot, its preview, the distance readout and the bot all ask here, so
+       the cone never draws a shot out of a bunker that will not be played. */
+    function lieCeiling(club, kind) {
+        return kind === 'sand' && club && club.sand !== undefined ? club.power * club.sand : Infinity;
+    }
+    function fromLie(power, club, kind) {
+        return Math.min(power, lieCeiling(club, kind));
+    }
+    // Whether the club can be swung from this lie at all.
+    function playable(club, kind) {
+        return lieCeiling(club, kind) >= C.MIN_POWER;
     }
 
     /* How wild the shot gets, as the half-angle it can leave off line by and
@@ -1247,6 +1718,59 @@
 
     var SCRATCH = {};
 
+    /* A pop bumper: the one wall that is round, and the one that hands the
+       ball more than it was given.
+
+       It was a square post for a long time — "the solver only knows boxes" —
+       and it played like one: a ball that met a face came straight back, one
+       that met a corner went somewhere neither of you chose, and a table of
+       them was a field of little walls painted pink. A circle is the cheaper
+       collider of the two (a distance and a square root, no transform), and it
+       is the honest shape for the thing drawn: every point of a round post
+       turns the ball by the angle it met it at, so a line at one is a line off
+       it, which is what lets a bumper be aimed at rather than merely avoided.
+
+       And it fires. The ball leaves along the normal at `give` of the speed it
+       arrived with, or at `kick` if that is more (CONFIG.BUMPER), so a ball
+       that reaches one at all is thrown off it at a pace of its own — and that
+       pace does not care how hard the shot was, which on a hole built round a
+       bumper makes the weight the bumper's business and the line yours.
+       `events.bumped` names the post, so the table can light the one that
+       fired (render.bumped) and the game can ring it.
+
+       A `post` (courses.post) is the same circle with no coil in it: a rubber
+       ring on a peg, which a pinball table has as many of as it has bumpers.
+       It turns a ball like a bumper and gives back what a rail does, so a
+       carom off one still asks how hard — which is what it is for, standing
+       in front of the bumpers where a kick would make every glancing line an
+       ace at any weight.
+
+       Only a square, unturned, motionless wall of one of those two kinds is
+       round: the editor lets any wall wear the kind, and a long one wearing it
+       is a pink rail rather than a very wide circle. */
+    function isPost(w) {
+        return (w.kind === 'bumper' || w.kind === 'post') &&
+            w.w === w.d && !w.yaw && !w.move && !w.spin && !w.swing;
+    }
+
+    function popBumper(b, w, dx, dz, events) {
+        var rr = w.w / 2 + C.BALL_R, q = dx * dx + dz * dz, d, nx, nz, vn, out;
+        if (q >= rr * rr) return;
+        d = Math.sqrt(q);
+        if (d > 1e-9) { nx = dx / d; nz = dz / d; } else { nx = 0; nz = -1; }
+        b.x = w.x + w.w / 2 + nx * rr;
+        b.z = w.z + w.d / 2 + nz * rr;
+        vn = b.vx * nx + b.vz * nz;
+        if (vn < 0) {
+            out = w.kind === 'post' ? -vn * C.RESTITUTION :
+                Math.max(-vn * C.BUMPER.give, C.BUMPER.kick);
+            b.vx += (out - vn) * nx;
+            b.vz += (out - vn) * nz;
+            events.bounce = true;
+            if (w.kind === 'bumper') events.bumped = w;
+        }
+    }
+
     function collideWalls(world, dt, events) {
         var b = world.ball, walls = world.hole.walls, i, w, B, hit, vn, wv, wn, dx, dz, reach;
         for (i = 0; i < walls.length; i++) {
@@ -1272,8 +1796,11 @@
                it wherever on the stroke the clock has put it; one that turns,
                or that swings, does not move its middle at all. */
             dx = b.x - (w.x + w.w / 2); dz = b.z - (w.z + w.d / 2);
-            reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) + C.BALL_R;
+            reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) +
+                (w.swing && w.swing.hinge ? 2 * Math.abs(w.swing.reach) : 0) + C.BALL_R;
             if (dx * dx + dz * dz > reach * reach) continue;
+            // A post is round and has a coil in it, and is no box at all.
+            if (isPost(w)) { popBumper(b, w, dx, dz, events); continue; }
 
             B = wallBox(w, world.time, SCRATCH);
             // A sail's own height is in the box rather than on the wall: the
@@ -1288,8 +1815,19 @@
 
             vn = b.vx * hit.nx + b.vz * hit.nz;
             if (vn < 0) {
-                b.vx -= (1 + C.RESTITUTION) * vn * hit.nx;
-                b.vz -= (1 + C.RESTITUTION) * vn * hit.nz;
+                /* A slingshot (courses.sling) is a rail with a kicker behind
+                   its rubber: a ball that meets it at more than a crawl is
+                   fired back off its face at the kicker's pace or what it
+                   brought, whichever is more — the bumper's rule along a
+                   line. A ball rolling along it, or leaning on it, is under
+                   the trip and gets a rail. */
+                var back = -vn * C.RESTITUTION;
+                if (w.kick && -vn > C.SLING.trip) {
+                    back = Math.max(-vn * C.SLING.give, C.SLING.kick);
+                    events.kicked = w;
+                }
+                b.vx += (back - vn) * hit.nx;
+                b.vz += (back - vn) * hit.nz;
                 events.bounce = true;
             }
             wv = wallPointVelocity(B, hit.cx, hit.cz);
@@ -1449,6 +1987,17 @@
         var b = world.ball;
         var w = waterAt(world.hole, b.x, b.z);
         if (!w || b.y - C.BALL_R > w.y) return false;
+        /* A cup is lined. On Coral Keys the greens sit a third of a unit over
+           a sea sheet that runs under the whole hole, and the bottom of a cup
+           is CUP_DEPTH down — under the sea's surface. Without this a ball
+           falling into the cup crossed the waterline a substep before it was
+           low enough to count as holed, and a holed putt came back as a
+           splash and a stroke. */
+        var cup = world.hole.cup;
+        if (cup && cup.y > w.y) {
+            var cdx = b.x - cup.x, cdz = b.z - cup.z;
+            if (cdx * cdx + cdz * cdz < C.HOLE_R * C.HOLE_R) return false;
+        }
         b.y = w.y;
         b.vx = b.vy = b.vz = 0;
         world.splash = true;
@@ -1541,6 +2090,11 @@
             rideLoop(world, dt, events);
             return;
         }
+        // …and inside a pipe the pipe is: see "the wormhole".
+        if (world.warping) {
+            rideWarp(world, dt, events);
+            return;
+        }
         if (world.grounded) world.fall = null;
 
         if (world.grounded) {
@@ -1619,6 +2173,23 @@
                         nz = b.z; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
                     }
                     next = surfaceUnder(hole, nx, nz, lift);
+                    /* And the corner between the two (v1.126.0). A face that
+                       runs square to an axis is always caught by one of the
+                       two tests above; a face that runs across them — the
+                       curved side of a disc that stands, a cliff on Coral Keys
+                       — can be crossed by the step as a whole while neither
+                       half of it alone reaches the rock. Let through, the ball
+                       ran on into the cliff, found nothing under it and fell
+                       inside it, and the last-resort shove put it out through
+                       the nearest side of the cliff's bounding box: on a
+                       headland, that is the sea. Both axes are blocked, then,
+                       and both bounce. */
+                    if (!next && surfaceUnder(hole, nx, nz, Infinity)) {
+                        nx = b.x; b.vx = -b.vx * C.RESTITUTION;
+                        nz = b.z; b.vz = -b.vz * C.RESTITUTION;
+                        events.bounce = true;
+                        next = surfaceUnder(hole, nx, nz, lift);
+                    }
                 }
 
                 b.x = nx; b.z = nz;
@@ -1722,7 +2293,20 @@
                     if (inFace(hole, px, b.z, b.y)) {
                         b.z = pz; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
                     }
-                    if (inFace(hole, b.x, b.z, b.y)) ejectFromFace(hole, b, events);
+                    // The corner, as on the ground: across a curved face the
+                    // whole step can be in the rock when neither half of it
+                    // is. Where the ball came from is still open air, so it
+                    // goes back there; only a ball that was already inside is
+                    // left for the shove.
+                    if (inFace(hole, b.x, b.z, b.y)) {
+                        if (!inFace(hole, px, pz, b.y)) {
+                            b.x = px; b.vx = -b.vx * C.RESTITUTION;
+                            b.z = pz; b.vz = -b.vz * C.RESTITUTION;
+                            events.bounce = true;
+                        } else {
+                            ejectFromFace(hole, b, events);
+                        }
+                    }
                     land = surfaceUnder(hole, b.x, b.z, b.y);
                 }
             }
@@ -1778,7 +2362,7 @@
            the floor beside a rail should swallow the ball that has just come
            off the rail, not the one that is still inside it. */
         if (world.warpFor > 0) world.warpFor -= dt;
-        else takeWarp(world, events);
+        else if (hole.warps && takeWarp(world, events)) return;
 
         // …and the loops, on the same terms: after the walls.
         if (world.loopFor > 0) world.loopFor -= dt;
@@ -1842,6 +2426,8 @@
             } else {
                 settled = world.slowFor > C.SLOPE_SETTLE;
             }
+            // In a firing bat's path it is not at rest, it is waiting to be hit.
+            if (settled && inSweep(hole, b.x, b.z)) settled = false;
             if (settled) {
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
@@ -1938,24 +2524,34 @@
     }
 
     G3.physics = {
+        isPost: isPost,
+        inSweep: inSweep,
         padHeight: padHeight,
         padContains: padContains,
         mowEdge: mowEdge,
+        lanePoint: lanePoint,
+        laneCuts: laneCuts,
+        laneOutline: laneOutline,
         padRadius: padRadius,
         surfaceUnder: surfaceUnder,
         surfaceTop: surfaceTop,
         waterAt: waterAt,
+        fieldAt: fieldAt,
         wallBox: wallBox,
         circleBox: circleBox,
         wallPointVelocity: wallPointVelocity,
         ballTop: ballTop,
         createWorld: createWorld,
         flies: flies,
+        liftFor: liftFor,
         hangTime: hangTime,
         cloneWorld: cloneWorld,
         launch: launch,
         overdraw: overdraw,
         deliver: deliver,
+        lieCeiling: lieCeiling,
+        fromLie: fromLie,
+        playable: playable,
         spray: spray,
         sprayShot: sprayShot,
         advance: advance,
@@ -1977,6 +2573,10 @@
         outOfBounds: outOfBounds,
         fenceRects: fenceRects,
         warpUnder: warpUnder,
+        warpPoint: warpPoint,
+        warpPhase: warpPhase,
+        warpLength: warpLength,
+        cloneWarp: cloneWarp,
         loopFrame: loopFrame,
         loopPoint: loopPoint,
         loopBase: loopBase,

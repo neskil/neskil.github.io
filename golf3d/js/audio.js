@@ -278,6 +278,12 @@
             var p = Math.max(0.1, Math.min(1, speed / 12));
             tone(320 + p * 220, 0.06, 'square', 0.03 + p * 0.05, 180);
         },
+        // A pop bumper firing: the bell and the coil together, bright and
+        // short, and the same whatever hit it, because the bumper decides.
+        pop: function () {
+            tone(1320, 0.09, 'triangle', 0.07, 1760);
+            tone(660, 0.05, 'square', 0.035, 330);
+        },
         land: function (speed) {
             var p = Math.max(0.1, Math.min(1, speed / 10));
             noise(0.07, 180 + p * 120, 1.2, 0.05 + p * 0.07, 'lowpass');
@@ -290,6 +296,23 @@
             noise(0.05, 900, 2.5, 0.04 + p * 0.05);
         },
         sand: function () { noise(0.22, 2600, 0.7, 0.09, 'highpass'); },
+        /* A pipe (physics.js, "the wormhole"): a falling thrum as the ball
+           goes down the mouth, and a rising one with a breath of air as the
+           sky opens over the exit. Two slid tones and a noise, no files. */
+        warpIn: function () {
+            tone(220, 0.45, 'sine', 0.12, 55);
+            tone(330, 0.3, 'triangle', 0.05, 90);
+        },
+        // The flag going off like a rocket as the camera dives for the cup
+        // (render.js → startDive): a climbing rasp over a rush of air.
+        rocket: function () {
+            tone(140, 0.6, 'sawtooth', 0.045, 1400);
+            noise(0.7, 1600, 0.7, 0.07);
+        },
+        warpOpen: function () {
+            tone(48, 0.5, 'sine', 0.14, 140);
+            noise(0.5, 900, 0.6, 0.05);
+        },
         splash: function () {
             noise(0.4, 900, 0.6, 0.2);
             tone(420, 0.35, 'sine', 0.1, 90);

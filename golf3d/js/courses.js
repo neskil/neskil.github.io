@@ -1,4 +1,4 @@
-/* Eighteen courses of six holes, as data.
+/* Fifteen courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything
@@ -6,8 +6,8 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Four of the eighteen courses are mini golf, five are crazy golf, four are
-   adventure golf and five are the long game — tee, fairway, rough, sand,
+   Three of the fifteen courses are mini golf, three are crazy golf, three
+   are adventure golf and six are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
    and the same solver as everything else, which is the point: a parkland hole
@@ -20,13 +20,12 @@
    so a course is not six variations on a theme, it is a climb. That is why the
    holes are in the order they are written in rather than the order they were
    built in, and why moving one is a change to the course rather than a tidy-up.
-   The same rule runs across a group: the four mini courses are in order of how
-   much they ask for, and so are the five crazy ones, the three adventure ones
-   and the three long ones.
+   The same rule runs across a group: the three mini courses are in order of
+   how much they ask for, and so are the crazy, the adventure and the long
+   ones.
 
-   **A hole is not the hole beside it.** A hundred and eight holes on one list is a
-   hundred and eight
-   chances to write the same corridor again, and the way out is the
+   **A hole is not the hole beside it.** Ninety holes on one list is
+   ninety chances to write the same corridor again, and the way out is the
    plan rather than the furniture: a hole that turns, a hole that goes round
    something, a hole played over a corner, a hole with two ways to the green
    and a reason to pick one. If a new hole's plan can be described as "a lane
@@ -280,7 +279,13 @@
        `rest` is where it sits and `arc` how far it sweeps, both in radians;
        `speed` is the rate of the sine driving it, so it is at one end of its
        travel every π/speed seconds. Authored by the middle, like `spinner`,
-       because that is the point it turns about. */
+       because that is the point it turns about.
+
+       Unless it says `hinge`: -1 hinges it at its west end and +1 at its
+       east (as it lies at `rest`), and then it is the real thing, a bat
+       turning about a pin at one end (physics.wallBox) — the Parlour's, since
+       v1.126.0. Still authored by its middle at rest, so a hinged flipper and
+       a centred one drawn on the same plan stand in the same place. */
     function flipper(cx, cz, len, opts) {
         var o = opts || {};
         var t = o.t === undefined ? 0.34 : o.t;
@@ -293,6 +298,24 @@
             speed: o.speed === undefined ? 2.2 : o.speed,
             phase: o.phase || 0
         };
+        /* `snap` is a bat that fires (physics.snapAt): at rest most of its
+           beat, up through the arc in a tenth of it, held, and back. The
+           default rise is slow enough that the tip of a 2.6 bat on a beat of
+           about two seconds moves a fifth of a unit a frame, which the solver
+           meets without the bat passing through the ball. */
+        if (o.snap) {
+            var sn = o.snap === true ? {} : o.snap;
+            w.swing.snap = {
+                up: sn.up === undefined ? 0.1 : sn.up,
+                hold: sn.hold === undefined ? 0.15 : sn.hold,
+                down: sn.down === undefined ? 0.25 : sn.down
+            };
+        }
+        if (o.hinge) {
+            var arm = o.hinge * (len / 2 - t / 2);
+            w.swing.hinge = { x: cx + Math.cos(rest) * arm, z: cz - Math.sin(rest) * arm };
+            w.swing.reach = -arm;
+        }
         return w;
     }
 
@@ -310,7 +333,14 @@
         var o = opts || {};
         var s = size === undefined ? 0.5 : size;
         return wall(cx - s / 2, cz - s / 2, s, s, o.h === undefined ? 0.5 : o.h,
-            { base: -0.1, kind: 'bumper' });
+            { base: -0.1, kind: o.kind || 'bumper' });
+    }
+
+    /* A rubber post: round like a bumper and with nothing behind it, so it
+       turns the ball and keeps a rail's share of its speed rather than firing
+       it (physics.popBumper). The piece to stand in front of the bumpers. */
+    function post(cx, cz, size) {
+        return bumper(cx, cz, size === undefined ? 0.34 : size, { kind: 'post', h: 0.42 });
     }
 
     /* A bank: a wall standing at an angle, authored by its middle, its length
@@ -335,6 +365,32 @@
             { base: o.base === undefined ? -0.1 : o.base, yaw: yaw, kind: o.kind || 'rail' });
     }
 
+    /* A slingshot: the pinball piece the second Parlour table is named for.
+       A triangle of rubber, `a`–`b` the face with the kicker behind it and `c`
+       the corner it is braced back to; met on the face at more than a crawl it
+       fires the ball back off it (physics.collideWalls, CONFIG.SLING) rather
+       than handing back a rail's share, and rolled along it, it is a rail.
+       The two other sides are plain rubber, there so nothing gets in behind
+       the face — a lone kicking bank with a gap behind it is a trap the ball
+       is fired round and round in.
+
+       Three walls, the face first, which carries the whole triangle
+       (`tri`) for the renderer and the minimap to draw as one piece; the sides
+       are kind 'slingback' and are drawn by it rather than as boards. */
+    function slingshot(a, b, c, opts) {
+        var o = opts || {}, t = o.t === undefined ? 0.26 : o.t, h = o.h === undefined ? 0.5 : o.h;
+        function side(p, q, kind) {
+            var dx = q.x - p.x, dz = q.z - p.z, len = Math.sqrt(dx * dx + dz * dz);
+            var w = wall((p.x + q.x) / 2 - (len + t) / 2, (p.z + q.z) / 2 - t / 2, len + t, t, h,
+                { base: -0.1, yaw: Math.atan2(-dz, dx), kind: kind });
+            return w;
+        }
+        var face = side(a, b, 'sling');
+        face.kick = true;
+        face.tri = [{ x: a.x, z: a.z }, { x: b.x, z: b.z }, { x: c.x, z: c.z }];
+        return [face, side(b, c, 'slingback'), side(c, a, 'slingback')];
+    }
+
     /* A curved rail: an arc of short banks round (cx, cz) at radius R, from
        angle a0 to a1 (radians, measured as atan2(z, x)). The solver has no
        curve in it and does not need one — a ball meeting an arc of sixteen
@@ -342,11 +398,23 @@
        a chord the turn reads as a curve to the eye and to the ball alike.
        Each bank is a rail's thickness longer than its chord so neighbours
        overlap: a gap between two would be a hole in the rail exactly where the
-       ball is pressing hardest. `n` defaults to one chord per ten degrees. */
+       ball is pressing hardest. `n` defaults to one chord per ten degrees.
+
+       `drawn` asks the renderer to draw the arc as the one curve it is
+       (render.addBend), finished round at both ends, rather than as its
+       chords — which side-on read as a fan of flat boards. Its value is what
+       the curve is made of, any of the renderer's wall kinds ('rock' for
+       quarry stone). A curved wall standing on its own, like The
+       Backboard's, wants it; a rail along an edge does not need it. */
     function arc(cx, cz, R, a0, a1, opts) {
         var o = opts || {}, out = [], i, t0, t1, tm, chord;
         var n = o.n || Math.max(3, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 18)));
         var t = o.t === undefined ? 0.34 : o.t;
+        var bend = o.drawn ? {
+            cx: cx, cz: cz, R: R, a0: Math.min(a0, a1), a1: Math.max(a0, a1), t: t,
+            base: o.base === undefined ? -0.1 : o.base, h: o.h === undefined ? 0.62 : o.h,
+            kind: o.drawn, cap0: true, cap1: true
+        } : null;
         for (i = 0; i < n; i++) {
             t0 = a0 + (a1 - a0) * i / n;
             t1 = a0 + (a1 - a0) * (i + 1) / n;
@@ -356,6 +424,7 @@
             // to (cos yaw, -sin yaw) — so the tangent at tm is yaw -tm - π/2.
             out.push(bank(cx + Math.cos(tm) * R, cz + Math.sin(tm) * R, chord + t,
                 -tm - Math.PI / 2, { t: t, h: o.h, base: o.base, kind: o.kind }));
+            if (bend) out[i].bend = bend;
         }
         return out;
     }
@@ -377,6 +446,121 @@
         var g = { cx: cx, cz: cz, R: R };
         if (a0 !== undefined) { g.a0 = a0; g.a1 = a1; }
         return { ring: g, r: r, a: a, cx: cx, cz: cz };
+    }
+
+    /* A table mountain: `channel` with the ring filled in, so the ground is
+       level at `a` all the way across a top of radius R and falls away
+       round it over `r` (physics.spine has the one line that does it). The
+       top is flat to the float, which is what lets a cup stand on it; the
+       flank is built ground, steep on purpose, as a channel's is. */
+    function mesa(cx, cz, R, r, a) {
+        var m = channel(cx, cz, R, r, a);
+        m.ring.fill = true;
+        return m;
+    }
+
+    /* A road that bends: a pad laid along a centreline instead of over a
+       rectangle (physics.laneHas has the shape). It is written the way you
+       would drive it — set off from (x, z) heading along `dir`, then a list
+       of pieces:
+
+         ['line', length, opts]          straight on
+         ['arc', radius, turn, opts]     round a radius through `turn` radians
+
+       `dir` and `turn` are yaws, the same sense a shot's aim is measured in:
+       0 is up the hole (+z), and a positive turn swings the road towards +x.
+       Each piece leaves in the direction the last one arrived in, so however
+       it is written the road has no kink in it — which is the whole reason
+       it is authored as a drive and not as a list of points.
+
+       `o` is the rest of the pad: `w` its width, `y`, `kind`, and `caps`
+       for round ends — true for both, or 'start' or 'end' (a road that stops
+       in mid-air looks better stopping in a curve; one that runs on under a
+       green wants to stop square, short of the cup). A piece's opts:
+
+         bank   (arc) the outside of the turn raised by this much — a
+                `channel` along the outer edge whose profile reaches to the
+                inner one, so the inside of the turn is a flat gutter and the
+                outside a lip. It eases in and out past the ends of the arc
+                (the channel's rounded end), so a straight before and after a
+                banked turn meets it without a step. `{ a, r, lip, span }`
+                sets the profile's radius, how far outside the edge its spine
+                runs, and the stretch of the turn it runs along, as fractions
+                of it ([0, 1] by default) — the ease is the channel's rounded
+                end, about `r` long, so a turn that has to be level where it
+                finishes stops its spine short of the end by that much.
+         kerb   'in', 'out' or 'both': a rail along that side, laid by
+                `enclose` off the ground (laneRails) — a road gets none
+                otherwise, because a road on a ledge is a brink on both sides
+                unless somebody says it is not. On a straight, in and out are
+                the sides of the nearest turn (the next one, else the last).
+
+       Arcs of more than half a turn are cut in two, because that is the
+       widest wedge laneHas can test without an atan2. */
+    function road(o, pieces) {
+        var P = G3.physics, hw = o.w / 2, x = o.x, z = o.z, yaw = o.dir || 0, s = 0;
+        var ux = Math.sin(yaw), uz = Math.cos(yaw), segs = [], bumps = [];
+        pieces.forEach(function (pc) {
+            var opt, len, R, turn, parts, k, dt, side, cx, cz, a0, a1, g, first;
+            if (pc[0] === 'line') {
+                opt = pc[2] || {};
+                len = pc[1];
+                segs.push({ x0: x, z0: z, ux: ux, uz: uz, len: len, s0: s, kerb: opt.kerb });
+                x += ux * len; z += uz * len; s += len;
+                return;
+            }
+            R = pc[1]; turn = pc[2]; opt = pc[3] || {};
+            parts = Math.max(1, Math.ceil(Math.abs(turn) / Math.PI - 1e-9));
+            first = segs.length;
+            for (k = 0; k < parts; k++) {
+                dt = turn / parts;
+                // A positive turn is clockwise in atan2's sense: its centre is
+                // on the road's +x side when heading up the hole.
+                side = dt > 0 ? 1 : -1;
+                cx = x + side * R * uz; cz = z - side * R * ux;
+                a0 = Math.atan2(z - cz, x - cx);
+                a1 = a0 - dt;
+                g = {
+                    cx: cx, cz: cz, R: R, a0: a0, sweep: -dt, len: R * Math.abs(dt), s0: s,
+                    turn: -side, kerb: opt.kerb,
+                    in2: R > hw ? (R - hw) * (R - hw) : 0, out2: (R + hw) * (R + hw),
+                    sx: Math.cos(a0), sz: Math.sin(a0), ex: Math.cos(a1), ez: Math.sin(a1)
+                };
+                segs.push(g);
+                x = cx + Math.cos(a1) * R; z = cz + Math.sin(a1) * R;
+                yaw += dt; ux = Math.sin(yaw); uz = Math.cos(yaw);
+                s += g.len;
+            }
+            if (opt.bank) {
+                // One channel for the whole authored turn: two meeting at a
+                // cut would each round off there and add up to a hump.
+                var b = typeof opt.bank === 'number' ? { a: opt.bank } : opt.bank;
+                var lip = b.lip || 0, g0 = segs[first], span = b.span || [0, 1];
+                var from = g0.a0 + g0.sweep * parts * span[0], to = g0.a0 + g0.sweep * parts * span[1];
+                bumps.push(channel(g0.cx, g0.cz, R + hw + lip, b.r || 2 * hw + lip, b.a,
+                    Math.min(from, to), Math.max(from, to)));
+            }
+        });
+        var lane = { hw: hw, segs: segs, length: s, x0: o.x, z0: o.z, x1: x, z1: z,
+                     cap0: o.caps === true || o.caps === 'start',
+                     cap1: o.caps === true || o.caps === 'end' };
+        // `in`/`out` on a straight borrow the sense of the nearest turn.
+        segs.forEach(function (g, i) {
+            if (g.R || !g.kerb || g.kerb === 'both') return;
+            var j, near = null;
+            for (j = i + 1; j < segs.length && !near; j++) if (segs[j].R) near = segs[j];
+            for (j = i - 1; j >= 0 && !near; j--) if (segs[j].R) near = segs[j];
+            g.kerbSide = near ? (g.kerb === 'in' ? -near.turn : near.turn) : 0;
+        });
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+        P.laneOutline(lane, 0.1).forEach(function (q) {
+            minX = Math.min(minX, q[0]); maxX = Math.max(maxX, q[0]);
+            minZ = Math.min(minZ, q[1]); maxZ = Math.max(maxZ, q[1]);
+        });
+        var p = pad(minX, minZ, maxX - minX, maxZ - minZ, o.y, o.kind);
+        p.lane = lane;
+        if (bumps.length) p.bumps = bumps;
+        return p;
     }
 
     /* A funnel green: a flat floor, four ramps up to a rim, and four corners
@@ -890,6 +1074,7 @@
             { base: (o.y || 0) - 0.4, kind: 'tree' });
         if (o.y === undefined) w.seat = 0.4;      // how far its base sinks
         if (o.palm) w.palm = true;                // drawn as a palm (render.addTree)
+        if (o.fir) w.fir = true;                  // …or as a mountain fir
         return w;
     }
 
@@ -915,7 +1100,7 @@
             for (i = 0; i < clear.length && ok; i++) {
                 if (Math.hypot(clear[i].x - x, clear[i].z - z) < clear[i].r) ok = false;
             }
-            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4 }));
+            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4, fir: o.fir }));
         }
         return out;
     }
@@ -1030,7 +1215,11 @@
             pitch: o.pitch || 0,
             roll: o.roll || 0,
             scale: o.scale || 1,
-            variant: o.variant || 0
+            variant: o.variant || 0,
+            // The arcade's dressings carry a little more: a skyline's length
+            // and a marquee's words (render.addDecor).
+            w: o.w || 0,
+            text: o.text || ''
         };
     }
 
@@ -1046,6 +1235,27 @@
     function pine(x, z, y, opts) { return decor('pine', x, z, y, opts); }
     function sign(x, z, y, opts) { return decor('sign', x, z, y, opts); }
     function windmill(x, z, y, opts) { return decor('windmill', x, z, y, opts); }
+    /* The mountain's (Alpenglow Pass, render.addAlpineProp): a chalet, a
+       cairn, a chairlift running `w` along `yaw` from (x, z), and a waterfall
+       `w` wide off the lip it is placed on at height `y`. */
+    function chalet(x, z, y, opts) { return decor('chalet', x, z, y, opts); }
+    function cairn(x, z, y, opts) { return decor('cairn', x, z, y, opts); }
+    function lift(x, z, y, opts) { return decor('lift', x, z, y, opts); }
+    function waterfall(x, z, y, opts) { return decor('waterfall', x, z, y, opts); }
+    /* The arcade's own (Pinball Parlour): a city of lit towers standing on the
+       basement floor behind a table, an upright cabinet with its screen on, a
+       neon marquee with words in it, and a lamp let into the baize — a round
+       insert or (variant 1) an arrow along `yaw` — which is how a pinball
+       table tells you where the shot is without saying so. Lamps chase: each
+       lights a beat after the one before it in the list. */
+    function skyline(x, z, y, opts) { return decor('skyline', x, z, y, opts); }
+    function cabinet(x, z, y, opts) { return decor('cabinet', x, z, y, opts); }
+    function marquee(x, z, y, opts) { return decor('marquee', x, z, y, opts); }
+    function lamp(x, z, y, opts) { return decor('lamp', x, z, y, opts); }
+    // And the rest of the room: a jukebox, a claw machine, a fruit machine.
+    function jukebox(x, z, y, opts) { return decor('jukebox', x, z, y, opts); }
+    function claw(x, z, y, opts) { return decor('claw', x, z, y, opts); }
+    function fruit(x, z, y, opts) { return decor('fruit', x, z, y, opts); }
 
     /* ── the open country ───────────────────────────────────────────────
 
@@ -1964,8 +2174,15 @@
     /* The rail round a rounded corner: an arc of chords (`arc`) on the same
        line the straight rails stand on — a rail's half-thickness outside the
        edge — and built to the same height rule as `railFor`, off the ground
-       at both ends of the curve and in the middle of it. */
-    function cornerRails(p, out) {
+       at both ends of the curve and in the middle of it.
+
+       A `gaps` rectangle opens a curve the way it opens a straight edge: a
+       chord whose foot on the ground's edge is in one is left out, and each
+       run of chords either side is a kerb of its own. `roundCorners` never
+       rounds a corner near a gap, so only a hole that writes its own
+       `pad.round` can ask for this — a curved lip with nothing on it, which
+       is The Backboard's (v1.127.0). */
+    function cornerRails(p, out, gaps) {
         var P = G3.physics, c = p.round, k, r, cx, cz, a0, lo, hi, j, a, y;
         var spec = [['sw', 0, 0, Math.PI], ['se', 1, 0, Math.PI * 1.5],
                     ['ne', 1, 1, 0], ['nw', 0, 1, Math.PI / 2]];
@@ -1984,19 +2201,60 @@
             /* The chords are what the ball meets; `bend` is what the eye
                does. The renderer draws one smooth kerb per bend instead of
                the chords, which side-on read as a fan of flat boards. */
-            var bend = { cx: cx, cz: cz, R: r + RAIL_T / 2, a0: a0, a1: a0 + Math.PI / 2,
-                         t: RAIL_T, base: lo - 0.35, h: (hi - lo) + RAIL_H + 0.35 };
+            var n = Math.max(4, Math.ceil(r / 0.22)), da = Math.PI / 2 / n, i0 = 0, i;
+            for (i = 0; i <= n; i++) {
+                a = a0 + (i + 0.5) * da;
+                if (i < n && !inAny(gaps, cx + Math.cos(a) * r, cz + Math.sin(a) * r)) continue;
+                if (i > i0) kerb(a0 + i0 * da, a0 + i * da, i - i0,
+                    i0 > 0 || past(a0, 1), i < n || past(a0 + Math.PI / 2, -1));
+                i0 = i + 1;
+            }
+        }
+        // Whether the straight edge just past one end of the curve is open.
+        function past(e, s) {
+            var x = cx + Math.cos(e) * r + s * Math.sin(e) * 0.15, z = cz + Math.sin(e) * r - s * Math.cos(e) * 0.15;
+            return inAny(gaps, x, z);
+        }
+        // `cap0`/`cap1`: an end that stops at a gap rather than running on
+        // into the next rail, which the renderer finishes round.
+        function kerb(from, to, m, cap0, cap1) {
+            var bend = { cx: cx, cz: cz, R: r + RAIL_T / 2, a0: from, a1: to,
+                         t: RAIL_T, base: lo - 0.35, h: (hi - lo) + RAIL_H + 0.35,
+                         cap0: cap0, cap1: cap1 };
             arc(cx, cz, bend.R, bend.a0, bend.a1, {
-                t: RAIL_T, n: Math.max(4, Math.ceil(r / 0.22)),
-                base: bend.base, h: bend.h, kind: 'rail'
+                t: RAIL_T, n: m, base: bend.base, h: bend.h, kind: 'rail'
             }).forEach(function (w) { w.bend = bend; out.push(w); });
         }
     }
 
+    /* Whether the floor carries on just past one end of a run of rail, on the
+       line the rail stands on: a pad there at this edge's height. */
+    function floorPast(pads, p, side, t, dir) {
+        var s = t + dir * PROBE, o = RAIL_T / 2, along = (side === 'n' || side === 's') ? p.w : p.d;
+        var e = Math.max(0, Math.min(along, t)), x, z, ex, ez, h;
+        if (side === 's') { x = p.x + s; z = p.z - o; ex = p.x + e; ez = p.z; }
+        else if (side === 'n') { x = p.x + s; z = p.z + p.d + o; ex = p.x + e; ez = p.z + p.d; }
+        else if (side === 'w') { x = p.x - o; z = p.z + s; ex = p.x; ez = p.z + e; }
+        else { x = p.x + p.w + o; z = p.z + s; ex = p.x + p.w; ez = p.z + e; }
+        h = heightAt(pads, x, z, p);
+        return h !== null && Math.abs(h - G3.physics.padHeight(p, ex, ez)) < 0.3;
+    }
+
     function railFor(p, side, run, pads) {
-        // Overhang the ends by a thickness so corners meet and seal. Walls are
-        // allowed to overlap; the solver resolves them one at a time.
-        var a = run.t0 - RAIL_T, b = run.t1 + RAIL_T;
+        /* Overhang the ends by a thickness so an outside corner meets and
+           seals: the two rails' ends between them fill the square where the
+           corner is. Walls are allowed to overlap; the solver resolves them
+           one at a time.
+
+           Not where the floor carries on past the end, though — an inside
+           corner, where a five-wide tee pad meets an eight-wide green, or
+           the place a neighbour opens the edge. The rail on the other side
+           of that corner already fills the square, so an overhang there is
+           a stub of rail standing on the next pad's floor, and the two stubs
+           crossing were the X every inside corner on the mini courses wore
+           (v1.127.0). */
+        var a = run.t0 - (floorPast(pads, p, side, run.t0, -1) ? 0 : RAIL_T);
+        var b = run.t1 + (floorPast(pads, p, side, run.t1, 1) ? 0 : RAIL_T);
         var base = run.lo - 0.35;
         var h = (run.hi - run.lo) + RAIL_H + 0.35;
         if (side === 's') return wall(p.x + a, p.z - RAIL_T, b - a, RAIL_T, h, { base: base });
@@ -2005,14 +2263,62 @@
         return wall(p.x + p.w, p.z + a, RAIL_T, b - a, h, { base: base });
     }
 
+    /* The kerbs along a road (courses.road), wherever a piece asked for one
+       and nowhere else — a road's box is not its outline, so the edge walk
+       above has nothing to say about it. The same rail the edge walk would
+       build, on the same line (a half-thickness outside the edge) and to the
+       same height rule as `railFor`, off the ground along that edge. A kerb
+       round a turn is `arc`'s chords with one `bend` the renderer draws as a
+       single smooth kerb, exactly as a rounded corner's is; one along a
+       straight is a turned rail. */
+    function laneRails(p, out) {
+        var P = G3.physics, L = p.lane, at = [0, 0, 0, 0];
+        L.segs.forEach(function (g) {
+            if (!g.kerb) return;
+            var sides = g.kerb === 'both' ? [1, -1]
+                : g.R ? [g.kerb === 'in' ? -g.turn : g.turn] : [g.kerbSide];
+            sides.forEach(function (side) {
+                if (!side) return;
+                var lo = Infinity, hi = -Infinity, k, y, off = side * (L.hw - 0.02);
+                for (k = 0; k <= 6; k++) {
+                    P.lanePoint(L, g.s0 + g.len * k / 6, at);
+                    y = P.padHeight(p, at[0] + at[2] * off, at[1] + at[3] * off);
+                    lo = Math.min(lo, y); hi = Math.max(hi, y);
+                }
+                var base = lo - 0.35, h = (hi - lo) + RAIL_H + 0.35;
+                if (!g.R) {
+                    P.lanePoint(L, g.s0 + g.len / 2, at);
+                    var m = side * (L.hw + RAIL_T / 2);
+                    // Marked, as a bend is, so nothing mistakes it for a
+                    // turned rail somebody placed (the editor's import).
+                    var kb = bank(at[0] + at[2] * m, at[1] + at[3] * m, g.len + RAIL_T,
+                        Math.atan2(-g.uz, g.ux), { t: RAIL_T, h: h, base: base });
+                    kb.lane = true;
+                    out.push(kb);
+                    return;
+                }
+                // The + side is the inside of a turn whose sweep is negative.
+                var Rk = g.R + (side === -g.turn ? -1 : 1) * (L.hw + RAIL_T / 2);
+                var a0 = Math.min(g.a0, g.a0 + g.sweep), a1 = Math.max(g.a0, g.a0 + g.sweep);
+                var bend = { cx: g.cx, cz: g.cz, R: Rk, a0: a0, a1: a1,
+                             t: RAIL_T, base: base, h: h, lane: true };
+                arc(g.cx, g.cz, Rk, a0, a1, {
+                    t: RAIL_T, n: Math.max(4, Math.ceil(Rk * (a1 - a0) / 0.35)),
+                    base: base, h: h, kind: 'rail'
+                }).forEach(function (w) { w.bend = bend; out.push(w); });
+            });
+        });
+    }
+
     function enclose(pads, gaps) {
         var out = [], i;
         for (i = 0; i < pads.length; i++) {
+            if (pads[i].lane) { laneRails(pads[i], out); continue; }
             edgeRails(pads, pads[i], 's', gaps, out);
             edgeRails(pads, pads[i], 'n', gaps, out);
             edgeRails(pads, pads[i], 'w', gaps, out);
             edgeRails(pads, pads[i], 'e', gaps, out);
-            if (pads[i].round) cornerRails(pads[i], out);
+            if (pads[i].round) cornerRails(pads[i], out, gaps);
         }
         return out;
     }
@@ -2066,7 +2372,7 @@
         });
         if (!R) return;
         pads.forEach(function (p) {
-            if (p.r || p.bumps || p.field || p.inlay || p.west || p.east || p.voids ||
+            if (p.r || p.lane || p.bumps || p.field || p.inlay || p.west || p.east || p.voids ||
                 p.push || p.spring || p.hover || p.round) return;
             var r = Math.min(R, Math.min(p.w, p.d) / 4), out = {}, any = false;
             if (r < 0.45) return;
@@ -2220,7 +2526,9 @@
                 // own with walls, drawn as a solid disc; humps would make it
                 // terrain, and a disc of terrain is drawn for the ground
                 // round it, not for a table three units up.
-                if (p.kind !== 'rough' || p.stands) return false;
+                // …and ground that is out wherever it is (Redstone's canyon
+                // floor) is bare rock, not rough anybody plays out of.
+                if (p.kind !== 'rough' || p.stands || p.oob) return false;
                 if (Math.abs(p.sx || 0) + Math.abs(p.sz || 0) > HUMMOCK.tilt) return false;
                 // The row's tilt is not the only slope already there: a hole's
                 // own landforms run through its rough, and a hummock on the
@@ -2259,7 +2567,7 @@
         // Onto every piece of ground a hummock can reach — and that reach
         // includes how far a mown edge can carry a pad past its own cell.
         for (q = 0; q < ground.length; q++) {
-            if (ground[q].stands) continue;
+            if (ground[q].stands || ground[q].oob) continue;
             var p = ground[q], x0 = p.west ? p.west.lo : p.x, x1 = p.east ? p.east.hi : p.x + p.w;
             var mine = made.filter(function (m) {
                 var dx = Math.max(x0 - m.cx, 0, m.cx - x1), dz = Math.max(p.z - m.cz, 0, m.cz - p.z - p.d);
@@ -2308,8 +2616,11 @@
         function kindAt(qx, qz) {
             if (P.waterAt(h, qx, qz)) return null;
             var g = P.surfaceTop(h, qx, qz);
-            return g ? g.pad.kind : null;
+            // Ground that is out wherever it is (Redstone's floor and its
+            // bare rock) grows nothing and has nothing parked on it.
+            return g ? (g.pad.oob ? 'oob' : g.pad.kind) : null;
         }
+        function standOn(qx, qz) { var k = kindAt(qx, qz); return !!k && k !== 'oob'; }
         function nearWall(qx, qz, m) {
             for (var w = 0; w < h.walls.length; w++) {
                 var wl = h.walls[w];
@@ -2345,24 +2656,24 @@
         for (k = -1; k <= 1; k += 2) {
             x = tee.x + px * 1.5 * k + ux * 0.35;
             z = tee.z + pz * 1.5 * k + uz * 0.35;
-            if (kindAt(x, z)) item('teemarker', x, z, { variant: box });
+            if (standOn(x, z)) item('teemarker', x, z, { variant: box });
         }
         // …and a ball washer and a bin behind it, off to one side.
         var side = rnd() < 0.5 ? -1 : 1;
         x = tee.x - ux * 1.9 + px * 2.7 * side;
         z = tee.z - uz * 1.9 + pz * 2.7 * side;
-        if (kindAt(x, z) && clearOfDecor(x, z, 1.8) && !nearWall(x, z, 0.4)) {
+        if (standOn(x, z) && clearOfDecor(x, z, 1.8) && !nearWall(x, z, 0.4)) {
             item('washer', x, z, { yaw: Math.atan2(ux, uz) });
             x += px * 0.75 * side - ux * 0.3;
             z += pz * 0.75 * side - uz * 0.3;
-            if (kindAt(x, z)) item('bin', x, z);
+            if (standOn(x, z)) item('bin', x, z);
         }
 
         // …and a cart parked further back on the other side, facing up the
         // hole, wherever there is level ground and nothing growing there.
         x = tee.x - ux * 4.6 - px * 3.2 * side;
         z = tee.z - uz * 4.6 - pz * 3.2 * side;
-        if (kindAt(x, z) && clearOfDecor(x, z, 2.6) && !nearWall(x, z, 1.4)) {
+        if (standOn(x, z) && clearOfDecor(x, z, 2.6) && !nearWall(x, z, 1.4)) {
             var cg = P.surfaceTop(h, x, z);
             if (cg && P.slopeAt(cg.pad, x, z) < 0.12) {
                 item('cart', x, z, { yaw: Math.atan2(ux, uz) + (rnd() - 0.5) * 0.6, variant: Math.floor(rnd() * 2) });
@@ -2534,7 +2845,7 @@
            walk down with a bag; a hole made entirely of green is a lane you
            putt along, whatever else is in the way. The difference matters to
            exactly one thing — whether arriving on a green should hand you the
-           putter (game.autoPutt) — and it is a property of the ground rather
+           putter (game.syncLie) — and it is a property of the ground rather
            than of the course it happens to be filed under, so it is read off
            the pads rather than written on each hole by hand. */
         h.longGame = h.pads.some(function (p) {
@@ -2578,7 +2889,7 @@
         return h;
     }
 
-    /* ── mini golf, the first of four: Seaside Green ──────────────────────
+    /* ── mini golf, the first of three: Seaside Green ─────────────────────
 
        The first six holes anybody plays, and they are in the order they are in
        for one reason: each is harder than the one before it. That is the shape
@@ -2725,22 +3036,44 @@
 
                It replaced The Zigzag, two bars of beach with the gap at
                opposite ends, and keeps one of them: a bar of sand across the
-               lane with the gap at the east end. The tee is at that end too,
-               so the safe two is plain — a putt through the gap, and a putt
-               past the gate when it is out of the way. The ace is the line at
-               the flag, which shaves the inside edge of the gap and crosses
-               the gate's path, so it is a line *and* a moment; or bank it off
-               the east rail through the middle of the gap, which is the same
-               moment from further away. */
+               lane with the gap at the east end. The safe two is plain — a
+               putt up through the gap, and a putt past the gate when it is out
+               of the way.
+
+               The ace used to be the line at the flag, timed past the gate,
+               and that made it a hole with no question in it: a mallet struck
+               straight at the pin dropped at the right moment (README → "The
+               hole lab"). So the tee and the pin have both moved, and the
+               sand does the refusing. The tee stands in line with the end of
+               the bar and the pin a little west of that line, right behind
+               the gate's track, so the shot at the flag crosses the whole
+               depth of the sand — two and a half units of it — and a full
+               mallet comes out the other side at a walking pace and stops
+               short of the gate's track. (It was two until v1.126.0, when the
+               mallet got stronger and a full one ran through two.) Nothing on the line was added to stop it; it is
+               the beach that was always there, and the flag now stands where
+               the beach is in the way.
+
+               The ace is a bank. Aim up and to the right, at the east rail
+               where it runs past the gap; the rail turns the ball back out
+               through the middle of the gap, and it runs on across the
+               gate's track to the pin. The rail takes some of the angle off
+               the way back, so the line is several degrees wide and wants
+               the top third of the dial — a line and a weight a person can
+               find again. And a moment: the gate drifts across right in
+               front of the flag, and the bank only gets past it while the
+               gate is down at the west end of its run, so it is the first
+               hole on the game where the bold shot waits for the clock and
+               the safe one does not have to. */
             name: 'Harbour Gate', par: 3,
             blurb: 'Through the gap in the beach, then past the gate. It drifts; it never shuts.',
             pads: [
                 pad(0, 0, 6, 4),
-                pad(0, 4, 4, 2, 0, 'sand'), pad(4, 4, 2, 2),
-                pad(0, 6, 6, 6.5)
+                pad(0, 4, 4, 2.6, 0, 'sand'), pad(4, 4, 2, 2.6),
+                pad(0, 6.6, 6, 5.9)
             ],
             extra: [slider(1.6, 8.6, 2.0, 0.4, { amp: 1.5, speed: 0.7 })],
-            tee: { x: 5, z: 1.5 }, cup: { x: 3, z: 11 },
+            tee: { x: 4, z: 2.4 }, cup: { x: 3.1, z: 9.6 },
             decor: [
                 piling(-1.8, 5.0),
                 piling(7.8, 7.0),
@@ -2751,23 +3084,64 @@
         }),
         build({
             /* Water, and the first time the bag has anything that flies in
-               it. The bridge is the safe way and two putts; the pitch over the
-               shallows at the pin is the short way. And the ace is neither of
-               those — it is the mallet across the bridge, firm enough to run
-               all the way to the cup, along a plank with nothing between it
-               and the water on the inside. */
+               it. The tide is out of the bay between the tee and the far
+               green, all but one channel: an inlet that runs on up the
+               middle of the far green, between a lawn on the west and the
+               bridge's landing on the east, and stops just short of the flag.
+               So the far green goes round the head of the inlet, and it is
+               set off to the west of the tee — a lawn wider than the tee box,
+               come down to the water where a pitch can reach it.
+
+               It was a rectangle with a band of water straight across it and
+               the pin straight over the water from the tee, and the pitch at
+               the flag dropped nine times out of ten: the short way and the
+               ace were the same shot (README → "The hole lab"). The inlet is
+               the fix. A pitch carries about eight units from this tee and
+               the inlet runs on for nearly eleven, so a pitch at the flag
+               comes down in the channel, every weight of it, and costs a
+               stroke. The shot at the flag along the ground is in the bay
+               before it has started.
+
+               Three ways round it, then:
+
+               - **The bridge, which is the safe way.** A putt up the plank
+                 with the rail on the right, and a putt round the head of the
+                 inlet to the pin. The landing has the inlet on its inside for
+                 as long as the bridge does, so even the safe way is a putt
+                 with water beside it — but a slow one is never in.
+               - **Loft, which is the short way.** A pitch over the bay onto
+                 the bridge's landing or the lawn, and a putt. It cannot be
+                 the ace, because the inlet is between where it lands and the
+                 cup.
+               - **The mallet, which is the ace.** The idea the old hole had
+                 and the one worth keeping: across the bridge and all the way
+                 to the cup. Aim up and to the right, onto the plank and into
+                 its rail; the rail turns the ball back up the landing, along
+                 the edge of the inlet, and round the head of it into the cup.
+                 Too much angle and the ball is off the landing into the
+                 channel, too little and it runs past the pin on the east —
+                 a line a few degrees wide that wants the top of the dial, and
+                 water on the side the miss goes. */
             name: 'Low Tide', par: 3, bag: MINI_LOFT,
             blurb: 'The bridge is the safe way. Loft is the short way.',
-            pads: [pad(0, 0, 5, 5), pad(3.5, 5, 1.5, 4, 0, 'wood'), pad(0, 9, 5, 6)],
-            water: [rect(0, 5, 3.5, 4, -0.55)],
-            gaps: [shore(rect(0, 5, 3.5, 4))],
-            tee: { x: 1.6, z: 2 }, cup: { x: 2.3, z: 12.5 },
+            pads: [
+                pad(0, 0, 5, 5),
+                pad(3.5, 5, 1.5, 4, 0, 'wood'),
+                pad(-2, 8.5, 3.5, 7.1),
+                pad(1.5, 12.4, 2, 3.2),
+                pad(3.5, 9, 1.5, 6.6)
+            ],
+            water: [rect(-2, 5, 3.5, 3.5, -0.55), rect(1.5, 5, 2, 7.4, -0.55)],
+            gaps: [shore(rect(-2, 5, 3.5, 3.5)), shore(rect(1.5, 5, 2, 7.4))],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 2.9, z: 14.2 },
             decor: [
                 piling(3.2, 5.5, -0.55),
                 piling(3.2, 8.5, -0.55),
-                buoy(1.5, 7.0, -0.55),
-                piling(-0.8, 7.0, -0.55),
-                buoy(-3.0, 7.0)
+                piling(3.2, 10.6, -0.55),
+                buoy(2.4, 9.4, -0.55),
+                buoy(-0.6, 6.6, -0.55),
+                boat(-1.6, 2.4, { yaw: 0.7 }),
+                buoy(-3.4, 11.0)
             ]
         }),
         build({
@@ -2848,189 +3222,7 @@
         })
     ];
 
-    /* ── mini golf, the second of four: Quarry Ridge ─────────────────── */
-
-    var quarry = [
-        build({
-            /* Two ways up to the shelf, and the pin sits over the face of it
-               between them. The ramp on the left is long and gentle and leaves
-               a putt along the top; the one on the right is short and steep,
-               nearer the flag, and only a firm hit gets over the lip of it —
-               half measures roll back to you, which is what the blurb has
-               always promised. Straight up the middle is a pool at the foot of
-               the face, which is where the line at the flag goes. It used
-               to be one ramp up the middle of a straight lane, which was the
-               same shot every time. */
-            name: 'Step Up', par: 3,
-            blurb: 'Two ramps to the shelf: the long gentle one, or the short steep one nearer the flag. Half measures roll back.',
-            pads: [
-                pad(0, 0, 10, 4.5),
-                pad(0, 4.5, 3, 4.5, 0, 'green', 0, 0.24),         // the long way up
-                pad(7, 4.5, 3, 1.7),
-                pad(7, 6.2, 3, 2.8, 0, 'wood', 0, 0.39),          // the short one
-                pad(0, 9, 10, 4.5, 1.08)
-            ],
-            water: [rect(3, 4.5, 4, 4.5, -0.9)],
-            gaps: [shore(rect(3, 4.5, 4, 0.01), 0.4)],
-            tee: { x: 5, z: 1.6 }, cup: { x: 5.6, z: 11.4 },
-            decor: [
-                sign(3.2, 0.6, { yaw: 0.3 }),
-                crate(11.8, 2.4, { yaw: 0.2 }),
-                barrel(12.2, 3.4),
-                crate(-1.8, 9.8, { yaw: -0.3 }),
-                pine(-2.8, 6.0),
-                pine(12.6, 11.0, { yaw: 1.2 }),
-                barrel(-2.2, 1.2)
-            ]
-        }),
-        build({
-            /* Rolling, and it is the one mini golf hole that is. The drop
-               decides whether you get across; the green below decides how
-               close you finish, and a flat one would make that a matter of
-               pace alone.
-
-               And there is a second way down. Straight off the front of the
-               pillar is the short way — over the pool and onto the green, and
-               too gentle is a swim. Or down the stair of planks off the east
-               side of it, a drop at a time, which cannot put you in the water
-               and leaves a long putt back across the green. The pin is on the
-               near side, over the pool, so the stair is the long way round.
-
-               A stair rather than a sloped chute because of the rails: a rail
-               is a level box as tall as the highest ground it guards, so the
-               sides of a chute falling two units came out as one blank wall
-               the height of the pillar. A step at a time, each rail is a
-               step's height.
-
-               The short way is no longer at the flag. Off the front of the
-               pillar straight at the pin was the ace (README → "The hole lab"),
-               so a block of quarry stone stands on that line below the pool,
-               tall enough that the drop cannot clear it, and the pin is in its
-               lee with a bank across the green to the west of it: the drop is
-               aimed at the bank, which turns it east along the back of the
-               block to the pin. */
-            name: 'The Drop', par: 3, rolling: true,
-            blurb: 'Over the edge and down — too gentle and you are swimming. Or take the stair down the side, and the long putt.',
-            pads: [
-                pad(0, 0, 5, 4, 2.4),
-                pad(5, 1, 1.6, 2, 1.8, 'wood'),                   // the stair
-                pad(6.6, 1, 1.6, 2, 1.2, 'wood'),
-                pad(8.2, 1, 1.8, 2, 0.6, 'wood'),
-                pad(10, 0, 3.5, 6),
-                pad(-1, 6, 14.5, 8)
-            ],
-            water: [rect(-3, 4, 13, 2, -0.9)],
-            /* The pool's edge, and one strip per riser of the stair, each
-               short of the stair's sides so its rails stay. */
-            gaps: [
-                shore(rect(-3, 4, 13, 2), 0.6),
-                { x: 4.6, z: 1.05, w: 0.8, d: 1.9 },
-                { x: 6.2, z: 1.05, w: 0.8, d: 1.9 },
-                { x: 7.8, z: 1.05, w: 0.8, d: 1.9 },
-                { x: 9.6, z: 1.05, w: 0.8, d: 1.9 }
-            ],
-            extra: [
-                bank(0.6, 11.0, 3.0, -Math.PI / 4),
-                wall(2.7, 8.0, 1.2, 1.2, 1.5, { base: -0.3 })
-            ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.6, z: 10.8 }
-        }),
-        build({
-            /* Up the ramp and round a banked turn. The outside of the corner
-               rises (a `channel` on the arc round its inside corner), so a
-               ball with pace is carried round to the right instead of dying
-               into the far rail and rolling back down — and a ball with too
-               much climbs the bank and comes off it at an angle nobody
-               chose. The bank is laid on the ramp and the shelf alike, so
-               the seam between them stays one surface. */
-            name: 'Switchback', par: 4,
-            blurb: 'Up the ramp and round the banked turn. Too slow and it rolls back down.',
-            pads: [pad(0, 0, 4, 10)].concat(shape([
-                pad(0, 10, 4, 4, 0, 'green', 0, 0.3),
-                pad(0, 14, 10, 4, 1.2)
-            ], [channel(4, 14, 4.2, 1.6, 0.5, Math.PI / 2, Math.PI)])),
-            tee: { x: 2, z: 1.5 }, cup: { x: 8.4, z: 16 }
-        }),
-        build({
-            /* The road turns now, and that is the whole difference between
-               this and the hole it replaced. A straight ledge is one shot you
-               either hit straight or do not; a ledge with a corner in it is
-               two, and the second is played from wherever the first left you.
-
-               Every edge of the road is a brink — one gap rectangle covers all
-               of it — except the outside of the bend, which keeps its wall.
-               That is not mercy: a corner with nothing on the outside of it is
-               a corner nobody can hold, and the wall is the thing you aim at
-               rather than the thing that saves you. */
-            name: 'The Ledge', par: 4,
-            blurb: 'Two metres of quarry road with a corner in it, and a long way down off every edge.',
-            pads: [
-                pad(0, 0, 5, 4, 1),
-                pad(1.4, 4, 2.2, 5, 1),
-                pad(1.4, 9, 6.8, 2.4, 1),
-                pad(6, 11.4, 5.2, 5, 1)
-            ],
-            water: [rect(-4, 4, 16, 7.4, -1.2)],
-            gaps: [{ x: -4, z: 3.4, w: 16, d: 7.9 }],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 8.6, z: 13.9 }
-        }),
-        build({
-            /* A real half-pipe now: one pad whose floor curves up into both
-               walls (a `trough` down the middle of it), where it used to be
-               two flat planks leaning in at a flat gutter. The gutter is still
-               blocked halfway, and the way past is still to ride a wall — but
-               a curved wall hands the ball back along a curve, so how high up
-               it you send the putt is how far down the lane it comes off. */
-            name: 'Halfpipe', par: 3,
-            blurb: 'A half-pipe, blocked halfway. Ride the wall round it, then climb out of the end — flat clubs only.',
-            pads: [(function () {
-                // The pipe rounds off behind the tee and in front of the
-                // landing, so every edge of the pad is at the rim and the cup
-                // sits on flat ground a full CUP_FLAT clear of the curve.
-                var p = pad(0, 0, 7, 17, 1.25);
-                p.bumps = [trough(3.5, 3.5, 3.5, 9.5, 3.5, -1.25)];
-                return p;
-            })()],
-            extra: [wall(2.3, 6.6, 2.4, 0.4, 1.0, { base: -0.1 })],
-            tee: { x: 3.5, z: 3.5 }, cup: { x: 3.5, z: 15.2 }
-        }),
-        build({
-            /* The finisher, and it is the only hole on the course that asks
-               for the shot to be *over*-hit. The ramp stands in the left of the
-               tee and the green across the gap runs off to the right, with the
-               pin at its far end under a curved rail, so the cannon only gets
-               you over: fired straight, the last of it is a putt along the
-               green. Fired across at an angle, the rail brings it round to the
-               pin. And there is beach behind, so a shot that clears the water
-               by four is no better than one that clears it by one.
-
-               The other way over is the plank on the right — a board laid
-               across the gap, a putter's width, with no rails on it. That is
-               the safe way, if a plank over a quarry pool is anybody's idea of
-               safe.
-
-               The pin is round under the rail, not in front of it. Where it
-               was, the ramp fired straight at the flag dropped (README → "The
-               hole lab"); a unit further round, the only way in is the one
-               this hole was built for — across at an angle and round the
-               rail. */
-            name: 'The Cannon', par: 3,
-            blurb: 'Flat out up the ramp and fly the gap, or walk the plank on the right. The green runs away to the pin either way.',
-            pads: [
-                pad(0, 0, 10, 4),
-                pad(0.8, 4, 3.6, 2.5, 0, 'wood', 0, 0.45),
-                pad(7.6, 4, 1.2, 5.8, 0, 'wood'),          // the plank
-                pad(0, 9.8, 10.5, 5),
-                pad(0, 14.8, 10.5, 2.2, 0, 'sand')
-            ],
-            water: [rect(-3, 4, 16, 5.8, -0.9)],
-            gaps: [shore(rect(-3, 4, 16, 5.8), 0.7)],
-            extra: arc(7.6, 12, 2.6, -0.15, Math.PI / 2 + 0.3, { h: 0.55 }),
-            tee: { x: 3, z: 1.5 }, cup: { x: 9.2, z: 12.2 }
-        })
-    ];
-
-    /* ── crazy golf, the first of five: Windmill Works ───────────────── */
+    /* ── crazy golf, the first of three: Windmill Works ──────────────── */
 
     var works = [
         build({
@@ -3111,97 +3303,203 @@
             ]
         }),
         build({
-            /* This used to be Double Doors, which was First Gear played twice
-               with the second gate out of phase — a fine idea and the third
-               hole on the course to ask the same question. What stands here
-               instead is the first wall in the file the ball goes *through*:
-               solid across the lane, with one doorway in it, over on the right
-               where the tee shot is not already pointing.
+            /* The carousel: four blades turning in a round-backed room, and
+               the first machine on the course that is on your side. A ball
+               that gets in at the east door is caught by the blade behind it,
+               slides out to the wall, is carried round the back of the room
+               and let go down the west side at the blades' own pace — and
+               the pin is where that pace runs out. Whatever the ball brought
+               in with it, it leaves with the carousel's (a governor, as The
+               Sluice's belt is), so the shot is not a weight. It is getting
+               in: a door nine tenths wide at the top of the tee's lane, off
+               the line the lane points down.
 
-               And then a blade behind it, which is what makes the two halves
-               of the hole different questions rather than the same one twice.
-               The door is a line and the blade is a moment, and neither is any
-               use without the other. */
-            name: 'Through the Wall', par: 3,
-            blurb: 'One door in the wall, off to the right, and one blade behind it. Line first, then the moment.',
-            pads: [pad(0, 0, 7, 18)],
+               This was Through the Wall, a door and a blade in a seven-wide
+               lane, and before that Double Doors — the third lane in a row
+               and the third time the course asked for a line and then a
+               moment. The plan is an arch now, the pin is beside the tee,
+               and the moment is the machine's to keep. Miss the door and
+               the ball is at the foot of the wall with a tap in to come; a
+               ball left in the room is one the next blade may or may not
+               have moved by the time it is played.
+
+               0.38% of the sweep, at any moment of the turn (README → "The
+               hole lab"): 1–12° with half the mallet or more, or off the
+               lane's east rail. The pin a third of a unit further down the
+               lane is holed by nothing, and a third nearer by one shot in a
+               hundred — a governor's ace is a cliff, and it is set on the
+               edge. */
+            name: 'The Carousel', par: 3,
+            blurb: 'Four blades in a round room. Get in at the door and the carousel carries the ball round and sets it down by the pin.',
+            pads: [
+                pad(6, 0, 2, 5),            // the tee's lane
+                /* The room: a square slab with the round wall stood on it.
+                   Rounding the slab itself (`round`, a rail on the curve)
+                   was tried and plays differently — the rail sits inside
+                   the edge, the blades' tips reach it and the ball is
+                   pinched rather than carried. */
+                pad(0, 5, 8, 8),
+                pad(0, 0, 2, 5)             // and the lane it lets you out in
+            ],
             extra: [].concat(
-                aperture(-0.2, 6, 7.4, 0.4, { gap: 1.5, at: 5.4, h: 1.7, head: 1.15 }),
-                [spinner(3.5, 11, 3.8, 0.4, { spin: 1.6 })]
+                arc(4, 9, 4.17, 0, Math.PI, { drawn: 'rail' }),
+                [
+                    spinner(4, 9, 7.5, 0.36, { spin: -0.9 }),
+                    spinner(4, 9, 7.5, 0.36, { spin: -0.9, yaw: Math.PI / 2 })
+                ],
+                aperture(6, 4.4, 2, 0.4, { gap: 0.9, at: 1.3, h: 0.62 })
             ),
-            tee: { x: 2.2, z: 1.6 }, cup: { x: 3.5, z: 15.4 }
+            tee: { x: 7, z: 1.4 }, cup: { x: 1.0, z: 3.9 }
         }),
         build({
-            /* The bar runs the length of the floor, and a ball it catches is
-               a ball it carries — back towards the tee, usually, at the pace
-               the bar was doing. That was the whole hole, and the whole hole
-               was one shot: wait for the bar to turn at the far end and run
-               the putt in behind it.
+            /* The line: a conveyor the width of the floor, running east
+               across the way to the green, and the first hole on the course
+               where the machine has no moment to wait for. It is always
+               running. A ball crossing it is carried downstream for as long
+               as it is on the belt, so the putt is a ferry's: aim upstream of
+               the flag, and the slower you cross the further up you aim. A
+               putt at the flag finishes east of it every time.
 
-               The lay-by is the second shot. A bay off the west side of the
-               floor, halfway up, where the bar does not reach: putt into it,
-               watch the bar go by, and run the rest. It is the slow way and
-               it is never a three-putt; the run from the tee is a two at best
-               and a walk back down the lane at worst. */
-            name: 'The Sweeper', par: 3,
-            blurb: 'The bar sweeps the length of the floor. Run in behind it, or pull into the lay-by and let it go past.',
+               Dawdle and the belt keeps you — a ball that stops on it is
+               delivered to the reject bin at the east end, which is sand,
+               and opens on to the green at its top. That is the safe way
+               too, for anyone who would rather be carried than judge it:
+               tap on, ride to the bin, splash out, putt.
+
+               This was The Sweeper, a bar the width of a lane going up and
+               down it. Nothing passed the bar, so the hole was a wait and
+               then a lay-up, and from above it was the course's fourth
+               rectangle with one thing across it. */
+            name: 'The Line', par: 3,
+            blurb: 'The belt never stops. Cross it like a ferry: aim upstream, and further upstream the slower you go.',
             pads: [
-                pad(0, 0, 7, 16),
+                pad(2.5, 0, 4, 4.5),
+                belt(0, 4.5, 10, 4, 18, 0),
+                pad(10, 4.5, 2.4, 4, 0, 'sand'),
                 (function () {
-                    // A D-shaped bay, rounded on the outside like a kerb.
-                    var p = pad(-2.6, 6, 2.6, 4.2);
-                    p.round = { sw: 1.7, nw: 1.7 };
+                    var p = pad(0, 8.5, 12.4, 6);
+                    p.round = { nw: 3, ne: 3 };
                     return p;
                 })()
             ],
-            extra: [
-                slider(0.4, 7.8, 6.2, 0.4, { axis: 'z', amp: 3.4, speed: 1.1 })
-            ],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 5.2, z: 14 }
+            tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 12.5 },
+            decor: [
+                crate(-1.6, 5.2, { yaw: 0.3 }),
+                crate(-1.7, 6.6, { yaw: -0.2 }),
+                barrel(-1.5, 7.9),
+                sign(7.6, 1.2, { yaw: -0.5 })
+            ]
         }),
         build({
-            /* The hole the course needed and did not have: one that turns.
-               Five of the six here were a lane with a mechanism in the middle
-               of it, which is five ways of asking the same question, so this
-               one goes north, then east, then north again — and the second
-               blade stands in the corner, where you cannot back off and wait
-               for it because the ball has to be somewhere while you do.
+            /* A green with a fence round it and two ways in: the turnstile in
+               the front, or the gate at the back. That is the whole hole, and
+               it is meant to be read in one look from the tee.
 
-               The bunker keeps a line through it, on the far side of the lane.
-               A band of sand across the whole floor is not a decision, it is a
-               toll; two metres of grass past the edge of it is. */
-            name: 'Turnstile', par: 4,
-            blurb: 'North, east, north — with a blade in the lane, a blade in the corner and sand between them.',
-            pads: [
-                pad(0, 0, 5, 8),
-                pad(0, 8, 3.2, 3.5, 0, 'sand'), pad(3.2, 8, 1.8, 3.5),
-                pad(0, 11.5, 5, 4),
-                pad(5, 11.5, 7, 4),
-                pad(7, 15.5, 5, 4)
-            ],
-            extra: [
-                spinner(2.5, 4, 3.4, 0.4, { spin: -1.5 }),
-                spinner(8.5, 13.5, 3.4, 0.4, { spin: 2.1 })
-            ],
-            tee: { x: 2.5, z: 1.4 }, cup: { x: 9.5, z: 17.6 }
+               It used to be north, east, north with a blade in each leg and a
+               bunker between them — three things to get past and none of them
+               a choice, at twenty-odd units of lane that no ball in the bag
+               could cover in one, so nothing on it could be holed from the tee
+               whatever you did. Turning was the right instinct and a corridor
+               with two spinners in it was not the way to have it.
+
+                 the turnstile  one bar turning on a post in the gate, the
+                                only way through the front fence. Time it
+                                and you are on the green in one shot, and
+                                the ace is on: the lawn leans a
+                                thirtieth to the east and the pin is
+                                tucked behind the fence on that side, so
+                                the line is at the gate rather than the
+                                flag and the fall carries the ball across
+                                to the cup (The Mill's trick, README → "The
+                                hole lab"). A putt at the flag meets the
+                                fence. Mistime it and the bar sends you
+                                back down the lawn.
+                 the way round  the lawn carries on up the east side,
+                                past the corner of the fence and round to
+                                the gate in the back of it, which is wide
+                                and has nothing in it. Nothing here moves
+                                and nothing on it can go wrong — and it is
+                                too far round to finish in one, so it is a
+                                putt to the back and a putt down to the
+                                pin. A stroke dearer than the ace, and a
+                                stroke cheaper than the bar.
+
+               Fifth on the course because it is the first hole here that hands
+               you the choice between the two: First Gear's sand is a way round
+               the gate that costs you the putt after it, and this is a way
+               round that costs you exactly one shot and gives up the ace. The
+               bar is slow and short, so the front door is a fair bet rather
+               than a dare; the dare is the last hole's. */
+            name: 'Turnstile', par: 3,
+            blurb: 'A fenced green with a turnstile in the front. Time the bar and go for it, or walk round to the back gate.',
+            pads: [pad(0, 0, 9, 15, 0, 'green', -0.03, 0)],
+            extra: [].concat(
+                // the front fence, with the gate the turnstile turns in
+                aperture(0, 7, 5.4, 0.4, { gap: 2.1, at: 2.2, h: 0.62 }),
+                // the east fence, and the back one, with the gate between
+                [
+                    wall(5.0, 7.4, 0.4, 4.0, 0.62, { base: -0.1 }),
+                    wall(0, 11.0, 2.2, 0.4, 0.62, { base: -0.1 })
+                ],
+                [spinner(2.2, 7.2, 1.8, 0.3, { spin: 1.1 })]
+            ),
+            tee: { x: 3.0, z: 1.6 }, cup: { x: 4.1, z: 10.2 },
+            decor: [
+                sign(-1.6, 5.6, { yaw: 0.4 }),
+                barrel(-1.8, 8.2),
+                crate(-1.8, 9.4, { yaw: 0.3 }),
+                crate(10.6, 3.4, { yaw: -0.4 })
+            ]
         }),
         build({
-            name: 'Grand Finale', par: 4,
-            blurb: 'Ramp, blade, water, green. In that order, if you please.',
+            /* The one hole on the course with a hill in it, and it is all
+               hill: the tee is on top of the works, a chute runs down from
+               it to a lip, and past the lip is the mill race with the green
+               on the far bank. The ball leaves the lip with whatever the
+               putt gave it plus what the chute did, so the weight of the
+               putt is the length of the carry — short is the race, and a
+               full mallet lands deep and comes back off the round wall
+               behind the green.
+
+               The other five holes are machines that will not wait. This
+               one is over as soon as the ball is struck, and the dare is
+               all in the striking. For anybody who would rather not: let it
+               trickle down, and from the foot of the chute a boardwalk
+               runs east and a footbridge crosses the race. Three shots,
+               dry.
+
+               It was "ramp, blade, water, green" in a six-wide lane, a par
+               four on which nothing struck from the tee reached the green
+               at all (README → "Where the ball finishes"). An S-bend with
+               the mill on it was tried in its place and dropped: the banks
+               brought every ball to the same cell. */
+            name: 'Grand Finale', par: 3,
+            blurb: 'Down the chute, off the lip, over the mill race. Or trickle down and take the footbridge.',
             pads: [
-                pad(0, 0, 6, 6),
-                pad(0, 6, 6, 2.5, 0, 'wood', 0, 0.4),
-                pad(0, 8.5, 6, 4, 1),
-                pad(0, 16, 8, 6)
+                pad(0, 0, 3, 3.2, 2),
+                pad(0, 3.2, 3, 6.6, 2, 'wood', 0, -0.30303),
+                pad(0, 9.8, 3, 1.6, 0, 'wood'),
+                pad(0, 11.4, 3, 1.6, 0, 'wood', 0, 0.35),
+                pad(3, 9.8, 3.5, 1.6, 0, 'wood'),          // the boardwalk
+                pad(5, 11.4, 1.5, 4.2, 0, 'wood'),         // and the footbridge
+                (function () {
+                    var p = pad(-3, 15.6, 9.5, 8);
+                    p.round = { nw: 4, ne: 4 };
+                    return p;
+                })()
             ],
-            water: [rect(-3, 12.5, 14, 3.5, -0.9)],
-            gaps: [shore(rect(-3, 12.5, 14, 3.5), 0.7)],
-            extra: [spinner(3, 10.5, 3.6, 0.4, { spin: 1.9, base: 0.9 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 4, z: 19.5 }
+            water: [rect(-5.5, 11.2, 14.5, 4.4, -0.9)],
+            gaps: [shore(rect(-5.5, 13, 16, 2.6), 0.6)],
+            tee: { x: 1.5, z: 1.4 }, cup: { x: -1.4, z: 18.6 },
+            decor: [
+                windmill(-5.2, 19.5, { yaw: 0.6 }),
+                crate(4.6, 1.2, { yaw: 0.3 }),
+                barrel(4.8, 2.6)
+            ]
         })
     ];
 
-    /* ── mini golf, the third of four: Tidewater Reach ────────────────────
+    /* ── mini golf, the last of three: Tidewater Reach ────────────────────
 
        The loft course. Every hole here is built round the one thing a chip can
        do that a putt cannot — leave the ground — and each asks for it in a
@@ -3212,94 +3510,207 @@
 
     var tidewater = [
         build({
-            /* Two carries, but not in a line. The old hole was three squares
-               stacked north of one another, so the only question was how far;
-               now the stones are off to either side and the first carry is a
-               choice. The big stone out east is the safe one — a wide target,
-               and from it a long diagonal second over the bay to a green that
-               reaches out towards it. The little stone on the line is the
-               short way: half the second shot, and a third of the room to
-               stop on. Nothing carries the whole bay from the tee. */
+            /* Two stones and a green across a bay, and the green is the one
+               thing on the hole you can carry to from the tee — just. It lies
+               across the far side, off to the right and end on to you, with
+               its near end at the very limit of a full pitch; the pin is
+               tucked at that end, a stride behind the front rail with the
+               water in front of it. So the hole is read sideways rather than
+               down a lane, and every shot on it is a different length.
+
+               The safe way is the big stone, half left and a soft pitch away:
+               a fat target with a rail round it to stop against, and from it
+               the second comes in along the length of the green, so a pitch
+               anywhere near the line stays on and leaves a putt. The little
+               stone, half right, sits on the line at the flag: a smaller
+               target for the same carry, and from it the pitch is a tap over
+               a stride of water. Either way it is two carries and a putt,
+               which is par, and nothing on the floor gets off the tee.
+
+               The bold way carries the lot, and the ace is a bank, not a
+               pitch at the flag. Nothing stops beside a pin that close to the
+               front: a full pitch at the flag either drops in the water or
+               lands past the cup and runs on into the back rail, which it
+               meets at an angle and leaves for the far end of the green. Aim
+               at the near end instead, a few degrees left of the flag, with
+               nine tenths of a full swing or more, and the back rail sends it
+               back down across the green to the cup. The lab's window is four
+               and a half degrees wide across the top tenth of the dial — about
+               one shot in seven hundred of the sweep, a skill hole's share and
+               the most giving on this course, which is right for the hole that
+               opens it. Short of the green is the bay; on the green but off
+               the line is a putt for two.
+
+               It used to be the stones and a green out of reach of everything
+               from the tee: two carries and a putt, and no ace at all (the lab
+               said 0.000%), which was a gap on the first hole of a course
+               that is about what a pitch can do. */
             name: 'Stepping Stones', par: 3, needsLoft: true,
-            blurb: 'Two carries, and two stones to make the first one to. The big one is safe; the little one is short.',
+            blurb: 'Two stones on the way across: the big one is safe, the little one short. Or carry it all to the near end and let the back rail bring it to the pin.',
             pads: [
-                pad(0, 0, 5.5, 4.5),
-                pad(6.4, 6, 3.8, 3.8),          // the big stone, out east
-                pad(0.8, 7.8, 2.2, 2.2),        // the little one, on the line
-                pad(-0.5, 13, 9, 5.5)           // the green, reaching east
+                pad(0, 0, 5.5, 4.5),            // the tee
+                pad(3.0, 5.3, 3.6, 3.4),        // the big stone, half left from the tee
+                pad(-2.4, 5.0, 1.8, 1.8),       // the little one, half right, on the flag's line
+                pad(-7, 7.6, 7.8, 2.6)          // the green, end on, off to the right
             ],
-            water: [rect(-5, 4.5, 20, 8.5, -0.7)],
-            tee: { x: 2.75, z: 1.8 }, cup: { x: 1.8, z: 16 },
+            water: [rect(-9, 4.5, 20, 5.7, -0.7)],
+            tee: { x: 2.75, z: 1.8 }, cup: { x: -2.3, z: 8.8 },
             decor: [
-                palm(-1.6, 17.6),
-                palm(9.8, 18.2, { yaw: 2 }),
-                buoy(4.4, 9.8, -0.7),
-                sailboat(13.5, 10.5, { yaw: 0.8 }),
-                piling(-1.2, 6.2, -0.7),
-                piling(5.6, 5.2, -0.7)
+                palm(-5.8, 11.6),
+                palm(3.4, 12.0, { yaw: 2 }),
+                buoy(-4.6, 5.6, -0.7),
+                sailboat(9.4, 9.4, { yaw: 0.8 }),
+                piling(-5.6, 7.0, -0.7),
+                piling(8.0, 4.9, -0.7)
             ]
         }),
         build({
-            /* Short-sided: the pin is tucked in behind the sand on the near
-               right, a step from the bank at the back, and the whole of the
-               left of the green is open. So there are two pitches. The safe
-               one is to the fat of the green on the left and a putt across;
-               the brave one goes straight at the flag over the bay and the
-               bunker, and it has a club-length to stop in before the bank
-               behind the pin sends it back. It used to be seven units of
-               lane with the sand straight across it, one pitch at the flag
-               and nothing to choose. */
+            /* Short-sided: the pin is tucked in behind the sand on the right,
+               a step from the bank at the back, and the whole of the left of
+               the green is open. Two pitches, and neither of them is at the
+               flag.
+
+               The safe one is to the fat of the green on the left and two
+               putts across. The bold one is to the same green, but to the
+               near edge of it, just left of the bunker: the whole green
+               leans to the right — a fortieth, the same fall from the left
+               rail to the right one, so every seam meets level (README → "A
+               lean across a seam is a lip") — and a pitch landed by the sand
+               runs on up the green and is carried round behind the bunker to
+               the pin. That is the ace: a line a few degrees left of the flag
+               and most of a full swing, the slope doing the turning, the way
+               The Mill's lawn does. Land it further left and the slope only
+               brings it part of the way; land it in the sand and it is a
+               bunker shot.
+
+               A pitch straight at the flag is in the sand, because the bunker
+               runs as deep as the club carries on that line, and the back of
+               the bunker is a revetted face of sleepers — knee-high timber
+               along its far edge, the board a real pot bunker has. It is what
+               keeps the pin hidden: without it a pitch into the sand kicked up
+               off the first bounce, hopped out over the lip and ran into the
+               cup, and the hole's ace was the shot at the flag again — which
+               is what it had been before this layout, a full pitch at the pin
+               (the hole lab had it at 96% of a swing). The bay is narrower
+               than it was so the green can be deeper, which is what gives the
+               slope room to work.
+
+               It used to be a pitch at the flag over the bay and the bunker,
+               with a club-length to stop in before the bank behind the pin
+               sent it back — and before that, seven units of lane with the
+               sand straight across it. */
             name: 'Short Side', par: 3, needsLoft: true,
-            blurb: 'The pin hides behind the sand on the right. The fat of the green is on the left — go there, or go at it.',
+            blurb: 'The pin hides behind the sand on the right, and the green leans towards it. Land on the fat of the green, or land it by the sand and let the slope bring it round.',
             pads: [
                 pad(1, 0, 6, 4.5),
-                pad(-1, 8.5, 6, 4.5),                       // the fat of the green
-                pad(5, 8.5, 6, 1.6, 0, 'sand'),             // the trap, short right
-                pad(5, 10.1, 6, 2.9),                        // the pin's shelf
-                pad(-1, 13, 12, 1.6, 0, 'green', 0, 0.2)    // the bank behind it all
+                pad(-1, 7, 7.2, 6, 0.3, 'green', -0.025, 0),          // the fat of the green
+                pad(6.2, 7, 4.8, 3.2, 0.12, 'sand', -0.025, 0),       // the trap, short right
+                pad(6.2, 10.2, 4.8, 2.8, 0.12, 'green', -0.025, 0),   // the pin's shelf
+                pad(-1, 13, 12, 1.6, 0.3, 'green', -0.025, 0.2)       // the bank behind it all
             ],
-            water: [rect(-5, 4.5, 20, 4, -0.7)],
+            water: [rect(-5, 4.5, 20, 2.5, -0.7)],
             gaps: [shore(rect(1, 4.5, 6, 0.01), 0.4)],
-            tee: { x: 4, z: 1.8 }, cup: { x: 8.6, z: 11.6 },
+            // the bunker's revetted back face, between the sand and the pin
+            extra: [wall(6.2, 9.92, 4.8, 0.28, 0.7, { base: -0.1, kind: 'beam' })],
+            tee: { x: 4, z: 1.8 }, cup: { x: 7.2, z: 12.3 },
             decor: [
                 palm(-2.4, 14.5),
                 palm(12.4, 13.8, { yaw: 1.4 }),
-                buoy(-1.5, 6.4, -0.7),
-                boat(9.5, 6.2, -0.7, { yaw: -0.5 }),
+                buoy(-1.5, 6.0, -0.7),
+                boat(9.8, 5.6, -0.7, { yaw: -0.5 }),
                 piling(0.2, 5.0, -0.7)
             ]
         }),
         build({
-            /* Four walls and no door — and now it is round a corner. The lane
-               goes up and turns right, and the letterbox stands at the far end
-               of the turn, so the hole has the two ways every hole on the card
-               ought to. Round, which is a putt up the leg and a putt along the
-               top to the foot of the box, and then the short chip in; or the
-               pitch from the tee straight over the bay into the box, which is
-               the ace and is also the way into the water. It was a box in the
-               middle of a straight lane seven units from the tee, which was
-               one pitch and nothing to decide. */
+            /* A boathouse across the bay with the pin indoors, and two ways in:
+               the letterbox or the front door. That is the whole hole, and it
+               is what you see from the tee — a timber front with a slot in it
+               and the pin framed in the slot, and off to your left a jetty
+               running up to a door.
+
+               Post it, and it is the bold line. The slot is two units wide and
+               a little over one high, and nothing on the ground reaches it, so
+               the question is the weight rather than the line: a pitch at about
+               four fifths, or a wedge a touch harder, is in the slot. Short or
+               long hits the front, and the front stands in the water — a miss
+               is a stroke and the same shot again. Through it, the back rail is
+               a unit and a bit behind the pin, so everything that gets in on
+               the line comes back off it to the cup or leaves a tap.
+
+               Knock, and it is the safe one. The jetty is a fat target over
+               half the water; from it the door is a putt, and through the door
+               the pin is six units away across the room, and from all but one
+               corner of the jetty there is no straight line through the door to
+               it. Three, nearly always, against the two the letterbox nearly
+               always gives you.
+
+               The front is four units tall because it has to be. The pitch and
+               the wedge both climb past three and a half since the flight got
+               its height (v1.111.0), so anything lower is a wall you lob — from
+               the front of the tee, or from the jetty over the door — and then
+               the letterbox is decoration. Four is out of reach of a full swing
+               from anywhere on the hole; a thrash past it sails the house.
+
+               It used to be a pen at the end of an L-shaped lane — four rails
+               round the cup, which was a chip over a kerb with nothing to read
+               from the tee and nothing to decide. */
             name: 'The Letterbox', par: 3, needsLoft: true,
-            blurb: 'Four walls and no door, round the corner. Walk it round and post it in, or post it from the tee.',
+            blurb: 'The pin is indoors. Post it through the letterbox from the tee, or land on the jetty and knock at the door.',
             pads: [
-                pad(0, 0, 4.5, 9),
-                pad(0, 9, 4.5, 4.5),
-                pad(4.5, 9, 9, 4.5)
+                pad(0, 0, 5, 3.4),                  // the tee
+                pad(-1, 6.4, 10.6, 6),              // the boathouse floor
+                pad(6.6, 1.6, 2.4, 4.8)             // the jetty up to the front door
             ],
-            water: [rect(4.5, -2, 12, 11, -0.7)],
-            extra: pen(9.4, 9, 4.1, 4.5, { h: 0.6 }),
-            tee: { x: 2.25, z: 1.5 }, cup: { x: 11.45, z: 11.25 },
+            water: [rect(-6, -2, 24, 8.41, -0.7)],
+            gaps: [{ x: -1.2, z: 6.2, w: 11, d: 0.4 }],     // the front is the front rail
+            /* One front in two apertures, because an aperture has one opening:
+               the letterbox (sill and lintel — README's "window", laid long and
+               low) on the tee's line, and the door (a doorway, with the lintel
+               every doorway gets) at the head of the jetty. */
+            extra: [].concat(
+                aperture(-1, 6.4, 6.4, 0.3, { gap: 2.0, at: 3.5, sill: 0.5, head: 1.7, h: 4.1, kind: 'beam' }),
+                aperture(5.4, 6.4, 4.2, 0.3, { gap: 1.4, at: 2.4, sill: 0, head: 1.0, h: 4.1, kind: 'beam' })
+            ),
+            tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 11.3 },
             decor: [
-                buoy(8.5, 4.5, -0.7),
-                piling(5.2, 1.0, -0.7),
-                sailboat(12.5, 3.5, { yaw: -0.6 }),
-                palm(-1.8, 12.6),
-                palm(14.6, 14.2, { yaw: 2.4 })
+                buoy(5.6, 4.6, -0.7),
+                piling(10.8, 3.0, -0.7),
+                sailboat(13.5, 6.5, { yaw: -0.6 }),
+                palm(-2.2, 13.2),
+                palm(11.6, 13.4, { yaw: 2.4 })
             ]
         }),
         build({
+            /* A long table a metre up, out to the right across the far side
+               of the bay, with a timber backboard along its back edge and the
+               pin at its far right-hand end, in front of the board.
+
+               The pin is out of reach on its own line. The table runs away
+               from the tee as it goes right, so the line at the flag crosses
+               the front of it a little further off than a pitch carries up a
+               metre: a shot at the flag comes down on the apron in front of
+               the table, however hard it is hit, and runs away underneath.
+               The near end of the table, on the left, is well within reach.
+
+               So the bold line is a bank. Land on the left half of the table
+               with most of a full swing, run on up into the backboard, and it
+               hands the ball back down and to the right, along the table to
+               the pin — the angle in is the angle out, off a flat board, a
+               line you can read from the tee (golf README, "A bank to learn on
+               is flat"). Too far left and it comes back down the table short
+               of the pin; too far right and it comes off the board too wide
+               and runs off the far end of the table.
+
+               The safe way is the one the hole always had: land short on the
+               apron to the left and chip up. The board makes that chip kinder
+               than it was, because a chip up that runs on is stopped at the
+               back of the table instead of rolling off it.
+
+               It used to be a deeper table with the pin in the middle of it,
+               and the only ace was a full pitch at the flag that landed on the
+               front edge and ran in (the hole lab had it at 96% of a swing). */
             name: 'Tabletop', par: 3, needsLoft: true,
-            blurb: 'The green is a metre up, out to the right, with nothing to run up. Land it on top, or land short and chip.',
+            blurb: 'The green is a metre up, out to the right, with a board along the back. Land on the near end and bank it off the board, or land short and chip.',
             pads: [
                 pad(0, 0, 6, 4.5),
                 /* The apron runs under the table rather than up to it — pads
@@ -3309,18 +3720,20 @@
                    this hole is hard rather than cruel. The table is out to the
                    right of the apron rather than in the middle of it, so the
                    safe pitch and the brave one are aimed at different places,
-                   and every edge of it is a brink: long or wide rolls off on to
-                   the apron, which is a chip back rather than a kerb that
-                   saves you. */
-                pad(0.5, 7.5, 11, 8),
-                pad(5.6, 9.4, 4.4, 4.2, 0.9)
+                   and the three edges without a board are brinks: short or wide
+                   rolls off on to the apron, which is a chip back rather than a
+                   kerb that saves you. */
+                pad(0.5, 7.5, 12, 8),
+                pad(5.6, 8.2, 5.8, 2.6, 0.9)
             ],
-            water: [rect(-5, 4.5, 22, 3, -0.7), rect(-5, 7.5, 5.5, 9, -0.7), rect(11.5, 7.5, 6, 9, -0.7)],
+            water: [rect(-5, 4.5, 23, 3, -0.7), rect(-5, 7.5, 5.5, 9, -0.7), rect(12.5, 7.5, 6, 9, -0.7)],
             gaps: [
                 { x: 0.05, z: 4.1, w: 5.9, d: 0.8 },       // the tee's own shoreline
-                brink({ x: 5.6, z: 9.4, w: 4.4, d: 4.2 }, 0.4)   // …and every edge of the table
+                brink({ x: 5.6, z: 8.2, w: 5.8, d: 2.6 }, 0.4)   // …and every edge of the table
             ],
-            tee: { x: 3.4, z: 3.2 }, cup: { x: 7.8, z: 11.6 },
+            // the backboard: a timber board standing on the back edge of the table
+            extra: [wall(5.6, 10.5, 5.8, 0.3, 0.7, { base: 0.8, kind: 'beam' })],
+            tee: { x: 3.4, z: 3.2 }, cup: { x: 10.5, z: 9.2 },
             decor: [
                 palm(-1.6, 15.4),
                 palm(13.2, 16.0, { yaw: 1.8 }),
@@ -3380,39 +3793,204 @@
         })
     ];
 
-    /* ── mini golf, the last of four: Highland Steps ──────────────────────
+    /* ── mini golf, the second of three: Quarry Ridge ─────────────────────
 
-       The same lesson from the other side. Tidewater asks you to fly things
-       that are missing; Highland asks you to fly things that are in the way,
-       and hands the ground back as a tool: a bank to throw the ball at, a ramp
-       that stops short of the summit, a shelf worth the climb. Three of the six
-       cannot be finished any other way than through the air. The other three
-       keep a route along the floor on purpose — a course where every shot is
-       the same shot is not varied, it is uniform. */
+       Height, both ways: ground that is missing and ground that is in the
+       way. It was two courses — Quarry Ridge, ramps and ledges with a long way
+       down, and Highland Steps, walls and banks to fly or throw the ball at —
+       and they were teaching the same lesson from either side, so the best
+       six of their twelve holes are one card now (v1.122.0). The six that
+       went were the straight lanes the hole lab had no ace on (Step Up,
+       Halfpipe, The Gorge, Two Roads, Crown) and Stairway, whose ace was a
+       chip at the flag.
 
-    var highland = [
+       The order is the climb: a bank that hands the ball back (The Backboard),
+       a drop with a backboard of its own (The Drop), a quarter-pipe that turns
+       what climbs it (Switchback), a wall only the chipper goes over (Over the
+       Top), a road banked round a bend over the pool (The Ledge), and the
+       cannon to finish. Four of the six are played along the floor; the two
+       that want loft say so from the tee. */
+
+    var quarry = [
         build({
-            /* The front door is bricked up and the back of the green is a
-               curved bank — a half-ring of ground rising round the far side of
-               the cup — so a ball sent past either end of the wall climbs the
-               bank and is handed back down it towards the pin. Which end is the
-               choice: the near one off the tee is short and the bank catches
-               it square; the far one is the long way round and comes back at
-               an angle. It used to be a straight bank across the back of a
-               straight lane, which hands the ball back the way it came and
-               onto the wall. */
+            /* The front door is bricked up, so the ball goes round the end of
+               the wall and the curved backboard behind the pin hands it back.
+
+               The owner's word for the last version was "a good concept that
+               is lacking in execution", and it was: a five-wide tee box
+               butted into an eight-wide green, a straight bar of rail across
+               the front of the cup, and a half-ring of bank behind it that
+               nobody could see from the tee — with the rails at the join of
+               the two boxes running past each other in an X (railFor, which
+               every inside corner on the mini courses wore until v1.127.0).
+
+               So it is one table now, and no part of it is square (v1.127.0):
+
+               - **The table** is a single slab nine across and thirteen long,
+                 its near corners rounded and its far end a half circle. There
+                 is no join between the tee and the green to have a corner in.
+               - **The door** is a crescent of brick round the front of the
+                 cup, two units out from it and finished round at both ends
+                 (`arc`'s `drawn`). It closes every line from the tee at the
+                 pin, so the putt at the flag dies on it.
+               - **The backboard** is the half circle: from a unit and a half
+                 out from the cup the green rises to six tenths at the edge,
+                 on a ring centred on the cup (`channel`), so whatever climbs it comes
+                 back down the slope at the pin — the bank is a central force,
+                 and a ball that slows to a stop on it has nothing left to go
+                 anywhere but the middle. A stone board stands round the far
+                 side of it from the north round to the west.
+               - **The lip** is the rest of it. From the north-east round to
+                 the east there is no board, and down the whole east side
+                 there is no rail (`gaps`, which `cornerRails` honours since
+                 v1.127.0): the quarry edge.
+
+               The near end of the door is the bold way: up the east side
+               between the brick and the drop, firm, and the bank brings it
+               back to the pin. Too firm goes over the lip and off the edge,
+               which is a stroke; short of the right weight climbs a little
+               way, comes back and stops a short putt from the pin. The far end is the
+               safe way, the long way round on the walled side, soft: the bank
+               there stops at the north, so a ball round the west end runs out
+               on flat green behind the door and leaves a putt back round it.
+               The bank used to run the whole half circle, and then the far
+               end was a free ace off the west rail as well, with nothing to
+               lose for it.
+
+               The hole lab, full sweep: the mallet aces 0.35% of it, a
+               tutorial hole's share for the course's first hole, and the
+               widest window is the shot — from straight up the table at 88%
+               of the mallet to twenty-six degrees out towards the edge at
+               half, a weight for every line, with the lip over the top of
+               each. No putt at the flag drops. It was 0.075% in three thin
+               windows, the widest of them off the east rail. */
             name: 'The Backboard', par: 3,
             blurb: 'The front door is bricked up. Send it round the end of the wall and let the curved bank hand it back.',
-            pads: [
-                pad(3, 0, 5, 5),
-                (function () {
-                    var p = pad(0, 5, 8, 9);
-                    p.bumps = [channel(4, 9.6, 2.9, 1.3, 0.5, 0, Math.PI)];
-                    return p;
-                })()
+            pads: [(function () {
+                var p = pad(0, 0, 9, 13);
+                p.round = { sw: 2.2, se: 2.2, nw: 4.5, ne: 4.5 };
+                p.bumps = [channel(4.5, 8.5, 4.5, 3.0, 0.6, -0.2, 1.9)];
+                p.res = 0.45;
+                return p;
+            })()],
+            gaps: [
+                rect(-1, 8.48, 11, 10),         // the far curve, which the board stands on instead
+                rect(8.8, 2.2, 1, 6.31)         // and the quarry edge down the east side
             ],
-            extra: [wall(1.9, 7.6, 4.2, 0.32, 0.62, { base: -0.1 })],
-            tee: { x: 5.5, z: 1.6 }, cup: { x: 4, z: 9.6 }
+            extra: arc(4.5, 8.5, 2.0, -2.97, -0.7, { t: 0.4, h: 0.72, drawn: 'mill' })
+                .concat(arc(4.5, 8.5, 4.5 + 0.17, 70 * Math.PI / 180, Math.PI,
+                    { t: 0.34, base: -0.35, h: 1.55, drawn: 'rock' })),
+            tee: { x: 6.2, z: 2.2 }, cup: { x: 4.5, z: 8.5 },
+            decor: [
+                crate(10.6, 11.6, { yaw: 0.5 }),
+                crate(11.3, 10.7, { yaw: -0.2 }),
+                barrel(10.2, 12.9),
+                barrel(-1.6, 3.2),
+                crate(-1.9, 4.4, { yaw: 0.3 }),
+                sign(8.3, -0.9, { yaw: -0.5 })
+            ]
+        }),
+        build({
+            /* Rolling, and it is the one mini golf hole that is. The drop
+               decides whether you get across; the green below decides how
+               close you finish, and a flat one would make that a matter of
+               pace alone.
+
+               And there is a second way down. Straight off the front of the
+               pillar is the short way — over the pool and onto the green, and
+               too gentle is a swim. Or down the stair of planks off the east
+               side of it, a drop at a time, which cannot put you in the water
+               and leaves a long putt back across the green. The pin is on the
+               near side, over the pool, so the stair is the long way round.
+
+               A stair rather than a sloped chute because of the rails: a rail
+               is a level box as tall as the highest ground it guards, so the
+               sides of a chute falling two units came out as one blank wall
+               the height of the pillar. A step at a time, each rail is a
+               step's height.
+
+               The short way is no longer at the flag. Off the front of the
+               pillar straight at the pin was the ace (README → "The hole lab"),
+               so a block of quarry stone stands on that line below the pool,
+               tall enough that the drop cannot clear it, and the pin is in its
+               lee with a bank across the green to the west of it: the drop is
+               aimed at the bank, which turns it east along the back of the
+               block to the pin. */
+            name: 'The Drop', par: 3, rolling: true,
+            blurb: 'Over the edge and down — too gentle and you are swimming. Or take the stair down the side, and the long putt.',
+            pads: [
+                pad(0, 0, 5, 4, 2.4),
+                pad(5, 1, 1.6, 2, 1.8, 'wood'),                   // the stair
+                pad(6.6, 1, 1.6, 2, 1.2, 'wood'),
+                pad(8.2, 1, 1.8, 2, 0.6, 'wood'),
+                pad(10, 0, 3.5, 6),
+                pad(-1, 6, 14.5, 8)
+            ],
+            water: [rect(-3, 4, 13, 2, -0.9)],
+            /* The pool's edge, and one strip per riser of the stair, each
+               short of the stair's sides so its rails stay. */
+            gaps: [
+                shore(rect(-3, 4, 13, 2), 0.6),
+                { x: 4.6, z: 1.05, w: 0.8, d: 1.9 },
+                { x: 6.2, z: 1.05, w: 0.8, d: 1.9 },
+                { x: 7.8, z: 1.05, w: 0.8, d: 1.9 },
+                { x: 9.6, z: 1.05, w: 0.8, d: 1.9 }
+            ],
+            extra: [
+                bank(0.6, 11.0, 3.0, -Math.PI / 4),
+                wall(2.7, 8.0, 1.2, 1.2, 1.5, { base: -0.3 })
+            ],
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.6, z: 10.8 }
+        }),
+        build({
+            /* A quarter-pipe across the whole hole, and the shelf on top of
+               it. The face is a curve rather than a ramp: flat where it
+               leaves the floor and steepening all the way to the lip, so it
+               reads as something you send the ball up rather than along, and
+               it is wood, so a ball that does not reach the top comes back
+               down it to you. It used to be a straight ramp a metre and a
+               fifth tall with a banked turn at the top, and the mallet could
+               not get over it, let alone round the turn to the pin.
+
+               The flag is up on the shelf over the far right of the face, and
+               the face is what decides whether you reach it. Climbing it on a
+               slant takes the uphill half of the ball's pace and leaves the
+               sideways half alone, so the ball comes over the lip turned
+               across the face — and the less it had left, the more it turned.
+               Aimed at the flag, the face swings it off the right-hand end of
+               the shelf into the pool. Aimed left of it, the weight is the
+               whole shot: soft and it rolls back down the face, firm enough
+               and it comes over the lip swinging right onto the pin, harder
+               and it runs straight on past it and off the back. Every aim up
+               the left half of the face has its own weight; none of them is
+               a full whack. The safe way is square up the face at the left
+               end, onto the shelf short of the pin, and a putt along it.
+
+               The trough is the half-pipe's own profile, laid on its side:
+               its spine is the foot of the face, on the pad's south edge, and
+               its radius is twice the face's depth, so the pad ends halfway
+               up the curve — the steep half, at the lip — and is lifted by
+               twice the shelf's height to put that point level with the
+               shelf. The back of the shelf and the far end of the face and
+               the shelf are brinks over the quarry pool; the rail on the left
+               is the only edge up there that is not a swim. */
+            name: 'Switchback', par: 3,
+            blurb: 'A quarter-pipe up to the shelf, and it turns whatever climbs it on a slant. Too soft rolls back down; too firm is the pool.',
+            pads: [
+                pad(0, 0, 9, 4),
+                (function () {
+                    var p = pad(0, 4, 9, 2.2, 1.4, 'wood');      // the face, up to 0.7
+                    p.bumps = [trough(-1, 4, 10, 4, 4.4, -1.4)];
+                    return p;
+                })(),
+                pad(0, 6.2, 9, 3.5, 0.7)                         // the shelf
+            ],
+            water: [rect(-2, 9.7, 14, 3, -0.9), rect(9, 4, 3, 5.7, -0.9)],
+            gaps: [
+                brink({ x: 0, z: 9.7, w: 9, d: 0 }, 0.4),         // off the back…
+                { x: 8.6, z: 4.1, w: 0.8, d: 6 }                  // …and the far end
+            ],
+            tee: { x: 1.5, z: 1.2 }, cup: { x: 7.2, z: 7.7 }
         }),
         build({
             /* A wall nothing goes round and one club goes over — and the wall
@@ -3435,105 +4013,98 @@
             tee: { x: 5.2, z: 1.6 }, cup: { x: 1.8, z: 10.6 }
         }),
         build({
-            /* Four flights, and they go round. The stairs climb a turn at a
-               time round a pool in the middle of the hill — east, north, west
-               — with the pin on the top landing, which stands right over the
-               tee. So it can be walked up a step at a time, a chip for each
-               riser, or the middle flights can be skipped with a longer chip
-               across the corner of the pool; and the ace is the lob straight
-               up the face from the tee, which is two steps of height at once
-               onto a landing three units across. */
-            name: 'Stairway', par: 4, needsLoft: true,
-            blurb: 'Four flights round a pool, no ramp. Climb them one at a time, cut a corner, or lob it to the top.',
+            /* A road round the quarry face, banked like a velodrome, and the
+               green hanging off the end of the bend over the drop (v1.126.0).
+
+               It used to be four rectangles making two metres of road with
+               two right angles in it, every edge a brink except the outside
+               of the first corner, which kept its wall so the corner could be
+               held. The lab found no ace on it at all, and the owner's
+               verdict was the fair one: where is the risk and the reward? A
+               right angle with a wall on it is a bank shot or two putts, and
+               neither is a decision. So the corners went, and the road is a
+               `road` now — a pad laid along a curved centreline
+               (physics.laneHas), a straight up the hole and a quarter-turn
+               round to the left, with no corner anywhere along it.
+
+               The turn is the hole. Its outside is raised (a `bank`, the
+               channel laid along the outer edge) and is a bare lip with the
+               quarry pool under it; its inside is a flat gutter with a kerb,
+               and the kerb carries on down the straight. So the weight is the
+               whole shot, and the three weights do three different things:
+
+               - **soft** — anything the putter has, and the mallet's first
+                 half — climbs the bank, runs out of pace and comes back down
+                 it into the gutter, where the kerb holds it. Safe, and no
+                 nearer than a putt: nothing that slow gets round.
+               - **firm** — the mallet at about three fifths — rides the bank
+                 high round the bend, and the bank turns it through the
+                 quarter it needs on to the green and the pin, which is set
+                 where the turned ball arrives.
+               - **too firm** is quicker than the bank can turn, and goes
+                 straight on over the lip: a stroke, and the shot again.
+
+               The putt at the flag is across the crook of the bend, over the
+               pool. And the green itself is a brink all round (`gaps`), so a
+               firm ball that gets round and misses the cup is in the water
+               behind it as well. It was a par four played in stages; it is a
+               par three now, two safe putts or the mallet and nerve, which is
+               the shape of every other hole on the card.
+
+               The bank stops short of the end of the turn (`span`) so that
+               its rounded end has faded to nothing before the green: the cup
+               has to sit on level ground, and an inlaid green has to lie
+               flush with the road it is laid over. */
+            name: 'The Ledge', par: 3,
+            blurb: 'A quarry road banked round the bend. Firm rides the bank to the pin; too firm goes over the lip.',
             pads: [
-                pad(0, 0, 9, 3),                 // the foot of the stair, and the tee
-                pad(6, 3, 3, 6, 0.4),            // the east flight
-                pad(0, 9, 9, 3.2, 0.8),          // the north flight
-                pad(0, 3, 3, 6, 1.2)             // the top landing, and the pin
+                road({ x: 2.5, z: 0.2, dir: 0, w: 2.4, y: 1, caps: 'start' }, [
+                    ['line', 4, { kerb: 'in' }],
+                    ['arc', 3.2, Math.PI / 2, {
+                        kerb: 'in', bank: { a: 0.9, lip: 0.5, r: 2.6, span: [0, 0.7] }
+                    }],
+                    ['line', 0.7, { kerb: 'in' }]
+                ]),
+                // On a pillar of its own, and laid over the end of the road.
+                Object.assign(circle(7.6, 7.4, 1.7, 'green', 1), { stands: true })
             ],
-            water: [rect(3, 3, 3, 6, -0.6)],
-            /* One strip per riser, each stopping just short of the outside
-               rails — a gap reaching the outside edge would open the side of
-               the hill as well as the step. */
-            gaps: [
-                { x: 6.05, z: 2.6, w: 2.9, d: 0.8 },
-                { x: 6.05, z: 8.6, w: 2.9, d: 0.8 },
-                { x: 0.05, z: 8.6, w: 2.9, d: 0.8 },
-                { x: 0.05, z: 2.6, w: 2.9, d: 0.8 },
-                shore(rect(3, 3, 3, 6), 0.4)
-            ],
-            tee: { x: 7.4, z: 1.5 }, cup: { x: 1.5, z: 6.6 }
+            water: [rect(-1.5, 1.6, 12.8, 9.4, -1.2)],
+            gaps: [brink({ x: 5.9, z: 5.7, w: 3.4, d: 3.4 })],
+            tee: { x: 2.5, z: 1.4 }, cup: { x: 7.6, z: 7.1 }
         }),
         build({
-            /* Three metres of nothing at its narrowest — and that is not on
-               the line. The gorge is narrow on the left and wide on the right,
-               and the pin is on the right, over the wide part. Carry the
-               narrow side and putt across a green that climbs gently away from
-               you, or carry the whole width at the flag. It used to be one
-               straight carry the same distance everywhere. */
-            name: 'The Gorge', par: 3,
-            needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Narrow on the left, wide on the right, and the pin is on the right. Lay up across the narrow side or fly it.',
+            /* The finisher, and it is the only hole on the course that asks
+               for the shot to be *over*-hit. The ramp stands in the left of the
+               tee and the green across the gap runs off to the right, with the
+               pin at its far end under a curved rail, so the cannon only gets
+               you over: fired straight, the last of it is a putt along the
+               green. Fired across at an angle, the rail brings it round to the
+               pin. And there is beach behind, so a shot that clears the water
+               by four is no better than one that clears it by one.
+
+               The other way over is the plank on the right — a board laid
+               across the gap, a putter's width, with no rails on it. That is
+               the safe way, if a plank over a quarry pool is anybody's idea of
+               safe.
+
+               The pin is round under the rail, not in front of it. Where it
+               was, the ramp fired straight at the flag dropped (README → "The
+               hole lab"); a unit further round, the only way in is the one
+               this hole was built for — across at an angle and round the
+               rail. */
+            name: 'The Cannon', par: 3,
+            blurb: 'Flat out up the ramp and fly the gap, or walk the plank on the right. The green runs away to the pin either way.',
             pads: [
-                pad(0, 0, 11, 5),
-                pad(0, 7.5, 5, 8.5, 0, 'green', 0.04, 0),
-                pad(5, 10, 6.5, 6, 0.2, 'green', 0.04, 0)
+                pad(0, 0, 10, 4),
+                pad(0.8, 4, 3.6, 2.5, 0, 'wood', 0, 0.45),
+                pad(7.6, 4, 1.2, 5.8, 0, 'wood'),          // the plank
+                pad(0, 9.8, 10.5, 5),
+                pad(0, 14.8, 10.5, 2.2, 0, 'sand')
             ],
-            water: [rect(-3, 5, 8, 2.5, -2.4), rect(5, 5, 9.5, 5, -2.4)],
-            gaps: [
-                shore(rect(0, 5, 11, 0.01), 0.6),
-                shore(rect(0, 7.5, 5, 0.01), 0.6),
-                shore(rect(5, 10, 6.5, 0.01), 0.6)
-            ],
-            tee: { x: 3, z: 2.4 }, cup: { x: 8.6, z: 13 }
-        }),
-        build({
-            /* The two roads are two roads now, with a burn between them. The
-               low road runs up the west side and under a beam, long and flat
-               and all putting. The high road is a shelf up the east side that
-               wants a chip to get on to, and it runs straight at the pin and
-               drops off its end on to the green — shorter, and one shot that
-               has to be the right one. */
-            name: 'Two Roads', par: 4,
-            bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
-            blurb: 'The low road goes the long way, under the bar. The high road wants a chip first, and runs straight at the pin.',
-            pads: [
-                pad(0, 0, 9, 4),
-                pad(0, 4, 3, 11),               // the low road
-                pad(5, 4, 4, 11, 0.5),          // the high road
-                pad(0, 15, 9, 5)
-            ],
-            water: [rect(3, 4, 2, 11, -0.6)],
-            gaps: [
-                { x: 5.05, z: 3.6, w: 3.9, d: 0.8 },       // the face you chip up on to
-                { x: 5.05, z: 14.6, w: 3.9, d: 0.8 },      // and the drop off the far end
-                shore(rect(3, 4, 2, 11), 0.4)
-            ],
-            extra: beam(-0.3, 9.5, 3.6, 0.5),
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.8, z: 17.6 }
-        }),
-        build({
-            name: 'Crown', par: 4, needsLoft: true,
-            blurb: 'The ramp gets you to the shoulder. The last half metre is yours to fly.',
-            pads: [
-                pad(0, 0, 6, 5),
-                pad(0, 5, 6, 3, 0, 'green', 0, 0.28),
-                /* The shoulder keeps climbing, gently. A ball that crests the
-                   ramp runs out of steam on it and rolls back a metre or two,
-                   which is the room the chip up to the summit needs — parked
-                   against the face there is no shot at all. */
-                pad(0, 8, 7, 4, 0.84, 'green', 0, 0.03),
-                /* The summit, and it is smaller than it was with the pin
-                   tucked into the back of it. The last hole on the hardest
-                   mini course should not be a chip at the middle of a table:
-                   long is the loch, short is the loch, and the only part of
-                   the top that holds a ball is the part you have to be brave
-                   to aim at. */
-                pad(1.2, 12, 4.4, 4.6, 1.45)
-            ],
-            water: [rect(-3, 11.6, 13, 10, -2.3)],
-            gaps: [brink({ x: 1.2, z: 12, w: 4.4, d: 4.6 }, 0.4)],
-            tee: { x: 3, z: 1.6 }, cup: { x: 2.6, z: 15.2 }
+            water: [rect(-3, 4, 16, 5.8, -0.9)],
+            gaps: [shore(rect(-3, 4, 16, 5.8), 0.7)],
+            extra: arc(7.6, 12, 2.6, -0.15, Math.PI / 2 + 0.3, { h: 0.55 }),
+            tee: { x: 3, z: 1.5 }, cup: { x: 9.2, z: 12.2 }
         })
     ];
 
@@ -3678,7 +4249,9 @@
                carries it. Then a long third to a green with a pond off its
                left shoulder, which is where an approach pulled away from the
                sand on the right finishes. The hollow short of the belt
-               gathers the timid drive. */
+               gathers the timid drive. The green stands up a bank of rough a
+               unit and a half high (v1.13x.0), so the third is played up to
+               it and a short one comes back down. */
             var field = [].concat(
                 ridge(5, 16, 14, 16, 4.5, 0.28, 4),
                 massif(28, 26, 13, 2.4, 5),
@@ -3693,7 +4266,7 @@
                 [6,                     [5, rgh], [11, fwy], [6, rgh]],
                 [{ d: 8, sz: 0.2 },     [6, rgh], [11, fwy], [5, rgh]],
                 [12,                    [6, rgh], [11, fwy], [5, rgh]],
-                [5,                     [5, rgh], [12, fwy], [5, rgh]],
+                [{ d: 5, sz: 0.3 },     [22, rgh]],
                 [10,                    [6, rgh], [11, fwy], [5, rgh]],
                 [3,                     [22, rgh]]
             ], { e: 18 });
@@ -4032,7 +4605,7 @@
                them, which leaves the longer approach over the bunker short of
                the green, or narrow down the right between the pots and the
                stakes, which leaves the open line in. The green stands on a
-               shelf a unit up at the end, so the approach is an uphill shot
+               shelf up a bank of rough most of two units high (v1.13x.0), so the approach is an uphill shot
                to a flat table and anything short runs back down the bank. */
             name: 'The Whins', par: 4, open: true,
             blurb: 'Three pots split the landing ground: wide to the left of them, or tight down the stakes for the open line. The green is up on a shelf.',
@@ -4043,7 +4616,8 @@
                 strips: [
                     [28, [21, rgh], [20, fwy], [21, rgh]],
                     [24, [16, rgh], [28, fwy], [18, rgh]],
-                    [{ d: 6, sz: 0.16 }, [20, rgh], [20, fwy], [22, rgh]],
+                    [{ d: 3, sz: 0.45 }, [62, rgh]],
+                    [{ d: 3, sz: 0.1 }, [20, rgh], [20, fwy], [22, rgh]],
                     [18, [21, rgh], [20, fwy], [21, rgh]],
                     [10, [62, rgh]]
                 ],
@@ -4321,7 +4895,7 @@
     ];
 
 
-    /* ── crazy golf, the second of five: Pinball Parlour ──────────────────
+    /* ── crazy golf, the second of three: Pinball Parlour ─────────────────
 
        The first course on the list that is not trying to be a golf course at
        all. Everything else here — even Windmill Works with its blades — is
@@ -4333,7 +4907,32 @@
        That is what `bumper` is for, and it is the only new piece of vocabulary
        the course needed. Everything else is a wall, a ramp and a gate that the
        first seven courses already had — which is the point: crazy golf is not
-       a different engine, it is the same one with the aiming taken away. */
+       a different engine, it is the same one with the aiming taken away.
+
+       Since v1.126.0 the course is played in the order of what each table
+       adds, one piece at a time: the chute and three bumpers, then banks and
+       rubber posts, then both round a block of bumpers you bank into, then
+       height, then bats that move, and the finisher with a hole in the table
+       and all the rest. */
+
+    /* The room round a table: uprights along both sides on the basement
+       floor, facing in, and a marquee over the far end with the hole's name
+       on it. Every hole on the Parlour wears it, so the course is a room
+       rather than six tables floating in the dark (the owner: "there is no
+       fun decor or props"). `kinds` is what stands along the walls, taken in
+       turn, so each room is furnished differently and six holes are six
+       rooms. */
+    function arcadeRoom(W, L, text, seed, kinds) {
+        var out = [], k, n = Math.max(2, Math.round(L / 4.5)), v = seed || 0;
+        var ks = kinds || [cabinet];
+        for (k = 0; k < n; k++) {
+            var z = 2.5 + k * (L - 4) / (n - 1);
+            out.push(ks[k % ks.length](-1.5, z, { yaw: Math.PI / 2, scale: 1.3, variant: (v + k) % 4 }));
+            out.push(ks[(k + 1) % ks.length](W + 1.5, z, { yaw: -Math.PI / 2, scale: 1.3, variant: (v + k + 2) % 4 }));
+        }
+        if (text) out.push(marquee(W / 2, L + 1.6, { w: 3.4, scale: 1.5, text: text }));
+        return out;
+    }
 
     var parlour = [
         build({
@@ -4348,43 +4947,124 @@
                is the width of the gap the line out of the chute at the flag
                used to thread (README → "The hole lab"). The shot now is the
                one the plunger is for: off the chute's wall and through the
-               pins on the inside of it. */
-            extra: [bumper(1.6, 12), bumper(3.25, 13.7), bumper(5.4, 12)],
+               pins on the inside of it. The pins are a size up since they went
+               round (physics.popBumper): a circle inscribed in the old square
+               opened the gap again by the width of its corners. */
+            extra: [bumper(1.6, 12, 0.6), bumper(3.25, 13.7, 0.6), bumper(5.4, 12, 0.6)],
+            decor: arcadeRoom(7, 18, 'PLUNGER LANE', 0),
             tee: { x: 1.2, z: 1.2 }, cup: { x: 3.5, z: 16.6 }
         }),
-        build({
-            /* A pinball table, at last, rather than a lane with posts on it:
-               the top of it is a dome, and the pin is up inside the dome.
-               Eight posts still stand between the tee and the pin and there is
-               still no line through them — but a table has a way round the
-               outside, and so does this one.
+        (function () {
+            /* The table the slingshots are named for, and the first on the
+               course with something on it that gives the ball pace instead
+               of only taking it away.
 
-               Up either side of the posts runs a lane a metre wide with
-               nothing in it, and at the top of each lane, where the dome
-               begins, a kicker is set at forty-five degrees: a ball sent up
-               the lane at the right weight comes off it travelling straight
-               across the table at the pin. Too hard and it finds the dome,
-               which is a curved backboard and hands it round and back; too
-               soft and it dies in the lane. Through the posts is luck. Off
-               the kicker is a shot. */
-            name: 'Bumper City', par: 3,
-            blurb: 'Eight posts and no line through them. Up the side lane and off the kicker is the shot; through the posts is luck.',
-            pads: [(function () {
-                var p = pad(0, 0, 8, 19);
-                p.round = { nw: 4, ne: 4, sw: 1.1, se: 1.1 };
-                return p;
-            })()],
-            extra: [
-                bumper(4, 13.3),
-                bumper(2.7, 11.4), bumper(5.3, 11.4),
-                bumper(4, 9.4),
-                bumper(2.3, 7.2), bumper(5.7, 7.2),
-                bumper(3.1, 5.0), bumper(4.9, 5.0),
-                bank(0.95, 15.65, 1.7, -Math.PI / 4),
-                bank(7.05, 15.65, 1.7, Math.PI / 4)
-            ],
-            tee: { x: 4, z: 1.5 }, cup: { x: 4, z: 15.5 }
-        }),
+               It was two banks set across the table as a V with a post in the
+               throat (v1.70.0 to v1.132.0), and nothing on it was ever an
+               ace: a bank only hands back a rail's share, so every line off
+               one died short of anything. Now the two are slingshots — a
+               triangle of rubber with a kicker behind the face
+               (courses.slingshot, physics.collideWalls) — up at the far end in
+               the corners, and the pin is back down beside the tee, behind a
+               wall that runs up the middle of the table from the near rail.
+
+               So the way to the pin is away from it. A firm putt up the left
+               lane into the left slingshot's face is fired back across the
+               table, round the end of the wall and down the right side; the
+               kick is the pace, and how firmly it was met is how far down the
+               lane it comes. The safe way is two putts round the end of the
+               wall, short of the kickers — and a putt round it struck too hard
+               reaches the right one, which fires it back across the top. A
+               putt at the flag hits the wall. */
+            var W = 8, L = 12, p = pad(0, 0, W, L);
+            p.round = { nw: 3, ne: 3, sw: 1.2, se: 1.2 };
+            var lamps = [], k, yaw = Math.atan2(4.3, -2.5);
+            // The chase from the left kicker's face to the pin.
+            for (k = 0; k < 4; k++) {
+                lamps.push(lamp(1.9 + k * 0.95, 8.3 - k * 0.55, 0.006, { yaw: yaw, variant: 1 }));
+            }
+            return build({
+                name: 'The Slingshots', par: 3,
+                blurb: 'The pin is beside the tee and a wall is in the way. Putt up into a slingshot and it fires you back round the end of it.',
+                pads: [p],
+                extra: [].concat(
+                    [wall(3.8, 0, 0.4, 6, 0.62), post(4.0, 6.0, 0.4)],
+                    slingshot({ x: 2.6, z: 9.4 }, { x: 0.25, z: 8.0 }, { x: 0.25, z: 9.4 }),
+                    slingshot({ x: W - 0.25, z: 8.0 }, { x: W - 2.6, z: 9.4 }, { x: W - 0.25, z: 9.4 })
+                ),
+                decor: lamps.concat(arcadeRoom(W, L, 'SLINGSHOTS', 3, [claw, jukebox])),
+                tee: { x: 2, z: 1.4 }, cup: { x: 5.9, z: 6.2 }
+            });
+        })(),
+        (function () {
+            /* A city block of pop bumpers with the pin in the middle of it,
+               and the doors into the block on the diagonals.
+
+               It was eight square posts in a diamond and a kicker up each side
+               lane (v1.70.0 to v1.122.0), and the hole lab never found an ace
+               on it: the kickers turned a ball that came straight up a lane,
+               and nothing on the table sent one straight up a lane. The posts
+               were boxes, and a field of boxes is a field of little walls.
+
+               Now the posts are round and three of them fire (physics.
+               popBumper), and they stand round the cup at three, twelve and
+               nine o'clock with a rubber post at six — the one in front, on
+               the line from the tee, and passive, because a kick there would
+               make every glancing line an ace at any weight. Two more rubber
+               posts stand in the street halfway up and shade the doors from
+               the tee, so nothing goes in on a straight line.
+
+               What does go in is the bank. Off either side rail, about four
+               units up, the ball comes back across the table on the diagonal
+               and through the bottom door of the block on that side — a
+               mallet at two thirds of the swing or more. The lamps let into
+               the baize say so: a chase of arrows to each rail and back to
+               the block, which is what the inserts on a real table are for.
+               Short of the block is a putt through a door; hit at the
+               bumpers and they hand it back at walking pace; and behind the
+               block are the two drains, which is where a ball that comes off
+               the top of the dome too hard ends up. */
+            var W = 7, L = 12.5, cx = 3.5, cz = 7.8, R = 0.72;
+            var p = pad(0, 0, W, L);
+            p.round = { nw: W / 2, ne: W / 2, sw: 1.4, se: 1.4 };
+            function at(deg, r) {
+                var t = deg * Math.PI / 180;
+                return { x: cx + Math.cos(t) * r, z: cz + Math.sin(t) * r };
+            }
+            p.voids = [60, 120].map(function (deg) {
+                var q = at(deg, 1.9);
+                return { x: q.x, z: q.z, r: 0.5 };
+            });
+            var front = at(-90, R), east = at(0, R), north = at(90, R), west = at(180, R);
+            var lamps = [], k;
+            // The chase to each rail and back to the block, mirrored.
+            [1, -1].forEach(function (sx) {
+                var out = Math.atan2(0.8 * sx, 0.6), back = Math.atan2(-0.64 * sx, 0.77);
+                lamps.push(lamp(cx + sx * 1.15, 2.3, 0.006, { yaw: out, variant: 1 }));
+                lamps.push(lamp(cx + sx * 1.95, 2.9, 0.006, { yaw: out, variant: 1 }));
+                lamps.push(lamp(cx + sx * 2.55, 5.0, 0.006, { yaw: back, variant: 3 }));
+                lamps.push(lamp(cx + sx * 1.9, 5.8, 0.006, { yaw: back, variant: 3 }));
+            });
+            // And the block itself, ringed in round inserts.
+            for (k = 0; k < 8; k++) {
+                var q = at(22.5 + k * 45, 1.35);
+                if (k === 1 || k === 2) continue;           // the drains are there
+                lamps.push(lamp(q.x, q.z, 0.006, { variant: 4 }));
+            }
+            return build({
+                name: 'Bumper City', par: 3,
+                blurb: 'The pin is in a block of pop bumpers with its doors on the diagonals. Bank it off a side rail and through one; anything else, the bumpers hand back.',
+                pads: [p],
+                extra: [
+                    post(front.x, front.z),
+                    bumper(east.x, east.z), bumper(north.x, north.z), bumper(west.x, west.z),
+                    post(cx - 0.4, 4.4), post(cx + 0.4, 4.4),
+                    bumper(1.3, 9.9), bumper(5.7, 9.9)
+                ],
+                decor: lamps.concat([skyline(cx, 15.6, { w: 13 })], arcadeRoom(W, L, 'BUMPER CITY', 0)),
+                tee: { x: cx, z: 1.4 }, cup: { x: cx, z: cz }
+            });
+        })(),
         build({
             /* Tilt was a leaning table with two posts on it, and the lean was
                the whole hole — which meant there was one shot on it and the
@@ -4412,126 +5092,141 @@
                 pad(0, 12, 9, 6, 1.2)
             ],
             extra: [bumper(4.5, 4.2)],
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.6, z: 15 }
+            decor: arcadeRoom(9, 18, 'TWO RAMPS', 1, [jukebox, cabinet]),
+            /* The pin was at x 6.6 until the stubs of rail crossed at every
+               inside corner came out (railFor): two of them had been
+               narrowing the steep ramp's mouth, and without them the putt at
+               the flag went up it and dropped. */
+            tee: { x: 4.5, z: 1.6 }, cup: { x: 6.9, z: 15 }
         }),
-        build({
-            /* Two banks across the mouth of the table, set as a V that opens
-               towards the tee, and they are what turns this from a lane with
-               blades in it into a table. There is no way down either side any
-               more: everything is gathered into a window a metre wide, and the
-               bats are on the other side of it. */
-            name: 'The Flippers', par: 3,
-            blurb: 'Banks that funnel you in, and two bats waiting on the other side of the gap.',
-            pads: [pad(0, 0, 7, 16)],
-            extra: [
-                bank(1.8, 5.4, 2.6, 0.5),
-                bank(5.2, 5.4, 2.6, -0.5),
-                spinner(1.7, 8.6, 2.6, 0.4, { spin: 1.9 }),
-                spinner(4.8, 11.4, 2.6, 0.4, { spin: -2.3 }),
-                bumper(3.5, 3.2)
-            ],
-            tee: { x: 3.5, z: 1.5 }, cup: { x: 2.2, z: 14.4 }
-        }),
-        build({
-            /* The box with no door has gone next door to Tidewater, where a
-               hole that can only be answered upwards belongs. What stands here
-               instead is the piece of pinball furniture the file could not
-               write until `bank` existed: two rails set across the table at
-               thirty-five degrees, apex towards the player, with a post in the
-               throat between them.
+        (function () {
+            /* Two bats that fire, hung down the rails.
 
-               So there are four ways past and not one of them is straight. A
-               window either side of the post, half a metre of aim each and the
-               bank right there to throw a near miss across the table; or round
-               the outside, which is wider and twice as long and lands you in
-               the pair of posts guarding the pin. Nothing here moves. It does
-               not need to — an angled wall is a machine for turning a good
-               line into somebody else's. */
-            name: 'The Slingshots', par: 3,
-            blurb: 'Two banks pointing the wrong way, a post in the throat, and no straight line anywhere.',
-            pads: [pad(0, 0, 9, 16)],
-            extra: [
-                bank(2.2, 8.2, 3.2, -0.6),
-                bank(6.8, 8.2, 3.2, 0.6),
-                bumper(4.5, 7.6, 0.6),
-                bumper(2.2, 12.4), bumper(6.8, 12.4)
-            ],
-            tee: { x: 4.5, z: 1.5 }, cup: { x: 4.5, z: 14.2 }
-        }),
-        build({
-            /* The finisher, and the one hole on the course with two honest
-               routes to the flag. A wall across the table with a doorway cut in
-               the left of it and a window cut in the right, and the two are
-               different shots rather than two of the same:
+               The bats were sines (v1.126.0 to v1.132.0) behind a funnel of
+               banks, and a sine is a blade that stops: it pushes a ball at the
+               pace it happens to be turning at, which is never much, so
+               nothing a bat touched ever went anywhere and the hole had no ace.
+               A real flipper lies still and then fires. These do
+               (courses.flipper `snap`, physics.snapAt): at rest most of their
+               beat, flat against the rail like a stretch of it, then up
+               through a radian in a quarter of a second and held, and a ball
+               the bat meets on the way up leaves at the bat's own pace — at
+               the tip, more than a full putt. A ball that stops anywhere a bat
+               sweeps is not at rest (physics.inSweep); it gets flipped.
 
-                 the door    is on the floor and a metre wide. A putt goes
-                             through it and nothing else does, so it is a line,
-                             and it puts you on the far side with the pace you
-                             chose.
-                 the window  starts half a unit up and is wider. Nothing on the
-                             ground gets through, so it is a weight — and the
-                             ball arrives on the other side already in the air,
-                             which is a different lie again.
+               The left bat, swung out across the lane, fires up and to the
+               right: off the far rail and down on to the pin, which stands at
+               the top of the table on the right behind a rubber post on the
+               line from the tee, with another on the rail where a plain bank
+               would have done the bat's work for it. The right bat, lower and
+               quicker, fires across the table — into the left one, if it
+               catches you right, and that is the long way to the same pin.
+               The safe way is up the middle, short of both, and in from below. */
+            var W = 7, L = 15, p = pad(0, 0, W, L);
+            p.round = { nw: 3, ne: 1.4, sw: 1.2, se: 1.2 };   // the pin keeps most of its corner
+            var lamps = [], k, yaw = Math.atan2(4.8, 3.6);
+            // The chase the left bat fires along: to the far rail, and the pin.
+            for (k = 0; k < 4; k++) {
+                lamps.push(lamp(2.1 + k * 1.05, 7.7 + k * 0.8, 0.006, { yaw: yaw, variant: 1 }));
+            }
+            return build({
+                name: 'The Flippers', par: 3,
+                blurb: 'Two bats hung on the rails, each firing on a beat of its own. Roll past one as it fires and it sends you up the table.',
+                pads: [p],
+                extra: [
+                    flipper(0.38, 7.4, 2.8, { hinge: -1, rest: Math.PI / 2, arc: -0.9, speed: 2.4, snap: true }),
+                    flipper(6.62, 5.4, 2.8, { hinge: -1, rest: Math.PI / 2, arc: 0.9, speed: 2.9, snap: true }),
+                    post(5.62, 11.16), post(6.55, 9.75)
+                ],
+                decor: lamps.concat(arcadeRoom(W, L, 'FLIPPERS', 2, [cabinet, claw])),
+                tee: { x: 2.4, z: 1.4 }, cup: { x: 6.0, z: 12.3 }
+            });
+        })(),
+        (function () {
+            /* The finisher: the jackpot is a hole in the table.
 
-               A gate would have been the obvious thing here and this course has
-               one already. A wall with two ways through it is the thing a gate
-               cannot be: a choice that is still a choice after you have made
-               it.
+               It was a straight wall across a rectangle with a door in it, a
+               window over it and five square posts (v1.70.0 to v1.122.0), and
+               the owner called it what it was — weird, and boxes. The idea
+               worth keeping was the most pinball thing there is: a ball that
+               drops down a hole in the playfield and comes out somewhere
+               across the room.
 
-               And a third way, because this is a pinball table and a ball
-               vanishing down a hole to reappear somewhere across the room is
-               the most pinball thing there is. The mouth is tucked behind the
-               left-hand post where nobody aims on purpose, and it comes out
-               past the wall on the right — so the luckiest shot on the hole is
-               a bad one, which is also true of pinball. */
-            name: 'Jackpot', par: 4,
-            bag: ['putter', 'mallet', 'chipper', 'wedge'],   // a lofted route is part of the hole
-            blurb: 'A door on the floor, a window in the air, and a hole in the table for the lucky. Three ways past one wall.',
-            pads: [pad(0, 0, 9.4, 21)],
-            warps: [pipe(1.4, 6.6, 7.7, 13.4, 0, 0.85)],
-            extra: [].concat(
-                [bumper(2.2, 5), bumper(7.2, 5)],
-                aperture(-0.2, 9.6, 4.9, 0.4, { gap: 1.1, at: 2.3, h: 1.7, head: 1.1 }),
-                aperture(4.7, 9.6, 5.1, 0.4, { gap: 1.7, at: 2.4, h: 1.6, sill: 0.5, head: 1.45 }),
-                [bumper(2.6, 14.4), bumper(6.8, 14.4)],
-                [bumper(4.7, 17.6)]
-            ),
-            tee: { x: 4.7, z: 1.5 }, cup: { x: 4.7, z: 19.4 }
-        })
+               So that is the hole now. The pin stands in the vault, a curved
+               wall round the front and sides of it, open only at the back
+               under the dome. The mouth is low on the left, behind a pop
+               bumper on the line to it and a rubber post beside it, and it
+               comes out at the top of the dome firing straight down at the
+               pin. A pipe keeps the pace it was given (physics.warpUnder), so
+               finding the mouth is the line and the run in from the dome is
+               the weight: firm enough that it carries through the gap behind
+               the bumper, soft enough that what comes out the far end stops
+               at the pin rather than running on into the vault wall.
+
+               The safe way is the long one: a putt to the foot of the vault,
+               a second round the end of it and up behind, and in from the
+               back. Nothing on the table goes in on a straight line — the
+               vault is in the way of a putt at the flag and its wall stands
+               higher than a pitch at the flag comes down. Par is three now;
+               it was four with three doors and none of them led anywhere. */
+            var W = 9.4, L = 19, cx = 4.7, cz = 15.4, mx = 1.4, mz = 8.4;
+            var p = pad(0, 0, W, L);
+            p.round = { nw: 4.5, ne: 4.5, sw: 1.8, se: 1.8 };   // just short of a dome: the cup keeps its flat
+            var lamps = [], k, dx = mx - cx, dz = mz - 1.5, yaw = Math.atan2(dx, dz);
+            // A chase from the tee to the mouth, round the near side of the
+            // bumper, and a ring of inserts round the mouth itself.
+            for (k = 0; k < 4; k++) {
+                lamps.push(lamp(cx + dx * (0.16 + k * 0.13) - 0.45, 1.5 + dz * (0.16 + k * 0.13),
+                    0.006, { yaw: yaw, variant: 1 }));
+            }
+            for (k = 0; k < 6; k++) {
+                var t = k / 6 * Math.PI * 2;
+                lamps.push(lamp(mx + Math.cos(t) * 0.85, mz + Math.sin(t) * 0.85, 0.006, { variant: 6 }));
+            }
+            return build({
+                name: 'Jackpot', par: 3,
+                bag: ['putter', 'mallet', 'chipper', 'wedge'],
+                blurb: 'The pin is in the vault and the vault opens at the back. Go round, or find the hole in the table — it comes out over the pin.',
+                pads: [p],
+                warps: [pipe(mx, mz, cx, cz + 2.75, Math.PI, 0.45)],
+                extra: [].concat(
+                    arc(cx, cz, 2.6, 175 * Math.PI / 180, 365 * Math.PI / 180, { h: 1.3, t: 0.3 }),
+                    [bumper(2.6, 6.4), bumper(6.8, 6.4), post(mx - 0.7, mz - 0.6), bumper(4.7, 9.6),
+                     bumper(1.6, 15.2), bumper(7.8, 15.2)]
+                ),
+                decor: lamps.concat(arcadeRoom(W, L, 'JACKPOT', 2, [fruit])),
+                tee: { x: cx, z: 1.5 }, cup: { x: cx, z: cz }
+            });
+        })()
     ];
 
-    /* ── crazy golf, the third of five: Clockwork Court ───────────────────
+    /* ── crazy golf, the last of three: Clockwork Court ────────────────────
 
-       Windmill Works asks you to find the gap. This one asks you to find the
-       *moment*: every hole on it is a mechanism running at its own rate, and
-       the shot that works at one phase of the sine is the shot that comes
-       straight back at you a second later. There is nothing here the engine
-       could not already do — blades, gates, beams and steps — and that is the
-       course. Timing is the whole of it. */
+       Windmill Works asks you to find the gap and Pinball Parlour makes the
+       furniture the route. This one asks for the *moment*. It is three courses
+       folded into one (v1.122.0): Clockwork Court's single mechanisms, The
+       Belfry's pairs geared to each other and The Millrace's machines over
+       water had become eighteen holes asking one question, most of them a
+       straight lane with a machine across it. These are the six with a shape
+       to them as well as a clock.
+
+       - **Pendulum** — one bar over a plank, the shortest statement of it.
+       - **Three Against Two** — two bells round a corner, the corner fixing
+         how long you take between them.
+       - **Change Ringing** — two doors with a different clock behind each:
+         pick the beat you can count.
+       - **The Weir** and **Full Flow** — the mill race under the machinery, so
+         a mistimed shot is a stroke rather than a bounce, and laying up short
+         of the machine is a real choice.
+       - **Midnight** — two weights at two rates, or the long way round.
+
+       Two rules carried over from The Belfry, and both are load-bearing:
+       nothing here can shut a hole (every mechanism leaves a window in its own
+       line at every phase — the tests demand it of the whole file), and the
+       rates are small whole numbers a player can hear, because a pattern
+       nobody can count reads as random. */
 
     var clockwork = [
-        build({
-            /* Two bats rather than two blades, and that one word is the whole
-               difference. A blade is always coming round again, so the shot at
-               one is a gap in a cycle and the skill is counting. A bat sweeps,
-               *stops*, and sweeps back — so the shot is a moment, and the skill
-               is seeing it coming. An escapement is the part of a clock that
-               turns a continuous push into a series of stops, which is exactly
-               what has happened to this hole.
-
-               They are half a beat apart and each leaves a different side of
-               the court open at rest, so the two stops are not the same stop
-               and a ball through the first is not automatically through the
-               second. */
-            name: 'Escapement', par: 3,
-            blurb: 'Two bats, half a beat apart. They stop at each end of the sweep, and the stop is the shot.',
-            pads: [pad(0, 0, 6, 15)],
-            extra: [
-                flipper(1.8, 6.6, 3.0, { rest: -0.55, arc: 1.1, speed: 2.1 }),
-                flipper(4.2, 10.2, 3.0, { rest: 0.55, arc: -1.1, speed: 2.1, phase: Math.PI })
-            ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 13.2 }
-        }),
         build({
             /* One plank and one bar across it, and a bank at the end of the
                plank that turns a ball coming off it west, to a pin tucked by
@@ -4541,7 +5236,9 @@
                the bank does the turning: straight down the plank, past the
                bar, and off the bank to the pin. A putt at the flag runs off
                the side of the plank. A lean would have done it more gently and
-               left a lip where the plank meets the green. */
+               left a lip where the plank meets the green. The tee is west of
+               the plank's middle (v1.126.0), so the line at the flag leaves
+               the boards before the bar can knock it back on to them. */
             name: 'Pendulum', par: 3,
             blurb: 'One plank over the water and one bar sweeping across it.',
             pads: [
@@ -4555,205 +5252,72 @@
                 slider(2.4, 8.6, 1.2, 0.4, { amp: 2.4, speed: 1.3 }),
                 bank(3.2, 12.8, 2.2, Math.PI / 4)
             ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 1.0, z: 12.8 }
+            tee: { x: 2.4, z: 1.5 }, cup: { x: 1.0, z: 12.8 }
         }),
         build({
-            /* The Long Hand was one blade the width of the court turning
-               slowly, and slowly was indeed worse — but it was also one
-               obstacle in a rectangle, which is what three other holes on this
-               course already were.
+            /* Three against two, which is the first rhythm anybody learns that
+               cannot be tapped with one hand: the two bells come back into step
+               every third turn of the fast one and every second turn of the
+               slow one, and in between they are never quite where they were.
 
-               The gearbox keeps the slow blade and gives it something to
-               guard: a door in a wall, off to the right, with the blade
-               sweeping across the front of it. There is one line through the
-               door and the blade is on it for most of the cycle, so the hole
-               is aim and timing at once rather than either on its own. No loft
-               in the bag, because a wall you can chip is not a wall. */
-            name: 'The Gearbox', par: 3,
-            blurb: 'One door, one slow blade turning across the front of it, and nothing in the bag that goes over.',
-            pads: [pad(0, 0, 7, 17)],
-            extra: [].concat(
-                aperture(-0.2, 9.4, 7.4, 0.4, { gap: 1.5, at: 5.0, h: 1.7, head: 1.15 }),
-                [spinner(4.8, 6.6, 4.0, 0.4, { spin: 1.0 })]
-            ),
-            tee: { x: 2.2, z: 1.5 }, cup: { x: 4.8, z: 14.4 }
-        }),
-        build({
-            /* Three blades used to stand on the same centreline, which made
-               this a lane with three of the same obstacle in it — and worse,
-               one route: the middle. Offsetting them alternately is the whole
-               fix. Each one now has a comfortable side and a tight one, and
-               they are not the same side, so the way through is a weave with a
-               clock on it rather than three attempts at the same gap. */
-            name: 'The Cogs', par: 4,
-            blurb: 'Three of them, at three rates, and none of them lined up with the last. Two is luck; three is a plan.',
-            pads: [pad(0, 0, 6, 21)],
+               It is played round a corner rather than down a lane, and the
+               corner is what makes the ratio matter. On a straight hole the
+               second machine is simply further away, so hitting the ball
+               harder is a way of choosing when you arrive at it. Here the ball
+               has to stop turning before it goes east, so the time between the
+               two bells is set by the corner rather than by the club — and the
+               only thing left to choose is which turn of the fast bell you set
+               off on. */
+            name: 'Three Against Two', par: 3,
+            blurb: 'Two bells at three against two, with a corner between them to fix how long you take.',
+            pads: [pad(0, 0, 5, 10), pad(5, 6, 7, 4)],
             extra: [
-                spinner(2.6, 5, 3.6, 0.4, { spin: 1.5 }),
-                spinner(3.4, 10, 3.6, 0.4, { spin: -2.1 }),
-                spinner(2.6, 15, 3.6, 0.4, { spin: 2.7 })
+                spinner(2.5, 5, 3.2, 0.4, { spin: 2.1 }),
+                spinner(8, 8, 3.2, 0.4, { spin: 1.4 })
             ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 4.6, z: 19 }
+            /* The pin was at the far end of the arm, three units past the
+               second bell, where one shot in twenty thousand finished and
+               the putt at the flag was one of them. It is just round the
+               corner now (v1.147.0), short of the second bell's reach: off
+               the back rail and round, past the first bell on its turn, and
+               the line at the flag meets the corner. The second bell is what
+               a ball that comes round too fast runs on into. */
+            tee: { x: 2.5, z: 1.5 }, cup: { x: 6.1, z: 7.2 }
         }),
         build({
-            name: 'Ratchet', par: 4, needsLoft: true,
-            blurb: 'Three terraces, each a step too tall to roll up. It only goes one way.',
-            pads: [
-                pad(0, 0, 5, 5),
-                pad(0, 5, 5, 4, 0.55),
-                pad(0, 9, 5, 4, 1.1),
-                pad(0, 13, 5, 5, 1.65)
-            ],
-            extra: [
-                spinner(2.5, 7, 3, 0.4, { spin: 1.6, base: 0.45 }),
-                spinner(2.5, 11, 3, 0.4, { spin: -2.0, base: 1 })
-            ],
-            tee: { x: 2.5, z: 1.6 }, cup: { x: 2.5, z: 16 }
-        }),
-        build({
-            /* The last hole on the last timing course, and it is the only one
-               here that offers a way round rather than a way through. The court
-               is nine wide and split down the middle for its whole length:
-               everything the hole has is on one side or the other, and the two
-               sides are different problems.
+            /* Two doors in one wall, and a different clock behind each of
+               them: a bat on the left running fast, a bell on the right
+               running slow. Neither door is harder to hit than the other. What
+               differs is what you have to know before you take the shot,
+               because the machine behind a door is the one thing a door hides.
 
-                 the west lane  a sliding gate and then a bat, both of them
-                                fast. Two moments, and they are eight units
-                                apart, which is long enough that arriving at
-                                the second with the pace the first wanted is
-                                the actual difficulty.
-                 the east lane  no clock at all — a door in a wall and a bar to
-                                roll under. Nothing on that side is timed and
-                                nothing on it is wide.
-
-               So the choice is not "which is easier", it is "which kind of
-               hard": a hole that asks whether you would rather count or aim,
-               at midnight, with everything running. */
-            name: 'Midnight', par: 4,
-            blurb: 'Two lanes to the same flag: one with a clock on it, one with a door. Count, or aim.',
-            pads: [pad(0, 0, 9, 24)],
+               So this is the course's question asked backwards. Everywhere
+               else the two machines are both in front of you and the problem
+               is fitting them together; here the second one is out of sight
+               from the tee and the first thing to work out is which of them
+               you would rather be arriving at. The wall is far enough up the
+               hole that a lay-up short of it is a real option and the two
+               doors are then a metre apart — which is the polite version of
+               this hole, and the card says par three either way. */
+            name: 'Change Ringing', par: 3,
+            blurb: 'Two doors in one wall, a clock behind each, and the pin tucked behind the wall between them. Come through on the angle.',
+            /* The pin was at the far end, four units past both machines,
+               where one mallet in a thousand finished in any cell and the
+               ace was a fluke (0.011%). It is behind the wall between the
+               doors now, and the four units past the machines are gone: a
+               ball through a door on the angle, off the east rail, finishes
+               by it (0.24%), a ball through a door square on runs on into
+               the clock behind it, and the line at the flag is the wall. */
+            pads: [pad(0, 0, 8, 14)],
             extra: [].concat(
-                // the spine, with a way into each lane at the top
-                [wall(4.3, 3.4, 0.4, 14.4, 0.62, { base: -0.1 })],
-                // west: a gate, then a bat
+                aperture(-0.2, 7, 4.4, 0.4, { gap: 1.4, at: 2.2, h: 1.7, head: 1.15 }),
+                aperture(4.2, 7, 4.0, 0.4, { gap: 1.4, at: 2.0, h: 1.7, head: 1.15 }),
                 [
-                    wall(0, 6.6, 1.1, 0.4, 0.6, { base: -0.1 }),
-                    wall(3.1, 6.6, 1.2, 0.4, 0.6, { base: -0.1 }),
-                    slider(1.2, 6.6, 1.5, 0.4, { amp: 0.62, speed: 2.0 })
-                ],
-                [flipper(2.15, 13.4, 2.6, { rest: -0.5, arc: 1.0, speed: 2.4 })],
-                // east: a door and a bar, neither of which is counting
-                aperture(4.7, 7.6, 4.5, 0.4, { gap: 1.2, at: 1.5, h: 1.7, head: 1.1 }),
-                beam(5.1, 14.2, 3.6, 0.5),
-                [bumper(6.6, 20.4)]
+                    flipper(2.0, 10.4, 2.6, { rest: -0.45, arc: 0.95, speed: 2.4 }),
+                    spinner(6.2, 11, 3.0, 0.4, { spin: 1.5 })
+                ]
             ),
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 4.5, z: 21.8 }
-        })
-    ];
-
-    /* ── crazy golf, the fourth of five: The Millrace ──────────────────────
-
-       The other three timing courses are played over a floor. Windmill Works
-       asks you to find the gap, Clockwork Court asks you to find the moment,
-       Pinball Parlour asks for neither and makes the furniture the route — and
-       on all three of them a mistimed shot is a bounce. The blade throws the
-       ball back down the lane, you walk after it, and you have lost a stroke
-       of position and nothing else.
-
-       Here every machine stands over water, and that one change is the whole
-       course. The mill is driven by the river, so the river runs through every
-       hole on it: along the lane, under the crossing, round the outside of the
-       bend. What that does to the golf is turn timing from a matter of
-       *position* into a matter of *price*. A window you would take on any of
-       the other three courses is a window you have to mean here, because the
-       cost of being wrong is a stroke and the shot again from where you played
-       it.
-
-       Which makes laying up a real option for the first time on a crazy golf
-       course. Three of these six can be played short of the machine on purpose
-       and the fourth shot from there is an easy one; the card says par and the
-       water says whether you believed it. */
-
-    var millrace = [
-        build({
-            /* The opener says the rule of the course in one picture: the race
-               runs down the east side of the lane for its whole length, there
-               is no rail between the two, and the paddle sweeps out over the
-               water and back across the lane.
-
-               It is the friendliest arrangement of that rule. The paddle turns
-               about a point west of the middle of the lane, so the two ways
-               past it are not the same size: a metre and a bit against the
-               west rail, and rather more than two on the east — where the
-               river is. Play away from the water and you are threading the
-               narrow side; take the room and you are playing along the bank.
-               Nothing on the hole is tight, and the choice it asks for is the
-               one every other hole here asks for again. */
-            name: 'Headrace', par: 3,
-            blurb: 'The race runs down the whole east side and the paddle sweeps across the rest. Pick a side.',
-            pads: [pad(0, 0, 7, 16)],
-            water: [rect(7, -1, 6, 18, -0.7)],
-            gaps: [{ x: 6.6, z: -1, w: 0.8, d: 18 }],
-            extra: [spinner(3.0, 8, 3.6, 0.4, { spin: 1.3 })],
-            tee: { x: 2.2, z: 1.6 }, cup: { x: 2.6, z: 13.6 }
-        }),
-        build({
-            /* Two crossings and one gate for both of them, which is a nicer
-               problem than a gate on one crossing: whichever plank the gate is
-               sitting on, the other one is open, so the hole can never be shut
-               and the only question is which way to go and when.
-
-               The numbers are the hole. The planks are at 1.0 and 5.8, the
-               gate is 2.4 wide and swings 2.4 either side of 3.3, so it covers
-               the west plank exactly at one end of its travel and the east one
-               exactly at the other. And a sine *dwells* at the ends of its
-               travel and crosses the middle at speed — so the gate rests on
-               one plank, hurries over the water, and rests on the other, which
-               means the moment when both crossings are open is a moment rather
-               than a state. A ball that sets off for the plank the gate is
-               leaving arrives after it has gone; one that sets off for the
-               plank it is heading for arrives to find it shut. That is the
-               entire hole, and it is readable from the tee, which is what a
-               second hole on a course ought to be. */
-            name: 'Two Planks', par: 3,
-            blurb: 'One gate for two crossings. It cannot shut both, and it is always on its way to one of them.',
-            pads: [
-                pad(0, 0, 9, 7),
-                pad(1, 7, 2.2, 4, 0, 'wood'),
-                pad(5.8, 7, 2.2, 4, 0, 'wood'),
-                pad(0, 11, 9, 7)
-            ],
-            water: [rect(-2, 7, 13, 4, -0.8)],
-            gaps: [shore(rect(-2, 7, 13, 4), 0.7)],
-            extra: [slider(3.3, 8.6, 2.4, 0.4, { amp: 2.4, speed: 1.1 })],
-            tee: { x: 4.5, z: 1.6 }, cup: { x: 4.5, z: 15 }
-        }),
-        build({
-            /* The wheel itself, and the one hole on the course with no way
-               round: a single plank over the race with the undershot wheel
-               turning on top of it. The wheel is longer than the plank is
-               wide, so at the bottom of every turn it covers the crossing
-               completely and its ends are out over the water either side.
-
-               It turns at 0.9, which is a seven-second revolution, and it
-               shuts the crossing for about a second and a half of each one.
-               That is not long. It is also the only crossing there is, and the
-               wheel sweeps a ball off the plank as readily as it stops one —
-               so a shot that sets off a beat early does not come back down the
-               lane the way a mistimed shot does in the works, it goes in the
-               race. That is the difference between this hole and every
-               windmill in the file. */
-            name: 'The Undershot', par: 3,
-            blurb: 'One plank, one wheel on it, and no dry way round. Count the turn before you hit it.',
-            pads: [
-                pad(0, 0, 7, 7),
-                pad(2, 7, 3, 5, 0, 'wood'),
-                pad(0, 12, 7, 7)
-            ],
-            water: [rect(-3, 7, 13, 5, -0.8)],
-            gaps: [shore(rect(-3, 7, 13, 5), 0.7)],
-            extra: [spinner(3.5, 9.5, 4.2, 0.42, { spin: 0.9 })],
-            tee: { x: 3.5, z: 1.6 }, cup: { x: 3.4, z: 15.4 }
+            tee: { x: 4, z: 1.6 }, cup: { x: 4.8, z: 8.5 }
         }),
         build({
             /* Over the weir, which is the one place on a mill where the water
@@ -4783,28 +5347,6 @@
             gaps: [{ x: 6.6, z: 9, w: 0.8, d: 12 }],
             extra: [flipper(3.2, 13.2, 3.0, { rest: -0.5, arc: 1.05, speed: 2.0 })],
             tee: { x: 3, z: 1.8 }, cup: { x: 2.6, z: 18 }
-        }),
-        build({
-            /* The turn, and the water is on the outside of it — which is what
-               a tailrace is: the channel the wheel throws its water into,
-               running away from the mill along the bottom of the bend.
-
-               A corner with a hazard on the outside is a different shot from a
-               corner with a rail there, and the difference is that the rail
-               forgives an overcooked one. Nothing here does. The blade in the
-               straight decides when you may set off; the bat in the corner
-               decides where the ball goes when it arrives, and the corner has
-               no back wall to catch a ball the bat sends wide. */
-            name: 'The Tailrace', par: 4,
-            blurb: 'North, then east along the channel — with a blade to time and a bat where the rail should be.',
-            pads: [pad(0, 0, 5, 12), pad(5, 8, 9, 4)],
-            water: [rect(5, 12, 10, 4, -0.7)],
-            gaps: [{ x: 5.0, z: 11.6, w: 9.2, d: 0.8 }],
-            extra: [
-                spinner(2.5, 5.5, 3.2, 0.4, { spin: 1.6 }),
-                flipper(7.6, 10, 2.8, { rest: 0.4, arc: -1.0, speed: 1.9 })
-            ],
-            tee: { x: 2.5, z: 1.6 }, cup: { x: 12, z: 10 }
         }),
         build({
             /* The finisher, and the only hole on the course that offers a dry
@@ -4837,225 +5379,59 @@
                 spinner(3.4, 14.8, 3.8, 0.42, { spin: 1.5 })
             ],
             tee: { x: 5, z: 1.8 }, cup: { x: 3.4, z: 17.6 }
-        })
-    ];
-
-    /* ── crazy golf, the fifth of five: The Belfry ─────────────────────────
-
-       Four courses of machinery already ask four different questions. Windmill
-       Works asks you to find the gap, which is a question about *where*.
-       Clockwork Court asks you to find the moment, which is a question about
-       *when*. Pinball Parlour asks neither and makes the furniture the route.
-       The Millrace asks what being wrong costs.
-
-       This one asks a fifth, and it is the only one that cannot be answered by
-       looking at one machine: **every hole here has two of them, geared to each
-       other.** Two gates at two rates, two bells at three against two, four
-       shutters a quarter-beat apart, a door on each side of a wall with a
-       different clock behind it. Each machine on its own is an easy one —
-       there is always a way past every single obstacle on this course, and
-       most of them are wide. What is not easy is arriving at the second one
-       having set off at the right moment for the first.
-
-       So the skill is counting bars rather than beats. A ball that clears the
-       opening gate on the first stroke of the cycle reaches the second gate
-       half a beat later than one that cleared it on the last, and the second
-       gate does not care which of those you did — it is running to its own
-       time, and the two only agree every so often. Change ringing is exactly
-       that arithmetic and it is where the course gets its name: bells rung not
-       as a tune but as a sequence of permutations, and you wait for the one you
-       want to come round.
-
-       Two things keep it fair, and both are load-bearing:
-
-       - **Nothing here can shut a hole.** Every mechanism leaves a window in
-         its own line at every phase — the tests demand that of the whole file,
-         and here it is also the design, because a course about compound timing
-         with a shut door on it would be a course about waiting.
-       - **The rates are small whole numbers.** 2:1, 3:2, 1:4, and a wave of
-         four bats a quarter of a cycle apart. A player can hear those; nobody
-         can count 7:5, and a pattern nobody can count is a pattern that reads
-         as random — which is the one thing a timing course must never be. */
-
-    var belfry = [
-        build({
-            /* The plainest statement of the idea: two gates in the same lane,
-               the far one running at half the rate of the near one.
-
-               Each is a gate the near end of Windmill Works would have been
-               happy with — a slider between two jambs, a metre and a half of
-               daylight at the tightest — and either of them alone is a shot
-               anybody makes. Together they are a different thing, because the
-               far gate goes through one cycle for every two of the near one:
-               the pair only shows you the same picture every other beat, and a
-               ball let through the first at the wrong end of its swing arrives
-               at the second exactly when it is closing.
-
-               The second gate starts half a cycle out of phase, which is what
-               puts the good window somewhere other than the start of the
-               pattern. Without that the answer to the hole is "hit it at once"
-               and the arithmetic never comes up. */
-            name: 'Half Time', par: 3,
-            blurb: 'Two gates, and the far one runs at half the rate of the near one. They agree every other beat.',
-            pads: [pad(0, 0, 6, 17)],
-            extra: [
-                wall(0, 6, 1.5, 0.4, 0.6, { base: -0.1 }),
-                wall(4.5, 6, 1.5, 0.4, 0.6, { base: -0.1 }),
-                slider(1.6, 6, 1.4, 0.4, { amp: 0.75, speed: 2.0 }),
-                wall(0, 11, 1.5, 0.4, 0.6, { base: -0.1 }),
-                wall(4.5, 11, 1.5, 0.4, 0.6, { base: -0.1 }),
-                slider(3.0, 11, 1.4, 0.4, { amp: 0.75, speed: 1.0, phase: Math.PI })
-            ],
-            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 14.6 }
         }),
         build({
-            /* Three against two, which is the first rhythm anybody learns that
-               cannot be tapped with one hand: the two bells come back into step
-               every third turn of the fast one and every second turn of the
-               slow one, and in between they are never quite where they were.
+            /* The last hole on the course asks for the whole of it — two
+               things moving at their own rates, and the moment they agree —
+               and offers a way out of the question for a stroke.
 
-               It is played round a corner rather than down a lane, and the
-               corner is what makes the ratio matter. On a straight hole the
-               second machine is simply further away, so hitting the ball
-               harder is a way of choosing when you arrive at it. Here the ball
-               has to stop turning before it goes east, so the time between the
-               two bells is set by the corner rather than by the club — and the
-               only thing left to choose is which turn of the fast bell you set
-               off on. */
-            name: 'Three Against Two', par: 3,
-            blurb: 'Two bells at three against two, with a corner between them to fix how long you take.',
-            pads: [pad(0, 0, 5, 10), pad(5, 6, 7, 4)],
+               It used to be a court nine wide and twenty-four long with a
+               spine down the middle and six pieces of furniture either side
+               of it: a gate and a bat on one, a door, a bar to roll under and
+               a bumper on the other. Neither side could be holed in one, so
+               the choice between them was a choice between two ways of taking
+               three, and nobody could see from the tee what any of it was for.
+
+               Now the spine splits the court into a narrow lane and a wide
+               one, and the green runs across the top of both.
+
+                 the clock lane  two weights swinging across it, the near one
+                                 at two radians a second and the far one at
+                                 one and a third, so they line up out of the
+                                 way only now and then — that is midnight.
+                                 Straight up the middle when they do, off
+                                 the bank in the corner at the top, and along
+                                 to the pin: the ace, and it wants the whole
+                                 mallet. Miss the first weight and it sends
+                                 you back to the tee; miss the second and you
+                                 are halfway up a lane with a clock still
+                                 running in front of you.
+                 the long way    nothing moves in it. Up the wide lane and
+                                 out onto the green beside the pin, and a putt.
+                                 It cannot be holed in one — the pin is round
+                                 the end of the spine from it — so it is a two,
+                                 every time, which is a stroke worse than the
+                                 ace and a stroke better than the weight.
+
+               The pin sits just round the end of the spine, so a putt at the
+               flag runs down the lane's east side into the far weight's post
+               (README → "The hole lab"). A ball that glances off the spine is
+               stopped by that post before it can slide up to the top. */
+            name: 'Midnight', par: 3,
+            blurb: 'The clock lane: two weights at two rates, then the bank to the pin. Or the long way, and a putt.',
+            pads: [pad(0, 0, 7.5, 14)],
             extra: [
-                spinner(2.5, 5, 3.2, 0.4, { spin: 2.1 }),
-                spinner(8, 8, 3.2, 0.4, { spin: 1.4 })
+                // the spine, between the clock lane and the long way
+                wall(2.4, 3.6, 0.4, 6.6, 0.62, { base: -0.1 }),
+                // two weights at two rates
+                slider(0.6, 5.0, 0.8, 0.4, { amp: 0.6, speed: 2.0 }),
+                slider(0.6, 8.0, 0.8, 0.4, { amp: 0.6, speed: 1.3 }),
+                // the far weight's post, which catches a putt at the flag
+                wall(2.0, 8.0, 0.4, 0.4, 0.62, { base: -0.1 }),
+                // and the bank that turns the lane onto the pin
+                bank(1.0, 12.2, 2.0, -Math.PI / 4)
             ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 10.5, z: 8 }
-        }),
-        build({
-            /* Rounds — the bells struck in order from the treble down, which
-               is where change ringing starts and the only sequence in it
-               anybody can hear without being told. Four shutters across the
-               lane, each a quarter of a cycle behind the one before it, so the
-               open side travels away from you down the hole at a fixed rate.
-               Set off on the beat and the gap stays in front of the ball the
-               whole way — about two fifths of every cycle is a departure that
-               rides it clean to the cup. Set off on any of the rest and the
-               first shutter is across the lane when you get there, which costs
-               a bounce and nothing else. That is the trade the hole is built
-               on: an ace is on the table, and missing it leaves you playing
-               the same hole again from four units up it.
-
-               **The shutters are not evenly spaced, and that is the hole.** A
-               ball is not a metronome — it is slowing down the whole time — so
-               a wave moving at a constant rate can only be ridden by a ball
-               whose gaps shrink to match. On a floor with a friction of k the
-               ball's speed decays by e^(-k·d) over a distance d, so a quarter
-               of a cycle later it has covered e^(-kT) of what it covered
-               before: the spacing is geometric, and every gap here is 0.70 of
-               the one before it. Four units, then 2.8, then 1.94.
-
-               Which is also why the floor is boards. On grass a ball loses
-               1.2 of speed per unit and the gaps would have to more than halve
-               each time — three shutters in the space of two — and the fourth
-               would be somewhere the ball was barely moving. On planks it
-               loses 0.6, and the geometry above comes out at a spacing you can
-               see from the tee and read as a wave. The speed the whole hole is
-               drawn around is 7.9 at the first shutter, which is what a full
-               swing of the putter has left by the time it gets there.
-
-               Nothing here can shut the lane: a shutter is 3.6 of a 6-unit
-               floor and slides 1.2 either way, so there are 2.4 units of
-               daylight at one side or the other at every phase, and the
-               tightest moment is 1.2 down each. Being wrong costs a bounce,
-               not the hole. */
-            name: 'Rounds', par: 4,
-            blurb: 'Four shutters, each a quarter-beat behind the last, opening away from you. The gaps shrink because the ball is slowing.',
-            pads: [pad(0, 0, 6, 22, 0, 'wood')],
-            extra: [
-                slider(1.2, 6.0, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: Math.PI / 2 }),
-                slider(1.2, 10.0, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: 0 }),
-                slider(1.2, 12.8, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: -Math.PI / 2 }),
-                slider(1.2, 14.74, 3.6, 0.4, { amp: 1.2, speed: 2.6, phase: -Math.PI })
-            ],
-            tee: { x: 1.2, z: 1.6 }, cup: { x: 1.2, z: 19 }
-        }),
-        build({
-            /* Two doors in one wall, and a different clock behind each of
-               them: a bat on the left running fast, a bell on the right
-               running slow. Neither door is harder to hit than the other. What
-               differs is what you have to know before you take the shot,
-               because the machine behind a door is the one thing a door hides.
-
-               So this is the course's question asked backwards. Everywhere
-               else the two machines are both in front of you and the problem
-               is fitting them together; here the second one is out of sight
-               from the tee and the first thing to work out is which of them
-               you would rather be arriving at. The wall is far enough up the
-               hole that a lay-up short of it is a real option and the two
-               doors are then a metre apart — which is the polite version of
-               this hole, and the card says par three either way. */
-            name: 'Change Ringing', par: 3,
-            blurb: 'Two doors in one wall with a different clock behind each. Pick the one whose beat you can count.',
-            pads: [pad(0, 0, 8, 18)],
-            extra: [].concat(
-                aperture(-0.2, 7, 4.4, 0.4, { gap: 1.4, at: 2.2, h: 1.7, head: 1.15 }),
-                aperture(4.2, 7, 4.0, 0.4, { gap: 1.4, at: 2.0, h: 1.7, head: 1.15 }),
-                [
-                    flipper(2.0, 10.4, 2.6, { rest: -0.45, arc: 0.95, speed: 2.4 }),
-                    spinner(6.2, 11, 3.0, 0.4, { spin: 1.5 })
-                ]
-            ),
-            tee: { x: 4, z: 1.6 }, cup: { x: 4, z: 15.4 }
-        }),
-        build({
-            /* The tenor is the deepest bell in a ring and the slowest, and it
-               is what the others are rung against. So: one of them, five units
-               long and turning at 0.7 — nine seconds a revolution, which is
-               slower than anything else in the file — with a small one in the
-               straight before it going four times as fast.
-
-               Four to one is the easiest ratio on the course to hear and the
-               hardest to use, because the fast bell is the one you have to get
-               past first and it hands you four different departure times per
-               turn of the slow one. Three of them are wrong. The dogleg is
-               what makes that a decision rather than a guess: the elbow is
-               somewhere to stop, so a player who does not fancy the maths can
-               play two shots and take the tenor on its own. */
-            name: 'The Tenor', par: 4,
-            blurb: 'A small bell at four to one in front of the biggest one in the tower. Or stop in the elbow and take them one at a time.',
-            pads: [pad(0, 0, 6, 9), pad(0, 9, 13, 5)],
-            extra: [
-                spinner(3, 5, 2.4, 0.35, { spin: 2.8 }),
-                spinner(7, 11.5, 5.0, 0.5, { spin: 0.7 })
-            ],
-            tee: { x: 3, z: 1.5 }, cup: { x: 11, z: 11.5 }
-        }),
-        build({
-            /* The finisher, and the one hole here with two ways round rather
-               than two things in a row. The frame the bells hang in stands in
-               the middle of the floor — solid, six units of it, no way through
-               — and the two lanes past it are a different rhythm each.
-
-               The west lane has a bell swinging across it at 2.4, so the
-               window comes round every one and a third seconds and is gone
-               again; the east lane has a bat at 1.2 that rests, sweeps and
-               rests, so its window is long and it comes round half as often.
-               Fast and often against slow and roomy. Both lanes rejoin in
-               front of the green.
-
-               That is the whole course in one hole and it is deliberately not
-               a hard one: the last hole on a card should be the one you can
-               tell somebody about afterwards, and "I went round the other
-               side" is a better story than a shot nobody could have made. */
-            name: 'Full Circle', par: 4,
-            blurb: 'The bell frame splits the floor. Fast and often on the west, slow and roomy on the east.',
-            pads: [pad(0, 0, 11, 21)],
-            extra: [
-                wall(4, 7, 3, 6, 0.75, { base: -0.1 }),
-                slider(1.0, 10, 1.4, 0.4, { amp: 0.9, speed: 2.4 }),
-                flipper(9.0, 10, 3.0, { rest: 0.5, arc: -1.0, speed: 1.2 })
-            ],
-            tee: { x: 5.5, z: 1.6 }, cup: { x: 5.5, z: 18 }
+            tee: { x: 1.0, z: 1.6 }, cup: { x: 3.0, z: 12.0 }
         })
     ];
 
@@ -5088,27 +5464,48 @@
     var icehouse = [
         build({
             /* The opener, and it teaches the one number the course is built
-               on by giving you nowhere to hide from it: twenty units of bare
-               ice with a patch of grass at the end. Half a swing of the putter
-               is already too much.
+               on — a putter runs thirty-odd units on ice — by pointing you
+               away from the flag. The pin is on a mat of grass beside the
+               tee, on the far side of the racking down the middle of the
+               store, and the only way to it is up the ice, round the banked
+               end and back down the other side: thirty units to cover a gap
+               of four.
 
-               And a stack of ice blocks in the middle of the store, on the
-               line. It was a lane with nothing on it, so the putt at the flag
-               was the ace and the hole asked how hard and nothing else (README
-               → "The hole lab"). Now the straight putt stops on the stack and
-               the ace is off a wall: ice keeps a bank's angle the way it keeps
-               everything else, so one cushion off either side runs the length
-               of the store to the pin — the course's first lesson and its
-               second in one shot. */
+               It was a straight lane with a stack of ice blocks in the
+               middle, there only because the putt at the flag would otherwise
+               have been the ace (README → "The hole lab"), and nobody could
+               say what it was for. Here what is between you and the pin is
+               the store itself, and the question is the course's: where do
+               you want the ball to run out of speed? Not on the ice — short
+               of the pace and it stops halfway down the far aisle, and a ball
+               on ice is a ball nothing has stopped — and not past the mat,
+               which ends at an open door. On the mat.
+
+               The end is banked (a `channel` round the curve, laid on both
+               aisles where they meet it so the seam is one surface), which is
+               what lets a ball round it without the rail taking its pace:
+               the bank turns it and the ice keeps the rest. The mallet is the
+               ace, firm enough to come all the way home; the putter at full
+               gets round and leaves a putt from the far aisle or the mat. */
             name: 'Cold Store', par: 3,
-            blurb: 'Twenty units of ice and a patch of grass at the end of it. Half a swing is too much.',
-            pads: [
-                pad(0, 0, 6, 3),
-                pad(0, 3, 6, 17, 0, ice),
-                pad(0, 20, 6, 6)
-            ],
-            extra: [wall(2.4, 11.4, 1.2, 1.2, 0.9, { base: -0.1 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 23 }
+            blurb: 'The pin is beside you, behind the racking. Putt away from it — the ice brings the ball all the way round. Stop it on the grass.',
+            pads: (function () {
+                var W = 8, L = 15, R = W / 2, aisle = 3.2, mat = 2.8, cz = L - R;
+                var bend = channel(R, cz, R, 1.6, 0.35, 0, Math.PI);
+                function banked(p) { p.bumps = [bend]; return p; }
+                var end = banked(pad(0, cz, W, R, 0, ice));
+                end.round = { nw: R, ne: R };
+                return [
+                    pad(0, 0, aisle, 3),                                    // the tee
+                    banked(pad(0, 3, aisle, cz - 3, 0, ice)),               // up
+                    end,                                                    // round
+                    banked(pad(W - aisle, mat, aisle, cz - mat, 0, ice)),   // and back
+                    pad(W - aisle, 0, aisle, mat)                           // the mat
+                ];
+            })(),
+            gaps: [brink({ x: 4.8, z: 0, w: 3.2, d: 0 }, 0.4)],         // the door
+            extra: [wall(3.2, -0.2, 1.6, 11.2, 0.8, { base: -0.1 })],   // the racking
+            tee: { x: 1.6, z: 1.5 }, cup: { x: 6.4, z: 1.5 }
         }),
         build({
             /* Grit across the ice, with a gap in it. Sand keeps four
@@ -5116,14 +5513,16 @@
                an obstacle you cross slowly — it is one you do not cross at
                all. The gap is a metre and a half wide at the far side, which
                makes this the first hole on the course where the line matters
-               as much as the weight. */
+               as much as the weight. The strip is 2.2 deep: at 1.6, the mallet
+               of v1.126.0 (CONFIG, EXTRA_CLUBS) crossed it at full swing on
+               the line at the flag and stopped at the pin. */
             name: 'The Salt Line', par: 3,
             blurb: 'A bar of grit across the ice with one gap in it. Sand does not let go.',
             pads: [
                 pad(0, 0, 6, 2.5),
                 pad(0, 2.5, 6, 6.5, 0, ice),
-                pad(0, 9, 4.4, 1.6, 0, 'sand'), pad(4.4, 9, 1.6, 1.6, 0, ice),
-                pad(0, 10.6, 6, 8, 0, ice),
+                pad(0, 9, 4.4, 2.2, 0, 'sand'), pad(4.4, 9, 1.6, 2.2, 0, ice),
+                pad(0, 11.2, 6, 7.4, 0, ice),
                 pad(0, 18.6, 6, 5)
             ],
             tee: { x: 2, z: 1.4 }, cup: { x: 3.4, z: 21 }
@@ -5143,7 +5542,10 @@
                crosses it, so that putt is not the ace any more: the aces are
                aimed north of the flag and let the fall bring them down past
                the pillar to the gutter, or come off the rail beside the ledge
-               first. */
+               first. The pillar stands square on that line rather than with
+               its corner in it — a corner sent the putt at the flag north to
+               the back rail and round into the gutter, once the stronger
+               mallet of v1.126.0 had the pace to get there. */
             name: 'The Draught', par: 3,
             blurb: 'The whole sheet falls east and ice holds nothing. The gutter at the bottom is the hole.',
             pads: [
@@ -5151,7 +5553,7 @@
                 pad(2.4, 0, 5.6, 18, 0.72, ice, -0.12857, 0),
                 pad(8, 0, 2.6, 18)
             ],
-            extra: [wall(4.9, 7.5, 1.0, 1.0, 1.1, { base: -0.3 })],
+            extra: [wall(4.3, 7.5, 1.0, 1.0, 1.1, { base: -0.3 })],
             tee: { x: 1.2, z: 2 }, cup: { x: 9.3, z: 15 }
         }),
         build({
@@ -5201,62 +5603,76 @@
             tee: { x: 4.5, z: 2 }, cup: { x: 4.5, z: 11.9 }
         }),
         build({
-            /* The finisher, and the course's own ride: a bobsleigh run. It was
-               a hall with a belt at the corner, which was The Sluice again a
-               second time; this is the second loop in the game and the first
-               that is not at a fair (`loop`, physics.js "the loop").
+            /* The finisher, and it asks the course's two questions at once:
+               where do you want the ball to run out of speed, and when do you
+               reach for the Checker. It was a bobsleigh hall into a loop,
+               which was Helter Skelter's ride brought indoors and asked
+               neither.
 
-               The hall is ice, so whatever the mallet gives the ball at the
-               tee it still has at the foot of the loop — and the loop wants
-               about fourteen there, which is a firm mallet and nothing less.
-               Not quite enough and it comes off near the top, falls inside
-               the loop, and the ice hands it all the way back down the hall to
-               you. Over the top, and it comes out of the far side on to the
-               first honest grass the course has offered in six holes, running
-               at the pin.
+               The green is a dais across the middle of the room, eight tenths
+               of a unit up, with a sheer face towards the tee and one way up
+               it along the ground: a ramp of ice on the left. Ice on a slope
+               holds nothing (CONFIG.HOLD.ice), so a putt up the ramp has one
+               place to stop and it is the top. Short of the pace and the ramp
+               hands it back to your feet; over it, across the dais and down
+               the ice behind to the grit at the back of the room, which is a
+               lie nothing in the bag but the Checker gets out of. That is the
+               bold line: the mallet in off the left wall, so it climbs the
+               ramp at an angle and carries on across the dais to the pin
+               with the last of its pace.
 
-               The way that does not need the nerve is the belt lane up the
-               east side, running back at you: a putt has to beat the belt,
-               and on ice a putt that does not is a putt that comes home. The
-               housing is Loop the Loop's, set three units further on, so the
-               mouth and the belt are the only roads north. */
+               Or don't putt. The Checker flies the face and sits down on the
+               grass, and the only thing it asks is enough: short of the dais
+               it hits the face and the ice brings it home, and a full one
+               flies the lot into the grit. Anything from most of a swing to
+               all of one lands on the dais and leaves a putt — the safe two,
+               and now and then it pitches by the pin and stays.
+
+               The pin went back a quarter of a unit in v1.126.0: with the
+               stronger mallet a full putt at the flag found the left wall,
+               the ramp and the pin on its own, which is the bold line played
+               by accident. */
             name: 'The Cold Room', par: 3,
-            blurb: 'An ice hall into a bobsleigh loop: hit it hard enough and it goes over the top and out on to the grass. Or beat the belt up the side.',
+            bag: ['putter', 'mallet', 'checker'],
+            blurb: 'The green is up on a dais. Putt up the ice ramp and stop it at the top, or fly the face with the Checker and let it sit.',
             pads: [
-                pad(0, 0, 7, 3),
-                pad(0, 3, 7, 7.5, 0, ice),
-                pad(0, 10.5, 5.5, 3.9, 0, 'wood'),             // under the ride
-                belt(5.5, 10.5, 1.5, 3.9, 0, -6),              // the long way, against the run
-                pad(0, 14.4, 7, 6.6),
-                pad(0, 21, 7, 1.6, 0, 'sand')
+                pad(0, 0, 8, 3),                                 // the tee
+                pad(0, 3, 8, 0.5, 0, ice),
+                pad(0, 3.5, 3.4, 3, 0, ice, 0, 0.8 / 3),         // the ramp
+                pad(3.4, 3.5, 4.6, 3, 0, ice),                   // under the face
+                pad(0, 6.5, 8, 5, 0.8),                          // the dais
+                pad(0, 11.5, 8, 3, 0.8, ice, 0, -0.8 / 3),       // and down the back
+                pad(0, 14.5, 8, 1.5, 0, ice),
+                pad(0, 16, 8, 2, 0, 'sand')                      // the grit
             ],
-            loops: [loop(2.5, 12.7, 0, 1.1, 1)],
-            extra: [
-                wall(0, 11, 1.95, 3.2, 0.6, { base: -0.1 }),         // west
-                wall(2.86, 11, 2.64, 0.5, 0.6, { base: -0.1 }),      // across the way out
-                wall(2.86, 11.5, 0.24, 0.95, 0.6, { base: -0.1 }),   // between the lanes
-                wall(4.08, 11.5, 1.42, 2.7, 0.6, { base: -0.1 })     // and east
-            ],
-            tee: { x: 2.5, z: 1.5 }, cup: { x: 3.5, z: 18 }
+            tee: { x: 1, z: 1.5 }, cup: { x: 4.8, z: 8.85 }
         })
     ];
 
-    /* ── adventure golf, the second of three: Helter Skelter ───────────────
+    /* ── adventure golf, the second of three: Cinder Cone ──────────────────
 
-       The other half of the idea. Icehouse Yard takes the friction away and
-       changes nothing else; this one leaves the floor exactly as grippy as a
-       green has always been and gives it machinery instead — launch pads,
-       travelators and pipes.
+       Icehouse Yard takes the friction away. This one leaves the floor as
+       grippy as a green and bolts machinery to it — launch pads, belts, a pipe
+       and a loop — on the side of a mountain, so most of it is pointing
+       downhill. It was two courses, Helter Skelter's fairground and Cinder
+       Cone's volcano, built from the same four machines; the best six of their
+       twelve are one card now (v1.122.0). Of the six that went, three were the
+       pad holes whose ace was the putt at the flag (Bounce Alley, The
+       Gravitron, Fumarole) and three were lanes with no ace at all
+       (Crosstown, Lava Tube, The Scree).
 
-       All three are the ground rather than things standing on it, and that is
-       what makes them a different proposition to play against. A rail is
-       something you can aim at: hit it at the right angle and it gives you
-       back a shot you chose. None of these will. You cannot bank off a belt
-       or put spin on a pipe; the only decision any of them offers is whether
-       to be on it, and after that they are simply what happens next. Which is
-       exactly what a fairground ride is, and why the course is one. */
+       Each machine is met on its own before they are combined: the pad over a
+       wall (The Springboard), a hill with the pin on top of it (The Cone), the
+       pipe (Through the Pipe), the loop (Loop the Loop), and a vent in the
+       floor of a hollow (Blowhole). Then Caldera asks for all of it: up the
+       vent, along the rim on the belt — the one piece of ground on the
+       mountain that is level — and in through the tube.
 
-    var skelter = [
+       None of it can be aimed off the way a rail can. You cannot bank off a
+       belt or put spin on a pipe; the decision each one offers is whether to
+       be on it and how fast, and after that it is simply what happens next. */
+
+    var cinder = [
         build({
             /* Launch pads, introduced the only honest way: a wall with no way
                round it, a pad in front of the wall, and a bag with no loft in
@@ -5284,68 +5700,70 @@
             tee: { x: 1.4, z: 1.6 }, cup: { x: 6.2, z: 18.9 }
         }),
         build({
+            /* The cone the course is named for, which for sixty releases it
+               did not have: a hill in the middle of a round green with the
+               pin on the flat of its top. Nothing rests on the flank. A putt
+               that runs out of pace turns round and comes back down into
+               the moat, and one that gets there has a table four strides
+               across to stop on or run off the far side of.
+
+               A lava bomb lies at the foot of the cone on the line from the
+               tee to the flag, and the pin is over on the east side of the
+               top. So the line is the other way: off the west rail of the
+               tee's lane, which sends the ball up the flank on the slant
+               and across the top to the pin (README → "The hole lab":
+               332–336° with 84% of the mallet or more). From the moat the
+               top is one firm putt from anywhere, so the hole is a three
+               for anybody and a one for the bank.
+
+               The cone is a `mesa`: a ring of built ground, steep on
+               purpose as a ramp is, filled in level across the top. A
+               crater scooped out of a hump was tried first and is what a
+               volcano wants to be, but a cup has to be cut out of ground
+               that is flat, and the bottom of a scoop is not.
+
+               The Ash Slide stood here: a belt running back at the tee
+               across a six-wide lane, and a block on the line because the
+               putt at the flag was the ace. It asked how hard and never
+               where, and Loop the Loop's east lane still asks it. */
+            name: 'The Cone', par: 3,
+            blurb: 'The pin is on top of the cone. Too soft and it rolls back down to you; and the way up is off the wall, not over the lava bomb.',
+            pads: [
+                pad(-1.5, 0, 3, 5),
+                (function () {
+                    var p = pad(-6, 5, 12, 12);
+                    p.round = { nw: 6, ne: 6, sw: 4, se: 4 };
+                    p.bumps = [mesa(0, 11, 2.3, 3.4, 1.3)];
+                    return p;
+                })()
+            ],
+            extra: [meteor(0.5, 5.9, 0.8)],
+            tee: { x: 0, z: 1.4 }, cup: { x: 1.0, z: 11 }
+        }),
+        build({
             /* And the pipes. Eleven units of water, which is more than
                anything in the bag carries — the iron is the longest flight in
                the game at about nine and a half — so the mouth is not a short
                cut, it is the hole. It sits off the middle of the floor on
                purpose: a pipe you cannot miss is a corridor with extra steps. */
             name: 'Through the Pipe', par: 3,
-            blurb: 'Nothing in the bag carries this. Find the mouth; it comes out facing the pin.',
+            blurb: 'Nothing in the bag carries this. Find the mouth: it comes out on a green that falls to the pin, at the pace you sent it in with.',
             pads: [
                 pad(0, 0, 8, 10),
-                pad(0, 21, 8, 9)
+                /* The far green falls east, seven hundredths, and the pin
+                   is over on that side (v1.147.0). A pipe hands the ball
+                   back at the pace it went in with, on one line: with the
+                   pin on that line every ball that found the mouth was
+                   holed (3.3% of the sweep), and a ball's width off it none
+                   was. On a lean the pace is how far across it curls, so the
+                   mouth is still the line and the weight is the shot
+                   (0.72%). */
+                pad(0, 21, 8, 9, 0, 'green', -0.07, 0)
             ],
             water: [rect(-2, 10, 12, 11, -0.8)],
             gaps: [shore(rect(-2, 10, 12, 11), 0.6)],
             warps: [pipe(5.6, 7.4, 2.4, 24, 0, 0.95)],
-            tee: { x: 2.6, z: 1.6 }, cup: { x: 4, z: 28 }
-        }),
-        build({
-            /* Three belts across the floor, running east, west and east. A
-               ball putted straight at the flag arrives a long way east of it,
-               and the amount it arrives east by depends on how hard it was
-               hit — a slow ball spends longer on each belt and is thrown
-               further. So the aim and the weight stop being two decisions and
-               become one, which is a thing no rail in this file has ever
-               managed to do. */
-            name: 'Crosstown', par: 4,
-            blurb: 'Three walkways, running three ways. Aim where the flag is not.',
-            pads: [
-                pad(0, 0, 14, 6),
-                belt(0, 6, 14, 3, 7, 0),
-                pad(0, 9, 14, 2),
-                belt(0, 11, 14, 3, -7, 0),
-                pad(0, 14, 14, 2),
-                belt(0, 16, 14, 3, 7, 0),
-                pad(0, 19, 14, 7)
-            ],
-            tee: { x: 7, z: 2 }, cup: { x: 7, z: 23 }
-        }),
-        build({
-            /* Two moats and two launch pads, and the pads are the bridges.
-               Getting on to one is a putt; getting off it well is a matter of
-               how fast you were going when you did, because a launch pad
-               throws the ball straight up and hands the crossing to whatever
-               forward speed it already had.
-
-               It is deliberately *not* flagged `needsLoft`, and the reason is
-               worth writing down because it looks like an oversight: the flag
-               means "there is no route along the floor", and a launch pad is a
-               route along the floor. The bot proved it — handed a bag with no
-               loft in it at all, it holed this in one. Which is the nicest
-               thing that could be said about the mechanic. */
-            name: 'Bounce Alley', par: 3,
-            blurb: 'Two moats, two launch pads and no bridge. The pace you arrive at is the distance you fly.',
-            pads: [
-                pad(0, 0, 8, 6),
-                sprung(4, 4.4, 1.3, 9.8),
-                pad(0, 11, 8, 5),
-                sprung(4, 13.6, 1.3, 9.8),
-                pad(0, 21, 8, 7)
-            ],
-            water: [rect(-2, 6, 12, 5, -0.8), rect(-2, 16, 12, 5, -0.8)],
-            gaps: [shore(rect(-2, 6, 12, 5), 0.6), shore(rect(-2, 16, 12, 5), 0.6)],
-            tee: { x: 4, z: 1.6 }, cup: { x: 4, z: 25 }
+            tee: { x: 2.6, z: 1.6 }, cup: { x: 4.6, z: 27 }
         }),
         build({
             /* A loop-the-loop, and the one ride on the course the ball goes
@@ -5391,218 +5809,67 @@
             tee: { x: 3.3, z: 1.5 }, cup: { x: 3.5, z: 15 }
         }),
         build({
-            /* Gravity is a number, and this is the hole that changes it.
+            /* A blowhole: a hollow in the lawn with a vent at the bottom of
+               it, and the green on a shelf above the far side. It was three
+               vents scattered over a lane, which was a hole you either missed
+               or accepted, and the putt at the flag dropped (README → "The
+               hole lab").
 
-               Two fifths of a g. Nothing about the course is different — same
-               pads, same friction, same angle of repose, same solver — and
-               everything about playing it is, because carry goes as 1/g and so
-               does apex. A launch pad rated at seven throws the ball three and
-               a half units up instead of one and a half and hangs it there for
-               two seconds, and a moat seven units across stops being a carry
-               and becomes a flight.
+               The hollow is the hole. Its sides fall into the floor from
+               every direction, so the vent at the bottom is the one thing on
+               the card you cannot miss: anything rolled into the hollow is
+               gathered on to it and thrown up the face — the mountain running
+               everything downhill, and the vent the only way up. What you own
+               is the pace you bring. The vent throws the ball the same height
+               every time and hands it back travelling as it was, so a ball
+               that comes in slowly is thrown on to the front of the shelf and
+               one that comes in hot is thrown off the back of it. Too slow to
+               clear the face, and it falls back in and the blowhole coughs it
+               up again, weaker each time, until it settles at the bottom.
 
-               The bag is a putter and a mallet, which is to say no loft at all,
-               and that is what keeps the hole honest: in a third of a g a wedge
-               carries twenty units and every hazard here is decoration. The
-               only thing that puts the ball in the air is the floor, and the
-               only thing that decides where it lands is how hard you hit it
-               before you got there. The putter reaches the far island. The
-               mallet flies it into the second moat. That is the hole.
-
-               A doorway on the middle island, off to the left, because a hole
-               where the only skill is weight is half a hole — you have to land
-               on the island *and* be able to get from where you landed to the
-               second pad. */
-            name: 'The Gravitron', par: 4, gravity: 0.4,
-            blurb: 'Two fifths of a g. The pads throw you three times as far and nothing in the bag flies at all.',
-            pads: [
-                pad(0, 0, 9, 7),
-                sprung(4.5, 5.4, 1.4, 7.2),
-                pad(0, 14, 9, 7),
-                sprung(4.5, 19.4, 1.4, 7.2),
-                pad(0, 28, 9, 8)
-            ],
-            water: [rect(-2, 7, 13, 7, -0.8), rect(-2, 21, 13, 7, -0.8)],
-            gaps: [shore(rect(-2, 7, 13, 7), 0.6), shore(rect(-2, 21, 13, 7), 0.6)],
-            extra: aperture(-0.2, 16.8, 9.4, 0.4, { gap: 1.5, at: 2.6, h: 1.7, head: 1.15 }),
-            tee: { x: 4.5, z: 1.8 }, cup: { x: 4.5, z: 32 }
-        })
-    ];
-
-    /* ── adventure golf, the last of three: Cinder Cone ────────────────────
-
-       Icehouse Yard takes the friction away. Helter Skelter leaves the floor
-       alone and bolts machinery to it. This one puts both on the side of a
-       mountain and points everything downhill.
-
-       The idea is one sentence: **the mountain is trying to put the ball back
-       at the bottom.** Every belt below the rim has the fall in it — one
-       running straight back at the tee, two more pushing south and east off
-       the side of a shelf — and every vent throws the ball up a step it could
-       not have climbed. So the question on an Icehouse hole is where you want
-       to run out of speed, the question on a Helter Skelter hole is whether to
-       be on the machine, and the question here is whether you have brought
-       enough with you, because the ground is spending it for you the whole way
-       up.
-
-       The exception is the last hole, and it is the reward for the other five:
-       the belt round the rim of the crater is the one piece of ground on the
-       mountain that is level, and it is the only one that carries the ball
-       where it wants to go.
-
-       Nothing on the course is new physics. A belt with a negative push is the
-       same belt Crosstown rides, turned to face you; a vent is Skelter's
-       launch pad with the fairground taken off it. What is new is that they
-       are all pulling the same way, which is what a hill is. */
-
-    var cinder = [
-        build({
-            /* The first hole states the arithmetic and nothing else: two and a
-               half units of ash running back down the slope at four units per
-               second squared, three and a half units in front of the tee.
-
-               Those three numbers are the hole, and they were picked by
-               playing it rather than by working it out. A full swing of the
-               putter reaches the ash with about six of pace left, crosses with
-               two, and stops three short of the pin — so the hole asks for
-               everything the flattest club in the bag has and still leaves you
-               a putt. Four fifths of the same swing is handed back to your
-               feet. And a driver at full power is worse than either: it
-               crosses, hits the far rail and comes all the way home, which is
-               the other half of the lesson and the half this course keeps
-               coming back to. Nothing is lost by being short here. That stops
-               being true on the third hole.
-
-               A block of tuff sits on the line past the ash, because the mallet
-               straight at the flag used to be the ace and the hole asked how
-               hard and never where (README → "The hole lab"). The line now is
-               off a side wall: across the ash at an angle, which is a longer
-               crossing, so it wants nearly all of the mallet. */
-            name: 'The Ash Slide', par: 3,
-            blurb: 'A band of ash running back down at you. A full swing of the putter just gets over; anything less is returned.',
-            pads: [
-                pad(0, 0, 6, 5),
-                belt(0, 5, 6, 2.5, 0, -4),
-                pad(0, 7.5, 6, 7)
-            ],
-            extra: [wall(2.55, 9.15, 0.9, 0.9, 0.7, { base: -0.1 })],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 }
-        }),
-        build({
-            /* And the vent, which is the other half of the vocabulary: the
-               only thing on the mountain that moves a ball *up* it.
-
-               The shelf stands 1.8 above the lawn and is drawn as a bridge
-               over it, so the ground carries on underneath — a ball that comes
-               up short lands back on the lawn rather than in a hazard, and the
-               shot is simply taken again. That is deliberate for a second
-               hole. What is not forgiving is the window: the vent is worth
-               2.45 units of height and holds the ball above the level of the
-               shelf for a little over half a second, so what it wants is a
-               ball arriving at somewhere between four and ten units per second
-               — fast enough to cross the three and a half units of open air
-               before it comes back down, slow enough not to cross the shelf as
-               well. A full putter is at the top of that window and a driver is
-               a long way over it.
-
-               Both ends of the shelf are open and its sides are not, which is
-               what makes it a landing rather than a tray. Coming up short and
-               going long cost exactly the same thing here, which is nothing
-               but the shot: the lawn runs on underneath from the tee to the
-               back of the hole, so a ball that misses the shelf at either end
-               lands on grass and is played again from where it stops. */
-            name: 'Fumarole', par: 3,
-            blurb: 'The vent is the lift, and the shelf is open at both ends. Arrive with the pace it wants.',
-            pads: [
-                pad(0, 0, 7, 24),
-                sprung(3.5, 7.6, 1.3, 9.4),
-                pad(0, 11, 7, 5, 1.8)
-            ],
-            gaps: [
-                brink({ x: 0, z: 11, w: 7, d: 0 }, 0.4),
-                brink({ x: 0, z: 16, w: 7, d: 0 }, 0.4)
-            ],
-            tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 13.6 }
-        }),
-        build({
-            /* Eleven units of crater lake, which is more than anything in the
-               bag carries, and two tube mouths side by side in the ash in
-               front of it. Both of them cross.
-
-               It used to be a coin toss: two unmarked mouths, one at the pin
-               and one that put you back on the tee, and nothing to tell them
-               apart but having lost to the wrong one already. A guess is not
-               a shot. Now the choice is one you can see and size up. The
-               left mouth is narrow and comes out on the far shore facing the
-               pin — the two, maybe the one. The right mouth is wide and easy
-               to find, and comes out in the far corner with a putt still to
-               play — the safe three. */
-            name: 'Lava Tube', par: 3,
-            blurb: 'Two mouths in the ash and eleven units of lake. The narrow one comes out at the pin; the wide one leaves you a putt.',
-            pads: [
-                pad(0, 0, 9, 10),
-                pad(0, 21, 9, 9)
-            ],
-            water: [rect(-2, 10, 13, 11, -0.8)],
-            gaps: [shore(rect(-2, 10, 13, 11), 0.6)],
-            warps: [
-                pipe(2.6, 8, 3.2, 23, 0, 0.75),
-                pipe(6.4, 8, 7.8, 22.2, 0, 1.1)
-            ],
-            tee: { x: 2.2, z: 1.8 }, cup: { x: 4.6, z: 26.5 }
-        }),
-        build({
-            /* A shelf cut across the face of the cone, with the drop on the
-               east side of it for its whole length and two bands of scree
-               running over it. The belts push south and east at once — down
-               the fall and off the edge — which is what makes them different
-               from anything on Crosstown, where a travelator across the hole
-               is a hazard you can aim off and the worst it costs is the line.
-               Here the worst it costs is the ball.
-
-               Five units of shelf is not much road. What keeps it playable is
-               that the push is gentle and the bands are thin: a ball crossing
-               one at any real pace is on it for a third of a second and comes
-               off a metre south and east of where it would have been, which is
-               a correction you can take on the tee if you know it is coming.
-               A ball that stops on one does not stop on it for long. */
-            name: 'The Scree', par: 4,
-            blurb: 'A shelf with the drop down one side and two bands of scree running across it. Aim off, and keep moving.',
-            pads: [
-                pad(0, 0, 5, 9, 1.2),
-                belt(0, 9, 5, 2.5, 3, -2.5, { y: 1.2 }),
-                pad(0, 11.5, 5, 4, 1.2),
-                belt(0, 15.5, 5, 2.5, 3, -2.5, { y: 1.2 }),
-                pad(0, 18, 5, 6, 1.2)
-            ],
-            water: [rect(5, -1, 6, 26, 0.1)],
-            gaps: [{ x: 4.6, z: -1, w: 0.8, d: 26 }],
-            tee: { x: 2.4, z: 2 }, cup: { x: 2.4, z: 21.5 }
-        }),
-        build({
-            /* Three vents in twenty units of ash, and this time none of them
-               is a lift — they are simply in the way. A launch pad is the one
-               obstacle in the game that does not stop a ball, redirect it or
-               slow it down: it throws the ball in the air and hands it back
-               travelling exactly as it was, a second and a half later and a
-               long way further on. So a hole made of them is not a hole you
-               steer past, it is a hole you either miss or accept.
-
-               They are staggered so that the line round the first is the line
-               into the second, which is the only way three of anything is a
-               plan rather than three attempts at the same shot. And they are
-               rated low — 7.6 is a bounce a unit and a half high — because a
-               vent you cannot survive is a coin toss, and a vent that costs
-               you the length of the hole is a hole. */
+               And the hollow bends the line. A ball that comes in down one
+               side is turned by that side towards the middle, so the shot
+               aimed at the pin is pulled off it on the way to the vent and
+               lands wide. The ace is a firm mallet in down the right-hand
+               side of the hollow, which turns it back across the vent at the
+               pin — with nothing on the right of the shelf and nothing behind
+               it. The safe way is a gentle putt down the middle: it is
+               gathered, thrown on to the front of the shelf, and leaves a
+               putt for two. */
             name: 'Blowhole', par: 3,
-            blurb: 'Three vents and no way to steer once one has you. The line round the first is the line into the second.',
-            pads: [
-                pad(0, 0, 8, 20),
-                sprung(2.4, 6.5, 1.1, 7.6),
-                sprung(5.8, 10.5, 1.1, 7.6),
-                sprung(3.2, 14.5, 1.1, 7.6)
+            blurb: 'Everything rolls into the hollow and the vent at the bottom throws it up on to the shelf. How far depends on how hard you came in.',
+            pads: (function () {
+                // A hollow in nine pads, most of a `dish`: the floor, a ramp
+                // off each side and the two corners at the tee end, with the
+                // shelf's face where the far ramp would be.
+                var W = 9, cx = 4.5, cz = 9.5, b = 1.3, a = 4.5, run = a - b,
+                    dep = 0.8, k = dep / run;
+                return [
+                    pad(0, 0, W, cz - a),                                  // the tee
+                    pad(cx - b, cz - b, 2 * b, 2 * b, -dep),               // the floor
+                    pad(cx - a, cz - b, run, 2 * b, 0, 'green', -k, 0),    // west side
+                    pad(cx + b, cz - b, run, 2 * b, -dep, 'green', k, 0),  // east side
+                    pad(cx - b, cz - a, 2 * b, run, 0, 'green', 0, -k),    // the near side
+                    pad(cx - a, cz - a, run, run, dep, 'green', -k, -k),   // and its corners
+                    pad(cx + b, cz - a, run, run, 0, 'green', k, -k),
+                    sprung(cx, cz, 1.1, 10, -dep),                         // the blowhole
+                    pad(0, cz + b, 7.8, 7, 0.6)                            // the shelf
+                ];
+            })(),
+            gaps: [
+                brink({ x: 0, z: 17.8, w: 7.8, d: 0 }, 0.4),       // off the back
+                brink({ x: 7.8, z: 11.3, w: 0, d: 6.5 }, 0.4),     // and off the right
+                /* The hollow's two near corners are the two sides added
+                   together, so they rise out of the lawn towards the fence
+                   rather than falling into the hollow — the shoulders either
+                   side of its mouth. Open, not railed: a rail on a seam is a
+                   box as tall as the highest ground it guards, and these were
+                   two of them standing either side of the hollow. The face
+                   turns a ball just as a rail would. */
+                { x: 0, z: 4.8, w: 3.2, d: 0.4 },
+                { x: 5.8, z: 4.8, w: 3.2, d: 0.4 }
             ],
-            tee: { x: 4, z: 1.8 }, cup: { x: 5.8, z: 17.6 }
+            tee: { x: 2, z: 1.8 }, cup: { x: 6.6, z: 14.4 }
         }),
         build({
             /* The finisher, and it is the whole course in one hole: the vent
@@ -5617,49 +5884,92 @@
 
                The belt is what makes the ride readable. A travelator has a
                speed of its own that a ball approaches from either side, so it
-               does not matter how hard the second shot is hit: everything
-               arrives at the mouth at about six units per second and comes out
-               of the far end at the same, which is a putt's worth of pace
-               across a crater floor eleven wide. The machine spends the shot
-               for you, and the only thing you own is getting on to it.
+               hardly matters how hard the shot on to the rim is hit: whatever
+               lands on the belt comes out of the tube at four and a bit units
+               a second, which is a putt's worth of pace across the crater
+               floor. The machine spends the shot for you, and the only thing
+               you own is getting on to it — and, since v1.126.0, *where*.
 
-               The tube comes out on the east side of the floor, aimed at the
-               pin, and a block stands on the floor in front of the pin on the
-               line from the tee. The flight from the lawn used to be the only
-               ace on the hole, and it was a putt struck at the flag (README →
-               "The hole lab") — the uncomfortable shot paid better than the
-               road the hole is about. It lands short of the block now and
-               leaves a putt round it, the same as the tube does. */
-            name: 'Caldera', par: 4,
+               Rebuilt in v1.126.0 on two notes from the owner: the caddie got
+               stuck here, and the block that stood in front of the pin was "a
+               stupid box". Both came from where the vent was.
+
+               The caddie first. The lawn used to run on half a unit past the
+               vent to an open shore, and a ball that came off the vent too
+               soft dropped on to that strip — past the machine, with the lake
+               in front of it and the vent behind it. The way on from there is
+               two shots, back off the lip and through the vent again, and a
+               search that scores a shot by how near the pin it finishes cannot
+               see two shots: it shuffled the ball a unit east and a unit west
+               along the lip until it ran out of strokes. With the mallet at
+               seventeen it went there off the tee every time. So the lawn ends
+               at the vent now. Its far end is a half circle with the vent laid
+               into the top of it, railed all the way round, and there is no
+               grass past the machine for a ball to stop on; the curve hands a
+               ball running up either side of the lawn on to the vent, where
+               the square corners used to keep it beside it.
+
+               Then the box. The vent stood on the line from the tee to the
+               pin, and a launch pad leaves a ball's heading alone, so the putt
+               at the flag went through the vent and flew the crater at the pin
+               (README → "The hole lab"). The block was there to stop that, and
+               the stronger mallet flew it. Now the pin is out of the vent's
+               reach instead: the crater floor is wider, the cup is in its far
+               half under the end of the rim, and every line through the vent
+               from the tee comes down in the near half and leaves a putt
+               across. The putt at the flag misses the vent altogether and
+               finishes on the rail.
+
+               And the tube is the ace now, which it never was. Twelve units of
+               belt is not quite enough for a ball to reach the belt's own
+               pace, so a ball that lands at the near end and rides all of it
+               comes out of the tube a little quicker than one that lands half
+               way along. The tube points at the pin from three and a half
+               units off — the quick ones reach it and the rest stop a putt
+               short. Aim a few degrees left of the middle of the vent with a
+               bit over half a mallet, land at the start of the belt, and it is
+               in: a skill hole's share of the sweep, all of it through the
+               tube. */
+            name: 'Caldera', par: 3,
             blurb: 'Up the vent, along the rim on the scree, and in through the tube. There is no other road into the crater.',
             pads: [
-                pad(0, 0, 8, 10),
-                sprung(4, 8.2, 1.3, 10.4),
+                (function () {
+                    // The lawn's far end is a half circle round the vent.
+                    var p = pad(0, 0, 8, 10);
+                    p.round = { sw: 1.1, se: 1.1, nw: 4, ne: 4 };
+                    return p;
+                })(),
+                /* A ball's width short of the top of the curve rather than
+                   touching it: a ball against the rail there is still over
+                   the vent, and the grass, which is cut round the vent as a
+                   hole in its outline, cannot triangulate a hole that touches
+                   the edge (it drew the lawn's corner off and grass over the
+                   vent). */
+                sprung(4, 8.55, 1.3, 10.4),
                 pad(0, 11, 2, 3.5, 2.2, 'wood'),
                 belt(2, 11, 12, 3.5, 3.5, 0, { y: 2.2, kind: 'wood' }),
                 pad(14, 11, 3.4, 3.5, 2.2, 'wood'),
-                pad(0, 15, 9, 10, 1)
+                pad(0, 15, 12, 10, 1)
             ],
             water: [rect(-2, 10, 22, 5, -0.8)],
             gaps: [
-                { x: -1, z: 9.5, w: 21, d: 1.0 },        // the lawn's shoreline
                 { x: -0.6, z: 10.7, w: 8.6, d: 0.6 },    // the face of the rim, where you land
                 { x: -1, z: 14.7, w: 21, d: 0.9 }        // and the crater's own
             ],
-            warps: [pipe(15.7, 12.75, 7.4, 17.4, Math.atan2(4.5 - 7.4, 21.5 - 17.4), 0.95)],
-            extra: [wall(3.9, 18.9, 1.0, 1.0, 0.9, { base: 0.7 })],
-            tee: { x: 4, z: 2 }, cup: { x: 4.5, z: 21.5 }
+            warps: [pipe(15.7, 12.75, 7.5, 17, Math.atan2(10 - 7.5, 19.5 - 17), 0.95)],
+            tee: { x: 4, z: 2 }, cup: { x: 10, z: 19.5 }
         })
     ];
 
-    /* ── adventure golf, the fourth of four: Apogee Yard ───────────────────
+    /* ── adventure golf, the last of three: Apogee Yard ────────────────────
 
-       The other three adventure courses change the floor. Icehouse takes the
-       friction out of it, Helter Skelter bolts machinery to it and Cinder Cone
-       tilts the whole thing downhill — and all three leave the ball alone. This
-       one leaves the floor alone and changes what the ball *weighs*.
+       The other two adventure courses change the floor. Icehouse takes the
+       friction out of it and Cinder Cone bolts machinery to it on a hillside —
+       and both leave the ball alone. This one leaves the floor alone and
+       changes what the ball *weighs*.
 
-       `hole.gravity` was written for one hole on Helter Skelter and it is the
+       `hole.gravity` was written for one hole on Helter Skelter (The
+       Gravitron, gone since v1.122.0) and it is the
        cheapest hole-shaped idea in the file: nothing about the course changes
        and everything about playing it does. Carry goes as 1/g and so does
        apex, so half a g is a bag where every club reaches twice as far and
@@ -5687,172 +5997,218 @@
        here falls past `OOB_Y` and comes back as a stroke, which is the same
        price a splash costs and the honest one for a course with no sea on it. */
 
+    /* A round slab: a square pad with every corner rounded to half its width.
+       The yard is built of these now — pads standing on their own in the dust
+       read as landing stages, and a square one reads as a packing case. */
+    function stage(cx, cz, r, y, kind) {
+        var p = pad(cx - r, cz - r, 2 * r, 2 * r, y || 0, kind);
+        p.round = { sw: r, se: r, nw: r, ne: r };
+        return p;
+    }
+
+    /* A meteorite: a block on a green, drawn as the stone it is. A `crag` may
+       not stand on a green (tests.html — it is scenery on the long game, and
+       scenery is seated and reshaped by `build`); this is furniture, a wall
+       with a rock's skin, exactly as big as it is drawn. */
+    function meteor(cx, cz, s, y) {
+        return wall(cx - s / 2, cz - s / 2, s, s, 1.0, { base: (y || 0) - 0.3, kind: 'meteor' });
+    }
+
+    /* The course was six slabs with a gap between them (v1.146.0): the hole
+       lab found no ace on five of the six and a putt at the flag dropping on
+       the sixth, and from above every one of them was a rectangle, a void and
+       a rectangle. The idea was never the trouble — a different weight of
+       ball on every tee — so each hole is rebuilt round the one thing its
+       gravity does that no other hole's can:
+
+         Hang Time    0.5   the carry is longer than it looks: three stones
+         Dead Weight  2     a ramp is a slide: the plank does the work
+         The Crater   0.45  a wall is a road: up the far side and back
+         Deadlift     2.4   the floor has to throw it: one leap or two
+         Orbit        0.5   the pull is most of what the ball feels
+         Apogee       0.3   four seconds in the air, bent by a black hole
+
+       What does not change with the weight is the roll: a putter runs eight
+       units on a level green at every gravity on the card. Only slopes and
+       the air are different, which is why every hole here is one or the
+       other. */
     var apogee = [
         build({
-            /* The introduction, and it is one number said out loud: half a g.
-               Fourteen units of nothing between the two slabs — more than the
-               iron carries at home and more than the driver does — and at half
-               a g every club in the bag flies it with room to spare.
+            /* The introduction, and it is still one number said out loud:
+               half a g. But it is said with a choice now. Three round stones
+               in the dust — the tee, a big one half left and a soft pitch
+               away, and the green, further than anything in the bag carries
+               at home. At half a g the chipper gets there with a full swing.
 
-               Nothing else is on the hole on purpose. The first tee of a
-               course whose whole idea is that the ball weighs less should be a
-               shot the player has already played somewhere else, so that what
-               they notice is the only thing that has changed. */
+               The green has a rim (a `channel`, eight tenths up) and the pin
+               in the floor of it, so a carry that lands inside is gathered
+               rather than thrown out the back: that is the ace, and it is a
+               generous one on purpose (0.4%, the tutorial band). Short of
+               the nerve for it, the near stone is twice the target and
+               leaves a pitch of half the length. */
             name: 'Hang Time', par: 3, gravity: 0.5,
             needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Half a g. The gap is wider than anything in the bag carries at home — hit it anyway.',
+            blurb: 'Half a g, and three stones in the dust. The far one is further than anything carries at home — hit it anyway, or step across on the near one.',
             pads: [
-                pad(0, 0, 8, 9),
-                pad(0, 23, 10, 10)
+                stage(4, 3.5, 3.5),
+                stage(-1.5, 11.5, 3),
+                (function () {
+                    var p = stage(6.5, 16.5, 3.4);
+                    p.bumps = [channel(6.5, 16.5, 3.2, 1.9, 0.7)];
+                    return p;
+                })()
             ],
-            gaps: [{ x: -1, z: 8.6, w: 12, d: 14.8 }],
-            tee: { x: 4, z: 2 }, cup: { x: 5, z: 28 }
+            tee: { x: 4, z: 2.5 }, cup: { x: 6.5, z: 16.5 }
         }),
         build({
-            /* And the other way, which is the half of the idea nobody expects.
-               At two g the longest flight in the bag is the driver's, and it is
-               five and a half units; a wedge rises about as high as the rail
-               beside it. So the eight units of gap here cannot be flown by
-               anything, at any power, and the plank is not the safe route — it
-               is the only one.
+            /* And the other way. At two g nothing in the bag flies the gap,
+               so the plank is the only road — and the plank is a ramp now,
+               because the thing a heavy ball does that a light one does not
+               is run away downhill. The tee stands 1.2 above the green and
+               the plank falls all of it in eight units: whatever pace a ball
+               brings to the top, the slope gives it the same pace at the
+               bottom (a governor, like The Sluice's belt), so the hole asks
+               for a line and almost no weight at all. Tap it on straight and
+               the weight does the rest.
 
-               It is off to the east, so the hole is three shots long in the
-               shape of a Z: out to the plank, across it, back to the pin. A
-               heavy ball is the one thing in this game that makes a putt the
-               brave shot. */
+               The pin is round a kicker at the foot (Sea Legs' bank): a ball
+               off the plank meets it with a unit or two of run left and is
+               turned west on to the flag. Or off the tee's east rail and
+               down the plank on the slant, which is the same shot found the
+               hard way. A putt at the flag leaves the tee west of the plank
+               and is lost. It was a level plank off to one side of a Z,
+               three shots long with no ace on it; that shape is kept in
+               tests.html, where it is the planner's proof. */
             name: 'Dead Weight', par: 3, gravity: 2,
-            blurb: 'Twice the weight, and nothing in the bag flies six units. The plank is the road.',
+            blurb: 'Twice the weight, and nothing flies. The plank is a slide: start it straight and let the ball run away with itself.',
             pads: [
-                pad(0, 0, 7, 8),
-                pad(4.4, 8, 1.8, 8, 0, 'wood'),
+                pad(0, 0, 7, 8, 1.2),
+                pad(4.4, 8, 1.8, 8, 1.2, 'wood', 0, -0.15),
                 pad(0, 16, 7, 8)
             ],
             gaps: [{ x: -1, z: 7.6, w: 9, d: 8.8 }],
-            tee: { x: 2.2, z: 2 }, cup: { x: 2.4, z: 21 }
+            extra: [bank(5.3, 20.3, 2.6, Math.PI / 4)],
+            tee: { x: 5.3, z: 2 }, cup: { x: 3.2, z: 20.5 }
         }),
         build({
-            /* Light again, and this time the hole is what you have to stop on.
+            /* Light again, and the hole is the crater: one round pad sixteen
+               across, its wall 2.6 high, the tee on the crest of the rim and
+               the pin on the floor. At home a wall like that is a wall. At
+               0.45 of a g the mallet climbs it, so the wall is a road — and
+               it has to be, because two meteorites lie on the floor, one
+               between the tee and the pin and one behind it.
 
-               A ball that arrives on a flat green at half a g arrives with the
-               same speed it would have had at home and then keeps every bit of
-               it for twice as long a bounce, so the green here is a crater: a
-               floor and a rim, with the rim doing the job the ground cannot.
-               It is an island, and there is nothing behind it, which is the
-               whole reason the rim is worth having.
+               The putt at the flag runs down the wall into the near stone.
+               The ace goes thirty degrees wide of it, down across the floor,
+               up the far wall past the second stone and back down off it to
+               the pin (0.13%, a skill shot, and the same either side). The
+               pin is nine tenths north of the middle rather than in it: a
+               bowl brings everything to its middle, so a pin there is holed
+               by every firm shot or by none, and the hole had no weight in
+               it either way. Anything soft finishes on the floor and leaves
+               a putt.
 
-               One pad, and round: a `channel` laid on the rim curves down to a
-               flat floor wide enough for the cup's clearing. It was nine flat
-               pads — a `bowl`, floor, ramps and corners — and from the demo
-               camera on a phone the facets read as a crumpled sheet.
-
-               And round all the way out now: every corner is rounded to half
-               the pad's width, so the ground is a circle with the crest of the
-               rim on its edge and the rail curved along the crest. It was a
-               round bowl in a square box, which is a crater in a packing case. */
+               It was an island with a rim, twenty units off across a gap,
+               and nothing ever stayed on it. */
             name: 'The Crater', par: 3, gravity: 0.45,
-            needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Nothing stops out here. The rim of the crater is the only thing that will.',
-            pads: [pad(0, 0, 8, 8), (function () {
-                var p = pad(1.4, 20.4, 7.2, 7.2, 0);
-                p.bumps = [channel(5, 24, 3.6, 2.2, 0.55)];
-                p.round = { sw: 3.6, se: 3.6, nw: 3.6, ne: 3.6 };
+            blurb: 'The pin is on the crater floor, between two meteorites. At this weight the far wall is a road: go up it and come back.',
+            pads: [(function () {
+                // The crest of the rim is 1.1 inside the rail: the tee's flat.
+                var p = stage(7.9, 7.9, 7.9);
+                p.bumps = [channel(7.9, 7.9, 6.8, 4.6, 2.6)];
                 return p;
             })()],
-            gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
-            tee: { x: 4, z: 2 }, cup: { x: 5, z: 24 }
+            extra: [meteor(7.9, 6.2, 1.0), meteor(7.9, 10.5, 1.6)],
+            tee: { x: 7.9, z: 1.1 }, cup: { x: 7.9, z: 8.8 }
         }),
         build({
             /* The heavy hole with a motor in it. Two steps of one point two
-               and no ramp on to either — the same shape Highland's Stairway
-               is, except that there the answer is a club that flies and here
-               there is no such thing. What is left is the floor throwing the
-               ball for you, and it is throwing something twice as heavy: a
-               launch pad rated at fifteen reaches six and a quarter units at
-               home and two and a half at the two and two fifths of a g this
-               hole is played at, so a step of one point two is a step it
-               clears with daylight to spare by the time the ball has travelled
-               far enough forward to land on it. (It was thirteen, which was
-               enough only for the old flat driver skimming in at full pace.)
+               and no ramp on to either, at two and two fifths of a g, where
+               nothing in any bag flies: what is left is the floor throwing
+               the ball for you. Each pad is up against its riser, and two
+               banks in front of each step make a funnel that turns a ball
+               rolling at the step on to the pad.
 
-               The pads are the Helter Skelter pads turned up a notch, and the
-               rest of the difference is what is standing on them. */
+               The first pad is rated at twenty now and the second at fifteen,
+               and that is the hole's decision. Fifteen clears one step.
+               Twenty, met by a full mallet, clears both in one leap and lands
+               on the top green still running — and the top green leans east,
+               with the pin over on that side behind a post. Aim a touch left
+               of straight, land, and the lean brings it round the post to
+               the flag (0.11%). Straight at the flag is the same leap into
+               the post. Anything less than all of the mallet lands on the
+               middle step and goes up by the second pad: three shots, the
+               way it always was. */
             name: 'Deadlift', par: 3, gravity: 2.4,
-            /* It used to be played with the long game's bag, and — against
-               everything above — holed with the driver flown over both steps.
-               With the mallet alone the pads did lift a rolled ball a step at
-               a time, but each pad stood two units short of its riser, so a
-               ball that missed one ran on past it and jammed against the step
-               behind, and nothing in a mini bag gets it off that.
-
-               So each pad is up against its riser now, and two banks in front
-               of each step make a funnel that turns any ball rolling at the
-               step on to the pad. The hole is what the comment always said it
-               was: a floor that throws the ball for you, a step at a time. The
-               bot holes it in three from anywhere on the bottom floor and in
-               two from the middle step. */
-            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. Roll it at the step and let the funnel find the pad.',
+            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. All of the mallet takes both in one leap; less goes a step at a time.',
             pads: [
                 pad(0, 0, 7, 10),
-                sprung(3.5, 8.7, 1.2, 15),
+                sprung(3.5, 8.7, 1.2, 20),
                 pad(0, 10, 7, 6, 1.2),
                 sprung(3.5, 14.7, 1.2, 15, 1.2),
-                pad(0, 16, 7, 8, 2.4)
+                pad(0, 16, 7, 8, 2.4, 'green', -0.035, 0)
             ],
             extra: [
                 bank(1.2, 9, 2.9, -0.62), bank(5.8, 9, 2.9, 0.62),
-                bank(1.2, 15, 2.9, -0.62, { base: 1.1 }), bank(5.8, 15, 2.9, 0.62, { base: 1.1 })
+                bank(1.2, 15, 2.9, -0.62, { base: 1.1 }), bank(5.8, 15, 2.9, 0.62, { base: 1.1 }),
+                wall(4.75, 20.0, 0.6, 0.6, 0.9, { base: 1.9 })
             ],
-            tee: { x: 3.5, z: 2 }, cup: { x: 3.5, z: 20.5 }
+            tee: { x: 3.5, z: 2 }, cup: { x: 5.2, z: 21.6 }
         }),
         build({
-            /* Orbit, which replaced The Mouth — a pipe hole the owner called
-               no fun, and he was right: twenty-four units of nothing and one
-               way across it is a puzzle with one answer, not a shot.
+            /* A gravity anomaly in the middle of a round table (`wells`,
+               physics.js) and the cup straight behind it. The line at the
+               flag goes into the thing; the good line goes ten degrees wide
+               of it, either side, with most of a mallet, and is bent round
+               the back on to the pin (0.27%). At half a g the pull is most of
+               what the ball feels, which is the reason it is on this course.
 
-               This is a shot. A gravity anomaly sits in the middle of the yard
-               (`wells`, physics.js) and the cup is round the far side of it, so
-               the straight line runs into the thing and the good line runs
-               past it: close enough that it bends the ball in towards the pin,
-               not so close that it keeps it. At half a g the pull is most of
-               what the ball feels, which is the reason it is on this course. */
+               It was a sixteen by twenty-two rectangle with the well off the
+               line and the pin in a corner, and no line from the tee was ever
+               bent as far as the pin: the pull is stronger now (22, from 13)
+               and the pin is three units behind the middle, where the bent
+               lines from both sides cross. */
             name: 'Orbit', par: 3, gravity: 0.5,
-            blurb: 'A gravity well in the middle of the yard and the cup round the back of it. Swing past and let it hand you the pin.',
-            pads: [pad(0, 0, 16, 22)],
-            wells: [{ x: 8.5, z: 11, pull: 13, core: 0.85 }],
-            tee: { x: 4, z: 2 }, cup: { x: 10.5, z: 19.5 }
+            blurb: 'A black hole in the middle of the table and the cup straight behind it. Swing past, either side, and let it hand you the pin.',
+            pads: [stage(9, 9, 9)],
+            wells: [{ x: 9, z: 9, pull: 22, core: 0.85 }],
+            tee: { x: 9, z: 1.6 }, cup: { x: 9, z: 12 }
         }),
         build({
-            /* The finish, and the lightest hole on the card. Three tenths of a
-               g: a launch pad rated at ten and a half throws the ball nine and
-               a half units into the air and holds it there for the best part
-               of four seconds, and everything it does in that time was decided
-               before it left the ground.
+            /* The finish, the lightest hole on the card, and the two things
+               the yard has — a floor that throws the ball and a hole that
+               bends it — in one shot. Three tenths of a g: the pad throws the
+               ball ten units up and holds it there for the best part of four
+               seconds, and for all of that time the black hole standing in
+               the void is pulling on it (a well pulls in the air as on the
+               ground).
 
-               The bag is a putter and a mallet, which is to say nothing that
-               flies, and that is what makes the hole legible. The only thing
-               putting the ball in the air is the floor; the only thing you
-               choose is how fast it is going when it gets there. Two thirds of
-               a putter lands on the front of the shelf and rolls to the pin. A
-               full one is forty units and gone, and the mallet is not a club
-               on this hole at all.
+               The green is a crescent round the far side of the hole, and
+               the flight is bent round with it. A soft putter over the pad
+               barely feels the pull and comes down on the near horn, a long
+               way round from the flag. A firmer one passes closer, is turned
+               further and lands further round, and the pin is past the top
+               of the curve, where only a flight that has been bent nearly a
+               quarter turn comes down. Too close is the horizon. And what
+               lands keeps turning: the kerbs hold it on the crescent while
+               the pull takes it round.
 
-               The band of dust across the back is the only mercy on the yard
-               and it is a grudging one: sand keeps four thousandths of the
-               ball's speed in a second, so anything that reaches it stops
-               where it lands — on the hole, out of position, and a long way
-               from the flag. The shelf is also narrower than the tee and set
-               off to the east of it, so the flight is a line as well as a
-               weight. */
+               The bag is a putter and a mallet, nothing that flies, so the
+               only thing putting the ball in the air is the floor, and all
+               of it was decided before it left. It was a pad, a gap and a
+               shelf in a straight line, and the ace was the putt at the
+               flag — the last hole on the lab's list. */
             name: 'Apogee', par: 3, gravity: 0.3,
-            blurb: 'The pad throws it nine units up and the flight lasts four seconds. Everything is decided before it leaves.',
+            blurb: 'The pad throws it ten units up for four seconds, and the black hole bends the flight round on to the crescent. Everything is decided before it leaves.',
             pads: [
                 pad(0, 0, 8, 8),
-                sprung(4, 5.2, 1.4, 10.5),
-                pad(3, 22, 8, 18),
-                pad(3, 40, 8, 6, 0, 'sand')
+                sprung(4, 5.4, 1.4, 10.5),
+                road({ x: 4, z: 16, dir: 0, w: 4.6, y: 0, caps: true },
+                    [['arc', 8, Math.PI, { kerb: 'both' }]])
             ],
-            gaps: [{ x: -1, z: 7.6, w: 14, d: 14.8 }],
-            tee: { x: 4, z: 2 }, cup: { x: 7.5, z: 36 }
+            wells: [{ x: 12, z: 16, pull: 22, core: 0.9 }],
+            gaps: [{ x: -1, z: 7.6, w: 10, d: 1 }],
+            tee: { x: 4, z: 2 }, cup: { x: 14.14, z: 23.71 }
         })
     ];
 
@@ -5910,6 +6266,9 @@
                wide between them on the line to the flag. Thread it, go round
                either side, or stop short of the pair — and then a climb on to
                the shelf the green sits on, with a hollow off its right side.
+               The shelf stands up a heather bank now (v1.13x.0), two and a
+               half units over the landing ground, so the approach is played
+               up at a green you see the flag of and not the putting surface.
 
                The crest is overlapping humps rather than one wide one because
                a single raised cosine wide enough to cross a hole is also tall
@@ -5924,7 +6283,7 @@
                 [6,                     [7, rgh], [8, fwy], [7, rgh]],
                 [18,                    [7, rgh], [8, fwy], [7, rgh]],
                 [16,                    [5, rgh], [12, fwy], [5, rgh]],
-                [3,                     [6, rgh], [10, fwy], [6, rgh]],
+                [{ d: 3, sz: 0.5 },     [22, rgh]],
                 [{ d: 5, sz: 0.24 },    [6, rgh], [10, fwy], [6, rgh]],
                 [14,                    [6, rgh], [10, fwy], [6, rgh]],
                 [3,                     [22, rgh]]
@@ -6241,428 +6600,412 @@
        with the green over the top of it. This one is made of ground that is
        *missing*.
 
-       Dunmore's last hole is the whole idea in one: a gorge two units deep
-       across the fairway, which is not a water hazard and not a bunker but
-       ground you are entitled to play out of and will wish you had not had to.
-       It is the best decision on that card and it happens once. Here it
-       happens six times, and the point of the course is that a canyon is a
-       different question every time depending on where it runs:
+       It was built first as a plain with gorges carved into it — two or three
+       units down, banked on the far side so a ball in the bottom could be
+       played out — and the owner sent it back with one line: the Grand
+       Canyon ones want some really high cliffs. A carved gorge cannot have
+       them. Its walls are ground, and ground that steep is a cosine with a
+       grassy lip; past three units deep it is also a trap, because nothing in
+       the bag climbs out of a lie at the foot of a wall.
 
-       - **across** the hole where a full drive comes down, and it is a
-         carry or a lay-up;
-       - **along** it, and it is an edge every shot on the hole is played away
-         from — with the green a strip on the lip;
-       - **flooded**, west of a bridge of rock, so a par three is a full iron
-         over water or a run across the bridge;
-       - **a bite** out of half the fairway, and it is two routes — carry it
-         at the flag, or go round and come in over the spring;
-       - **twice**, and the fairway is an island between the crossings;
-       - and once at the end of a dogleg round a mesa nothing in the bag flies,
-         guarding a green in a hollow on the far shelf.
+       So since v1.130.0 the course is built the other way up. The floor of
+       the canyon is the bottom of the world (`CANYON_FLOOR`, four units down,
+       with the Colorado's thread of water in it), and every piece of ground
+       that is played stands on its own walls out of it: a plateau, a rim, a
+       bench, a butte, each a `butte` — a disc that `stands`, so its face is
+       rock the ball bounces off, and `sheer`, so the face goes all the way
+       down. The holes are what is left standing. The faces are four to
+       fourteen units tall and banded by height (themes → `strata`), so the
+       same beds run level across every wall on the hole, which is what makes
+       it read as a canyon rather than as a table.
 
-       The 2026 rebuild (PLAN.md §0) put every crossing where the drive off
-       that tee actually comes down, lengthened the par fours to fifty-odd and
-       the fives to eighty, and gave the course its only water. The water is
-       always in a hole in the ground with no pad under it — the canyon's own
-       floor is below `theme.surroundY`, and the surround is drawn over it, so
-       a pool cut into a ravine floor would be both an audit error (water
-       standing above the gravel beside it) and invisible.
+       Two rules came with it, and both are about the floor:
 
-       `gully` carves all of them (v1.83.0 →): each was a `ravine` — a box
-       with a sheer near wall and a banked far one — and a box is a straight
-       line, which on a course whose whole subject is the canyon read as six
-       ruled cuts. A carved one bends, and keeps the same two sides: past
-       about a unit of depth that is not decoration, because nothing in the
-       bag gets a ball out of a lie hard against a two-unit cliff, so a wall
-       the ball can come back up has to be a ramp, and a *near* wall wide
-       enough to play out of is a ramp a drive bounces clean across the canyon
-       off. So every crossing here is steep on the near side and banked on the
-       far one, its steep faces drawn as rock (`carve(…, { rock: true })`), and
-       every one runs out of both sides of the ground, so none has a way round
-       and the stakes stand back.
+       - **The floor is out of play wherever it is** (`pad.oob`). A ball that
+         goes over an edge falls the whole height of the wall, lands where you
+         can see it, and costs a stroke and the shot again — the same as
+         water. That is the hazard every hole is built round, and it is also
+         the answer to the lie the carved gorges had: there is no foot of a
+         tall wall anywhere on the course that a ball can be played from. The
+         walls that stand *on* playable ground are short ones — a band behind
+         a green, a rim beside a fairway — and the target is always away from
+         them.
+       - **Nothing standing overlaps anything at its own height.** Two slabs
+         with their tops at one level flicker against each other, so where a
+         step joins two pieces of ground it is a real step, and a bridge sits
+         a hair under the ground at either end of it.
 
-       The rough is scrub — `rough` like everywhere else, the engine has one
-       word for it — and what stands in it is stone rather than timber. There
-       are no trees on the course at all: `crags` is the whole of its furniture,
-       which is what a canyon rim has on it. */
+       The rough is scrub and the furniture is stone: `crags` and nothing
+       else, which is what a canyon rim has on it — kept well in from the
+       edges, because a stone half over the drop is a stone in mid-air
+       (audit → prop-afloat). */
 
-    var MESA = 3.2;       // how far a mesa stands above the ground round it
+    var CANYON_FLOOR = -4;   // the bottom of the canyon, and out of play
+    var CANYON_COUNTRY = -4.6;   // themes → canyon.surroundY, which the floor's edge comes down to
+
+    /* A piece of the canyon country standing on its own walls: Coral Keys'
+       `cliff` without the beach under it. The edge is `coast`'s seeded
+       wave — `wild` how much, `bays` the canyon let in further — and `sx`/`sz`
+       tilt it about its own middle, which keeps `y` the height there. */
+    function butte(cx, cz, rx, rz, y, o) {
+        o = o || {};
+        var p = coast(circle(cx, cz, rx, o.kind || 'rough', y, rz),
+            o.wild === undefined ? 0.06 : o.wild, keySeed(cx, cz, rx, o), o.bays);
+        p.inlay = false;
+        p.stands = true;
+        p.sheer = true;
+        p.weathered = true;          // its wall is cut into buttresses (render.weatherWall)
+        if (o.facets) p.facets = true;   // …or, in granite, into planes (render.facetRadius)
+        if (o.sx || o.sz) {
+            p.sx = o.sx || 0;
+            p.sz = o.sz || 0;
+            p.y = y - p.sx * (cx - p.x) - p.sz * (cz - p.z);
+        }
+        return p;
+    }
+
+    /* Bare rock: a piece of the country that is out of play wherever it is
+       (`oob`), drawn without grass on it. */
+    function rock(p) { p.oob = true; return p; }
+
+    /* A butte nobody plays — a temple, in the canyon's own word: a tall
+       weathered base with a narrower summit standing on it, set off its
+       middle, so the skyline steps in once where a hard bed caps a soft one.
+       Three even tiers were tried first and read as a stack of drums. `r` is
+       the base's half-width, `top` the height of the summit. */
+    function temple(cx, cz, r, top, o) {
+        o = o || {};
+        var tiers = o.tiers || [[1, 0.7], [0.56, 1]];
+        return tiers.map(function (t, i) {
+            return rock(butte(cx + (o.lean || 0) * i, cz + (o.leanZ || 0) * i, r * t[0], r * t[0] * (o.rz || 1.15),
+                CANYON_FLOOR + (top - CANYON_FLOOR) * t[1], { wild: 0.13, seed: (o.seed || 0) + i * 37 + 5 }));
+        });
+    }
+
+    /* The bench a rim stands on: the same outline grown by `grow`, `drop`
+       under the top, and bare — so the wall under a plateau is two cliffs
+       with a step of rock between them, as the canyon's are, and a ball
+       that goes over the edge is out on the step or on the floor alike. */
+    function ledge(p, drop, grow, seed) {
+        var cx = p.x + p.w / 2, cz = p.z + p.d / 2;
+        return rock(butte(cx, cz, p.rx + grow, p.rz + grow,
+            G3.physics.padHeight(p, cx, cz) - drop, { wild: 0.1, seed: seed || 11 }));
+    }
+
+    /* A Redstone hole: the pieces it is made of, stood on the canyon floor.
+       The floor runs eighteen units past the stakes, so a ball that crosses
+       the boundary lands on something, and it is out of play everywhere —
+       inside the stakes as well as past them. `river` is the water in the
+       bottom: `burn`'s lobes laid into the floor as a pond, so it is held in
+       by the floor's own ground. */
+    function redrock(h) {
+        var f = h.fence, M = 24, P = G3.physics;
+        var floor = pad(f.x - M, f.z - M, f.w + 2 * M, f.d + 2 * M, CANYON_FLOOR, 'rough');
+        floor.oob = true;
+        var ground = [floor];
+        var r = h.river, lobes = r ? burn(r.pts, r.r, r.depth, r.seed) : [];
+        var water = r ? [pond(ground, lobes)] : [];
+        /* Scree at the foot of every wall that comes down on the floor: a
+           string of low humps round the outline, so a face meets the floor
+           in a fan of fallen rock rather than a ruled line. Not in the river,
+           and not where something else stands over the spot. */
+        var rnd = seeded(nameSeed(h.name) ^ 0x51ee), scree = [];
+        h.pads.forEach(function (p) {
+            if (!p.stands || !p.r) return;
+            var cx = p.x + p.w / 2, cz = p.z + p.d / 2, n = Math.ceil(2 * Math.PI * p.r / 2.2), k;
+            for (k = 0; k < n; k++) {
+                var t = (k + rnd() * 0.6) / n * Math.PI * 2, rr = P.padRadius(p, t) + 0.3 + rnd() * 0.5;
+                var x = cx + Math.cos(t) * rr, z = cz + Math.sin(t) * rr, sr = 1.6 + rnd() * 1.2;
+                if (h.pads.some(function (q) { return q.stands && P.padContains(q, x, z); })) continue;
+                if (lobes.some(function (L) { return Math.hypot(L[0] - x, L[1] - z) < L[2] + sr; })) continue;
+                scree.push(hill(x, z, sr, 0.16 + rnd() * 0.2));
+            }
+        });
+        /* …and the floor's own edge let down to the country it carries on
+           into: four troughs along its sides that meet the surround (themes →
+           canyon.surroundY, -4.6) a hair above it, so there is no step for
+           the eye to find where the rectangle ends. */
+        var E = 6, drop = CANYON_FLOOR - CANYON_COUNTRY - 0.02;
+        var x0 = floor.x, z0 = floor.z, x1 = floor.x + floor.w, z1 = floor.z + floor.d;
+        var edge = [[x0, z0, x1, z0], [x1, z0, x1, z1], [x1, z1, x0, z1], [x0, z1, x0, z0]].map(function (L) {
+            return { line: L, r: E, a: -drop, cx: (L[0] + L[2]) / 2, cz: (L[1] + L[3]) / 2 };
+        });
+        floor.bumps = (floor.bumps || []).concat(scree, edge);
+        return build({
+            name: h.name, par: h.par, long: true, shaped: true, open: true,
+            blurb: h.blurb,
+            pads: ground.concat(h.pads),
+            fence: f,
+            water: water,
+            extra: h.extra || [],
+            tee: h.tee, cup: h.cup
+        });
+    }
 
     var redstone = [
         (function () {
             /* The introduction, and it says the one thing the player has to
                understand before any of the other five make sense: the canyon
-               lies exactly where a drive comes down.
+               lies exactly where a drive comes down, and there is nothing at
+               the bottom of it but the floor.
 
-               Nine units of it, starting eleven and a half off the tee, and a
-               full driver carries about twenty and a half on flat ground — so
-               a struck one lands on the top of the far bank and anything under
-               nine tenths of a swing is in the bottom. The tee shot is the
-               decision. Carry it and the second is a long club in from the
-               middle twenties. Lay up short of the lip (a little over half a
-               swing) and the second has to carry the canyon *and* still
-               leaves a third, because forty units is more than any club runs.
-               The green is up a short rise with sand short-right. */
-            /* The canyon is carved (`gully`) on a line that bends a unit
-               either way, inside a band of rough of its own, and it runs off
-               both edges of the ground — so there is no way round it, and the
-               stakes can stand back from the hole like the other courses'. */
-            var cut = gully([[-14, 14.3], [-3, 13.5], [6, 14.6], [14, 13.6], [23, 14.5], [37, 13.9]], 9103, { scale: 0.9 });
-            var field = ridge(4, 9.5, 18, 9.5, 4, 0.3, 3)
-                .concat(massif(28, 20, 11, 2.1, 5))
-                .concat([hill(2.4, 32, 2.8, -0.55), hill(19.5, 40, 3, 0.45)]);
-            var land = commons(0, [
-                [6,                    [5, rgh], [11, fwy], [6, rgh]],
-                [6,                    [5, rgh], [11, fwy], [6, rgh]],
-                [12.5,                 [22, rgh]],
-                [12.5,                 [5, rgh], [12, fwy], [5, rgh]],
-                [6,                    [6, rgh], [11, fwy], [5, rgh]],
-                [{ d: 4, sz: 0.15 },   [6, rgh], [11, fwy], [5, rgh]],
-                [13,                   [5, rgh], [12, fwy], [5, rgh]],
-                [3,                    [22, rgh]]
-            ], { e: 14 });
-            return build({
-                name: 'First Cut', par: 4, long: true, shaped: true, open: true,
+               The gorge is nine units across, starting fourteen out, and the
+               far side stands a unit and a half higher than the tee — so the
+               first thing on the hole is its far wall, six units of red rock
+               square across the line, with the river at the foot of it. That
+               is the whole of the drive: only a struck driver is still high
+               enough twenty-four units out to land on top, and anything less
+               meets the wall and goes down it. Carry it and the second is a
+               short iron. Lay up on the near side (a seven iron) and the
+               second has to climb over the wall and still leaves a putt — par
+               either way, and the birdie is for the drive.
+
+               Long is a cliff band three units over the far plateau, so a hot
+               approach comes back off rock rather than going over the back.
+               Three temples stand round it, the tallest nine and a half units
+               up: the first piece of Grand Canyon anybody sees. */
+            var near = butte(10, 1, 15, 14, 0.6, { wild: 0.07, bays: [[-6, 8, 0.1, 0.3], [27, -4, 0.08, 0.3]] });
+            var far = butte(11, 43, 15, 20, 2.0, { wild: 0.07, bays: [[-6, 40, 0.1, 0.25], [28, 52, 0.09, 0.3]] });
+            var band = rock(butte(12, 66, 14, 6.5, 5.4, { wild: 0.1 }));
+            return redrock({
+                name: 'First Cut', par: 4,
                 blurb: 'A canyon right where the drive comes down. Carry all of it, or lay up and carry it with the second.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 16.4, 49.2, 1.6, snd, 1.2),
-                        inlay(g, 11.5, 54, 4.8, grn, 4.4)
-                    ]);
-                }(carve(shape(land.pads, field), cut, { rock: true }))),
-                fence: widen(land.fence, 5, 5),
+                pads: [near, far, band, ledge(near, 2.0, 2.0, 1), ledge(far, 2.4, 2.0, 2)].concat(
+                    temple(-8, 20, 5, 9.4),
+                    temple(35, 26, 6.5, 7.6, { seed: 3, lean: 0.6 }),
+                    temple(-16, 46, 7, 6.4, { seed: 5, leanZ: -0.8 }), [
+                    lay(near, 10, 2.5, 4.6, 8.5, 'fairway'),
+                    lay(far, 11, 35.5, 5.2, 8.5, 'fairway'),
+                    lay(far, 16.6, 49, 1.5, 1.2, 'sand', { wild: 0.05 }),
+                    lay(far, 11.5, 54, 4.6, 4.4, 'green', { wild: 0.05 })
+                ]),
+                fence: { x: -2, z: -6, w: 26, d: 68 },
+                river: { pts: [[-16, 19.8], [0, 19.0], [14, 20.2], [28, 19.2], [39, 20.0]], r: 1.8, depth: 0.6, seed: 9105 },
                 extra: [].concat(
-                    crags(2.6, 10, 3, 5, 9101, { s: 1.3, h: 1.0 }),
-                    crags(19.4, 30, 2.8, 4, 9107, { s: 1.2, h: 0.9 }),
-                    crags(19.6, 8, 2.6, 3, 9109, { s: 1.1, h: 0.8 })
+                    crags(1.5, -2, 2.2, 4, 9101, { s: 1.3, h: 1.0 }),
+                    crags(19.5, 4, 2.2, 3, 9107, { s: 1.2, h: 0.9 }),
+                    crags(21, 37, 2.2, 4, 9109, { s: 1.2, h: 0.9 })
                 ),
-                tee: { x: 10, z: 2.5 }, cup: { x: 12, z: 55 }
+                tee: { x: 10, z: 0 }, cup: { x: 12, z: 54.5 }
             });
         })(),
         (function () {
             /* The same canyon turned a quarter turn, so it is not something to
                get over — it is the edge of the hole, running down the whole
-               west side of it, and the fairway leans at it.
+               west side of it, and the plateau leans at it.
 
-               A thirtieth of a unit of cross-fall for every one across is not
-               much to look at and it is the difference between a drive that
-               holds the fairway and one that is in the bottom of the canyon
-               with a two-unit wall between it and the pin. The east wall is
-               banked, so a ball down there is not lost — it is two shots from
-               where it should have been.
+               The fairway is a ledge: the rim and a drop of six units on the
+               left, a band of rock three units high on the right, and a
+               bunker where the drive comes down on the side everybody bails
+               to. A thirtieth of a unit of cross-fall for every one across is
+               not much to look at, and it is all a ball rolling out on the
+               left needs to find the edge.
 
-               Where the drive comes down, the fairway is pinched to eight and
-               a half units between the lip and a bunker on the right, which
-               is the side everybody bails to. And the green is the canyon's:
-               a strip five units wide and thirteen long laid along the lip,
-               so the approach is played down the edge of the cut with sand on
-               the other side of it — long and thin, forgiving of the club and
-               not of the line.
-
-               **The rows do not climb on this hole and they do not on The
-               Narrows either, and that is a rule rather than a preference.** A
-               ravine is authored at absolute heights — its lip is zero and its
-               floor is `-depth` — while a row that tilts carries its level
-               into the next one, so a canyon that runs *along* thirty units of
-               climbing ground has its lip at nought where the fairway beside
-               it has reached two and a half. What that builds is not a canyon:
-               it is a trench with a cliff on the inside of it that nothing in
-               the bag can escape. A crossing is immune, because it lives
-               inside one row. The height on a hole with a canyon down the side
-               of it therefore comes from the field and from the depth of the
-               cut, and the cross-fall — which lifts every pad, the canyon's
-               included — is the one tilt that is safe to lay over it. */
-            /* Carved (`gully`) down a line that wanders a unit from side to
-               side, sheer on the outside and banked towards the fairway — the
-               line runs south so the canyon opens east, and its far bank is a
-               little narrower than the default so it stops short of the
-               green strung along its lip. */
-            var cut = gully([[-2.3, 76], [-1.9, 62], [-3.6, 50], [-2.0, 38], [-4.4, 26], [-2.1, 12], [-3.8, 0], [-2.4, -14]],
-                            9221, { scale: 0.8 });
-            /* No hollow anywhere near the fairway on this one. The massif
-               east of the property is already spending a fifth of what the
-               fairway will hold by the time its skirt reaches the short grass,
-               and a dish laid on top of that is the one arithmetic in this
-               file that is nobody's number until it is measured — the gradients
-               add where their signs agree. The shape of this hole is the cut
-               down the west side of it; it does not need a second idea. */
-            var field = massif(31, 30, 12, 2.2, 5)
-                .concat(ridge(8, 15, 20, 15, 5, 0.3, 3));
-            var land = commons(0, [
-                [6,                     [6.5, rgh], [11, fwy], [4.5, rgh]],
-                [12,                    [6.5, rgh], [11, fwy], [4.5, rgh]],
-                [10,                    [6.5, rgh], [11.5, fwy], [4, rgh]],
-                [10,                    [6.5, rgh], [8.5, fwy], [7, rgh]],
-                [10,                    [6.5, rgh], [10, fwy], [5.5, rgh]],
-                [16,                    [6.5, rgh], [9, fwy], [6.5, rgh]],
-                [3,                     [22, rgh]]
-            ], { w: 15 });
-            return build({
-                name: 'The Rim', par: 4, long: true, shaped: true, open: true,
-                blurb: 'The canyon runs the length of the hole down the left, the fairway leans at it, and the green is a strip along the lip.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 16.3, 31.5, 1.5, snd, 2.4),
-                        inlay(g, 13.7, 52.5, 1.3, snd, 2.0),
-                        inlay(g, 9.4, 55, 2.6, grn, 6.5)
-                    ]);
-                }(carve(shape(tilt(land.pads, -0.032, 0, 22, 0), field), cut, { rock: true }))),
-                fence: widen(land.fence, 5, 5),
-                extra: [].concat(
-                    crags(20, 13, 3, 5, 9211, { s: 1.3, h: 1.0 }),
-                    crags(20, 42, 2.8, 4, 9217, { s: 1.2, h: 0.9 }),
-                    crags(-9.5, 34, 3, 4, 9219, { s: 1.25, h: 0.95 })
-                ),
-                tee: { x: 13, z: 3 }, cup: { x: 9.5, z: 58 }
-            });
-        })(),
-        (function () {
-            /* A par three off a mesa two units high, over a canyon that is
-               flooded west of a bridge of rock and dry east of it, to a green
-               strung wide and shallow along the far lip.
-
-               Straight at the pin is the water, and only a full iron carries
-               it: anything under about ninety-five per cent of one comes down
-               in the pool. The bridge is the other way across — two and a half
-               units of fairway at lip level, dead in line with the tee, that a
-               ball can be run over to the right end of the green and a long
-               putt back. Miss it either side and it is the pool or the bottom
-               of the dry cut. Long is still the wall: the ground behind the
-               green climbs and feeds anything hot back.
-
-               The pool is a hole in the ground rather than water laid over the
-               canyon floor — see the note at the top of the course. */
-            /* Two carved segments of one canyon (`gully`), and the bridge is
-               the ground between them that neither reaches: the west one
-               flooded, stopping inside the ground (a pond's water is its box,
-               and a box past the edge of the world hangs over the desert),
-               the east one dry and running out of the side. Both keep the
-               narrower far bank so the green on the far lip stays dry. */
-            var narrow = { scale: 0.8 };
-            var west = gully([[-9, 10.0], [-2, 9.5], [4, 10.2], [7.6, 9.9]], 9303, narrow);
-            var east = gully([[19.5, 9.9], [27, 10.3], [38, 9.7]], 9305, narrow);
-            var field = massif(-9, 16, 12, 2.4, 5)
-                .concat(massif(26, 32, 11, 2.2, 5))
-                .concat([hill(9.5, 35, 3, 0.35)]);
-            var land = commons(0, [
-                [{ d: 6, y: 2.1 },     [5, rgh], [12, fwy], [5, rgh]],
-                [{ d: 3, sz: -0.7 },   [22, rgh]],
-                [8.5,                  [12, rgh], [2.5, fwy], [7.5, rgh]],
-                [9,                    [4, rgh], [13, fwy], [5, rgh]],
-                [{ d: 4, sz: 0.3 },    [22, rgh]],
-                [6,                    [22, rgh]]
-            ], { w: 14, e: 14 });
-            var ground = carve(shape(land.pads, field), east, { rock: true });
-            var pool = pond(ground, west.map(function (b) { return [b.cx, b.cz, b.r, -b.a]; }),
-                            { freeboard: 0.7, rock: true });
-            return build({
-                name: 'Stone Bridge', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Off the mesa, over a canyon with a pool in it, to a green strung along the far lip. Or run it over the bridge.',
-                pads: ground.concat([
-                    inlay(ground, 9.5, 21.2, 5.2, grn, 2.6)
+               The green is the canyon's: out on a point below the rim, with
+               the drop on three sides of it, so the approach is played out
+               over the void at a target that has nothing behind it. A step
+               of a few tenths down from the plateau joins them, and the way
+               in from the right is the only one with ground under it. */
+            var main = butte(11.5, 27, 13.5, 34, 2.0, { wild: 0.06, sx: 0.02,
+                bays: [[-6, 24, 0.1, 0.35], [-6, 40, 0.08, 0.3]] });
+            var point = butte(0.5, 56, 8.4, 6.4, 1.4, { wild: 0.05 });
+            return redrock({
+                name: 'The Rim', par: 4,
+                blurb: 'The canyon runs the length of the hole down the left, and the green is out on a point over it.',
+                pads: [main, point, ledge(main, 2.4, 2.4, 3), ledge(point, 1.3, 1.8, 4),
+                    rock(butte(28, 28, 6.5, 30, 5.4, { wild: 0.08 }))].concat(
+                    temple(-16, 32, 5, 9.8, { seed: 7 }),
+                    temple(-19, 4, 6.5, 7.0, { seed: 9, lean: -0.7 }), [
+                    lay(main, 10, 17, 4.6, 19, 'fairway'),
+                    lay(main, 8.5, 44, 4, 6, 'fairway'),
+                    lay(main, 16.8, 33, 1.4, 2.4, 'sand', { wild: 0.05 }),
+                    lay(point, 0, 56.2, 4.4, 4.0, 'green', { wild: 0.05 })
                 ]),
-                fence: widen(land.fence, 0, 5),
-                water: [pool],
+                fence: { x: -7, z: -5, w: 33, d: 69 },
+                river: { pts: [[-6, -19], [-5, 8], [-8, 30], [-10, 56], [-9, 79]], r: 1.8, depth: 0.6, seed: 9221 },
                 extra: [].concat(
-                    crags(2.4, 3.5, 2.4, 4, 9301, { s: 1.25, h: 1.0 }),
-                    crags(19, 3.5, 2.4, 3, 9307, { s: 1.2, h: 0.9 }),
-                    crags(19, 34, 2.6, 3, 9311, { s: 1.15, h: 0.85 })
+                    crags(20.5, 12, 2.2, 4, 9211, { s: 1.3, h: 1.0 }),
+                    crags(18.5, 46, 2.2, 3, 9217, { s: 1.2, h: 0.9 })
                 ),
-                tee: { x: 13, z: 4.5 }, cup: { x: 8.5, z: 21.6 }
+                tee: { x: 11.5, z: 3 }, cup: { x: -0.5, z: 56.4 }
             });
         })(),
         (function () {
-            /* The canyon takes a bite out of the east half of the hole
-               rather than crossing all of it, so for the first time there is a
-               way round as well as a way over — and the two are not the same
-               hole.
+            /* A par three off a rim seven units up, across a gorge with the
+               river in it, to a green on a mesa five units below the tee.
 
-               The tee is up on a mesa, which is what makes the carry a
-               question at all: two units of fall put a full drive's carry at
-               about thirty, and the line at the flag crosses ten units of
-               bite that end about thirty out — so a struck drive is just over
-               and a mis-hit is in the bottom. What it buys is the pin dead
-               ahead and nothing between.
-
-               Round it is the west lane, seven and a half units wide, with
-               rough waiting where a full drive down it runs out and a spring
-               — the one oasis on the course — lying across the corner between
-               there and a green set off to the east. So the safe drive is the
-               one with the approach over water, and the brave one has
-               none. Hugging the lip of the bite on the way past is the third
-               answer, and the shortest, and the one with no margin either
-               side.
-
-               The far bank climbs and the near one does not, which is the rule
-               every crossing on this course is built to — a near wall wide
-               enough to play out of is a ramp a drive skips clean across the
-               canyon off, and a far wall that does not climb is a two-unit
-               cliff between a ball and the rest of the hole. */
-            /* The bite is carved (`gully`): it starts in a rounded end just
-               east of the west lane — six units of fairway now, where it was
-               seven and a half, which is what buys the end cap room to be a
-               slope rather than a cliff — and runs out of the east side of
-               the ground. Its line hardly wanders: it is held between two
-               rows of fairway, so a unit either way would put a hollow on one
-               of them. */
-            var cut = gully([[13.6, 22.3], [20, 21.9], [28, 22.5], [42, 22.0]], 9403, { scale: 0.8 });
-            var field = massif(-7, 28, 12, 2.3, 5)
-                .concat(massif(36, 42, 12, 2.2, 5))
-                .concat([hill(2.2, 15, 2.6, 0.4), hill(22.5, 15, 3, 0.45)]);
-            var land = commons(-6, [
-                [{ d: 6, y: 2.0 },     [3, rgh], [9, fwy], [14, rgh]],
-                [5,                    [3, rgh], [9, fwy], [14, rgh]],
-                [{ d: 4, sz: -0.5 },   [26, rgh]],
-                [12,                   [3, rgh], [15, fwy], [8, rgh]],
-                [10,                   [3, rgh], [6, fwy], [17, rgh]],
-                [6,                    [3, rgh], [17, fwy], [6, rgh]],
-                [2,                    [9, rgh], [12, fwy], [5, rgh]],
-                [{ d: 4, sz: 0.12 },   [9, rgh], [12, fwy], [5, rgh]],
-                [8,                    [16, rgh], [8, fwy], [2, rgh]],
-                [8,                    [3, rgh], [21, fwy], [2, rgh]],
-                [3,                    [26, rgh]]
-            ], { m: 14 });
-            var ground = carve(shape(land.pads, field), cut, { rock: true });
-            /* The spring is a pool in a hollow, held inside its own cell of
-               rough with fairway on three sides of it — which is why it is
-               smaller than the box it used to be. */
-            var spring = pond(ground, mere(12.1, 47, 2.4, 2.3, 1.9, 9413));
-            return build({
-                name: 'Long Way Round', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Off the mesa with the canyon eating the right half of the fairway. Carry it at the flag, or go round and come in over the spring.',
-                pads: ground.concat([
-                    inlay(ground, 20.5, 52, 4.2, grn, 4.2)
+               Straight at the pin is a long downhill carry over the drop, and
+               only a full iron gets there: the fall adds a quarter to every
+               club, so a five iron at three quarters is the shot. The other
+               way across is the stone bridge — a bench off to the east, a
+               short iron away, joined to the green's mesa by an arch of rock
+               two and a half units wide with the river running under it. Lay
+               up on the bench and the second is a pitch over the gap or a putt
+               down the bridge. Long is a cliff band behind the green, set into
+               the mesa so there is no slot between them, that hands a hot one
+               back; anything else that misses is on the floor. */
+            var tee = butte(10, 0, 9, 7.5, 7.2, { wild: 0.05 });
+            var mesa = butte(8, 24, 7.6, 6.4, 2.2, { wild: 0.06 });
+            var bench = butte(23.5, 14.5, 5.5, 5, 3.0, { wild: 0.05 });
+            /* The bridge: a road (a pad laid along a curve), drawn as a deck
+               with daylight under it. Its ends lie inside the bench and the
+               mesa, and it stands four tenths under the one and over the
+               other — two pads sharing ground at one level would leave the
+               ball's footing to the order they were written in — so the way
+               across is two small steps down, and a putt only goes one way. */
+            var bridge = road({ x: 19.4, z: 16.6, dir: -0.62, w: 2.6, y: 2.6, kind: 'fairway' },
+                [['arc', 10, -0.85]]);
+            bridge.hover = true;
+            return redrock({
+                name: 'Stone Bridge', par: 3,
+                blurb: 'Off the rim and down on to a mesa over the river. Or out to the bench and across the stone bridge.',
+                pads: [tee, mesa, bench, bridge, ledge(tee, 2.8, 2.0, 5), ledge(mesa, 1.9, 1.6, 6),
+                    rock(butte(8, 33.6, 9.5, 5.5, 4.6, { wild: 0.1 }))].concat(
+                    temple(-9, 20, 5.5, 9.0, { seed: 11 }),
+                    temple(32, 33, 5.5, 8.4, { seed: 13, lean: 0.5 }), [
+                    lay(tee, 10, 4.2, 2.0, 1.8, 'fairway'),
+                    lay(bench, 23.5, 14.5, 3.6, 3.3, 'fairway'),
+                    lay(mesa, 8, 23.6, 4.8, 4.0, 'green', { wild: 0.05 })
                 ]),
-                fence: widen(land.fence, 5, 5),
-                water: [spring],
+                fence: { x: -2, z: -6, w: 33, d: 46 },
+                river: { pts: [[-17, 13.5], [-2, 12.8], [11, 14.2], [16.6, 21], [19.5, 32], [24, 55]], r: 1.6, depth: 0.6, seed: 9303 },
                 extra: [].concat(
-                    crags(4.5, 42, 2.6, 5, 9401, { s: 1.3, h: 1.0 }),
-                    crags(23.5, 40, 2.6, 4, 9407, { s: 1.25, h: 0.95 }),
-                    crags(1.4, 52, 2.4, 4, 9411, { s: 1.2, h: 0.9 })
+                    crags(14.5, -2.5, 1.4, 3, 9301, { s: 1.2, h: 0.9 }),
+                    crags(26.5, 11.5, 1.4, 3, 9307, { s: 1.1, h: 0.8 })
                 ),
-                tee: { x: 7.5, z: -3.5 }, cup: { x: 20.5, z: 53 }
+                tee: { x: 10, z: 4.2 }, cup: { x: 7.5, z: 24 }
             });
         })(),
         (function () {
-            /* The canyon meanders, so it crosses twice and the fairway
-               between the crossings is an island sixteen units long, set off
-               to the east of the line, with a wall at each end of it.
+            /* The tee perched on a rim. It stands on a pinnacle of its own
+               eight units up, with the void under it, and the hole is laid
+               out below like a map: the fairway six and a half units down,
+               the side canyon that bites into the east half of it, the green
+               beyond.
 
-               The first crossing is the drive's. The tee is on a mesa and the
-               canyon begins twenty-two units out, so a full one off the top
-               just reaches the island and anything less is in the bottom —
-               or it is laid up short on the plain, and the hole becomes a six
-               with a canyon in front of each of the next two shots. The
-               second crossing is the second shot's, played from the island
-               back west to the last leg, and the green is round behind a
-               bunker short-right. Switchback because the fairway does: west,
-               east, west. */
-            /* Both crossings are carved (`gully`), each in an eleven-unit
-               band of rough so it has room to bend — which took a unit off
-               the plain before the first, two off the island and one off the
-               last leg, and moved nothing else — and both run out of both
-               sides of the ground, so neither has a way round. */
-            var one = gully([[-16, 25.2], [-4, 24.6], [8, 25.8], [19, 24.7], [30, 25.6], [46, 25.0]], 9503, { scale: 0.85 });
-            var two = gully([[-16, 50.4], [-3, 51.2], [9, 50.1], [21, 51.0], [33, 50.2], [46, 50.8]], 9505, { scale: 0.85 });
-            var field = massif(38, 16, 12, 2.2, 5)
-                .concat(massif(-9, 44, 11, 2.0, 5))
-                .concat(massif(38, 74, 12, 2.3, 5))
-                .concat([hill(16, 43, 3.2, -0.4), hill(26, 13, 3, 0.45), hill(24, 64, 3, 0.4)]);
-            var land = commons(0, [
-                [{ d: 5, y: 2.0 },     [3, rgh], [10, fwy], [17, rgh]],
-                [{ d: 4, sz: -0.5 },   [30, rgh]],
-                [15,                   [3, rgh], [13, fwy], [14, rgh]],
-                [11,                   [30, rgh]],
-                [14,                   [9, rgh], [14, fwy], [7, rgh]],
-                [11,                   [30, rgh]],
-                [10,                   [5, rgh], [14, fwy], [11, rgh]],
-                [{ d: 4, sz: 0.15 },   [4, rgh], [13, fwy], [13, rgh]],
-                [14,                   [4, rgh], [13, fwy], [13, rgh]],
-                [3,                    [30, rgh]]
-            ], { w: 14, e: 14 });
-            return build({
-                name: 'Switchback', par: 5, long: true, shaped: true, open: true,
-                blurb: 'Off the mesa and over the canyon to an island of fairway, over it again, and back the other way to the green.',
-                pads: (function (g) {
-                    return g.concat([
-                        inlay(g, 14.5, 77.5, 1.4, snd, 1.8),
-                        inlay(g, 9.5, 81, 4.6, grn, 4.4)
-                    ]);
-                }(carve(shape(land.pads, field), one.concat(two), { rock: true }))),
-                fence: widen(land.fence, 5, 5),
+               Two units of fall add a third to a drive, so from up here a
+               struck one carries forty. The line at the flag crosses six units
+               of side canyon thirty-odd out — over it is a short iron to the
+               green, and a drive that comes up short meets the far wall and
+               goes down it. Round it is the west lane, a bench of its own that
+               the fairway steps down on to and off again, and a longer second.
+               Each step is four tenths, down the hole, so a ball rolls on
+               across them and is never stopped by one. Long of the green is a
+               band of rock that hands a hot approach back. (v1.131.0) */
+            var south = butte(9, 19, 14, 13, 1.6, { wild: 0.07, bays: [[-8, 12, 0.08, 0.3]] });
+            var lane = butte(1, 35, 6, 9, 1.2, { wild: 0.06 });
+            var north = butte(14, 52, 14, 14, 0.8, { wild: 0.07, bays: [[32, 50, 0.1, 0.3]] });
+            var rim = butte(6, -4, 7, 6, 8.0, { wild: 0.06 });
+            return redrock({
+                name: 'Long Way Round', par: 4,
+                blurb: 'Off a pinnacle with the hole laid out below. Carry the side canyon at the flag, or go round by the west lane.',
+                pads: [rim, south, lane, north, ledge(south, 2.2, 2.0, 7), ledge(north, 2.4, 2.0, 8),
+                    rock(butte(18, 70, 12, 6, 4.2, { wild: 0.1 }))].concat(
+                    temple(33, 21, 6, 9.5, { seed: 15 }),
+                    temple(-15, 16, 5.5, 8.0, { seed: 17, lean: -0.6 }),
+                    temple(-13, 56, 6.5, 10.5, { seed: 19, leanZ: 0.7 }), [
+                    lay(rim, 6, -2, 2.2, 2.0, 'fairway'),
+                    lay(south, 9, 18, 4.8, 9, 'fairway'),
+                    lay(lane, 1.5, 36, 3.2, 6, 'fairway'),
+                    lay(north, 14, 48, 4.5, 6, 'fairway'),
+                    lay(north, 18.5, 59, 4.6, 4.2, 'green', { wild: 0.05 })
+                ]),
+                fence: { x: -6, z: -9, w: 34, d: 77 },
+                river: { pts: [[-20, 6], [-8, 4], [3, 3.5], [12, 34.5], [24, 35.5], [42, 33.5]], r: 1.6, depth: 0.6, seed: 9403 },
                 extra: [].concat(
-                    crags(1.8, 40, 2.6, 5, 9501, { s: 1.3, h: 1.0 }),
-                    crags(27, 44, 2.6, 5, 9507, { s: 1.25, h: 0.95 }),
-                    crags(25, 82, 2.6, 4, 9511, { s: 1.15, h: 0.85 })
+                    crags(19, 13, 2.2, 4, 9401, { s: 1.3, h: 1.0 }),
+                    crags(3, 52, 2.2, 3, 9407, { s: 1.2, h: 0.9 }),
+                    crags(9.5, -6.5, 1.2, 3, 9411, { s: 1.1, h: 0.8 })
                 ),
-                tee: { x: 8, z: 2.5 }, cup: { x: 9.5, z: 82 }
+                tee: { x: 6, z: -1.5 }, cup: { x: 19, z: 59.5 }
+            });
+        })(),
+        (function () {
+            /* The climb: a par five up the benches of a cliff band, the way
+               a trail goes up the inside of the canyon — out east, back west,
+               out east again.
+
+               Four benches, each a unit and four tenths over the one before,
+               and the green on the top one with the rim standing four more
+               behind it. A unit and a half is the height a ball has to be
+               flown up, so every shot on the hole is a full one: three quarters
+               of a swing tops out under the next bench's lip and comes back
+               off its face. And each bench stands a unit or two clear of the
+               one below it, so the foot of every riser is a slot down to the
+               floor rather than a lie — a ball that comes back off a face is
+               out and played again, never sat against a wall nothing in the
+               bag climbs. The void off the far side of a bench is the other
+               miss, which is where a drive that runs through goes; a band of
+               rock stands at the corner of the second bench, where the drive
+               runs out, to keep the good one in. (v1.131.0) */
+            var a = butte(8, 7, 12, 12, -1.2, { wild: 0.07, bays: [[-8, 14, 0.1, 0.3]] });
+            var b = butte(18, 30, 12, 12, 0.2, { wild: 0.07 });
+            var c = butte(6, 52, 12, 12, 1.6, { wild: 0.07, bays: [[-10, 60, 0.1, 0.3]] });
+            var d = butte(16, 73, 10, 9, 3.0, { wild: 0.06 });
+            return redrock({
+                name: 'Switchback', par: 5,
+                blurb: 'Up the benches of a cliff band: out east, back west and out again, every shot a full one.',
+                pads: [a, b, c, d, ledge(a, 1.4, 1.8, 9), ledge(c, 2.0, 1.8, 10),
+                    rock(butte(31, 45, 9, 6, 4.4, { wild: 0.1 })),
+                    rock(butte(14, 88, 16, 7, 7.0, { wild: 0.1 }))].concat(
+                    temple(-14, 30, 6, 9.0, { seed: 21 }),
+                    temple(36, 16, 6.5, 7.4, { seed: 23, lean: 0.5 }),
+                    temple(-12, 78, 6, 10.0, { seed: 25 }), [
+                    lay(a, 8, 5, 4.5, 8, 'fairway'),
+                    lay(b, 18.5, 30, 5, 7, 'fairway'),
+                    lay(c, 6, 52, 5, 7, 'fairway'),
+                    lay(d, 16, 75, 4.6, 4.4, 'green', { wild: 0.05 })
+                ]),
+                fence: { x: -7, z: -7, w: 38, d: 90 },
+                river: { pts: [[-12, -18], [-8, 10], [-10, 40], [-6, 66], [-9, 92]], r: 1.7, depth: 0.6, seed: 9503 },
+                extra: [].concat(
+                    crags(1, 12, 2.0, 4, 9501, { s: 1.3, h: 1.0 }),
+                    crags(25, 24, 2.0, 3, 9507, { s: 1.25, h: 0.95 }),
+                    crags(3, 55, 2.0, 4, 9511, { s: 1.15, h: 0.85 })
+                ),
+                tee: { x: 8, z: 0 }, cup: { x: 16.5, z: 75.5 }
             });
         })(),
         (function () {
             /* The finish, and the course's real dogleg. The inside of the
-               corner is a mesa: a table of scrub eighteen units by thirty-four
-               standing MESA units above the fairway on sheer walls, which is
-               higher than anything in the bag lifts a ball, so it is not
-               carried, it is gone round. The tee is in the south-east corner,
-               the fairway runs up the right of the mesa, and the hole turns
-               hard left round its north-east corner — so the second shot is
-               the wager: as tight to that corner as you dare, where a ball
-               short and left meets rock and comes back, or wide and safe and
-               a longer third.
+               corner is the tallest thing on the card — a temple of bare rock
+               fourteen units off the floor, in three tiers — so it is not
+               carried, it is gone round: up the east of it from a tee a unit
+               over the fairway, then left round its north shoulder as tight as
+               you dare, where a ball short and left meets rock and is out.
 
-               Then the canyon, across the whole hole at the end of the second
-               leg, and a short climb on to the shelf the green is cut into: a
-               ring of low rises round it, so the green is the floor of a
-               hollow and a ball that reaches the rim is fed in.
-
-               A mesa is a pad with a height of its own rather than a
-               landform, because a landform is a slope and the one thing this
-               needs is a wall: ground lifted clear of STEP_UP is a kerb the
-               ball cannot climb, and the cut face is drawn in the canyon's
-               rock colour. It is an oval disc that `stands` (below), not a
-               bands cell, since a cell is a box. */
-            /* The canyon is carved (`gully`) in an eleven-unit band and runs
-               out of both sides. The mesa is no longer a bands cell: a cell
-               is a box, and a box is the one shape a mesa never is. It is an
-               oval disc of scrub standing MESA up on its own (the way The
-               Ait's island stands), its edge waved like every other disc's
-               and its walls the skirt colour — inscribed in the box it used
-               to be, so it stays a unit clear of the fairway up its east
-               side. */
-            var cut = gully([[-14, 55.9], [-2, 56.5], [9, 55.7], [20, 56.4], [31, 55.8], [50, 56.2]], 9603, { scale: 0.85 });
-            var mesa = shapeDisc(Object.assign(pad(3, 12, 18.5, 34, MESA, rgh), { r: 17, stands: true }));
-            var field = massif(48, 24, 12, 2.2, 5)
-                .concat(massif(-10, 70, 11, 2.1, 5))
-                .concat(ring(9, 81, 7.4, 3.2, 0.42, 8))
-                .concat([hill(12, 29, 5, 0.5), hill(30, 52, 3, -0.35)]);
-            var land = commons(0, [
-                [6,                    [22, rgh], [12, fwy], [4, rgh]],
-                [6,                    [22, rgh], [12, fwy], [4, rgh]],
-                [18,                   [22, rgh], [12, fwy], [4, rgh]],
-                [16,                   [22, rgh], [14, fwy], [2, rgh]],
-                [9,                    [3, rgh], [31, fwy], [4, rgh]],
-                [11,                   [38, rgh]],
-                [{ d: 4, sz: 0.3 },    [3, rgh], [14, fwy], [21, rgh]],
-                [22,                   [3, rgh], [14, fwy], [21, rgh]],
-                [3,                    [38, rgh]]
-            ], { m: 12 });
-            return build({
-                name: 'Redstone', par: 5, long: true, shaped: true, open: true,
-                blurb: 'Up the right of a mesa nothing flies, round its corner as tight as you dare, then over the canyon to a green in a hollow on the far shelf.',
-                pads: (function (g) {
-                    return g.concat([
-                        mesa,
-                        inlay(g, 9, 81, 4.0, grn, 4.0)
-                    ]);
-                }(carve(shape(land.pads, field), cut, { rock: true }))),
-                fence: widen(land.fence, 5, 5),
+               Then the canyon, across the whole hole, and the green on a mesa
+               on the far side of it: two units over the shelf you play to it
+               from and seven over the floor, with nothing under its edges but
+               the drop and a band of rock behind it to stop the long one. Two
+               units is a full short iron's worth of climb, so the approach is
+               the shot the round has been building to — over the void and up,
+               with the whole canyon watching. (v1.131.0) */
+            var tee = butte(26, 6, 9, 8, 2.4, { wild: 0.06 });
+            var east = butte(28, 34, 9, 22, 1.6, { wild: 0.07, bays: [[40, 40, 0.1, 0.3]] });
+            var shelf = butte(10, 52, 14, 9, 0.8, { wild: 0.07 });
+            var mesa = butte(6, 76, 9, 8, 2.8, { wild: 0.06 });
+            return redrock({
+                name: 'Redstone', par: 5,
+                blurb: 'Up the east of a temple nothing flies, round its shoulder as tight as you dare, then over the canyon to a green on a mesa.',
+                pads: [tee, east, shelf, mesa, ledge(shelf, 2.0, 1.8, 12), ledge(mesa, 2.2, 1.8, 13),
+                    rock(butte(6, 89, 12, 6, 6.6, { wild: 0.1 }))].concat(
+                    temple(7, 24, 11, 10.5, { seed: 27, rz: 1.1 }),
+                    temple(44, 62, 6.5, 8.6, { seed: 29 }),
+                    temple(-16, 66, 6, 9.4, { seed: 31, lean: -0.6 }), [
+                    lay(tee, 27, 4, 2.4, 2.2, 'fairway'),
+                    lay(east, 28.5, 32, 4.6, 14, 'fairway'),
+                    lay(shelf, 11, 53, 7, 4.2, 'fairway'),
+                    lay(mesa, 6, 76, 4.8, 4.4, 'green', { wild: 0.05 })
+                ]),
+                fence: { x: -5, z: -4, w: 40, d: 88 },
+                river: { pts: [[-18, 63.5], [-6, 64.5], [10, 63.2], [24, 64.6], [40, 63.8], [49, 64.2]], r: 1.6, depth: 0.6, seed: 9603 },
                 extra: [].concat(
-                    crags(10, 18, 2.6, 5, 9601, { s: 1.35, h: 1.05 }),
-                    crags(15, 40, 2.6, 4, 9607, { s: 1.25, h: 0.95 }),
-                    crags(18.4, 28, 1.8, 4, 9613, { s: 1.3, h: 1.1 }),
-                    crags(33, 72, 2.8, 4, 9611, { s: 1.2, h: 0.9 })
+                    crags(33.5, 20, 1.6, 4, 9601, { s: 1.35, h: 1.05 }),
+                    crags(16.5, 55, 1.6, 4, 9607, { s: 1.25, h: 0.95 }),
+                    crags(1, 50, 1.8, 3, 9613, { s: 1.3, h: 1.1 })
                 ),
-                tee: { x: 28, z: 3 }, cup: { x: 9.5, z: 82 }
+                tee: { x: 27, z: 3 }, cup: { x: 6.5, z: 76.5 }
             });
         })()
     ];
@@ -6678,113 +7021,115 @@
        `tint` is the group's colour in that picker and `icon` its mark. Both
        live here rather than in the menu, so a new course arrives already filed
        and a new group arrives already dressed. */
-    /* ── Coral Keys: the long game over open water ─────────────────────────
+    /* ── Coral Keys: the long game round a coast ───────────────────────────
 
        Every other long course is one piece of country with trouble cut into
-       it. This one is the other way round: the sea is the course and the
-       ground is what is cut into it, a handful of islands with nothing
-       between them, so every shot is a carry and every carry has to land on
-       something. There is no running a ball up to anything here; what you
-       choose is which island next, and how much water you are prepared to
-       put between you and it.
+       it. This one is islands in a lagoon, and it was built twice.
 
-       An island is a disc of beach with grass inlaid on it (`isle`). The
-       beach is the mercy: sand holds whatever lands on it, so a ball that
-       comes up a yard short of the grass is in a bunker rather than the sea,
-       and a ball that runs through the grass stops in the sand before the far
-       shore. The wave in the edge is the same mown wobble a green has
-       (`shapeDisc`), which is all it takes for nothing out here to be square.
-       The keys are low domes (v1.96.0), with palms on them and shallows
-       round them. They were level for a long time because a domed key came
-       out as a raft with corners — not the ground, which a disc draws in
-       rings, but its grass, which was laid on the square grid with the disc
-       itself as the thing cut out of it (render.addTerrain says so now).
+       The first time (v1.95.0–v1.111) it was a string of small keys with
+       nothing between them, so every shot was a carry to a target a few units
+       across. The perfect bot played it ten under par; people found it too
+       hard, and both were right. A player who strikes every ball where it
+       meant to can thread anything, so the bot never saw what the course
+       actually was — and with a person's misses (CONFIG.BOT_HANDS,
+       tools/human-check.mjs) it averaged six over, with two balls in the sea
+       a round on the worst holes. There was no shot on the card that was
+       safe, so there was no shot on it that was brave either.
 
-       Every tee is up on a sea stack, a flat-topped pillar of sandstone
-       standing out of the water — the one place on the course with any height
-       to it, which is the height the drive needs to get out over the first
-       channel and the reason it is worth looking down from.
+       So each hole is one big island now, and the sea is let into it rather
+       than laid between pieces of it: a cove, a bay, a lagoon in the crook of
+       a crescent. Every hole has a way round on dry land and a line across the
+       water that saves a shot, and which one to take is the hole — the old
+       "carry it or splash" became "carry it, or play round it a stroke
+       longer". And the islands have height: a tee up on a headland, a shelf
+       of turf above the beach, a green on a clifftop with the sea on three
+       sides of it. A cliff is the other kind of trouble a coast has, and it
+       is a kinder one than water — come up short of a shelf and the ball
+       drops back on to the beach below it, a shot down rather than a stroke
+       and a shot.
+
+       An island is a disc of beach (`island`) with grass laid into it
+       (`lay`), and the beach is still the mercy: sand holds whatever lands on
+       it, so a ball that runs through the grass stops before the shore. Its
+       outline is `coast` — the same seeded wave as before, gentler, because
+       a big island is not a pebble — and its bays are dips in that outline
+       (`bays`: physics.padRadius), so the physics, the shallows, the minimap
+       and the slab are all drawn off the one shoreline. A disc is drawn from
+       its own middle, so a bay always points at it; an island the shape of a
+       C is a disc with one very deep bay.
+
+       A cliff (`cliff`) is a disc that stands on the island, with sides
+       (`stands`, as Redstone's mesa does), and grass laid on top of it.
+       `sheer` is a sea cliff: one that hangs over the edge of its island and
+       goes all the way down into the water (render.addPad).
 
        The water is one sheet under the lot, and the stakes are off: there is
        nowhere to go out of bounds that is not already wet. */
     var KEY_SEA = -0.6, KEY_SHORE = -0.28;
-    // The shallows round a key, as the renderer draws them (render.addShelf):
+    // The shallows round an island, as the renderer draws them (render.addShelf):
     // a band on the water's surface, `out` units wide.
     var KEY_SHELF = { y: KEY_SEA + 0.02, out: 2.4 };
     /* A coastline rather than a mown edge. `shapeDisc` gives every disc the
-       same gentle wobble, which on a green is right and on an island makes
-       every key the same pebble at a different size. This is the same wave
-       turned up and dealt per island: an egg, a kidney, a trefoil, a bay bitten
-       out of one side. `wild` is how much — the most the shore comes in, as a
-       fraction of the radius, is twice it — and the shape is seeded off where
-       the island is, so it is the same island on every load. The edge still
-       only ever bites inwards, so everything that measures the island from
-       outside by `pad.r` stays true. */
-    function coast(p, wild, seed) {
-        var rnd = seeded(seed), lobes = [1, 2, 3, 5], w = [], sum = 0, i;
+       same gentle wobble; this is the same wave turned up and dealt per disc,
+       seeded off where it is so it is the same island on every load. `wild`
+       is how much — the most the shore comes in, as a fraction of the radius,
+       is twice it — and `bays` are the sea let in further still, each named
+       by a point it points at, how deep as a fraction of the radius, and how
+       wide as a half-angle. The edge only ever bites inwards, so everything
+       that measures a disc from outside by `pad.r` stays true, and `rIn` is
+       the circle no bite can reach. */
+    function coast(p, wild, seed, bays) {
+        var rnd = seeded(seed), lobes = [1, 2, 3, 5], w = [], sum = 0, i, deep = 0;
+        var cx = p.x + p.w / 2, cz = p.z + p.d / 2;
         for (i = 0; i < lobes.length; i++) { w.push(0.3 + rnd()); sum += w[i]; }
         p.wave = { bite: wild, terms: lobes.map(function (n, k) {
             return [n, wild * w[k] / sum, rnd() * Math.PI * 2];
         }) };
-        p.rIn = Math.min(p.rx, p.rz) * (1 - 2 * wild);
+        if (bays && bays.length) {
+            p.wave.bays = bays.map(function (b) {
+                deep += b[2];
+                return [Math.atan2(b[1] - cz, b[0] - cx), b[2], b[3]];
+            });
+        }
+        p.rIn = Math.max(0.2, Math.min(p.rx, p.rz) * (1 - 2 * wild - deep));
         return p;
     }
-    function isle(cx, cz, rx, rz, opts) {
-        var o = opts || {};
-        var wild = o.wild === undefined ? 0.16 : o.wild;
-        var seed = Math.round(cx * 977 + cz * 7919 + rx * 131) + (o.seed || 0);
-        var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE + (o.y || 0), rz), wild, seed);
-        base.inlay = false;
-        /* A key is a low dome, not a raft: the middle stands up out of the
-           sea and the beach runs down to the water's edge. One hump along
-           the island's long axis (a `trough`, which is a hump drawn along a
-           line), so an oval key is domed along its length rather than
-           pinched up in the middle, and about a sixteenth at its steepest — a ball
-           on a key still stops on it. The fairway is laid on top of it
-           (`inlay` takes the host's humps), and `build` seats the palms on
-           whatever height the dome put under them. */
-        // Not a sea stack (`y`): a tee is cut flat on top of its pillar.
-        if (o.dome !== 0 && !o.y) {
-            var rs = Math.min(rx, rz) * 1.1, half = Math.abs(rx - rz);
-            var dome = o.dome === undefined ? Math.min(0.55, rs * 0.04) : o.dome;
-            base.bumps = [rx >= rz
-                ? trough(cx - half, cz, cx + half, cz, rs, dome)
-                : trough(cx, cz - half, cx, cz + half, rs, dome)];
-        }
-        // Shallows round it (render.addShelf), except round a sea stack,
-        // which goes straight down into the water as a stack does.
-        if (!o.y) base.shelf = KEY_SHELF;
-        var pads = [base];
-        if (o.bare) { pads.props = []; return pads; }   // a sand islet, nothing on it
-        /* The grass is the beach's own outline drawn smaller — the same wave,
-           so it follows every bay and point of the shore and can never cross
-           it, and the strand round it is even all the way round. */
-        var g = function (r) { return Math.max(1.2, Math.min(r - 1.3, r * 0.8)); };
-        pads.push(coast(inlay([base], cx, cz, g(rx), o.kind || 'fairway', g(rz)), wild, seed));
-        /* Trees are named by bearing and by how far out, as a fraction of the
-           island, so they stay on it whatever size it is drawn at. */
-        var keepIn = pads[1].rIn - 0.7;      // the grass's own wobble, and the trunk
-        pads.props = (o.trees || []).map(function (t, k) {
-            var dx = Math.cos(t[0]) * rx * t[1], dz = Math.sin(t[0]) * rz * t[1];
-            var f = Math.min(1, keepIn / Math.max(1e-6, Math.sqrt(dx * dx + dz * dz)));
-            return tree(cx + dx * f, cz + dz * f,
-                { h: 2.8 + ((k * 7 + Math.round(cx + cz)) % 5) * 0.2, palm: true });
+    function keySeed(cx, cz, rx, o) {
+        return Math.round(cx * 977 + cz * 7919 + rx * 131) + ((o && o.seed) || 0);
+    }
+    /* The island: flat beach at the shore line, with shallows round it. */
+    function island(cx, cz, rx, rz, o) {
+        o = o || {};
+        var p = coast(circle(cx, cz, rx, 'sand', KEY_SHORE, rz),
+            o.wild === undefined ? 0.05 : o.wild, keySeed(cx, cz, rx, o), o.bays);
+        p.inlay = false;
+        p.shelf = KEY_SHELF;
+        return p;
+    }
+    /* Ground standing `h` above the beach, with sides: a headland the tee is
+       on, a shelf above the fairway, a clifftop green. Scrub on top unless it
+       says otherwise, so grass laid on it reads as mown. */
+    function cliff(cx, cz, rx, rz, h, o) {
+        o = o || {};
+        var p = coast(circle(cx, cz, rx, o.kind || 'rough', KEY_SHORE + h, rz),
+            o.wild === undefined ? 0.06 : o.wild, keySeed(cx, cz, rx, o), o.bays);
+        p.inlay = false;
+        p.stands = true;
+        if (o.sheer) { p.sheer = true; p.shelf = KEY_SHELF; }
+        return p;
+    }
+    /* Grass laid into an island or on top of a cliff: fairway, green, rough. */
+    function lay(host, cx, cz, rx, rz, kind, o) {
+        o = o || {};
+        return coast(inlay([host], cx, cz, rx, kind, rz),
+            o.wild === undefined ? 0.08 : o.wild, keySeed(cx, cz, rx, o) + 17, o.bays);
+    }
+    function palms(list) {
+        return list.map(function (t, k) {
+            return tree(t[0], t[1], { h: 2.8 + ((k * 7 + Math.round(t[0] + t[1])) % 5) * 0.2, palm: true });
         });
-        return pads;
     }
-    /* A green island: flat, and the green laid straight into the beach, so
-       what is round a green out here is a bunker in every direction and then
-       the sea. */
-    function keyGreen(cx, cz, rx, rz, gr, wild) {
-        var base = coast(circle(cx, cz, rx, 'sand', KEY_SHORE, rz), wild || 0.1,
-            Math.round(cx * 613 + cz * 3571));
-        base.inlay = false;
-        base.shelf = KEY_SHELF;
-        return [base, inlay([base], cx, cz, gr, 'green')];
-    }
-    function keys(name, par, blurb, isles, tee, cup) {
-        var pads = [].concat.apply([], isles);
-        var extra = [].concat.apply([], isles.map(function (i) { return i.props || []; }));
+    function keys(name, par, blurb, pads, trees, tee, cup) {
         var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
         pads.forEach(function (p) {
             minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
@@ -6799,86 +7144,404 @@
             pads: pads,
             water: [rect(minX - M, minZ - M, maxX - minX + 2 * M, maxZ - minZ + 2 * M, KEY_SEA)],
             fence: { x: minX - 2, z: minZ - 2, w: maxX - minX + 4, d: maxZ - minZ + 4 },
-            extra: extra,
+            extra: palms(trees),
             tee: tee, cup: cup
         });
     }
 
     var coral = [
-        /* The first carry, and a short one: an iron over a channel to a big
-           green key, with a couple of sand islets in the channel that will
-           hold a ball that comes up short — and leave a splash shot off a
-           beach the size of a table. */
-        keys('Landfall', 3, 'One channel, one island, one green. Carry the water; the islets in the channel are there if you do not.', [
-            isle(12, 4, 4.5, 4, { y: 2.8, wild: 0.08 }),
-            isle(8.5, 13, 1.8, 1.4, { bare: true, wild: 0.2 }),
-            isle(16.5, 15.5, 1.3, 1.1, { bare: true, wild: 0.22 }),
-            keyGreen(12.5, 24, 9, 7, 4.4, 0.14)
-        ], { x: 12, z: 3 }, { x: 12.5, z: 24 }),
+        (function () {
+            var land = island(13, 18, 15, 17, { bays: [[32, 13.5, 0.85, 0.55]] });
+            var head = cliff(9, 1, 4.4, 3.6, 2.6, { sheer: true });
+            return keys('Landfall', 3, 'Over the cove at the flag, or round it on dry land and a pitch. The island is all yours either way.', [
+                land, head,
+                lay(head, 9, 1, 2.4, 2, 'fairway'),
+                lay(land, 5, 19, 4.5, 7.5, 'fairway'),
+                lay(land, 18.5, 28, 3.2, 2.8, 'green', { wild: 0.05 }),
+                lay(land, 14, 9, 3.5, 2.5, 'rough', { wild: 0.14 }),
+                lay(land, 10, 30, 3, 2, 'rough', { wild: 0.14 })
+            ], [[9.5, 30], [11, 30.6], [2.5, 22]], { x: 9, z: 0.8 }, { x: 19, z: 28.5 });
+        })(),
 
-        /* A line of keys across the bay, and no two the same size: a pebble,
-           a big kidney-shaped key with trees on it, and a sliver of sand
-           before the green. The driver flies to the big one; the iron hops
-           them one at a time. */
-        keys('Stepping Stones', 4, 'A string of keys across the bay, from a pebble to a big one with trees on it. Hop them, or fly to the big one.', [
-            isle(10, 4, 5, 4.5, { y: 2.8, wild: 0.08 }),
-            isle(6, 17, 3.4, 3, { wild: 0.16 }),
-            isle(15, 31, 9, 7, { wild: 0.15, trees: [[0.4, 0.7], [3.6, 0.6]] }),
-            isle(5, 41, 2.4, 1.3, { bare: true, wild: 0.22 }),
-            keyGreen(11, 50, 8, 8, 4.6, 0.12)
-        ], { x: 10, z: 3 }, { x: 11, z: 51 }),
+        (function () {
+            var land = island(15, 39.5, 13, 39);
+            var head = cliff(16, 3, 4.5, 3.6, 2.6, { sheer: true });
+            var shelf = cliff(8, 52, 7, 25, 1.4, { sheer: true });
+            return keys('The Shelf', 4, 'A shelf of turf above the beach, with the sea under its far edge. Drive up on to it for the open look, or stay low and pitch up.', [
+                land, head, shelf,
+                lay(head, 16, 3, 2.4, 2, 'fairway'),
+                lay(shelf, 8.5, 44, 4.2, 13, 'fairway'),
+                lay(shelf, 9, 65, 3.2, 3, 'green', { wild: 0.05 }),
+                lay(land, 20, 36.5, 5, 16, 'fairway'),
+                lay(land, 18, 13, 4, 4.5, 'rough', { wild: 0.14 }),
+                lay(land, 21, 62, 3.5, 5, 'rough', { wild: 0.14 })
+            ], [[21, 60], [22, 63.5], [18, 12]], { x: 16, z: 2.8 }, { x: 9, z: 65.5 });
+        })(),
 
-        /* An atoll: a broken ring of reef round a lagoon, and the green on a
-           key in the middle of it. The reef is all sizes — a long arm on the
-           near side that an iron finds, and some pieces barely worth the
-           name. The straight line is a drive over the reef and the whole of
-           the lagoon at a green that will not keep a driver's run. */
-        keys('The Atoll', 4, 'A broken ring of reef round a lagoon, and the green in the middle. Land on the reef and pitch in, or fly the lot.', (function () {
-            var out = [isle(16, 3, 5, 4.5, { y: 2.8, wild: 0.08 })], k, a;
-            var size = [[7.5, 4.6], [5.4, 4.4], [2.6, 2.2], [4.6, 3.4], [1.8, 1.6], [5.8, 4.2]];
-            for (k = 0; k < 6; k++) {
-                a = -Math.PI / 2 + k * Math.PI / 3;
-                out.push(isle(16 + Math.cos(a) * 15, 34 + Math.sin(a) * 15, size[k][0], size[k][1],
-                    { wild: 0.22, bare: size[k][0] < 2, trees: k === 1 || k === 5 ? [[a, 0.5]] : [] }));
-            }
-            out.push(keyGreen(16, 34, 7.5, 6.8, 4.4, 0.14));
-            return out;
-        })(), { x: 16, z: 2 }, { x: 16, z: 34.5 }),
+        (function () {
+            var land = island(16, 17, 18, 17.5, { bays: [[16, 43, 0.7, 0.95]] });
+            var head = cliff(16, 2.5, 4.4, 3.4, 2.6, { sheer: true });
+            var key = island(16, 34.5, 6.5, 6.5);
+            return keys('The Atoll', 4, 'A crescent of reef round a lagoon, and the green on a key in the middle of it. Drive the key, or take a horn and pitch across.', [
+                land, head, key,
+                lay(head, 16, 2.6, 2.4, 1.9, 'fairway'),
+                lay(land, 16, 12.5, 7, 3.5, 'fairway'),
+                lay(land, 5, 21.5, 3.2, 4.5, 'fairway'),
+                lay(land, 27, 21.5, 3.2, 4.5, 'fairway'),
+                lay(key, 16, 34.5, 4.2, 3.8, 'green', { wild: 0.05 }),
+                lay(land, 6, 11, 3, 2.5, 'rough', { wild: 0.14 }),
+                lay(land, 26, 11, 3, 2.5, 'rough', { wild: 0.14 })
+            ], [[5.5, 11], [26.5, 11], [3, 22]], { x: 16, z: 2.4 }, { x: 16.5, z: 34.5 });
+        })(),
 
-        /* The par five, and two ways home. Left is a chain of keys a drive
-           apart, one big and blobby and one small enough to need finding.
-           Right is one long ragged island down the middle of the bay that
-           turns the hole into a drive and a long iron, for anyone who can
-           hit it off the tee. */
-        keys('Two Ways Home', 5, 'Two ways down the bay: a chain of keys on the left, or one long ragged island on the right for the brave.', [
-            isle(10, 4, 5.5, 5, { y: 2.8, wild: 0.08 }),
-            isle(5, 30, 8, 9, { wild: 0.16, trees: [[3.3, 0.6]] }),
-            isle(5, 54, 6, 6.5, { wild: 0.13, trees: [[2.9, 0.5]] }),
-            isle(30, 43, 5.5, 13, { wild: 0.14, trees: [[0.2, 0.5], [-0.3, 0.45]] }),
-            isle(14, 63, 1.6, 2.6, { bare: true, wild: 0.2 }),
-            keyGreen(20, 75, 9.5, 8.5, 5, 0.1)
-        ], { x: 10, z: 3 }, { x: 20.5, z: 75.5 }),
+        (function () {
+            var land = island(15, 32, 13, 30, { bays: [[40, 69, 0.6, 0.6]] });
+            var home = island(19, 83.5, 14, 14.5);
+            var head = cliff(16, 3, 4.6, 3.6, 2.6, { sheer: true });
+            return keys('Two Ways Home', 5, 'Two islands and a lagoon between them. Over it at the flag in two, or up the right and across the gap in three.', [
+                land, home, head,
+                lay(head, 16, 3, 2.4, 2, 'fairway'),
+                lay(land, 14.5, 34, 5, 9.5, 'fairway'),
+                lay(land, 11.5, 50, 3.5, 4, 'fairway'),
+                lay(home, 12.5, 79, 3.5, 5.5, 'fairway'),
+                lay(home, 24, 87, 4.4, 4, 'green', { wild: 0.05 }),
+                lay(land, 22.5, 22, 2.8, 4, 'rough', { wild: 0.14 }),
+                lay(home, 25, 77, 3, 3, 'rough', { wild: 0.14 })
+            ], [[22.5, 21], [22, 24], [25, 77]], { x: 16, z: 2.8 }, { x: 24.5, z: 87.5 });
+        })(),
 
-        /* One long carry. The tee is the tallest stack on the course, and what
-           it looks out over is twenty units of water and then a big sprawling
-           key; a pebble off to the left is the lay-up, and costs the shot it
-           saves. */
-        keys('The Long Carry', 4, 'Twenty units of water off the tee. Carry it, or lay up on the pebble and take the long way.', [
-            isle(14, 4, 6, 5.5, { y: 3.6, wild: 0.08 }),
-            isle(3, 20, 3, 3.2, { wild: 0.16, trees: [[3.4, 0.4]] }),
-            isle(14, 38, 9, 9.5, { wild: 0.18, trees: [[3.1, 0.6]] }),
-            keyGreen(21, 56, 8, 7, 4.4, 0.12)
-        ], { x: 14, z: 4 }, { x: 21.5, z: 56 }),
+        (function () {
+            var stack = cliff(14, 4, 4.2, 3.8, 2.6, { sheer: true });
+            var land = island(19, 54, 20, 24.5, { bays: [[24, 26.5, 0.55, 0.55]] });
+            return keys('The Cape', 4, 'The shore runs across the line on a slant. Bite off as much water as you dare — the more you carry, the less is left.', [
+                stack, land,
+                lay(stack, 14, 4, 2.4, 2.2, 'fairway'),
+                lay(land, 11, 48.5, 5, 11, 'fairway'),
+                lay(land, 27, 66, 4.4, 4, 'green', { wild: 0.05 }),
+                lay(land, 30, 54, 4, 3, 'rough', { wild: 0.14 }),
+                lay(land, 12, 70, 3, 2.5, 'rough', { wild: 0.14 })
+            ], [[30, 54], [31.5, 55], [12, 70]], { x: 14, z: 4 }, { x: 27.5, z: 67.5 });
+        })(),
 
-        /* Home round the point: a long, crooked key up the left and the green
-           off to the right behind a thin bar of sand. The sandbar is the
-           bail-out and the only thing between the corner and the flag. */
-        keys('Round the Point', 4, 'Up the long key and hard right to the green. The sandbar in the corner will catch you, once.', [
-            isle(8, 4, 5, 5, { y: 2.8, wild: 0.08 }),
-            isle(8, 27, 5.5, 11, { wild: 0.2, trees: [[3.4, 0.5], [2.9, 0.48]] }),
-            isle(19.5, 41, 3.8, 1.6, { bare: true, wild: 0.14 }),
-            keyGreen(30, 46, 9, 8, 4.8, 0.14)
-        ], { x: 8, z: 3 }, { x: 30.5, z: 46.5 })
+        (function () {
+            var land = island(18, 39, 16, 36, { bays: [[44, 46.5, 0.78, 0.6]] });
+            var head = cliff(14, 3, 4.4, 3.6, 2.6, { sheer: true });
+            var point = cliff(29, 65, 7, 8, 1.1, { sheer: true });
+            return keys('Round the Point', 4, 'Up the long arm and across to a green on the clifftop, or cut the corner over the bay. Short is the beach; long is the sea.', [
+                land, head, point,
+                lay(head, 14, 3, 2.4, 2, 'fairway'),
+                lay(land, 11, 39, 5.5, 15.5, 'fairway'),
+                lay(point, 29.5, 65.5, 4.4, 3.8, 'green', { wild: 0.05 }),
+                lay(land, 15, 63, 4, 3, 'rough', { wild: 0.14 }),
+                lay(land, 24, 26, 3, 4, 'rough', { wild: 0.14 })
+            ], [[15, 63], [24, 25.5], [24.5, 27.5]], { x: 14, z: 2.8 }, { x: 30, z: 66.5 });
+        })()
+    ];
+
+    /* ── the long game, the sixth: Alpenglow Pass ─────────────────────────
+
+       High country, and the first long course where the height goes *up*
+       from the ground the hole is on as well as down from it. Every other
+       long course is a piece of country with its trouble cut in; this one
+       is a mountainside, so the ground falls away round the edge of every
+       hole into the valley (the skirt does that, a long way, because the
+       surround is five units down), and what stands on it stands tall:
+       granite crags a tee is perched on, a cliff band behind a green with
+       snow on its top, a crest along a ridge.
+
+       The rock is Redstone's `butte` — a standing, sheer, weathered disc —
+       in granite, and banded the same way (themes → alpine.strata: grey
+       beds, and snow from ten units up, so a cliff tall enough is capped
+       on its own). The tops nobody plays are bare (`rock`); the crags a
+       tee stands on are scrub with a tee laid into them. The meadows are
+       rows (`commons`) climbing and falling, with the hill fields kept in
+       the rough so the fairways stay inside what they hold a ball on. The
+       water is glacier water, milky turquoise: a stream crossing in a flat
+       row as a `burn`, and a tarn under a waterfall. The woods are firs.
+
+       Every wall that stands on ground a ball can lie on has the target on
+       the other side of the ball from it — a crag behind a tee, a cliff
+       behind a green — and stands in a fan of scree, so a ball that runs to
+       its foot rolls back off it. A snowfield was considered as a hazard of
+       its own and left out: on this bag it would play exactly as sand does
+       (it holds what lands and gives up distance), so it would be a colour
+       rather than a decision, and the snow is on the rock where it belongs.
+       (v1.135.0) */
+
+    /* The fan of fallen rock at the foot of a crag: low humps strung round
+       its outline, for the ground it stands on. */
+    function talus(p, a, seed) {
+        var P = G3.physics, cx = p.x + p.w / 2, cz = p.z + p.d / 2, out = [];
+        var rnd = seeded(seed || 7), n = Math.ceil(2 * Math.PI * p.r / 1.8), k, t, rr;
+        for (k = 0; k < n; k++) {
+            t = (k + rnd() * 0.5) / n * Math.PI * 2;
+            rr = P.padRadius(p, t) + 0.5;
+            out.push(hill(cx + Math.cos(t) * rr, cz + Math.sin(t) * rr, 2.2 + rnd() * 0.8, a * (0.7 + rnd() * 0.6)));
+        }
+        return out;
+    }
+    /* A crag nobody plays: weathered granite, bare, with a faceted top
+       drawn over it (render.addCrown) so it reads as an outcrop rather than
+       a drum. The mountains themselves are scenery — themes → alpine.range,
+       render.addRange — out past the skirt. */
+    function granite(cx, cz, rx, rz, y, o) {
+        var p = rock(butte(cx, cz, rx, rz, y, o));
+        p.crown = true;
+        p.facets = true;
+        return p;
+    }
+    function alp(h) {
+        return build(Object.assign({ long: true, shaped: true, open: true }, h));
+    }
+
+    var alpine = [
+        (function () {
+            /* The perch. The tee is on a granite crag seven and a half units
+               over the meadow, and the green is down there twenty-eight units
+               away — a big downhill par three, where the fall adds a third to
+               every club and the question is how much of it to give back.
+               The glacier stream runs across the front of the green, five
+               units short of the flag, with a bunker either side of the back
+               of it: short is wet and long is sand, so the club is the shot,
+               and the green tilts back at the water.
+               Firs both sides; scree round the crag's foot so a topped one
+               comes off it on to the meadow. */
+            var crag = butte(10, 1, 4.6, 4.2, 7.5, { wild: 0.08, facets: true });
+            var land = commons(-6, [
+                [14,  [22, rgh]],
+                [9,   [6, rgh], [11, fwy], [5, rgh]],
+                [6,   [22, rgh]],
+                [{ d: 13, sz: 0.07 }, [22, rgh]],
+                [4,   [22, rgh]]
+            ], { m: 12 });
+            var field = talus(crag, 0.7, 9701)
+                .concat(massif(-6, 24, 6, 1.6, 5), massif(29, 16, 5, 1.6, 5))
+                .concat([hill(18, 10, 3, 0.45), hill(20, 38, 3, -0.4), hill(11, 12.5, 3, -0.25)]);
+            var g = shape(land.pads, field);
+            var stream = pond(g, burn([[-10, 20.4], [2, 20.0], [9, 20.6], [17, 20.1], [34, 20.5]], 1.25, 0.5, 9703));
+            return alp({
+                name: 'The Perch', par: 3,
+                blurb: 'Off a granite crag and down on to a meadow green, with the glacier stream running past it.',
+                pads: g.concat([crag,
+                    lay(crag, 10, 1.6, 2.0, 1.8, 'fairway'),
+                    inlay(g, 16.2, 28, 1.3, snd, 1.1),
+                    inlay(g, 5.2, 32.6, 1.3, snd, 1.0),
+                    inlay(g, 11, 28.6, 3.8, grn, 3.4)
+                ]),
+                fence: land.fence,
+                water: [stream],
+                extra: [].concat(
+                    forest(-6, 8, 4, 8, 8, 9705, { fir: true }),
+                    forest(26, 34, 4, 6, 7, 9707, { fir: true }),
+                    crags(19.5, 4, 1.6, 3, 9709, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 10, z: 1.6 }, cup: { x: 11.4, z: 29 }
+            });
+        })(),
+        (function () {
+            /* Up the pasture to a shelf. The fairway climbs three and a half
+               units in twenty-eight — a slope a ball stops on and a drive
+               does not run far up — to a flat landing at the foot of a bank,
+               and the green is on a shelf two units over it with a cliff band
+               behind it, snow on its top. A brook runs across the flat, so a
+               full drive up the slope finishes in it: the drive is the club
+               that stops short. Then the second is the hole — over the brook
+               and up the bank to the flag, and a ball short on the bank comes
+               back down into the water. Firs down the east side; a pot bunker
+               where a lay-up drive comes to rest on the west. */
+            var land = commons(0, [
+                [6,                  [5, rgh], [10, fwy], [9, rgh]],
+                [{ d: 14, sz: 0.12 }, [5, rgh], [11, fwy], [8, rgh]],
+                [{ d: 14, sz: 0.12 }, [4, rgh], [12, fwy], [8, rgh]],
+                [8,                  [24, rgh]],
+                [{ d: 3.5, sz: 0.55 }, [24, rgh]],
+                [{ d: 13, sz: 0.05 }, [24, rgh]],
+                [4,                  [24, rgh]]
+            ], { m: 12 });
+            var field = massif(-6, 30, 6, 1.8, 5).concat([hill(20.5, 52, 3, 0.45), hill(-6, 6, 4, 0.8), hill(30, 10, 5, 1.2)]);
+            var g = shape(land.pads, field);
+            var brook = pond(g, burn([[-10, 38.2], [5, 37.7], [15, 38.5], [34, 38.0]], 1.3, 0.5, 9717));
+            return alp({
+                name: 'High Pasture', par: 4,
+                blurb: 'Up a climbing meadow to a green on a shelf under the cliffs. Carry the bank, or lay up under it and pitch.',
+                pads: g.concat([
+                    granite(12, 67, 16, 6, 13.5, { wild: 0.1 }),
+                    inlay(g, 6.4, 30, 1.4, snd, 1.2),
+                    inlay(g, 12, 52, 4.6, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [brook],
+                extra: [].concat(
+                    forest(20.5, 25, 2.2, 12, 9, 9711, { fir: true }),
+                    forest(-6.5, 14, 4, 7, 7, 9713, { fir: true }),
+                    crags(2, 50, 1.5, 3, 9715, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 10, z: 2 }, cup: { x: 12.5, z: 52.5 }
+            });
+        })(),
+        (function () {
+            /* Down the valley, and the glacier stream across it twice. The
+               tee is at the top, six units over the green, and the fairway
+               falls a tenth of a unit for every one along, with two flat
+               rows where the stream crosses. The first is where a struck
+               drive comes down — over it and the second can carry the other
+               ford to the green; lay up short of it and the hole is three
+               shots with a ford in front of the second and the third. Firs on
+               both sides of the valley, and the mountain falls away beyond. */
+            var land = commons(0, [
+                [{ d: 6, y: 6 },      [6, rgh], [10, fwy], [10, rgh]],
+                [{ d: 16, sz: -0.1 }, [6, rgh], [11, fwy], [9, rgh]],
+                [{ d: 8, sz: -0.1 },  [7, rgh], [12, fwy], [7, rgh]],
+                [7,                   [26, rgh]],
+                [{ d: 15, sz: -0.1 }, [9, rgh], [12, fwy], [5, rgh]],
+                [10,                  [9, rgh], [12, fwy], [5, rgh]],
+                [7,                   [26, rgh]],
+                [{ d: 16, sz: 0.05 }, [4, rgh], [14, fwy], [8, rgh]],
+                [4,                   [26, rgh]]
+            ], { m: 12 });
+            var field = massif(-7, 50, 5, 1.5, 5).concat(massif(33, 42, 5, 1.6, 5), massif(-6, 12, 5, 1.4, 5),
+                [hill(23, 80, 3, 0.4), hill(3, 46, 2.6, 0.35)]);
+            var g = shape(land.pads, field);
+            var ford1 = pond(g, burn([[-10, 33.4], [4, 33.9], [14, 33.1], [26, 34.0], [36, 33.5]], 1.3, 0.55, 9721));
+            var ford2 = pond(g, burn([[-10, 65.6], [6, 65.0], [18, 66.0], [36, 65.4]], 1.3, 0.55, 9723));
+            return alp({
+                name: 'Two Fords', par: 5,
+                blurb: 'Down a valley with the glacier stream across it twice. Carry the first ford off the tee and the second is in reach.',
+                pads: g.concat([
+                    inlay(g, 16.4, 78.5, 1.4, snd, 1.2),
+                    inlay(g, 10.5, 75, 4.6, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [ford1, ford2],
+                extra: [].concat(
+                    forest(-6, 24, 4, 7, 8, 9725, { fir: true }),
+                    forest(32, 56, 4, 7, 8, 9727, { fir: true }),
+                    forest(-6, 76, 4, 6, 7, 9729, { fir: true })
+                ),
+                tee: { x: 11, z: 2 }, cup: { x: 11, z: 75.5 }
+            });
+        })(),
+        (function () {
+            /* The tarn. A glacier lake lies across the line from the tee,
+               under a granite cliff band on its west shore with a waterfall
+               coming off it into the water, and the tee is up on a knoll of
+               granite looking across it. Straight over is a drive that has
+               to carry thirty units of lake to the landing beyond it, and it
+               leaves a short iron. Round is the fairway out east of the water,
+               a drive and a longer second that never sees the lake at all —
+               though it does see the pool off the west side of the green, which
+               the short iron from over the lake has behind it. */
+            var land = commons(0, [
+                [8,   [4, rgh], [8, fwy], [18, rgh]],
+                [30,  [18, rgh], [9, fwy], [3, rgh]],
+                [15,  [3, rgh], [24, fwy], [3, rgh]],
+                [{ d: 12, sz: 0.06 }, [3, rgh], [13, fwy], [14, rgh]],
+                [4,   [30, rgh]]
+            ], { m: 12 });
+            var field = massif(27, 63, 6, 1.4, 5).concat([hill(-6, 55, 4, 0.8), hill(34, 20, 5, 1.2), hill(16, 4, 2.6, 0.35),
+                hill(22.5, 24, 4, 0.35), hill(15, 42, 4.5, -0.3)]);
+            var g = shape(land.pads, field);
+            var tarn = pond(g, mere(7, 24, 9, 7.5, 1.6, 9731));
+            var pool = pond(g, mere(0.1, 59, 2.8, 3.8, 1.0, 9739));
+            var knoll = butte(8, 2, 3.6, 3.2, 2.4, { wild: 0.08, facets: true });
+            return alp({
+                name: 'The Tarn', par: 4,
+                blurb: 'Over a glacier tarn under a waterfall, or round it on the fairway out east.',
+                pads: g.concat([knoll, lay(knoll, 8, 2.8, 1.8, 1.6, 'fairway'),
+                    granite(-6.5, 23, 6, 9, 11, { wild: 0.1 }),
+                    inlay(g, 13.6, 55.5, 1.4, snd, 1.2),
+                    inlay(g, 8, 59, 4.6, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [tarn, pool],
+                decor: [waterfall(-1.1, 22.5, 10.8, { yaw: Math.PI / 2, w: 1.8 })],
+                extra: [].concat(
+                    forest(36, 34, 4, 9, 9, 9733, { fir: true }),
+                    forest(-6, 49, 4, 6, 6, 9735, { fir: true }),
+                    crags(24, 49, 1.4, 3, 9737, { s: 1.1, h: 0.8 })
+                ),
+                tee: { x: 8, z: 3 }, cup: { x: 8.5, z: 59.5 }
+            });
+        })(),
+        (function () {
+            /* Along the ridge. The hole runs down the crest of a spur seven
+               and a half units up, falling two over its length, and the west
+               side of it is the mountain falling away
+               — a unit and a half of scrub past the stakes and then nothing, a
+               long way down — with the whole hole leaning at it by a
+               fourteenth, and the fairway running a couple of units in from it.
+               The east side is a granite crest with snow on it, six units over
+               the rough at its foot and the far side of the ball from every
+               shot on the hole. The
+               green is out on the west edge, so the short way in is along the
+               drop and the safe way is from the right, with the slope to
+               putt back across. Cairns mark the edge. */
+            var land = commons(0, [
+                [{ d: 6, y: 7.5 },     [4, rgh], [10, fwy], [10, rgh]],
+                [{ d: 17, sz: -0.06 }, [3, rgh], [10, fwy], [11, rgh]],
+                [{ d: 17, sz: -0.05 }, [2, rgh], [10, fwy], [12, rgh]],
+                [{ d: 12, sz: -0.05 }, [1.5, rgh], [10, fwy], [12.5, rgh]],
+                [12,                   [1.5, rgh], [10, fwy], [12.5, rgh]],
+                [4,                    [24, rgh]]
+            ], { m: 12, w: 1.5 });
+            var field = massif(30, 10, 5, 1.8, 5).concat([hill(19, 24, 2.6, 0.4), hill(17, 64, 3, -0.35)]);
+            var g = shape(tilt(land.pads, 0.07, 0, 0, 0), field);
+            return alp({
+                name: 'Knife Edge', par: 4,
+                blurb: 'Down the crest of a ridge with the mountain falling away on one side, to a green out on the edge.',
+                pads: g.concat([
+                    granite(28, 35, 5, 16, 13.5, { wild: 0.1 }),
+                    inlay(g, 6.2, 61, 4.2, grn, 4.0)
+                ]),
+                fence: land.fence,
+                decor: [cairn(-0.8, 14), cairn(-0.7, 33), cairn(-0.9, 52, { scale: 1.2 })],
+                extra: [].concat(
+                    forest(30, 62, 4, 5, 6, 9741, { fir: true }),
+                    crags(21, 27, 1.6, 4, 9743, { s: 1.2, h: 0.9 })
+                ),
+                tee: { x: 9, z: 2 }, cup: { x: 6, z: 61.5 }
+            });
+        })(),
+        (function () {
+            /* The finish, down to the chalet. The tee is on a crag five and a
+               half units over the meadow, and the hole bends left round a
+               knoll of firs: cut the corner over the trees, or play out right
+               and come back. Then the stream across the hole, and the green
+               on the far bank below the chalet terrace, with the chairlift
+               running up the mountain beside it. */
+            var crag = butte(20, 1.5, 4, 3.6, 5.5, { wild: 0.08, facets: true });
+            var land = commons(0, [
+                [9.5, [28, rgh]],
+                [16.5, [12, rgh], [11, fwy], [5, rgh]],
+                [14,  [6, rgh], [14, fwy], [8, rgh]],
+                [8,   [28, rgh]],
+                [{ d: 14, sz: 0.06 }, [4, rgh], [12, fwy], [12, rgh]],
+                [5,   [28, rgh]]
+            ], { m: 12 });
+            var field = talus(crag, 0.65, 9751)
+                .concat(massif(5, 18, 6, 1.8, 5), [hill(24, 58, 3, 0.4), hill(-6, 34, 4, 0.9),
+                    hill(17.5, 17, 4, 0.3), hill(13, 31, 4, -0.3)]);
+            var g = shape(land.pads, field);
+            var stream = pond(g, burn([[-10, 44.2], [6, 43.6], [18, 44.6], [38, 44.0]], 1.3, 0.55, 9753));
+            return alp({
+                name: 'Alpenglow', par: 4,
+                blurb: 'Off a crag, round a knoll of firs, over the stream to a green below the chalet.',
+                pads: g.concat([crag,
+                    lay(crag, 20, 2, 2.0, 1.8, 'fairway'),
+                    inlay(g, 14.6, 51.6, 1.3, snd, 1.1),
+                    inlay(g, 9, 56, 4.4, grn, 4.2)
+                ]),
+                fence: land.fence,
+                water: [stream],
+                decor: [chalet(9, 70.5, { yaw: Math.PI }), lift(34, -8, { yaw: 0.05, w: 84 })],
+                extra: [].concat(
+                    forest(5, 17.5, 3.4, 4, 9, 9755, { fir: true, gap: 1.5 }),
+                    forest(-6, 56, 4, 7, 7, 9757, { fir: true }),
+                    crags(26, 14, 1.4, 3, 9759, { s: 1.1, h: 0.8 })
+                ),
+                tee: { x: 20, z: 2 }, cup: { x: 9.5, z: 56.5 }
+            });
+        })()
     ];
 
     G3.COURSE_GROUPS = [
@@ -6941,7 +7604,7 @@
             id: 'quarry',
             group: 'mini',
             name: 'Quarry Ridge',
-            blurb: 'Ramps, ledges and a long way down. Bring loft.',
+            blurb: 'Ramps, ledges, banks and walls, and a long way down off most of them. Height, both ways.',
             theme: 'quarry',
             holes: quarry
         },
@@ -6952,14 +7615,6 @@
             blurb: 'Water where the fairway should be. Six holes you have to fly.',
             theme: 'lagoon',
             holes: tidewater
-        },
-        {
-            id: 'highland',
-            group: 'mini',
-            name: 'Highland Steps',
-            blurb: 'Up the hill in stages, over what will not move.',
-            theme: 'highland',
-            holes: highland
         },
         {
             id: 'works',
@@ -6981,25 +7636,9 @@
             id: 'clockwork',
             group: 'crazy',
             name: 'Clockwork Court',
-            blurb: 'Six mechanisms, each running at its own rate. Timing is the whole of it.',
+            blurb: 'Bars, bells and a mill race, each machine running at its own rate. Timing is the whole of it.',
             theme: 'clockwork',
             holes: clockwork
-        },
-        {
-            id: 'millrace',
-            group: 'crazy',
-            name: 'The Millrace',
-            blurb: 'Every machine on the course stands over water. A mistimed shot is not a bounce here; it is a stroke.',
-            theme: 'mill',
-            holes: millrace
-        },
-        {
-            id: 'belfry',
-            group: 'crazy',
-            name: 'The Belfry',
-            blurb: 'Two machines on every hole, geared to each other. Count bars rather than beats.',
-            theme: 'belfry',
-            holes: belfry
         },
         {
             id: 'icehouse',
@@ -7010,18 +7649,10 @@
             holes: icehouse
         },
         {
-            id: 'skelter',
-            group: 'adventure',
-            name: 'Helter Skelter',
-            blurb: 'Launch pads, walkways and pipes. The floor decides; you only decide how hard.',
-            theme: 'fairground',
-            holes: skelter
-        },
-        {
             id: 'cinder',
             group: 'adventure',
             name: 'Cinder Cone',
-            blurb: 'Everything on the mountain runs downhill. The vents are the only way up it.',
+            blurb: 'Launch pads, belts, a pipe and a loop on the side of a mountain. The floor decides; you only decide how hard.',
             theme: 'volcano',
             holes: cinder
         },
@@ -7061,7 +7692,7 @@
             id: 'redstone',
             group: 'long',
             name: 'Redstone Canyon',
-            blurb: 'Six holes built round ground that is missing. Carry it, play along it, or go down into it — the canyon asks a different question on every one.',
+            blurb: 'Six holes stood on the canyon\'s own walls, with the floor far below them out of play. Carry the drop, play along the rim, climb the benches — a different question on every one.',
             theme: 'canyon',
             holes: redstone
         },
@@ -7072,6 +7703,14 @@
             blurb: 'Six holes across a lagoon, and no fairway between the islands — only the next island. Every shot is a carry.',
             theme: 'lagoon',
             holes: coral
+        },
+        {
+            id: 'alpine',
+            group: 'long',
+            name: 'Alpenglow Pass',
+            blurb: 'Six holes on a mountainside: off granite crags, up to a shelf under the snow, down a valley over the glacier stream, across a tarn and along a ridge.',
+            theme: 'alpine',
+            holes: alpine
         }
     ];
 
@@ -7143,7 +7782,7 @@
                page's own font — so a die here is a tofu box on the one chip
                that is selected by default. */
             id: 'any', name: 'Anything', icon: '\u2733',
-            blurb: 'Any course on the list, except the one you are playing.',
+            blurb: 'Any course on the list except the one you are playing, leaning towards the ones you have played least.',
             eased: 'Nowhere else to go — this draws from all of them.'
         },
         {
@@ -7281,12 +7920,94 @@
        it defaults to Math.random and is clamped rather than trusted, because a
        source that returns exactly 1 (or nothing at all) should cost you a
        slightly unfair draw, not an undefined course id. */
+    /* ── leaning towards what you have not played ────────────────────────
+
+       The dice are weighted by the save file. A hole's weight is
+       1 / (1 + plays)², so a hole you have never played is four times as
+       likely as one you have played once and nine times as likely as one you
+       have played twice — never zero, because a favourite coming round again
+       is part of a shuffle too. A course weighs what its holes weigh on
+       average, which counts showcase holes played out of it as well as full
+       rounds on it; a save written before holes were counted falls back to
+       its rounds, so an old save leans the same way from the first draw.
+
+       With no save, or with everything played equally, every weight is the
+       same and the pick is exactly the even one it always was — which is
+       what the tests holding the dice rely on. */
+    function holePlays(save, id, index) {
+        var h = save && save.holes ? save.holes[id + ':' + index] : null;
+        return h && typeof h.plays === 'number' && h.plays > 0 ? h.plays : 0;
+    }
+
+    function weightOf(plays) { return 1 / ((1 + plays) * (1 + plays)); }
+
+    G3.holeWeight = function (save, id, index) { return weightOf(holePlays(save, id, index)); };
+
+    G3.courseWeight = function (save, course) {
+        var rounds = roundsOn(save, course.id), sum = 0, i;
+        for (i = 0; i < course.holes.length; i++) {
+            sum += weightOf(Math.max(rounds, holePlays(save, course.id, i)));
+        }
+        return course.holes.length ? sum / course.holes.length : 1;
+    };
+
+    /* One index out of a list of weights. `n` is clamped rather than trusted,
+       for the reason randomCourseId gives; equal weights give
+       floor(n × length), the unweighted pick to the last digit. */
+    function weightedIndex(weights, n) {
+        var total = 0, i;
+        for (i = 0; i < weights.length; i++) total += weights[i];
+        if (!(total > 0)) return 0;
+        var at = (typeof n === 'number' && n >= 0 && n < 1 ? n : 0) * total;
+        for (i = 0; i < weights.length; i++) {
+            at -= weights[i];
+            if (at < 0) return i;
+        }
+        return weights.length - 1;
+    }
+    G3.weightedIndex = weightedIndex;
+
     G3.randomCourseId = function (opts) {
         var draw = G3.shuffleDraw(opts);
         var rng = (opts && opts.rng) || Math.random;
-        var n = rng();
-        var i = Math.floor((typeof n === 'number' && n >= 0 && n < 1 ? n : 0) * draw.courses.length);
+        var save = (opts && opts.save) || null;
+        var i = weightedIndex(draw.courses.map(function (c) { return G3.courseWeight(save, c); }), rng());
         return draw.courses[Math.max(0, Math.min(draw.courses.length - 1, i))].id;
+    };
+
+    /* ── the demo's draw: every hole once before any hole twice ──────────
+
+       The demo deals one hole at a time, out of any course, and remembers what
+       it has shown (game.js keeps the list in localStorage) so a visitor who
+       comes back does not get the hole they watched last time. `seen` is a
+       list of "course:hole" keys; what comes back is the pick and the list to
+       store. When everything has been shown the list starts over — but never
+       with the hole that has just been on screen, so the wrap is not a repeat
+       either. Keys for holes that no longer exist are simply never matched,
+       so a stored list from an older build cannot jam the draw. */
+    G3.demoKey = function (id, hole) { return id + ':' + hole; };
+
+    G3.demoDraw = function (seen, opts) {
+        var rng = (opts && opts.rng) || Math.random;
+        var last = opts && opts.last || null;
+        var all = [];
+        G3.COURSES.forEach(function (c) {
+            if (c.playtest) return;
+            for (var h = 0; h < c.holes.length; h++) all.push({ id: c.id, hole: h });
+        });
+        var had = {};
+        (Array.isArray(seen) ? seen : []).forEach(function (k) { had[k] = 1; });
+        var pool = all.filter(function (p) { return !had[G3.demoKey(p.id, p.hole)]; });
+        var kept = Array.isArray(seen) ? seen.slice() : [];
+        if (!pool.length) {
+            kept = [];
+            pool = all.filter(function (p) { return G3.demoKey(p.id, p.hole) !== last; });
+            if (!pool.length) pool = all;
+        }
+        var i = Math.floor(rng() * pool.length);
+        var pick = pool[Math.max(0, Math.min(pool.length - 1, i))];
+        kept.push(G3.demoKey(pick.id, pick.hole));
+        return { id: pick.id, hole: pick.hole, seen: kept, total: all.length };
     };
 
     G3.shuffleModeById = function (id) {
@@ -7321,20 +8042,21 @@
        is filed under mini golf only so the picker has a shelf for it. */
     G3.SHOWCASE_PER_KIND = 2;
 
-    G3.dealShowcase = function (rng) {
+    /* `save` leans the deal towards holes you have played least (see the
+       weights above the shuffle's dice): the course by how much of it you
+       have seen, then the hole within it by its own count. Left out, the
+       deal is the even one. */
+    G3.dealShowcase = function (rng, save) {
         var rnd = rng || Math.random;
-        // Clamped rather than trusted, for the reason randomCourseId gives.
-        function pick(n) {
-            var v = rnd();
-            var i = Math.floor((typeof v === 'number' && v >= 0 && v < 1 ? v : 0) * n);
-            return Math.max(0, Math.min(n - 1, i));
-        }
         var holes = [], from = [], themes = [];
         G3.COURSE_GROUPS.forEach(function (group) {
             var pool = G3.coursesInGroup(group.id).filter(function (c) { return !c.playtest; });
             for (var k = 0; k < G3.SHOWCASE_PER_KIND && pool.length; k++) {
-                var course = pool.splice(pick(pool.length), 1)[0];
-                var i = pick(course.holes.length);
+                var c = weightedIndex(pool.map(function (p) { return G3.courseWeight(save, p); }), rnd());
+                var course = pool.splice(c, 1)[0];
+                var i = weightedIndex(course.holes.map(function (h, j) {
+                    return G3.holeWeight(save, course.id, j);
+                }), rnd());
                 holes.push(course.holes[i]);
                 from.push({ id: course.id, index: i });
                 themes.push(course.theme);
@@ -7613,23 +8335,25 @@
     /* The targets are data rather than five anonymous greens: the renderer
        stands a distance board behind each one and game.js reports which of
        them a ball stopped on, both off this one list. `dist` is the distance
-       from the tee to the middle of the green, and is what the board says —
-       tests.html measures it, so a green moved without its number fails. */
+       from the tee to the middle of the green in metres as the range reads
+       them (CONFIG.LONG_M to the unit), and is what the board says —
+       tests.html measures it, so a green moved without its number fails.
+       Fifty metres apart, out to the 250 a full drive just about reaches. */
     var RANGE_TEE = { x: 10, z: 5 };
     var RANGE_TARGETS = [
-        { dist: 10, x: 7, z: 13, w: 6,  d: 4 },
-        { dist: 20, x: 6, z: 22, w: 8,  d: 5 },
-        { dist: 30, x: 5, z: 32, w: 10, d: 6 },
-        { dist: 40, x: 5, z: 42, w: 10, d: 6 },
-        { dist: 50, x: 4, z: 52, w: 12, d: 6 }
+        { dist: 50,  x: 7, z: 12.1, w: 6,  d: 4 },
+        { dist: 100, x: 6, z: 20.7, w: 8,  d: 5 },
+        { dist: 150, x: 5, z: 29.3, w: 10, d: 6 },
+        { dist: 200, x: 5, z: 38.4, w: 10, d: 6 },
+        { dist: 250, x: 4, z: 47.5, w: 12, d: 6 }
     ];
 
     var rangeHole = build({
         name: 'Driving Range',
         par: 0,
         open: true,
-        blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
-        bag: ['driver', 'iron', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
+        blurb: 'Targets at 50 to 250 m, unlimited balls, and the swing school.',
+        bag: ['driver', 'iron5', 'iron', 'iron9', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
         pads: [
             pad(7, 2, 6, 6, 0.1, 'wood'),                         // elevated tee deck
             pad(8.5, 3.5, 3, 3, 0.14, 'green'),                   // tee mat
@@ -7646,7 +8370,7 @@
             pad(19, 44, 6, 7, -0.15, 'sand')
         ]),
         tee: RANGE_TEE,
-        cup: { x: 10, z: 35 }
+        cup: { x: 10, z: 41.4 }                                // on the 200
     });
     rangeHole.targets = RANGE_TARGETS.map(function (t) {
         return { dist: t.dist, x0: t.x, z0: t.z, x1: t.x + t.w, z1: t.z + t.d };
@@ -7656,7 +8380,7 @@
         id: 'range',
         group: 'practice',
         name: 'Driving Range',
-        blurb: 'Targets at 10 to 50 m, unlimited balls, and the swing school.',
+        blurb: 'Targets at 50 to 250 m, unlimited balls, and the swing school.',
         theme: 'parkland',
         isRange: true,
         holes: [rangeHole]
@@ -7680,13 +8404,14 @@
 
     G3.authoring = {
         pad: pad, wall: wall, spinner: spinner, slider: slider,
-        beam: beam, pen: pen, bumper: bumper, bank: bank, arc: arc,
-        trough: trough, channel: channel, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
+        beam: beam, pen: pen, bumper: bumper, post: post, bank: bank, slingshot: slingshot, arc: arc,
+        trough: trough, channel: channel, mesa: mesa, road: road, bowl: bowl, dish: dish, bands: bands, tilt: tilt,
         commons: commons,
         sprung: sprung, belt: belt, pipe: pipe, pipes: pipes, loop: loop,
         aperture: aperture, flipper: flipper, mill: mill,
         tree: tree, treeline: treeline, forest: forest, crag: crag, crags: crags,
         decor: decor, buoy: buoy, piling: piling, bench: bench, boat: boat, bin: bin,
+        chalet: chalet, cairn: cairn, lift: lift, waterfall: waterfall,
         hill: hill, ring: ring, pond: pond, burn: burn, mere: mere, carve: carve, gully: gully, clearOf: clearOf, widen: widen, ridge: ridge, whorl: whorl, ravine: ravine,
         shape: shape, dunes: dunes, ground: ground, circle: circle, inlay: inlay, dress: dress,
         keep: keep,
@@ -7695,6 +8420,8 @@
         contour: contour, scoop: scoop, relief: relief,
         buoy: buoy, piling: piling, bench: bench, boat: boat, sailboat: sailboat, bin: bin,
         barrel: barrel, crate: crate, palm: palm, pine: pine, sign: sign, windmill: windmill,
+        skyline: skyline, cabinet: cabinet, marquee: marquee, lamp: lamp,
+        jukebox: jukebox, claw: claw, fruit: fruit,
         RAIL_T: RAIL_T, SCOOP: SCOOP,
         CUP_FLAT: CUP_FLAT, TEE_FLAT: TEE_FLAT, CUP_PATCH: CUP_PATCH
     };

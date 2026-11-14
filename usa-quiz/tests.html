@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USA Quiz Night — Tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #0b1224; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #fbbf24; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🇺🇸 USA Quiz Night — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import * as G from './js/game.js';
+        import { QUESTIONS, CATEGORIES } from './js/questions.js';
+
+        const results = document.getElementById('results');
+        let passed = 0, failed = 0;
+        function ok(cond, name, detail = '') {
+            const row = document.createElement('div');
+            row.className = 'test-row ' + (cond ? 'pass' : 'fail');
+            row.textContent = (cond ? '✓ ' : '✗ ') + name + (detail ? ' — ' + detail : '');
+            results.appendChild(row);
+            cond ? passed++ : failed++;
+        }
+        const list = (xs) => xs.slice(0, 4).join(' | ') + (xs.length > 4 ? ` (+${xs.length - 4})` : '');
+        const bad = (pred) => QUESTIONS.filter(pred).map((q) => q.q.slice(0, 60));
+
+        // A seeded generator, so a failure is the same failure on the next run.
+        function rng(seed = 1) {
+            return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+        }
+
+        // ── The bank ──
+        ok(QUESTIONS.length >= 250, 'a lot of questions', String(QUESTIONS.length));
+        ok(new Set(QUESTIONS.map((q) => q.id)).size === QUESTIONS.length, 'every question has its own id');
+        ok(new Set(QUESTIONS.map((q) => q.q)).size === QUESTIONS.length, 'no question is in twice');
+        let b = bad((q) => !CATEGORIES[q.c]);
+        ok(!b.length, 'every question is in a known category', list(b));
+        ok(Object.keys(CATEGORIES).every((c) => QUESTIONS.filter((q) => q.c === c).length >= 15), 'every category has at least 15 questions');
+        b = bad((q) => !Array.isArray(q.w) || q.w.length !== 2 || new Set([q.a, ...q.w]).size !== 3);
+        ok(!b.length, 'three different alternatives each', list(b));
+        b = bad((q) => ![q.a, ...q.w, q.q].every((s) => typeof s === 'string' && s.trim() === s && s.length));
+        ok(!b.length, 'no empty or padded text', list(b));
+        b = bad((q) => q.f !== undefined && (typeof q.f !== 'string' || q.f.length < 10));
+        ok(!b.length, 'facts, where there is one, are real sentences', list(b));
+        ok(QUESTIONS.filter((q) => q.f).length >= QUESTIONS.length / 2, 'at least half the questions come with a fact');
+
+        b = bad((q) => ![1, 2, 3].includes(q.d));
+        ok(!b.length, 'every question has a difficulty of 1, 2 or 3', list(b));
+        ok([1, 2, 3].every((d) => QUESTIONS.filter((q) => q.d === d).length >= 60), 'at least 60 questions at each level',
+            [1, 2, 3].map((d) => QUESTIONS.filter((q) => q.d === d).length).join('/'));
+
+        // ── Typed answers ──
+        b = bad((q) => !G.targets(q).every((t) => G.checkFree(q, t)));
+        ok(!b.length, 'the answer and every alias is accepted as typed', list(b));
+        b = bad((q) => q.w.some((w) => G.checkFree(q, w)));
+        ok(!b.length, 'no wrong alternative is ever accepted as a typed answer', list(b));
+        b = bad((q) => q.w.some((w) => G.checkFree(q, w.toLowerCase() + 'x')));
+        ok(!b.length, 'nor a wrong alternative with a typo in it', list(b));
+
+        const Q = (frag) => QUESTIONS.find((q) => q.q.includes(frag));
+        const free = (frag, text) => G.checkFree(Q(frag), text);
+        ok(free('capital of California', 'sacremento'), 'one typo is forgiven in a long word');
+        ok(free('capital of California', '  SACRAMENTO! '), 'case, spaces and punctuation do not matter');
+        ok(!free('capital of California', 'san diego'), 'a different city is wrong');
+        ok(free('Gateway Arch', 'st louis') && free('Gateway Arch', 'Saint Louis'), '“St” and “Saint” are the same');
+        ok(free('capital of the USA', 'washington dc') && free('capital of the USA', 'Washington, D.C.'), 'D.C. with or without dots');
+        ok(free('In which state is the Grand Canyon', 'arizona'), 'a plain state name');
+        ok(!free('Hawkeye', 'ohio'), 'short words forgive nothing: Ohio is not Iowa');
+        ok(free('Declaration of Independence adopted', '1776') && !free('Declaration of Independence adopted', '1775'), 'years must be exact');
+        ok(free('gallon', '3,8') && free('gallon', '3.8 litres'), 'a decimal comma and a unit are fine');
+        ok(free('Halloween', 'oct 31') && !free('Halloween', '30 october'), 'a date: letters forgiven, digits not');
+        ok(free('peach baskets', 'basket ball') && !free('peach baskets', 'basebal'), 'a typo nearer a wrong alternative does not count');
+        ok(free('Mount Rushmore', 'south dakotta') && !free('Mount Rushmore', 'north dakota'), 'North Dakota is not South Dakota');
+        ok(free('How many states are there', 'fifty') === false && free('How many states are there', '50'), 'numbers are typed as digits unless an alias says otherwise');
+        ok(free('presidential term', 'four') && free('presidential term', '4 years'), 'an alias in words works too');
+        ok(!free('capital of California', ''), 'an empty answer is never right');
+
+        // ── Picking questions ──
+        const r = rng(7);
+        const ids = G.pickQuestions(QUESTIONS, { count: 20, rng: r });
+        ok(ids.length === 20 && new Set(ids).size === 20, 'twenty different questions when asked for twenty');
+        const seen = QUESTIONS.slice(0, QUESTIONS.length - 10).map((q) => q.id);
+        const fresh = G.pickQuestions(QUESTIONS, { count: 10, seen, rng: r });
+        ok(fresh.every((id) => !seen.includes(id)), 'questions not seen before come first');
+        const onlyPres = G.pickQuestions(QUESTIONS, { count: 10, cats: ['pres'], rng: r });
+        ok(onlyPres.every((id) => id.startsWith('pres-')), 'categories left out stay out');
+        const spread = G.pickQuestions(QUESTIONS, { count: 40, rng: r });
+        const cats = spread.map((id) => id.split('-')[0]);
+        ok(cats.every((c, i) => i === 0 || c !== cats[i - 1]), 'no two questions of the same category in a row');
+
+        // Levels per seat.
+        const lv = G.slotLevels(['mix', 1, 3, 2], 2, 8);
+        ok(lv.join() === '3,2,mix,1,3,2,mix,1', 'each slot is dealt the level of the player who starts it');
+        const dealt = G.pickQuestions(QUESTIONS, { count: 40, levels: G.slotLevels([1, 3, 'mix', 2], 0, 40), rng: rng(11) })
+            .map((id) => QUESTIONS.find((q) => q.id === id));
+        ok(dealt.every((q, i) => i % 4 === 2 || q.d === [1, 3, 'mix', 2][i % 4]), 'and gets a question of that level');
+        ok(new Set(dealt.map((q) => q.id)).size === 40, 'with no repeats');
+        const onlyEasyPres = G.pickQuestions(QUESTIONS, { count: 30, cats: ['pres'], levels: [3], rng: rng(2) });
+        ok(onlyEasyPres.length === Math.min(30, QUESTIONS.filter((q) => q.c === 'pres').length), 'when a level runs dry the slot takes another level rather than come up short');
+        const allSeen = QUESTIONS.map((q) => q.id);
+        const oldest = G.pickQuestions(QUESTIONS, { count: 1, seen: allSeen, rng: rng(4) });
+        const oldish = G.pickQuestions(QUESTIONS, { count: 10, seen: allSeen, rng: rng(4) });
+        ok(oldest[0] === allSeen[0] && oldish.every((id) => allSeen.indexOf(id) < 120), 'with everything asked, the ones asked longest ago come back first');
+
+        // ── Spoken alternatives ──
+        const sc3 = ['Washington', 'Hawaii', 'Alaska'];
+        ok(G.matchSpoken(sc3, [0, 1, 2], 'Alaska') === 2 && G.matchSpoken(sc3, [0, 1, 2], 'I think it’s Alaska') === 2, 'a spoken alternative is recognised, in a sentence too');
+        ok(G.matchSpoken(sc3, [0, 1, 2], 'number two') === 1 && G.matchSpoken(sc3, [0, 1, 2], 'three') === 2, 'or picked by its number');
+        ok(G.matchSpoken(sc3, [1, 2], 'one') === -1 && G.matchSpoken(sc3, [1, 2], 'Washington') !== 0, 'a struck alternative cannot be said');
+        ok(G.matchSpoken(sc3, [0, 1, 2], 'banana') === -1, 'and nonsense picks nothing');
+
+        // ── A game ──
+        const names = ['Åsa', 'Niklas', 'Johan', 'Lena'];
+        const ORDER = QUESTIONS.filter((q) => !q.choiceOnly).slice(0, 8).map((q) => q.id);
+        const fresh4 = (starter = 0) => G.newGame({ names, order: ORDER, bank: QUESTIONS, rng: rng(3), starter });
+        const qa = (s) => G.question(s, QUESTIONS);
+        const wrongs = (s) => qa(s).w;
+
+        let s = fresh4(2);
+        ok(G.currentPlayer(s) === 2 && s.phase === 'ask', 'the chosen starter gets the first question');
+        ok(s.choices.length === 3 && s.choices.includes(qa(s).a), 'the three alternatives include the answer');
+        ok(G.starOpen(s, QUESTIONS), 'a star is on offer before the alternatives are out');
+        ok(G.answerChoice(s, QUESTIONS, qa(s).a) === null, 'no picking an alternative before they are shown');
+
+        // Right with a typed answer: point + star, question over.
+        ok(G.answerFree(s, QUESTIONS, qa(s).a) === true, 'a typed right answer is right');
+        ok(s.players[2].points === 1 && s.players[2].stars === 1 && G.total(s.players[2]) === 2, 'and scores a point plus a star');
+        ok(s.phase === 'result' && s.winner === 2, 'and ends the question');
+        G.nextQuestion(s, QUESTIONS);
+        ok(s.qi === 1 && s.starter === 3 && G.currentPlayer(s) === 3, 'the next question starts with the next player');
+
+        // Wrong typed, then wrong pick, then right pick.
+        G.answerFree(s, QUESTIONS, 'zzzz');
+        ok(G.currentPlayer(s) === 0 && s.phase === 'ask', 'a wrong answer passes the question on (and wraps round the table)');
+        ok(G.starOpen(s, QUESTIONS), 'a wrong typed answer leaves the star on offer');
+        G.showAlternatives(s);
+        ok(!G.starOpen(s, QUESTIONS) && G.answerFree(s, QUESTIONS, qa(s).a) === null, 'once the alternatives are out, nobody can type for a star');
+        ok(G.answerChoice(s, QUESTIONS, wrongs(s)[0]) === false && s.struck.length === 1, 'a wrong pick is struck out');
+        ok(G.currentPlayer(s) === 1, 'and the question moves on');
+        ok(G.answerChoice(s, QUESTIONS, wrongs(s)[0]) === null, 'a struck alternative cannot be picked again');
+        ok(G.answerChoice(s, QUESTIONS, qa(s).a) === true && s.players[1].points === 1 && s.players[1].stars === 0, 'a right pick scores a point and no star');
+        G.nextQuestion(s, QUESTIONS);
+        ok(G.currentPlayer(s) === 0, 'starters keep going round');
+
+        // Two wrong picks leave one alternative: the question ends.
+        G.showAlternatives(s);
+        G.answerChoice(s, QUESTIONS, wrongs(s)[0]);
+        G.answerChoice(s, QUESTIONS, wrongs(s)[1]);
+        ok(s.phase === 'result' && s.winner === null && s.attempts.length === 2, 'with one alternative left the question ends, with no free point');
+        G.nextQuestion(s, QUESTIONS);
+
+        // Everyone wrong.
+        for (let i = 0; i < 4; i++) G.pass(s);
+        ok(s.phase === 'result' && s.winner === null && s.attempts.length === 4, 'after four passes the question is over');
+        ok(G.pass(s) && s.attempts.length === 4, 'and nobody can pass a fifth time');
+        G.nextQuestion(s, QUESTIONS);
+
+        // A typed answer the table counts after all.
+        G.answerFree(s, QUESTIONS, 'something close enough');
+        G.pass(s); G.pass(s); G.pass(s);
+        const who = s.attempts[0].player;
+        const before = G.total(s.players[who]);
+        ok(G.creditAttempt(s, 1) === false, 'a pass cannot be counted as right');
+        ok(G.creditAttempt(s, 0) === true && G.total(s.players[who]) === before + 2 && s.winner === who, 'a typed answer can be counted after all, with its star');
+        ok(G.creditAttempt(s, 0) === false, 'but only once');
+
+        // Run to the end.
+        while (s.phase !== 'over') {
+            if (s.phase === 'result') G.nextQuestion(s, QUESTIONS);
+            else G.pass(s);
+        }
+        ok(s.phase === 'over' && s.qi === ORDER.length, 'the game ends after the last question');
+
+        // A question that only works with alternatives opens on them.
+        const co = QUESTIONS.find((q) => q.choiceOnly);
+        const sc = G.newGame({ names, order: [co.id], bank: QUESTIONS, rng: rng(5) });
+        ok(!G.starOpen(sc, QUESTIONS) && sc.altsOut, 'an alternatives-only question shows them straight away');
+        ok(G.answerChoice(sc, QUESTIONS, co.a) === true, 'and can be answered by picking one');
+
+        // Standings and ties.
+        const t = { players: [
+            { name: 'Åsa', points: 3, stars: 1 }, { name: 'Niklas', points: 2, stars: 2 },
+            { name: 'Johan', points: 4, stars: 0 }, { name: 'Lena', points: 1, stars: 0 },
+        ] };
+        const st = G.standings(t);
+        ok(st[0].name === 'Niklas' && st[1].name === 'Åsa' && st[2].name === 'Johan', 'equal totals: more stars ranks higher');
+        ok(st.map((r) => r.place).join() === '1,2,3,4', 'and places follow');
+        t.players[0].stars = 2; t.players[0].points = 2;
+        ok(G.standings(t).filter((r) => r.place === 1).length === 2, 'same total and same stars is a shared first place');
+
+        // All-time stats.
+        const fin = { qi: 3, players: [
+            { name: 'Åsa', points: 3, stars: 1 }, { name: 'Niklas', points: 3, stars: 1 },
+            { name: 'Johan', points: 1, stars: 0 }, { name: 'Lena', points: 0, stars: 0 },
+        ] };
+        let all = G.recordGame(null, fin);
+        all = G.recordGame(all, fin);
+        ok(all.games === 2 && all.players['Åsa'].games === 2 && all.players['Åsa'].wins === 2 && all.players['Niklas'].wins === 2,
+            'finished games add up per name, and a shared first place is a win for both');
+        ok(all.players['Åsa'].stars === 2 && all.players['Niklas'].points === 6 && all.players['Johan'].wins === 0, 'points and stars add up too');
+        ok(G.recordGame(all, { qi: 0, players: fin.players.map((p) => ({ ...p, points: 0, stars: 0 })) }).games === 2, 'a game nobody played does not count');
+
+        // Saved games.
+        const saved = JSON.parse(JSON.stringify(fresh4()));
+        ok(G.repair(saved, QUESTIONS) === saved, 'a saved game loads back');
+        ok(G.repair({ ...saved, order: ['gone-1'] , qi: 0 }, QUESTIONS) === null, 'a saved game on a question that no longer exists is dropped');
+        ok(G.repair(null, QUESTIONS) === null && G.repair({}, QUESTIONS) === null, 'junk in storage is ignored');
+
+        let threw = false;
+        try { G.newGame({ names: ['solo'], order: ORDER, bank: QUESTIONS }); } catch { threw = true; }
+        ok(threw, 'a game needs at least two players');
+
+        document.getElementById('summary').textContent = failed
+            ? `${failed} failed, ${passed} passed`
+            : `✓ ${passed} passed, 0 failed`;
+    </script>
+</body>
+</html>
