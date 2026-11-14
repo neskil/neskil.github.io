@@ -739,14 +739,13 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   and play"). Open: names a player can type, and a record per player.
 - ~~**1-click level editor sharing**~~ (done, v1.102.0 — README → "The hole
   editor", Share 🔗): the hole travels in the link's fragment.
-- **Catch the hole editor up with the game** — a future job, not a rule. The
-  owner's call (v1.135.0): the editor is no longer kept in step with every
-  change (golf3d/CLAUDE.md → Standing instructions). When it is done, it is
-  one pass: round-trip every drawn hole through the editor's import and
-  export and fix what comes back changed, then teach it what it cannot draw.
-  Known gaps today: slingshots (`kick` faces and `slingback`), firing bats
-  (`swing.snap`, the hinge), round bumpers and posts, and the decor kinds
-  added since v1.100 (arcade, alpine, Redstone). Roads may already survive.
+- **Level-editor parity (optional / low-priority)** — compatibility with
+  `level-editor.html` is not required and must never constrain or slow down new
+  map designs or mechanics (`golf3d/CLAUDE.md`). Keeping editor-created holes
+  playable is nice-to-have when cheap, not a requirement. Known gaps if
+  anyone ever chooses to update it: slingshots (`kick` faces and `slingback`),
+  firing bats (`swing.snap`, the hinge), round bumpers and posts, and decor
+  kinds added since v1.100 (arcade, alpine, Redstone).
 
 ---
 

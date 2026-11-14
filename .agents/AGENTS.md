@@ -37,7 +37,11 @@ Folder-based routing — each major page or app is fully isolated with its own
   `/name-song/` (Sound of Your Name), `/bil/` (Leasa · Hyra · Köpa, the
   Swedish car calculator), `/orbit/` (Pocket Orbit), `/black-hole/` (Pocket
   Black Hole), `/gait/` (Gait Lab) and `/erosion/` (Rainmaker) each own their HTML, logic, assets, and
-  styling — see the doc map above before working in any of them. The last
+  styling — see the doc map above before working in any of them. For both
+  `/golf/` and `/golf3d/`, compatibility with `level-editor.html` is **not
+  required**: keeping editor-built holes playable is nice-to-have when easy,
+  but never let editor parity or round-tripping slow down or restrict new map
+  designs or game mechanics. The last
   eleven keep their rules in DOM-free modules (`js/sim.js`, `js/flight.js`,
   `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`,
   `orbit/`'s `js/sim.js` with its autopilot `js/pilot.js`, `js/geodesic.js`,
