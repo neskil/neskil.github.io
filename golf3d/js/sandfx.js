@@ -218,6 +218,9 @@
         S.col[i * 3 + 2] = SAND[2] * (1 + t * 1.1) * damp;
         S.soft[i] = dust ? 1 : 0;
         S.size[i] = size;
+        var a = S.points.geometry.attributes;
+        a.aColor.needsUpdate = true;
+        a.aSoft.needsUpdate = true;
         S.live = Math.max(S.live, 1);
         S.points.visible = true;
         return p;
@@ -260,8 +263,6 @@
         a.position.needsUpdate = true;
         a.aAlpha.needsUpdate = true;
         a.aSize.needsUpdate = true;
-        a.aColor.needsUpdate = true;
-        a.aSoft.needsUpdate = true;
         S.live = alive;
         S.points.visible = alive > 0;
     }
