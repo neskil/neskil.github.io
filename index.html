@@ -1519,6 +1519,42 @@
 
         .flip-card.is-open .card-face {
             box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
+            /* The page behind an open panel is already blurred and dimmed by
+               #about-backdrop, so a second blur on the panel itself bought very
+               little and cost a lot: a backdrop-filter on a layer that is
+               turning and growing has to be recomputed on every frame of the
+               move. A solid ground under the card's own tint stands in for it. */
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            background-color: rgba(12, 16, 30, 0.82);
+        }
+
+        /* While the panel is moving, nothing on it may change its paint: any
+           transition here (the shadow, the hover ground) would re-raster the
+           whole card every frame and undo the point of animating transform.
+           Only the face swap at the edge-on moment is kept — see below. */
+        .flip-card.is-moving .card-face {
+            transition: opacity 0s linear 0.09s, visibility 0s linear 0.09s;
+        }
+
+        /* The panel's copy is laid out at its final size and scaled with the
+           card, so while it is still far from that size the text is squashed.
+           It comes up as the panel settles instead, which reads as the card
+           landing rather than as a picture of a card being stretched. Opacity
+           is composited, so this costs nothing per frame. */
+        .flip-card.is-growing .card-face-back > * {
+            animation: flipCopyIn 0.34s ease-out 0.14s both;
+        }
+
+        @keyframes flipCopyIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .flip-card.is-growing .card-face-back > * {
+                animation: none;
+            }
         }
 
         .flip-placeholder {
@@ -5861,13 +5897,65 @@
            transform from the inverse of that back to identity. Transform only, so
            the browser composites it instead of re-laying-out every frame. */
         const flipBackdrop = document.getElementById('about-backdrop');
-        const OPEN_MS = 620;
-        const CLOSE_MS = 450;
+        const OPEN_MS = 580;
+        const CLOSE_MS = 480;
 
         let openCard = null;
         let openPlaceholder = null;
         let openRect = null;
         let flipTimer = null;
+
+        let flipAnim = null;
+
+        /* One geometry animation at a time. fill: 'forwards' holds the closing
+           one on its last frame until restoreFlip puts the card back in the
+           grid, so it can never spring back to the open panel for a frame
+           between the animation ending and the timer firing. */
+        function runFlipAnim(card, keyframes, ms, easing, done) {
+            stopFlipAnim();
+            if (reducedMotionQuery.matches) ms = 1;
+            const anim = card.animate(keyframes, { duration: ms, easing, fill: done ? 'none' : 'forwards' });
+            flipAnim = anim;
+            anim.onfinish = () => {
+                if (flipAnim !== anim) return;
+                if (done) { flipAnim = null; done(); }
+            };
+        }
+
+        function stopFlipAnim() {
+            if (!flipAnim) return;
+            const anim = flipAnim;
+            flipAnim = null;
+            anim.cancel();
+        }
+
+        /* While the card is scaled, its box is the panel's and the transform
+           shrinks it to the grid cell. The front face would be laid out at panel
+           size too — its title and link spread a screen apart — and then
+           squashed flat. So it keeps its grid size instead, centred, with the
+           inverse of the card's starting scale: at every frame it then covers
+           exactly what the card covers, and on the first and last frames it is
+           pixel for pixel the spine that was in the grid. */
+        function pinFrontFace(card, cell, t) {
+            const front = card.querySelector('.card-face-front');
+            if (!front) return;
+            Object.assign(front.style, {
+                position: 'absolute',
+                minHeight: '0',
+                width: cell.width + 'px',
+                height: cell.height + 'px',
+                left: (t.w - cell.width) / 2 + 'px',
+                top: (t.h - cell.height) / 2 + 'px',
+                transform: `scale(${t.w / cell.width}, ${t.h / cell.height})`
+            });
+        }
+
+        function unpinFrontFace(card) {
+            const front = card.querySelector('.card-face-front');
+            if (!front) return;
+            ['position', 'min-height', 'width', 'height', 'left', 'top', 'transform']
+                .forEach(prop => front.style.removeProperty(prop));
+        }
 
         function inverseTransform(from, to) {
             const sx = from.width / to.w;
@@ -5944,7 +6032,9 @@
             if (!openCard) return;
 
             const card = openCard;
-            card.classList.remove('is-open', 'is-closing', 'is-flipped');
+            stopFlipAnim();
+            unpinFrontFace(card);
+            card.classList.remove('is-open', 'is-closing', 'is-flipped', 'is-moving', 'is-growing');
             ['top', 'left', 'width', 'height', 'transition', 'transform']
                 .forEach(prop => card.style.removeProperty(prop));
             card.querySelector('.flip-open').setAttribute('aria-expanded', 'false');
@@ -6091,13 +6181,22 @@
             const t = flipTargetRect(card);
             openRect = t;
 
-            // Start at initial grid rect
-            setFlipRect(card, r.top, r.left, r.width, r.height);
-            card.getBoundingClientRect(); // flush start state
-
-            // Animate top, left, width, height smoothly for a rich zoom-in to middle of screen
-            card.style.transition = 'top 0.55s cubic-bezier(0.22, 1, 0.36, 1), left 0.55s cubic-bezier(0.22, 1, 0.36, 1), width 0.55s cubic-bezier(0.22, 1, 0.36, 1), height 0.55s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.55s ease';
+            /* Land the panel at its final geometry in one go, then animate only
+               transform, from the grid cell back to identity. The old version
+               transitioned top/left/width/height instead, which re-laid-out and
+               repainted the whole card (text, screenshots, rounded glass) on
+               every frame of the turn; on a phone that was most of each frame.
+               A transform runs on the compositor against a raster made once. */
             setFlipRect(card, t.top, t.left, t.w, t.h);
+            pinFrontFace(card, r, t);
+            card.classList.add('is-moving', 'is-growing');
+            runFlipAnim(card, [
+                { transform: inverseTransform(r, t) },
+                { transform: 'none' }
+            ], OPEN_MS, 'cubic-bezier(0.22, 1, 0.36, 1)', () => {
+                card.classList.remove('is-moving', 'is-growing');
+                unpinFrontFace(card);
+            });
 
             card.classList.add('is-flipped');
             flipBackdrop.classList.add('open');
@@ -6117,14 +6216,22 @@
             if (!openPlaceholder) { restoreFlip(false); return; }
 
             const p = openPlaceholder.getBoundingClientRect();
-            card.classList.add('is-closing');
-            card.style.transition = 'top 0.48s cubic-bezier(0.4, 0, 0.2, 1), left 0.48s cubic-bezier(0.4, 0, 0.2, 1), width 0.48s cubic-bezier(0.4, 0, 0.2, 1), height 0.48s cubic-bezier(0.4, 0, 0.2, 1)';
-            setFlipRect(card, p.top, p.left, p.width, p.height);
+            const t = openRect;
+            /* Closing mid-open starts from wherever the open had got to: the
+               computed transform is the animated one while it is running. */
+            const from = flipAnim ? getComputedStyle(card).transform : 'none';
+            card.classList.add('is-closing', 'is-moving');
+            card.classList.remove('is-growing');
+            pinFrontFace(card, p, t);
+            runFlipAnim(card, [
+                { transform: from === 'none' ? 'none' : from },
+                { transform: inverseTransform(p, t) }
+            ], CLOSE_MS, 'cubic-bezier(0.4, 0, 0.2, 1)', null);
             card.classList.remove('is-flipped');
             flipBackdrop.classList.remove('open');
             card.querySelector('.flip-open').setAttribute('aria-expanded', 'false');
 
-            flipTimer = setTimeout(() => restoreFlip(false), 480);
+            flipTimer = setTimeout(() => restoreFlip(false), CLOSE_MS);
         }
 
         document.querySelectorAll('.flip-card').forEach(card => {
