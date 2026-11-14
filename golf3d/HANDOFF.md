@@ -213,3 +213,18 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   The bot with misses averages 7.45 (the old hole was 7.75). From the plank
   the oval is a short bail-out. Look unchanged otherwise. **Not yet seen
   by him.**
+- **Dry Dock** (`drydock`), v1.167.1: the deck half way was wood, the game's
+  slick surface, and held nothing (every ball that landed on it skated off).
+  The green was walled on three sides and held two thirds of tee shots, so
+  the bold way was the only way and the safe one too. Now the deck is a
+  long one in the green's felt, 4.5 by 9 down the line, because at a sixth
+  of a g people miss by length. It holds about 85% of half pitches, and the
+  chip from it holds about 88% and drops about one in ten. The green is a
+  5×5 dish 0.32 deep with only the back wall: straight at the flag holds
+  about 32% and drops a few in a hundred. The dish is no deeper because past
+  0.35 it handed out chip-ins from the deck. Fairway turf was tried for the
+  deck and rejected: one fairway pad makes `build` call the hole `longGame`,
+  which multiplies every distance shown by 5.5. The sweep still calls the ace
+  a fluke (0.007%): the cup is tiny next to a sixth-of-a-g pitch, and the
+  window is one weight wide. The lighting is warmed for the sunny harbour
+  town the world is. **Not yet seen by him.**
