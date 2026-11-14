@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.164.0';
+G3.VERSION = '1.165.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1142,7 +1142,16 @@ G3.CONFIG = {
     /* The holes the demo has already shown on this machine, so a visitor who
        comes back is not shown the same one again (courses.js `demoDraw`). */
     DEMO_SEEN_KEY: 'loftLinks.demoSeen',
-    DEMO_HOLD: 2.6
+    DEMO_HOLD: 2.6,
+    /* The demo caddie's misses, one standard deviation each, drawn on every
+       stroke after it has chosen it (game.js `playPlanned`). Looser than
+       BOT_HANDS on purpose: the perfect bot aced hole after hole, and a demo
+       that never misses shows a game nobody will play like that. The line is
+       a few degrees, the weight about an eighth, and a putt misses too. */
+    DEMO_HANDS: {
+        yaw: 4 * Math.PI / 180, power: 0.12,
+        putt: { yaw: 2.5 * Math.PI / 180, power: 0.12 }
+    }
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names

@@ -779,7 +779,9 @@
         // approach after a drawn drive — and nobody asked for that one.
         setShape('straight');
 
-        if (G3.bag && G3.bag.address) G3.bag.address.strike(frac);
+        /* Not under the demo: its orbit has no club at address, so a
+           follow-through there was a lone club swinging in mid-air. */
+        if (G3.bag && G3.bag.address && !demo) G3.bag.address.strike(frac);
         hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
@@ -5559,6 +5561,14 @@
     function playPlanned() {
         sim.stage = 'watch';
         sim.strokes++;
+        /* The demo plays like a person: the shot it chose, struck with a
+           person's miss (CONFIG.DEMO_HANDS). Autoplay keeps the perfect
+           stroke — that is the player's round, played to be scored. */
+        if (demo && C.DEMO_HANDS && G3.bot.mishit) {
+            var m = G3.bot.mishit(state.club, state.aim.yaw, state.aim.power, C.DEMO_HANDS, Math.random);
+            state.aim.yaw = m.yaw;
+            setPower(m.power);
+        }
         // Through the same door the Swing button uses. The bot never draws
         // past a full swing, so no gate arms and `shoot` goes straight to it.
         shoot();
