@@ -5865,9 +5865,7 @@
                 R.liveK = R.liveKMax = R.liveCoarse ? 0.7 : 0.8;
             }
             var k = Math.min(R.liveK, (R.liveCoarse ? 1100 : 1440) / Math.max(1, cv.width));
-<<<<<<< HEAD
             R.camera.updateMatrixWorld();
-=======
             /* How far ahead of the camera the ball is, along the view: the
                world is drawn from just over half of that, so a bookcase, a
                pillar or a stair that stands between the camera and the ball
@@ -5879,7 +5877,6 @@
                 var cm = R.camera.matrixWorld.elements;
                 clear = -((world.ball.x - cm[12]) * cm[8] + (world.ball.y - cm[13]) * cm[9] + (world.ball.z - cm[14]) * cm[10]) * 0.55;
             }
->>>>>>> origin/master
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }

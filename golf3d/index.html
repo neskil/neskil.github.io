@@ -173,6 +173,7 @@
                         <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
                         <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                         <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon">≈</span><span class="chip-text"> Water</span></button>
+                        <button class="chip" id="btn-live" title="The live world around each World Tour hole — off is kinder to a slow phone" aria-pressed="true">🌍<span class="chip-text"> Live worlds</span></button>
                         <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
                         <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     </div>
@@ -808,7 +809,6 @@
                 <p class="sh-label" id="menu-worlds-label">Pick a hole</p>
                 <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
                 <p class="tour-credit">
-                    <button type="button" class="linkish" id="menu-live" role="switch" aria-checked="true">Live worlds: on</button>
                     <button type="button" class="linkish" id="menu-draw-settings">What Surprise me draws from</button></p>
             </div>
             <!-- One card's page: what it is, how you have done, its holes
@@ -911,7 +911,7 @@
 
     <!-- three.js is vendored, r128, no build step and no CDN — same arrangement
          as Yard Master next door. -->
-    <script src="vendor/three.min.js"></script>
+    <script src="../vendor/three.min.js"></script>
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
