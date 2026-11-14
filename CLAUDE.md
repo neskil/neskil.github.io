@@ -3,6 +3,26 @@
 Niklas Billgren's personal site: static HTML/CSS/JS on GitHub Pages, no build
 step, each folder a self-contained page.
 
+## How the owner works — finish on `master`, every time
+
+The owner uses Claude **only from the Claude app on a phone**, in remote
+sessions. There is no laptop, no local checkout and no preview: the one way
+they can see a change is the live site on GitHub Pages, after it has been
+merged to `master`, pushed, and the page has refreshed. So:
+
+- **A change is not done until it is merged to `master` and pushed.** Do it
+  without being asked, once the checks below are green and anything visual has
+  been looked at headlessly. A pushed feature branch is invisible to them, and
+  "ready for you to review" is a dead end — they cannot review it.
+- **Your own verification is the only verification before it ships.** They
+  cannot test anything before it is live, so run the suites, drive the page in
+  headless Chromium, and screenshot what changed. Say plainly what you checked
+  and what you could not.
+- **Bump the cache-busting version** where the folder has one (golf3d:
+  `G3.VERSION` and every `?v=`), or their phone keeps the old JS after the push.
+- No pull request unless they ask for one; merge with `--no-ff`, re-run the
+  checks on the merged result, then push.
+
 ## Read these first
 
 The standing instructions for this repo live in
