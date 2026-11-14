@@ -1531,11 +1531,13 @@ html.page-full body {
     background: rgba(18, 20, 14, 0.55);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s;
+    transition: opacity 0.4s;
     line-height: 1.3;
 }
 
-.banner.show { opacity: 1; pointer-events: auto; }
+/* No Next button: the score goes on by itself, and a tap anywhere on it
+   skips the wait (game.js `tickHoleEnd`). */
+.banner.show { opacity: 1; pointer-events: auto; cursor: pointer; }
 
 .banner.ace {
     border: 2px solid var(--gold);
@@ -3100,8 +3102,12 @@ kbd {
 
 /* On a phone — and on any window short or narrow enough that the clubhouse
    chrome would eat the course — the canvas takes the viewport and the
-   scoreboard folds into the overlay it already has. Everything else stays
-   where it was, one scroll below the fold.
+   scoreboard folds into the overlay it already has — and that is the whole
+   page. Nothing waits below the fold any more: a page that scrolls is a page
+   whose course slides away under a thumb that meant to aim, and on a phone
+   the address bar's own show-and-hide made the stage jump with it. The two
+   reminder panels are the How to play dialog's job here (☰ → ?), and ⛶ or
+   the fullscreen offer takes the browser's bars away too.
 
    Short counts as well as narrow, and it did not used to: a window 480 tall
    kept the title, the strapline and the six-figure scoreboard, which between
@@ -3110,17 +3116,25 @@ kbd {
    the same three `syncCompact` asks in game.js — edit one and edit the
    other. */
 @media (max-width: 900px), (max-height: 560px), (pointer: coarse) {
+    html, body {
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+
     body { padding: 0; }
 
     .wrap { max-width: none; }
 
-    /* The course owns the screen; the help and the legend sit one scroll
-       below it. */
+    /* The course owns the screen, and the screen is all there is. */
     .viewport {
         display: flex;
         flex-direction: column;
+        height: 100vh;
         height: 100dvh;
     }
+
+    .panel, .best-line { display: none; }
 
     .topbar {
         padding: 0.55rem 0.7rem;
@@ -3161,8 +3175,6 @@ kbd {
 
     .swing { flex: 1 1 auto; }
 
-    .panel, .best-line { margin-left: 0.8rem; margin-right: 0.8rem; }
-    .panel:last-of-type { margin-bottom: 2rem; }
 }
 
 
@@ -4173,6 +4185,11 @@ body.lane-swing .swipe-hint {
 }
 .swing-card[hidden] { display: none; }
 .swing-card.show { animation: cardIn 0.22s ease-out; }
+.swing-card.fading {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
 @keyframes cardIn {
     from { opacity: 0; transform: translate(-50%, -8px); }
     to { opacity: 1; transform: translate(-50%, 0); }
@@ -4368,11 +4385,11 @@ body.lane-swing .swipe-hint {
 .portal-wipe.closing {
     opacity: 1;
     pointer-events: auto;
-    animation: portal-close 0.62s cubic-bezier(0.6, 0, 0.9, 0.4) both;
+    animation: portal-close 0.85s cubic-bezier(0.6, 0, 0.9, 0.4) both;
 }
 .portal-wipe.opening {
     opacity: 1;
-    animation: portal-open 0.65s cubic-bezier(0.1, 0.6, 0.3, 1) both;
+    animation: portal-open 0.8s cubic-bezier(0.1, 0.6, 0.3, 1) both;
 }
 @keyframes portal-close {
     from { clip-path: circle(0% at 50% 50%); }
@@ -4384,7 +4401,8 @@ body.lane-swing .swipe-hint {
 }
 .portal-wipe.holding { opacity: 1; pointer-events: auto; }
 /* What it says while a world is building behind it (game.js → holdForWorld):
-   an opaque plate, where you are going, and a bar that only says "working". */
+   an opaque plate, where you are going, and a bar that fills as the build
+   goes (curtainBar) — or only says "working" until there is a build to follow. */
 .pw-card {
     position: absolute;
     left: 50%; top: 50%;
@@ -4423,10 +4441,15 @@ body.lane-swing .swipe-hint {
     animation: pw-run 1.3s ease-in-out infinite alternate;
 }
 @keyframes pw-run { from { transform: translateX(-20%); } to { transform: translateX(205%); } }
+/* Filled by a scale rather than a width: a transform is animated by the
+   compositor, and the build this bar follows can hold the page's own thread
+   for most of a frame. */
+.pw-bar.known i { width: 100%; animation: none; transform: scaleX(0.03); transform-origin: left center; transition: transform 0.3s linear; }
+.pw-note { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
     .portal-wipe.closing, .portal-wipe.opening { animation: none; }
     .portal-wipe.opening { opacity: 0; }
-    .pw-bar i { animation: none; width: 100%; opacity: 0.5; }
+    .pw-bar:not(.known) i { animation: none; width: 100%; opacity: 0.5; }
 }
 
 /* ── the picker's top ────────────────────────────────────────────────────
@@ -4647,3 +4670,100 @@ body.lane-swing .swipe-hint {
 .md-play { align-items: center; }
 /* On a card's page the plans are the page, never folded away. */
 .compact-ui .menu-detail .cc-holes { display: grid; max-height: none; opacity: 1; padding: 0; overflow: visible; pointer-events: auto; }
+
+/* ── the loading screen ───────────────────────────────────────────────────
+
+   A plate over the whole page until the course has drawn its first frame
+   (game.js → hideLoader). A ball chips, bounces twice, runs out and drops,
+   on a loop — the only thing that moves, in the clubhouse's own inks. With
+   less motion asked for it stands still on the green. */
+.loader {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 16px;
+    background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+    color: var(--ink);
+    transition: opacity 0.45s ease, visibility 0s linear 0.45s;
+}
+
+.loader.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.ld-scene { width: min(320px, 78vw); height: auto; overflow: visible; }
+.ld-ground { fill: #3c4a2a; }
+.ld-cup { fill: #0b0c08; }
+.ld-pole { stroke: var(--ink-dim); stroke-width: 1.4; stroke-linecap: round; }
+.ld-flag {
+    fill: var(--accent);
+    transform-origin: 152.6px 26.5px;
+    animation: ld-wave 1.4s ease-in-out infinite alternate;
+}
+.ld-ball { fill: var(--ink); }
+.ld-shadow { fill: rgba(0, 0, 0, 0.4); }
+
+.ld-ball-x { animation: ld-x 2.8s infinite; }
+.ld-ball-y { animation: ld-y 2.8s infinite; }
+.ld-shadow { animation: ld-shadow 2.8s infinite; }
+
+@keyframes ld-x {
+    0%   { transform: translateX(0); opacity: 0; animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1); }
+    4%   { opacity: 1; }
+    62%  { transform: translateX(118px); animation-timing-function: ease-out; }
+    74%  { transform: translateX(126px); opacity: 1; }
+    86%  { transform: translateX(126px); opacity: 1; }
+    92%, 100% { transform: translateX(126px); opacity: 0; }
+}
+
+@keyframes ld-y {
+    0%   { transform: translateY(0); animation-timing-function: ease-out; }
+    20%  { transform: translateY(-38px); animation-timing-function: ease-in; }
+    38%  { transform: translateY(0); animation-timing-function: ease-out; }
+    46%  { transform: translateY(-11px); animation-timing-function: ease-in; }
+    54%  { transform: translateY(0); animation-timing-function: ease-out; }
+    58%  { transform: translateY(-3px); animation-timing-function: ease-in; }
+    62%  { transform: translateY(0); }
+    74%  { transform: translateY(0); animation-timing-function: ease-in; }
+    80%, 100% { transform: translateY(9px); }
+}
+
+@keyframes ld-shadow {
+    0%, 72%  { opacity: 1; }
+    76%, 100% { opacity: 0; }
+}
+
+@keyframes ld-wave {
+    from { transform: skewY(-4deg) scaleX(1); }
+    to   { transform: skewY(5deg) scaleX(0.9); }
+}
+
+.ld-title {
+    margin: 0.4rem 0 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+.ld-title span { color: var(--accent); }
+
+.ld-note {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.ld-dots i { font-style: normal; animation: ld-dot 1.2s infinite; }
+.ld-dots i:nth-child(2) { animation-delay: 0.2s; }
+.ld-dots i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ld-dot { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .ld-ball-x, .ld-ball-y, .ld-shadow, .ld-flag, .ld-dots i { animation: none; }
+    .ld-ball-x { transform: translateX(110px); }
+}

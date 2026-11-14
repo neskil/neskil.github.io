@@ -213,7 +213,7 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   The bot with misses averages 7.45 (the old hole was 7.75). From the plank
   the oval is a short bail-out. Look unchanged otherwise. **Not yet seen
   by him.**
-- **Dry Dock** (`drydock`), v1.162.4: the deck half way was wood, the game's
+- **Dry Dock** (`drydock`), v1.166.2: the deck half way was wood, the game's
   slick surface, and held nothing (every ball that landed on it skated off).
   The green was walled on three sides and held two thirds of tee shots, so
   the bold way was the only way and the safe one too. Now the deck is a

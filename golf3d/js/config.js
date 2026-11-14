@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.162.4';
+G3.VERSION = '1.166.2';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -953,13 +953,21 @@ G3.CONFIG = {
         MAX_FRAMES: 6000    // a tape longer than this stops recording
     },
 
+    /* The end of a hole: how long the score is shown before the game goes
+       on by itself (game.js `tickHoleEnd`). There is no Next button — the
+       owner: "why wait?" — but a tap on the score or Enter skips it. */
+    HOLE_END: {
+        SHOW: 2.2,          // the score, then on
+        LAST: 0.8           // a little longer before the card opens
+    },
+
     /* Down the cup, between two worlds of the tour (render.js → startDive,
        game.js → throughPortal). The camera leaves wherever it was watching
        the ball drop, comes over the cup and falls into it, ending at the
        lip looking down, where everything is the inside of the hole; the
        wipe on to the next world's sky starts closing while it falls. */
     DIVE: {
-        DUR: 1.15,          // seat to rim; the wipe closes over the last 0.62 s
+        DUR: 2.0,           // seat to rim; the wipe closes over the last 0.85 s (game.js WIPE_CLOSE)
         OVER: 1.2,          // the top of the arc: this far back from the cup…
         UP_MIN: 2.2,        // …and at least this high over it…
         UP_MAX: 5,          // …and no higher than this
@@ -968,7 +976,8 @@ G3.CONFIG = {
         END_MAX: 1.2,       // …and no higher
         PIN_LIFT: 30,       // the flag launches this far straight up…
         PIN_BY: 0.5,        // …in this share of the dive, then is gone
-        PREPARE_AFTER: 1.2  // the next world starts building this long after the sink
+        PREPARE_AFTER: 1.2, // the next world starts building this long after the sink, if it has not already…
+        PREPARE_AHEAD: 6    // …which it does once a hole has been open this long, at the first quiet moment
     },
 
     /* The demo's own camera. Nobody is aiming, so the seat behind the ball is
@@ -1141,7 +1150,16 @@ G3.CONFIG = {
     /* The holes the demo has already shown on this machine, so a visitor who
        comes back is not shown the same one again (courses.js `demoDraw`). */
     DEMO_SEEN_KEY: 'loftLinks.demoSeen',
-    DEMO_HOLD: 2.6
+    DEMO_HOLD: 2.6,
+    /* The demo caddie's misses, one standard deviation each, drawn on every
+       stroke after it has chosen it (game.js `playPlanned`). Looser than
+       BOT_HANDS on purpose: the perfect bot aced hole after hole, and a demo
+       that never misses shows a game nobody will play like that. The line is
+       a few degrees, the weight about an eighth, and a putt misses too. */
+    DEMO_HANDS: {
+        yaw: 4 * Math.PI / 180, power: 0.12,
+        putt: { yaw: 2.5 * Math.PI / 180, power: 0.12 }
+    }
 };
 
 /* Every club the game knows about, default bag first. A hole's `bag` names

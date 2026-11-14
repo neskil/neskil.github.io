@@ -68,7 +68,78 @@ function boot() {
        milliseconds a frame instead, the way Portals builds its next world
        during a flight. */
     engine._budget = function () { return early ? 6 : 1e9; };
+    // The engine names each step of a build as it starts it; that is what
+    // the loading bar follows (track, below).
+    const perf = engine.perf, setPhase = perf.setPhase.bind(perf);
+    perf.setPhase = (p) => { setPhase(p); track(p); };
     return engine;
+}
+
+/* ── how far along a build is ───────────────────────────────────────────
+
+   The engine says which step of a build it is on (fetch, leaf, build,
+   compile, warm) but not how far through it, so the bar is an estimate:
+   each step is given the time it took on this device last time — for this
+   world if it has been built here before, else the device's running
+   average over every world — and a step still running creeps towards its
+   end, never past it. The times are kept between visits, so the second
+   visit's bar is closer to the truth than the first. A guess that runs
+   long only slows the bar down; it never runs backwards (game.js keeps the
+   bar monotonic). */
+const STEPS = ['fetch', 'leaf', 'build', 'compile', 'warm'];
+const DEFAULT_MS = { fetch: 1500, leaf: 200, build: 3000, compile: 3000, warm: 1500 };
+const TIMES = 'golf3d.worldTimes';
+let job = null, times = null;
+function loadTimes() {
+    if (times) return times;
+    try { times = JSON.parse(localStorage.getItem(TIMES) || 'null'); } catch (e) { times = null; }
+    if (!times || typeof times !== 'object') times = {};
+    if (!times.avg) times.avg = { ...DEFAULT_MS };
+    if (!times.w) times.w = {};
+    return times;
+}
+function saveTimes() { try { localStorage.setItem(TIMES, JSON.stringify(times)); } catch (e) { /* ignore */ } }
+function track(p) {
+    const now = performance.now();
+    const m = /^([a-z]+):([^:]+)/.exec(p || '');
+    if (job && job.step) { job.ms[job.step] = (job.ms[job.step] || 0) + now - job.t; job.step = null; }
+    if (!m || STEPS.indexOf(m[1]) < 0) return;
+    if (!job || job.id !== m[2]) job = { id: m[2], ms: {}, step: null, t: now, done: false };
+    job.step = m[1]; job.t = now;
+}
+// A build that finished: what each step took goes into the record.
+function learn(id) {
+    if (!job || job.id !== id) return;
+    track('');
+    const T = loadTimes(), mine = {};
+    for (const k of STEPS) {
+        const v = job.ms[k] || 0;
+        mine[k] = Math.round(v);
+        // the fetch of a world already in the cache says nothing about the network
+        if (k === 'fetch' && v < 50) continue;
+        T.avg[k] = Math.round(T.avg[k] * 0.6 + v * 0.4);
+    }
+    T.w[id] = mine;
+    saveTimes();
+    job.done = true;
+}
+/* 0…1 for the world `id`: 1 once it is built, null when nothing is known
+   about it (it has not started and is not waiting behind another build). */
+function progress(id) {
+    if (!id) return null;
+    if ((cur && cur.def.id === id) || (spare && spare.def.id === id)) return { p: 1, step: 'show' };
+    if (!job || job.id !== id || job.done) return loading || wanted === id ? { p: 0, step: 'queue' } : null;
+    const T = loadTimes(), own = T.w[id], now = performance.now();
+    const expect = (k) => Math.max(80, own && own[k] ? own[k] : T.avg[k]);
+    let total = 0, got = 0;
+    for (const k of STEPS) {
+        const e = expect(k); total += e;
+        if (k === job.step) {
+            const ran = (job.ms[k] || 0) + now - job.t;
+            got += e * (1 - Math.exp(-1.4 * ran / e)) * 0.97;
+        } else if (job.ms[k] !== undefined || STEPS.indexOf(k) < STEPS.indexOf(job.step || 'warm')) got += e;
+    }
+    return { p: Math.min(0.98, got / total), step: job.step || 'build' };
 }
 
 /* ── depth ──────────────────────────────────────────────────────────────
@@ -262,9 +333,13 @@ function seedOf(id) { let h = 2166136261; for (const c of id) { h ^= c.charCodeA
    world nobody is waiting for any more is thrown away as soon as it lands. */
 async function want(id) {
     wanted = id;
-    // Whatever is asked for now is wanted on screen: no more slices.
-    early = false;
-    if (spare && spare.def.id !== id) dropSpare();
+    // Whatever is asked for now is wanted on screen: no more slices. (A hole
+    // with no world wants nothing built, so a world being built aside for
+    // later keeps to its slices under it.)
+    if (id) early = false;
+    // A hole with no world (a demo hole, a drawn course) keeps the spare:
+    // nothing else is being built for it, and it is the tour's next world.
+    if (spare && id && spare.def.id !== id) dropSpare();
     if (!id) return false;
     if (cur && cur.def.id === id) return true;
     if (spare) return takeSpare();
@@ -284,6 +359,7 @@ async function want2(id) {
     try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
     if (loading === job) loading = null;
     if (!W) { mark(null); return false; }
+    learn(id);
     if (W.portal && W.portal.group) W.portal.group.visible = false;
     if (wanted !== id) { try { E._dispose(W); } catch (e) { /* ignore */ } return want2(wanted); }
     if (cur) { try { E._dispose(cur); } catch (e) { /* ignore */ } }
@@ -303,8 +379,11 @@ async function prepare(id) {
     if (!id || failed[id] || loading || (cur && cur.def.id === id) || (spare && spare.def.id === id)) return false;
     const E = boot();
     const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
+    // One world kept aside at a time.
+    dropSpare();
     early = true;
     mark(id);
+    const was = wanted;
     const job = loading = E._load(def, seedOf(id));
     let W = null;
     try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
@@ -312,11 +391,13 @@ async function prepare(id) {
     early = false;
     mark(null);
     if (!W) return false;
+    learn(id);
     if (W.portal && W.portal.group) W.portal.group.visible = false;
     // Still on its way to being wanted (the hole it is for, or this one still
-    // being played), or asked for meanwhile — a `want` waiting on this build
-    // runs after this line and finds it.
-    if (wanted === id || (cur && wanted === cur.def.id)) { spare = W; return true; }
+    // being played, or nothing at all yet — the demo or the menu, before the
+    // tour has started), or asked for meanwhile — a `want` waiting on this
+    // build runs after this line and finds it.
+    if (wanted === id || wanted === was || !wanted || (cur && wanted === cur.def.id)) { spare = W; return true; }
     try { E._dispose(W); } catch (e) { /* ignore */ }
     return false;
 }
@@ -527,7 +608,9 @@ G3.backdrop = {
     // swapped in from `prepare` is until its first frames).
     get shown() { return !!(cur && cur.shown); },
     get ahead() { return spare ? spare.def.id : null; },
+    drop() { dropSpare(); },
     get building() { return !!loading; },
+    progress,
     /* The world's own ground, for sculpting a hole to it (tools/world-ground.mjs):
        the height under a point in world coordinates, or null over nothing. */
     groundAt(x, z, from, any) { return cur ? groundUnder(cur, x, from === undefined || from === null ? 2000 : from, z, any) : null; },

@@ -822,7 +822,7 @@
        little, and it is felt like the green, not turf, because a fairway
        makes the game read the hole as the long game (its metres, its bag).
 
-       Until v1.162.4 the deck half way was wood — the game's slick surface
+       Until v1.166.2 the deck half way was wood — the game's slick surface
        — and held nothing at all (a ball landing on it skated off), and the
        green was walled on three sides and held two thirds of tee shots:
        the only way across was the bold one, and it was the safe one too. */
