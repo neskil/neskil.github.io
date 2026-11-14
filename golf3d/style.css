@@ -3816,7 +3816,7 @@ body.compact-ui .picker { padding-top: 52px; }
     transform: translateX(-50%);
     /* A light grey panel, so the place to swipe is somewhere you can see
        rather than somewhere you have to remember — but faint (the owner,
-       v1.168.2: "a bit more subtle"), so the hole still reads through it. */
+       v1.168.3: "a bit more subtle"), so the hole still reads through it. */
     background: rgba(18, 20, 14, 0.1);
     border: 1px dashed rgba(232, 225, 203, 0.18);
     border-radius: 6px;
