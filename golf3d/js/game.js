@@ -3365,8 +3365,13 @@
     // gesture over, or when the system cancels it out from under us.
     function cancelLook() {
         if (!look || !state) return;
-        state.aim.yaw = look.yaw;
-        R.cam.pitch = look.pitch;
+        if (R.cam.mode === 'flight') {
+            R.cam.flight.yaw = look.yaw;
+            R.cam.flight.pitch = look.pitch;
+        } else {
+            state.aim.yaw = look.yaw;
+            R.cam.pitch = look.pitch;
+        }
         look = null;
     }
 
@@ -3416,8 +3421,10 @@
         // since the camera is following it and you may want another angle on
         // where it is going. It does not start until the pointer has actually
         // travelled: see onMove.
+        var isFlight = R.cam.mode === 'flight';
         look = { id: e.pointerId, x: e.clientX, y: e.clientY,
-                 yaw: state.aim.yaw, pitch: R.cam.pitch, live: false,
+                 yaw: isFlight ? R.cam.flight.yaw : state.aim.yaw,
+                 pitch: isFlight ? R.cam.flight.pitch : R.cam.pitch, live: false,
                  slop: e.pointerType === 'mouse' ? 2 : 7 };
     }
 
@@ -3463,13 +3470,18 @@
                 look.x = e.clientX;
                 look.y = e.clientY;
             }
-            // Screen-right spins the view to the right, and dragging down
-            // lifts the camera, the way pushing the ground away would.
-            state.aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
-            // …unless the camera is locked, in which case the sideways half of
-            // that goes into the shot and nowhere near the view. Say so.
-            if (Math.abs(e.clientX - look.x) > 24) sayLocked();
-            R.cam.pitch = Math.max(0.06, Math.min(1.3, look.pitch + (e.clientY - look.y) * 0.004));
+            if (R.cam.mode === 'flight') {
+                R.cam.flight.yaw = look.yaw - (e.clientX - look.x) * 0.006;
+                R.cam.flight.pitch = Math.max(-1.45, Math.min(1.45, look.pitch - (e.clientY - look.y) * 0.005));
+            } else {
+                // Screen-right spins the view to the right, and dragging down
+                // lifts the camera, the way pushing the ground away would.
+                state.aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
+                // …unless the camera is locked, in which case the sideways half of
+                // that goes into the shot and nowhere near the view. Say so.
+                if (Math.abs(e.clientX - look.x) > 24) sayLocked();
+                R.cam.pitch = Math.max(0.06, Math.min(1.3, look.pitch + (e.clientY - look.y) * 0.004));
+            }
         }
     }
 
@@ -3911,10 +3923,99 @@
         else if (e.key === 'Enter' || e.key === ' ') { straightenView(); e.preventDefault(); }
     }
 
+    var flightUnlocked = false;
+    var flightKeys = {};
+    var flightPad = { fwd: false, back: false, up: false, down: false };
+    var FLIGHT_CODES = {
+        KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1,
+        ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1,
+        Space: 1, KeyE: 1, KeyC: 1, KeyQ: 1,
+        ControlLeft: 1, ControlRight: 1, ShiftLeft: 1, ShiftRight: 1
+    };
+
+    function loadFlight() {
+        try { flightUnlocked = localStorage.getItem(C.FLIGHT_KEY) === '1'; } catch (e) { flightUnlocked = false; }
+        syncFlight();
+    }
+
+    function unlockFlight(quiet) {
+        flightUnlocked = true;
+        try { localStorage.setItem(C.FLIGHT_KEY, '1'); } catch (e) { /* ignore */ }
+        syncFlight();
+        if (!quiet) toast('Secret unlocked: Flight mode');
+    }
+
+    function syncFlight() {
+        var on = R.cam.mode === 'flight';
+        document.body.classList.toggle('flight-mode', on);
+        if ($('flight-pad')) $('flight-pad').hidden = !on;
+        if ($('btn-flight')) {
+            $('btn-flight').hidden = !flightUnlocked && !on;
+            $('btn-flight').classList.toggle('on', on);
+            $('btn-flight').setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+        syncSeat();
+    }
+
+    function toggleFlight(force) {
+        if (!state || demo) return;
+        var want = force !== undefined ? !!force : R.cam.mode !== 'flight';
+        if (want) {
+            if (!flightUnlocked) unlockFlight(true);
+            skipFly();
+            hideHoleCard();
+            R.enterFlight();
+            flightKeys = {};
+            toast('Flight mode — WASD to fly, drag to look, Esc to land');
+        } else {
+            R.exitFlight();
+            flightKeys = {};
+            flightPad.fwd = flightPad.back = flightPad.up = flightPad.down = false;
+        }
+        syncFlight();
+    }
+
+    function moveFlight(fwd, right, up) {
+        var fl = R.cam.flight;
+        var cosP = Math.cos(fl.pitch);
+        var sinY = Math.sin(fl.yaw), cosY = Math.cos(fl.yaw);
+        fl.x += sinY * cosP * fwd - cosY * right;
+        fl.y += Math.sin(fl.pitch) * fwd + up;
+        fl.z += cosY * cosP * fwd + sinY * right;
+        var floorY = (state && state.course && state.course.theme &&
+            state.course.theme.surroundY !== undefined ? state.course.theme.surroundY : -6) - 2;
+        if (fl.y < floorY) fl.y = floorY;
+        if (fl.y > 180) fl.y = 180;
+    }
+
+    function stepFlight(dt) {
+        if (R.cam.mode !== 'flight') return;
+        var fwd = (flightKeys.KeyW || flightKeys.ArrowUp || flightPad.fwd ? 1 : 0) -
+                  (flightKeys.KeyS || flightKeys.ArrowDown || flightPad.back ? 1 : 0);
+        var right = (flightKeys.KeyD || flightKeys.ArrowRight ? 1 : 0) -
+                    (flightKeys.KeyA || flightKeys.ArrowLeft ? 1 : 0);
+        var up = (flightKeys.Space || flightKeys.KeyE || flightPad.up ? 1 : 0) -
+                 (flightKeys.KeyC || flightKeys.KeyQ || flightKeys.ControlLeft || flightKeys.ControlRight || flightPad.down ? 1 : 0);
+        if (!fwd && !right && !up) return;
+        var boost = (flightKeys.ShiftLeft || flightKeys.ShiftRight) ? 2.6 : 1;
+        var step = 14 * boost * dt;
+        moveFlight(fwd * step, right * step, up * step);
+    }
+
+    function onFlightKeyUp(e) {
+        if (flightKeys[e.code]) flightKeys[e.code] = false;
+    }
+
     function onKey(e) {
         if (!state) return;
         var fine = e.shiftKey;
         var k = e.key;
+
+        if (k === '`' || k === '~') { toggleFlight(); e.preventDefault(); return; }
+        if (R.cam.mode === 'flight') {
+            if (k === 'Escape' || k === 'v' || k === 'V') { toggleFlight(false); e.preventDefault(); return; }
+            if (FLIGHT_CODES[e.code]) { flightKeys[e.code] = true; e.preventDefault(); return; }
+        }
 
         /* Before anything that reads a plain key, because what the shifted
            digit row *says* it is varies by layout and some of what it says
@@ -4054,8 +4155,15 @@
        — which one you are sitting in, and how far round from it you have
        walked — so they have a sync each: this one and `syncView`. */
     function cycleSeat() {
+        var wasFlight = R.cam.mode === 'flight';
         R.cycleView();
-        syncSeat();
+        if (wasFlight) {
+            flightKeys = {};
+            flightPad.fwd = flightPad.back = flightPad.up = flightPad.down = false;
+            syncFlight();
+        } else {
+            syncSeat();
+        }
     }
 
     function syncSeat() {
@@ -6215,6 +6323,7 @@
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
         syncMiniMapBall();
+        stepFlight(dt);
 
         // The camera rides the aim, so turning one turns the other; how far
         // round the ball it stands from there is the view dial's business
@@ -6330,10 +6439,16 @@
            rather than to whatever was down when it left. */
         window.addEventListener('pointerup', onRelease);
         window.addEventListener('pointercancel', onRelease);
-        window.addEventListener('blur', clearPointers);
+        window.addEventListener('blur', function () {
+            clearPointers();
+            flightKeys = {};
+            flightPad.fwd = flightPad.back = flightPad.up = flightPad.down = false;
+        });
         document.addEventListener('visibilitychange', function () {
             if (!document.hidden) return;
             clearPointers();
+            flightKeys = {};
+            flightPad.fwd = flightPad.back = flightPad.up = flightPad.down = false;
             /* And throw away the half-measured frame-rate window with it. A
                backgrounded tab stops being asked for frames, so the gap either
                side of it is not a slow frame — it is no frame at all, and
@@ -6346,9 +6461,11 @@
         });
         canvas.addEventListener('wheel', function (e) {
             e.preventDefault();
-            zoom(e.deltaY * 0.004);
+            if (R.cam.mode === 'flight') moveFlight(-e.deltaY * 0.015, 0, 0);
+            else zoom(e.deltaY * 0.004);
         }, { passive: false });
         window.addEventListener('keydown', onKey);
+        window.addEventListener('keyup', onFlightKeyUp);
         /* The net that cuts the intro short. On the window and in the capture
            phase, so it runs before the chip, the key or the drag it shares an
            event with does its own job — every one of those is a player who has
@@ -6486,6 +6603,42 @@
         $('btn-fps').addEventListener('click', toggleFps);
         $('btn-fly').addEventListener('click', toggleFlyover);
         $('btn-sim').addEventListener('click', toggleAuto);
+        if ($('btn-flight')) $('btn-flight').addEventListener('click', function () { toggleFlight(); });
+        if ($('flight-land')) $('flight-land').addEventListener('click', function () { toggleFlight(false); });
+        function bindFlightHold(id, key) {
+            var el = $(id);
+            if (!el) return;
+            el.addEventListener('pointerdown', function (e) {
+                e.preventDefault();
+                flightPad[key] = true;
+            });
+            var off = function () { flightPad[key] = false; };
+            el.addEventListener('pointerup', off);
+            el.addEventListener('pointercancel', off);
+            el.addEventListener('lostpointercapture', off);
+            el.addEventListener('pointerleave', off);
+        }
+        bindFlightHold('flight-fwd', 'fwd');
+        bindFlightHold('flight-back', 'back');
+        bindFlightHold('flight-up', 'up');
+        bindFlightHold('flight-down', 'down');
+        // Secret tap/click unlock: 5 taps on the title or About reveals & toggles Flight.
+        (function () {
+            var taps = 0, lastTap = 0;
+            function onSecretTap() {
+                var now = performance.now();
+                taps = (now - lastTap < 2500) ? taps + 1 : 1;
+                lastTap = now;
+                if (taps >= 5) {
+                    taps = 0;
+                    if (!flightUnlocked) unlockFlight(false);
+                    else toggleFlight();
+                }
+            }
+            var brandTitle = document.querySelector('.brand .title');
+            if (brandTitle) brandTitle.addEventListener('click', onSecretTap);
+            if ($('tm-about')) $('tm-about').addEventListener('click', onSecretTap);
+        })();
         // Belt and braces: a press anywhere has already left the demo by the
         // time this fires, but a keyboard activating the focused button has
         // not — and the button is the one thing on that screen that says what
@@ -6653,6 +6806,7 @@
         syncQuality();
         syncView();
         syncSeat();
+        loadFlight();
 
         state = { save: S.load() };
         loadShuffle();
@@ -6705,7 +6859,11 @@
            so that the question "is there a modal in front of the course" has a
            true answer when it is finally asked. */
         booted = true;
-        maybeFly();
+        if (q.flight === '1' && state && state.world && !demo) {
+            toggleFlight(true);
+        } else {
+            maybeFly();
+        }
 
         // One measurement before the first frame, so the bag stands in the
         // right corner of the round rather than the frame after it.
@@ -6728,6 +6886,7 @@
         setQuality: setQuality,
         toggleQualityPad: toggleQualityPad,
         toggleFullscreen: toggleFullscreen,
+        toggleFlight: toggleFlight,
         openHowTo: openHowTo,
         get state() { return state; },
         /* The swing gate, for the inspector and for a driver that has to time

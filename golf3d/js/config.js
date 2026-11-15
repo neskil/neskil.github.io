@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.171.0';
+G3.VERSION = '1.172.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1120,9 +1120,10 @@ G3.CONFIG = {
         { name: 'Player 3', ball: 0x6cc4ff, css: '#6cc4ff' },
         { name: 'Player 4', ball: 0xffcf4a, css: '#ffcf4a' }
     ],
-    /* The secret. Set once the code has been typed, and never unset: the chip
-       that lets the bot play for you is hidden until someone has gone looking
-       for it, and then it stays found. */
+    /* The secret. Set once unlocked (backtick, ?flight=1, or 5x tap on the
+       title / About), and remembered in localStorage so the Flight chip stays
+       available in the menu. */
+    FLIGHT_KEY: 'loftLinks.flight',
     /* Shuffle — the course drawn for you rather than chosen. Three settings:
        whether a finished round offers a draw instead of the next course on the
        list (off unless asked for, so nobody is surprised by a surprise),
