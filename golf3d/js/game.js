@@ -4302,8 +4302,6 @@
 
     /* ── graphics and performance presets ───────────────────────────────── */
 
-    var QUALITY_ORDER = ['auto', 'low', 'medium', 'high', 'ultra'];
-
     function qualityWanted() {
         try {
             var q = localStorage.getItem(C.QUALITY_KEY);
@@ -4323,10 +4321,13 @@
         }
     }
 
-    function cycleQuality() {
-        var cur = R.quality || qualityWanted();
-        var next = QUALITY_ORDER[(QUALITY_ORDER.indexOf(cur) + 1) % QUALITY_ORDER.length];
-        setQuality(next);
+    function setLiveWorld(want) {
+        if (want === R.liveWanted) return;
+        R.setLive(want);
+        syncLive();
+        A.tick(0.4);
+        toast(R.liveWanted ? 'Live 3D worlds on — each tour hole sits in its world'
+                           : 'Live 3D worlds off — classic sky & backdrop');
     }
 
     function toggleQualityPad(open) {
@@ -4344,7 +4345,6 @@
         var tier = (C.QUALITY_TIERS && C.QUALITY_TIERS[q]) || { label: 'Auto', says: '' };
         if ($('quality-now')) $('quality-now').textContent = tier.label;
         if ($('btn-quality')) $('btn-quality').classList.toggle('on', q !== 'auto');
-        if ($('menu-quality')) $('menu-quality').textContent = 'Graphics: ' + tier.label;
         if ($('quality-says')) $('quality-says').textContent = tier.says;
         Array.prototype.forEach.call(document.querySelectorAll('#quality-seg button'), function (b) {
             var on = b.dataset.quality === q;
@@ -6367,13 +6367,7 @@
         });
         Array.prototype.forEach.call(document.querySelectorAll('#qp-live-seg button'), function (b) {
             b.addEventListener('click', function () {
-                var want = b.dataset.live === '1';
-                if (want !== R.liveWanted) {
-                    R.setLive(want);
-                    syncLive();
-                    A.tick(0.4);
-                    toast(want ? 'Live 3D worlds on' : 'Live 3D worlds off — classic sky & backdrop');
-                }
+                setLiveWorld(b.dataset.live === '1');
             });
         });
         Array.prototype.forEach.call(document.querySelectorAll('#qp-water-seg button'), function (b) {
@@ -6557,11 +6551,8 @@
         // It lives in ⚙ Settings; the tiny link under the World Tour grid it
         // used to be was too small to find or hit on a phone.
         if ($('btn-live')) $('btn-live').addEventListener('click', function () {
-            R.setLive(!R.liveWanted); syncLive();
-            toast(R.liveWanted ? 'Live worlds on — each tour hole sits in its world'
-                               : 'Live worlds off — kinder to the frame rate');
+            setLiveWorld(!R.liveWanted);
         });
-        if ($('menu-quality')) $('menu-quality').addEventListener('click', cycleQuality);
         // render.js gave up on the live world for this machine.
         window.addEventListener('g3-live-off', function (e) {
             toast(e.detail === 'crash'

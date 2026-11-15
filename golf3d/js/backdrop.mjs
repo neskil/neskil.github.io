@@ -53,7 +53,9 @@ function applyQuality() {
     worldBloom = T ? T.worldBloom !== false : (qualityTier !== 'low');
     shadowEvery = T ? (T.shadowEvery || 1) : 1;
     if (engine) {
-        if (engine.post && engine.post.setBloomEnabled) engine.post.setBloomEnabled(worldBloom);
+        if (engine.post && engine.post.bloom) {
+            engine.post.bloom.enabled = worldBloom && engine.rtType === THREE.HalfFloatType;
+        }
         engine._resize();
     }
 }

@@ -420,7 +420,7 @@
             /* One named case, so a regression says which chip rather than
                "something in the bar". These three are the chips that are on
                the moment the game boots. */
-            ['btn-fps', 'btn-fly', 'btn-water', 'btn-live'].forEach(function (id) {
+            ['btn-fps', 'btn-fly', 'btn-water', 'btn-live', 'btn-quality'].forEach(function (id) {
                 var el = doc.getElementById(id);
                 el.classList.add('on');
                 var cs = win.getComputedStyle(el);
@@ -429,6 +429,25 @@
                     ratio.toFixed(2) + ':1');
                 el.classList.remove('on');
             });
+            assert('no duplicate graphics toggle in the Worlds footer', !doc.getElementById('menu-quality'));
+            (function () {
+                var qPad = doc.getElementById('quality-pad');
+                assert('#quality-pad exists and starts hidden', !!qPad && qPad.hidden);
+                qPad.hidden = false;
+                var lowSeg = '';
+                var segs = qPad.querySelectorAll('.tn-seg button');
+                for (var s = 0; s < segs.length; s++) {
+                    var cs = win.getComputedStyle(segs[s]);
+                    var r = contrast(parseColor(cs.color), effectiveBg(segs[s]));
+                    if (r < CONTRAST) {
+                        lowSeg = (segs[s].textContent || '').trim() + ' ' + r.toFixed(2) + ':1';
+                        break;
+                    }
+                }
+                assert('every control inside #quality-pad clears ' + CONTRAST + ':1',
+                    segs.length > 0 && !lowSeg, lowSeg || (segs.length + ' segments'));
+                qPad.hidden = true;
+            })();
 
             /* The kinds row is built by drawKinds, so the sweep above finds an
                empty container where the chips are. One is stood up here by

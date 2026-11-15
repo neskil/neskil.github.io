@@ -5847,6 +5847,9 @@
                     var t = C.QUALITY_TIERS && C.QUALITY_TIERS[q];
                     return t && t.liveK > 0 && t.liveMaxW >= 720 && t.dprCap >= 1 && typeof t.says === 'string';
                 }));
+            assert('bot and demo settle wait after a tour curtain is positive',
+                typeof C.BOT_SETTLE === 'number' && C.BOT_SETTLE > 0 &&
+                typeof C.DEMO_HOLD === 'number' && C.DEMO_HOLD > 0);
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */
