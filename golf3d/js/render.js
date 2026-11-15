@@ -3116,6 +3116,10 @@
             m = R.wells[i];
             add(m.cx, m.cy, m.cz, m.rs, 0.8);
         }
+        if (R.dive && R.diveBH && R.diveBH.visible) {
+            var bhOpen = R.diveBH.material.uniforms.open.value;
+            add(R.diveBH.position.x, R.diveBH.position.y, R.diveBH.position.z, C.HOLE_R * 1.15 * bhOpen, 0.95 * bhOpen);
+        }
         return _lenses;
     }
 
@@ -5540,6 +5544,7 @@
         R.weather = weather;
         R.loopCam = null;
         R.dive = null;
+        R.diveBH = null;
         R.lap = null;
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
@@ -7020,30 +7025,18 @@
 
     /* ── down the cup ─────────────────────────────────────────────────────
 
-       Between two worlds of the tour the cup is the portal: the camera goes
-       from wherever the victory lap had got to, on round the cup and up over
-       it, and spirals down into it, ending just over the lip looking straight
-       down, where the whole picture is the dark inside of the hole and the
-       ball lying in it — which is what the wipe on to the next sky
-       (game.js → throughPortal) opens out of. The owner's idea.
+       Between two worlds of the tour the cup is the portal: the camera leaves
+       wherever the victory lap had got to, arcs up over the green, and plunges
+       straight down into the cup's black hole (passing below the rim while
+       the full-screen black hole portal closes round the view).
 
-       The spiral is round the cup: the angle carries on at the lap's own
-       pace (slowing to a stop as it lands) plus SWEEP more, the radius
-       closes from wherever it stood to nothing, and the height rises by RISE
-       over the first half and falls to the lip — each eased so it leaves at
-       the speed the lap was going and is falling fastest as it goes in. The
-       eye looks from the flag to just under the cup's floor, a hair past the
-       axis on the far side, so the last look is never exactly straight down
-       (where lookAt has no up) and the picture turns with the spiral rather
-       than flicking round at the end.
-
-       The flag is in the way, so it goes first — off like a rocket, on a
-       trail of sparks (the owner's idea, as the dive was), well before the
-       camera comes down where it stood. The pose holds at
-       the lip once it gets there, until the next hole is built, which
-       clears it (buildHole). */
+       Radius closes to zero by OVER_AT while height crests at PEAK_AT, so by
+       the time the camera tips over the crest it is directly above the cup and
+       drops straight down the hole's axis — matching the approach-arch-plunge
+       trajectory. A black hole shader disc opens in the cup below it, bending
+       the green inward as the camera falls. */
     var _dv = new THREE.Vector3(), _dt = new THREE.Vector3();
-    function startDive(hole, ball) {
+    function startDive(hole, ball, onPortal, onDone) {
         if (!R.ready || !hole || !R.camera) return false;
         var D = C.DIVE, cup = hole.cup, top = R.cupTop === undefined ? cup.y : R.cupTop;
         var p0 = R.camera.position.clone();
@@ -7054,21 +7047,30 @@
             dx = hole.tee.x - cup.x; dz = hole.tee.z - cup.z; r0 = 0;
         }
         var lap = R.lap;
-        /* Where it stops: as high over the lip as puts the wider half of the
-           picture just inside the cup's wall there, so the cup fills a
-           phone held either way. Not right down at the lip — the ball is
-           lying in the cup, and a camera at the rim is looking at nothing
-           but its dimples. */
-        var tanV = Math.tan((R.camera.fov || 52) * Math.PI / 360);
-        var tanW = Math.max(tanV, tanV * (R.camera.aspect || 1));
-        var end = Math.max(D.END_MIN, Math.min(D.END_MAX, D.LIP_FILL / tanW));
+        if (R.holeGroup && !R.diveBH) {
+            var bhSize = 2.2;
+            var bh = blackHole({
+                size: bhSize, hor: C.HOLE_R / bhSize, ring: (C.HOLE_R * 1.65) / bhSize,
+                feed: 1.5, shade: 0.92, beam: 0.45, gain: 1.7, open: 0.01, order: 2
+            });
+            bh.rotation.x = -Math.PI / 2;
+            bh.position.set(cup.x, top + 0.02, cup.z);
+            R.holeGroup.add(bh);
+            R.diveBH = bh;
+        }
         R.dive = {
             t: 0,
             p0: p0, t0: t0, top: top,
-            th0: Math.atan2(dx, dz), r0: r0, y0: p0.y, y1: top + end,
+            th0: Math.atan2(dx, dz), r0: r0,
+            y0: p0.y,
+            yPeak: Math.max(p0.y, top + 3.5) + D.RISE,
+            y1: top - D.INTO,
             dir: lap ? lap.dir : 1,
             w0: lap ? lap.dir * lap.w : 0,
-            pinY: R.pin ? R.pin.position.y : 0
+            pinY: R.pin ? R.pin.position.y : 0,
+            onPortal: onPortal || null,
+            onDone: onDone || null,
+            doneSent: false
         };
         R.lap = null;
         return true;
@@ -7076,21 +7078,37 @@
     function diveCamera(hole, dt) {
         var d = R.dive, D = C.DIVE, cup = hole.cup;
         d.t = Math.min(D.DUR, d.t + dt);
-        var u = d.t / D.DUR, s = u * u * (3 - u) / 2;
-        var e5 = u * u * u * (u * (u * 6 - 15) + 10);
-        var th = d.th0 + d.w0 * D.DUR * (u - u * u / 2) + d.dir * D.SWEEP * e5;
-        var r = d.r0 * (1 - s);
-        var hump = Math.sin(Math.PI * u);
-        var y = d.y0 + (d.y1 - d.y0) * s + D.RISE * hump * hump;
+        var u = d.t / D.DUR;
+        var ru = Math.min(1, u / D.OVER_AT);
+        var sr = ru * ru * ru * (ru * (ru * 6 - 15) + 10);
+        var r = d.r0 * (1 - sr);
+        var th = d.th0 + d.w0 * D.DUR * D.OVER_AT * (ru - ru * ru / 2) + d.dir * D.SWEEP * sr;
+        var y;
+        if (u <= D.PEAK_AT) {
+            var pu2 = u / D.PEAK_AT;
+            var sp = pu2 * pu2 * (3 - 2 * pu2);
+            y = d.y0 + (d.yPeak - d.y0) * sp;
+        } else {
+            var fu = (u - D.PEAK_AT) / (1 - D.PEAK_AT);
+            var sf = fu * fu * (0.35 + 0.65 * fu);
+            y = d.yPeak + (d.y1 - d.yPeak) * sf;
+        }
         var sx = Math.sin(th), cz = Math.cos(th);
         _dv.set(cup.x + sx * r, y, cup.z + cz * r);
-        var a = Math.min(1, s / 0.6), e = a * a * (3 - 2 * a);
-        _dt.set(cup.x - sx * 0.06, d.top - 1, cup.z - cz * 0.06);
+        var a = Math.min(1, u / 0.52), e = a * a * (3 - 2 * a);
+        _dt.set(cup.x - sx * 0.05, d.top - 1.5, cup.z - cz * 0.05);
         R.smooth.pos.copy(_dv);
         R.smooth.target.copy(d.t0).lerp(_dt, e);
         R.smooth.started = true;
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+        if (R.diveBH) {
+            var bhOpen = smooth01(u / 0.25);
+            var bhGulp = smooth01((u - 0.30) / 0.55);
+            R.diveBH.material.uniforms.open.value = Math.max(0.01, bhOpen);
+            R.diveBH.material.uniforms.gulp.value = bhGulp;
+            R.diveBH.visible = y > d.top + 0.22;
+        }
         if (R.pin && R.pin.visible) {
             /* Not drawn out but launched: a shudder on the pad, then away on
                a cubic, so it is crawling for a moment and gone the next,
@@ -7105,6 +7123,13 @@
             } else {
                 R.pin.visible = false;
             }
+        }
+        if (d.onPortal && u >= D.PORTAL_AT) {
+            d.onPortal(smooth01((u - D.PORTAL_AT) / (1 - D.PORTAL_AT)));
+        }
+        if (u >= 1 && !d.doneSent) {
+            d.doneSent = true;
+            if (d.onDone) d.onDone();
         }
         return true;
     }

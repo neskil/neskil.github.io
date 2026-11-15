@@ -669,6 +669,48 @@
                 assert('drawing the ride logs nothing and every program links',
                     errs.length === 0 && bad.length === 0, errs.concat(bad).join(' | ').slice(0, 400));
             })();
+
+            (function () {
+                drainErrors();
+                var h = G3.courseById('mini').holes[0];
+                var world = P.createWorld(h, h.tee, 0);
+                R.buildHole(h, 'dawn');
+                R.startLap(h);
+                R.frame(1 / 60, world, { yaw: 0, power: 0 });
+                var y0 = R.state.camera.position.y;
+                var portalSeen = false, portalMax = 0, doneCount = 0;
+                var maxY = -1e9, minY = 1e9, bhSeen = false, lensSeen = false;
+                var ok = R.startDive(h, world.ball, function (pk) {
+                    portalSeen = true;
+                    portalMax = Math.max(portalMax, pk);
+                    if (R.state.fx && G3.postfx.setPortal) G3.postfx.setPortal({ k: pk, open: 0 });
+                }, function () {
+                    doneCount++;
+                });
+                var steps = Math.ceil(G3.CONFIG.DIVE.DUR * 60) + 5;
+                for (var i = 0; i < steps; i++) {
+                    R.frame(1 / 60, world, { yaw: 0, power: 0 });
+                    var cy = R.state.camera.position.y;
+                    if (cy > maxY) maxY = cy;
+                    if (cy < minY) minY = cy;
+                    if (R.state.diveBH && R.state.diveBH.visible) bhSeen = true;
+                    if (R.state.fx && G3.postfx.state.uComp.lens.value.some(function (v) { return v.w > 0.3; })) lensSeen = true;
+                }
+                if (R.state.fx && G3.postfx.setPortal) {
+                    G3.postfx.setPortal({ k: 0.5, open: 1, inCol: 0xf0a868, outCol: 0x1b2a55 });
+                    R.frame(1 / 60, world, { yaw: 0, power: 0 });
+                    G3.postfx.setPortal(null);
+                }
+                assert('startDive starts and opens a black hole at the cup', ok && bhSeen);
+                assert('dive camera arches up over the green and plunges down into the hole',
+                    maxY > y0 && minY < R.state.cupTop - 0.5);
+                assert('dive drives the portal transition to completion in sync',
+                    portalSeen && portalMax > 0.99 && doneCount === 1);
+                if (R.state.fx) assert('cup black hole bends the green around it (postfx lens)', lensSeen);
+                var errs = drainErrors(), bad = unlinkedPrograms();
+                assert('black hole dive and portal shader render with no GL errors',
+                    errs.length === 0 && bad.length === 0, errs.concat(bad).join(' | ').slice(0, 400));
+            })();
         }
 
         /* The life on the long game (life.js) and the wind in the trees. A

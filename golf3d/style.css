@@ -4408,6 +4408,7 @@ body.lane-swing .swipe-hint {
     to   { clip-path: circle(75% at 50% 50%); opacity: 0; }
 }
 .portal-wipe.holding { opacity: 1; pointer-events: auto; }
+.portal-wipe.holding.gl-portal { background: transparent; }
 /* What it says while a world is building behind it (game.js → holdForWorld):
    an opaque plate, where you are going, and a bar that fills as the build
    goes (curtainBar) — or only says "working" until there is a build to follow. */

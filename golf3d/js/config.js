@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.170.0';
+G3.VERSION = '1.171.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1024,19 +1024,19 @@ G3.CONFIG = {
 
     /* Down the cup, between two worlds of the tour (render.js → startDive,
        game.js → throughPortal). The camera leaves the victory lap where it
-       has got to and spirals in — on round the cup at the lap's pace, up over
-       it and down into it — ending at the lip looking down, where everything
-       is the inside of the hole; the wipe on to the next world's sky starts
-       closing while it falls. */
+       has got to, arcs up over the green, and plunges straight down into the
+       cup's black hole; the full-screen black hole portal closes around the
+       picture as it enters the rim. */
     DIVE: {
-        DUR: 3.2,           // lap to rim; the wipe closes over the last 0.85 s (game.js WIPE_CLOSE)
-        SWEEP: 1.9,         // how much further round the cup it goes on the way in (radians)
-        RISE: 2.6,          // how far over its starting height the arc tops out
-        LIP_FILL: 0.36,     // it stops where the picture's wider half reaches this far across the lip…
-        END_MIN: 0.3,       // …but no lower over it than this…
-        END_MAX: 1.2,       // …and no higher
+        DUR: 3.0,           // lap to deep inside the cup
+        OVER_AT: 0.62,      // share of DUR when radius closes to 0 (directly over the cup)
+        PEAK_AT: 0.46,      // share of DUR when height crests before plunging straight down
+        RISE: 3.2,          // how high above max(y0, top + 3.5) the arc crests
+        INTO: 1.35,         // how far below the cup rim (top) the camera plunges into the hole
+        SWEEP: 0.85,        // gentle turn into the approach line (radians)
+        PORTAL_AT: 0.64,    // share of DUR when the black hole portal begins closing round the view
         PIN_LIFT: 30,       // the flag launches this far straight up…
-        PIN_BY: 0.4,        // …in this share of the dive, then is gone
+        PIN_BY: 0.36,       // …in this share of the dive, then is gone
         PREPARE_AFTER: 1.2, // the next world starts building this long after the sink, if it has not already…
         PREPARE_AHEAD: 6    // …which it does once a hole has been open this long, at the first quiet moment
     },
