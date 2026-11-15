@@ -554,6 +554,42 @@
                     frameErrs.join(' | ').slice(0, 400));
             }
 
+            /* Auto follows the frame rate (render.js → stepGovernor). v1.169's
+               governor could not get past its first drop on a phone and sat at
+               its sharpest and slowest; these hold it to moving both ways. */
+            section('AUTO FOLLOWS THE FRAME RATE');
+            R.setQuality('auto');
+            R.setAutoStep(1);
+            var steps = G3.CONFIG.QUALITY_AUTO.length, w;
+            assert('auto has a ladder of at least four rungs', steps >= 4);
+            R.govFeed(400, 14);
+            assert('a steady 70 fps steps up to the sharpest rung', R.autoStep === 0, 'rung ' + R.autoStep);
+            var dprTop = R.state.renderer.getPixelRatio();
+            // A machine whose frame is pixels: each rung down is quicker.
+            for (w = 0; w < 40; w++) R.govFeed(30, 48 - 5 * R.autoStep);
+            assert('a fill-bound 21 fps walks all the way down the ladder', R.autoStep === steps - 1, 'rung ' + R.autoStep);
+            assert('the bottom rung lowers the pixel ratio', R.state.renderer.getPixelRatio() <= 1.0001, R.state.renderer.getPixelRatio() + ' (top ' + dprTop + ')');
+            R.govFeed(400, 12);
+            assert('fast frames bring it back up', R.autoStep < steps - 2, 'rung ' + R.autoStep);
+            R.govRelease();
+            R.setAutoStep(1);
+            R.govFeed(25, 30);
+            assert('a slow frame takes a rung', R.autoStep === 2, 'rung ' + R.autoStep);
+            R.govFeed(60, 30);   // the resize's settle, then one window
+            assert('a drop that did not speed the frame up is undone', R.autoStep === 1, 'rung ' + R.autoStep);
+            R.govFeed(250, 30);
+            assert('…and not tried again straight away', R.autoStep === 1, 'rung ' + R.autoStep);
+            R.govRelease();
+            R.setAutoStep(1);
+            R.govFeed(13, 60);
+            assert('a frame under 22 fps takes two rungs at once', R.autoStep === 3, 'rung ' + R.autoStep);
+            R.govRelease();
+            R.setQuality('high');
+            R.govFeed(200, 60);
+            assert('a named preset is left alone', R.autoStep === null);
+            R.govRelease();
+            R.setQuality('auto');
+
             section('CAMERA SEATS AND SIDE-ON VIEW');
             var ranSeats = attempt('view seats move the camera', function () {
                 var world = P.createWorld(found.hole,

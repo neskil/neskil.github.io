@@ -79,12 +79,14 @@
     function dprFor() {
         var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
         var cap = T && T.dprCap ? T.dprCap : 2;
+        if (R.quality === 'auto' && R.autoStep !== undefined && C.QUALITY_AUTO) cap = autoRung().dpr || cap;
         return Math.min(window.devicePixelRatio || 1, cap);
     }
 
     function shellCountFor() {
         var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
         if (T && R.quality !== 'auto' && T.shells) return T.shells;
+        if (R.quality === 'auto' && R.autoStep !== undefined && C.QUALITY_AUTO) return Math.min(SHELL_LAYERS, autoRung().shells || SHELL_LAYERS);
         return SHELL_LAYERS;
     }
 
@@ -5868,124 +5870,192 @@
     // backdrop.mjs is a module and arrives after the first hole is built.
     window.addEventListener('g3-backdrop', function () {
         if (G3.backdrop && G3.backdrop.setQuality) G3.backdrop.setQuality(R.quality);
+        if (R.quality === 'auto') syncLiveScale();
         if (R.place && G3.backdrop) G3.backdrop.want(R.place.world);
     });
 
-    /* Portals-inspired resolution governor (vendor/portals/src/core/quality.js).
-       Instead of a naive wall-clock frame counter — which measured right across
-       `prepareAhead` background shader compiles and slashed the world to a
-       blocky 0.33 without ever checking whether the drop helped — this collects
-       90 frames, trims the slowest 10% hitches, pauses while a background world
-       is building, and reverts a resolution drop if the next window did not
-       speed up by at least 7% (napping for 300s so a CPU-bound or 30Hz-capped
-       device stays crisp). Named quality presets pin their resolution outright. */
+    /* Auto: a ladder the frame rate climbs and descends (CONFIG.QUALITY_AUTO).
+
+       Each rung is a world resolution, a cap on this canvas's pixel ratio,
+       the world's bloom and the grass shells. Frame time is read in windows
+       of about three quarters of a second (the slowest tenth trimmed, so a
+       one-off hitch is not a verdict): under ~44 fps steps down a rung, a
+       steady ~57 fps for two windows steps back up. The first version of
+       this (v1.169) could only fall from a resolution higher than before to
+       a floor of 0.58, judged 90 frames at a time after three and a half
+       seconds' wait, and napped five minutes after any drop that did not
+       help — so on a phone it mostly sat at its sharpest and slowest. Now:
+
+       - a drop that did not speed the frame up by 7% is undone (the
+         bottleneck is not pixels; sharper is free) and drops wait 20 s;
+       - a rise that has to be taken back within two windows holds rises
+         off for 30 s, doubling to two minutes, so it does not see-saw;
+       - a frame far too slow (under ~22 fps) takes two rungs at once;
+       - nothing is judged while the next world is building in the
+         background, nor for a moment after a rung changes (the resize).
+
+       It runs on every hole, live world or not: the pixel ratio and the
+       grass are this canvas's, and on a phone they are most of the cost.
+       Named presets pin their rung outright and the governor stands aside. */
     var gov = {
         samples: [],
         lastNow: 0,
-        settle: 3.5,
-        lastDrop: null,
-        napUntil: 0,
+        settle: 3,
+        lastDrop: null,     // { from, ms } — undone if the next window did not improve
+        lastRise: 0,        // windows since the last rise (0 = none pending)
+        dropHold: 0,        // performance.now() before which no drop
+        riseHold: 0,        // …and no rise
+        riseBack: 30000,    // how long a taken-back rise holds rises off
         goodWins: 0,
-        badWins: 0
+        badWins: 0,
+        ms: 0
     };
 
     function govReset(settleSecs) {
         gov.samples.length = 0;
         gov.lastNow = 0;
-        gov.settle = settleSecs === undefined ? 3.5 : settleSecs;
+        gov.settle = settleSecs === undefined ? 3 : settleSecs;
         gov.lastDrop = null;
+        gov.lastRise = 0;
         gov.goodWins = 0;
         gov.badWins = 0;
     }
 
+    function autoSteps() { return C.QUALITY_AUTO || [{ k: 0.8, maxW: 1440, dpr: 2, bloom: true, shells: SHELL_LAYERS }]; }
+
+    function autoRung() {
+        var S = autoSteps();
+        return S[Math.max(0, Math.min(S.length - 1, R.autoStep || 0))];
+    }
+
+    // Puts the current rung (or the named preset) into effect.
     function syncLiveScale() {
         R.liveCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
         var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
         if (T && R.quality !== 'auto') {
             R.liveK = R.liveKMax = T.liveK;
             R.liveMaxW = T.liveMaxW || 1600;
-        } else {
-            R.liveKMax = R.liveCoarse ? 0.78 : 0.88;
-            if (R.liveK === undefined || R.liveK < 0.58 || R.liveK > R.liveKMax) R.liveK = R.liveKMax;
-            R.liveMaxW = R.liveCoarse ? 1280 : 1600;
+            return;
         }
+        if (R.autoStep === undefined) R.autoStep = R.liveCoarse ? 1 : 0;
+        var s = autoRung();
+        R.liveK = R.liveKMax = s.k;
+        // A phone's world is narrower than a desktop's at the same rung.
+        R.liveMaxW = Math.round(s.maxW * (R.liveCoarse ? 0.85 : 1));
+        if (G3.backdrop && G3.backdrop.setAutoBloom) G3.backdrop.setAutoBloom(s.bloom !== false);
+    }
+
+    function setAutoStep(n) {
+        var S = autoSteps();
+        n = Math.max(0, Math.min(S.length - 1, n));
+        if (n === R.autoStep) return false;
+        var dprWas = dprFor();
+        R.autoStep = n;
+        syncLiveScale();
+        syncShellLayers();
+        if (R.ready && dprFor() !== dprWas) resize();
+        gov.samples.length = 0;
+        gov.settle = Math.max(gov.settle, 0.8);
+        return true;
     }
 
     function setQuality(q) {
         if (!C.QUALITY_TIERS || !C.QUALITY_TIERS[q]) q = 'auto';
         R.quality = q;
-        gov.napUntil = 0;
+        gov.dropHold = gov.riseHold = 0;
+        gov.riseBack = 30000;
         R.liveK = undefined;
+        R.autoStep = undefined;
         syncLiveScale();
         govReset(2.0);
         if (G3.postfx && G3.postfx.setQuality) G3.postfx.setQuality(q);
         if (G3.backdrop && G3.backdrop.setQuality) G3.backdrop.setQuality(q);
+        syncLiveScale();
         syncShellLayers();
         if (R.ready) resize();
         return R.quality;
     }
 
-    function stepGovernor(B) {
-        var now = performance.now();
-        var rawDt = gov.lastNow ? (now - gov.lastNow) / 1000 : 0.016;
+    var GOV_DOWN_MS = 22.5, GOV_PANIC_MS = 45, GOV_UP_MS = 17.6, GOV_WIN_S = 0.75;
+
+    /* `at` is a test's own clock (govFeed, below); while a test holds the
+       governor, the real frames leave it alone. */
+    function stepGovernor(B, live, at) {
+        if (at === undefined && R.govTest) return false;
+        var now = at !== undefined ? at : performance.now();
+        var rawDt = gov.lastNow ? (now - gov.lastNow) / 1000 : 0;
         gov.lastNow = now;
-        if (R.liveOverride || R.quality !== 'auto') return false;
+        if (R.quality !== 'auto' || (live && R.liveOverride)) return false;
         // Never judge steady-state frame rate while a next world is compiling in the background.
         if (B && B.building) {
             gov.samples.length = 0;
-            gov.settle = Math.max(gov.settle, 1.5);
+            gov.settle = Math.max(gov.settle, 1);
             return false;
         }
-        // Ignore tab switches or single-frame stalls (> 250ms).
-        if (rawDt <= 0 || rawDt > 0.25) return false;
-        if (gov.settle > 0) {
-            gov.settle -= rawDt;
-            return false;
-        }
-        gov.samples.push(rawDt * 1000);
-        if (gov.samples.length < 90) return false;
+        // A tab coming back is not a frame. A long frame is counted, capped
+        // (a lone hitch is trimmed off the window below), so a machine that
+        // only manages a few frames a second is still judged and let down.
+        if (rawDt <= 0 || rawDt > 1) return false;
+        if (gov.settle > 0) { gov.settle -= Math.min(rawDt, 0.1); return false; }
+        gov.samples.push(Math.min(rawDt, 0.25) * 1000);
+        var span = 0, i;
+        for (i = 0; i < gov.samples.length; i++) span += gov.samples[i];
+        if (span < GOV_WIN_S * 1000 || gov.samples.length < 6) return false;
         var sorted = gov.samples.slice().sort(function (a, b) { return a - b; });
         gov.samples.length = 0;
-        var keep = Math.max(1, Math.floor(sorted.length * 0.9));
-        var sum = 0, i;
+        var keep = Math.max(1, Math.floor(sorted.length * 0.9)), sum = 0;
         for (i = 0; i < keep; i++) sum += sorted[i];
-        var ms = sum / keep;
+        var ms = gov.ms = sum / keep;
+        var top = autoSteps().length - 1;
 
-        // Did the last resolution drop actually improve frame time by >= 7%?
-        // If not, the bottleneck is not fragment fill rate — revert it and nap!
+        // Did the last drop help? If not, pixels are not what is slow: undo it.
         if (gov.lastDrop) {
             var prev = gov.lastDrop;
             gov.lastDrop = null;
             if (ms >= prev.ms * 0.93) {
-                R.liveK = prev.fromK;
-                gov.napUntil = now + 300000;
+                setAutoStep(prev.from);
+                gov.dropHold = now + 20000;
                 return false;
             }
         }
+        // A rise that is too much shows up in the next two windows.
+        if (gov.lastRise) {
+            if (ms > GOV_DOWN_MS) {
+                gov.lastRise = 0;
+                setAutoStep(R.autoStep + 1);
+                gov.riseHold = now + gov.riseBack;
+                gov.riseBack = Math.min(120000, gov.riseBack * 2);
+                gov.goodWins = 0;
+                return false;
+            }
+            if (++gov.lastRise > 2) gov.lastRise = 0;
+        }
 
-        var floorK = 0.58;
-        if (ms > 35.7 && R.liveK > floorK + 0.01 && now >= gov.napUntil) {
-            gov.lastDrop = { fromK: R.liveK, ms: ms };
-            R.liveK = Math.max(floorK, Math.round(R.liveK * 0.85 * 100) / 100);
+        if (ms > GOV_DOWN_MS) {
             gov.goodWins = 0;
-            gov.badWins = 0;
-        } else if (ms > 83) {
-            gov.badWins++;
-            gov.goodWins = 0;
+            if (R.autoStep < top && now >= gov.dropHold) {
+                var from = R.autoStep;
+                setAutoStep(R.autoStep + (ms > GOV_PANIC_MS ? 2 : 1));
+                gov.lastDrop = { from: from, ms: ms };
+                gov.badWins = 0;
+            } else if (live && ms > 83 && R.autoStep >= top) {
+                gov.badWins++;
+            }
         } else {
             gov.badWins = 0;
-            if (ms < 20.5 && R.liveK < R.liveKMax) {
-                gov.goodWins++;
-                if (gov.goodWins >= 2) {
-                    R.liveK = Math.min(R.liveKMax, Math.round((R.liveK / 0.85) * 100) / 100);
+            if (ms < GOV_UP_MS && R.autoStep > 0 && now >= gov.riseHold) {
+                if (++gov.goodWins >= 2) {
                     gov.goodWins = 0;
+                    setAutoStep(R.autoStep - 1);
+                    gov.lastRise = 1;
                 }
             } else {
                 gov.goodWins = 0;
             }
         }
-        if (gov.badWins >= 3 && R.liveOverride === undefined) {
+        if (live && gov.badWins >= 3 && R.liveOverride === undefined) {
             gov.badWins = 0;
+            // This visit only — see LIVE_KEY.
             R.liveSession = false;
             setPlace(R.hole);
             window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
@@ -5993,6 +6063,15 @@
         }
         return false;
     }
+
+    // Synthetic frames for shader-tests.html: `n` frames of `ms` each.
+    function govFeed(n, ms, live) {
+        if (!R.govTest) { R.govTest = true; govReset(0); gov.lastNow = 1000; gov.dropHold = gov.riseHold = 0; }
+        var t = gov.lastNow;
+        for (var i = 0; i < n; i++) { t += ms; stepGovernor(null, !!live, t); }
+        return R.autoStep;
+    }
+    function govRelease() { R.govTest = false; govReset(1); gov.dropHold = gov.riseHold = 0; gov.riseBack = 30000; }
 
     function stepPlace(dt, world) {
         var B = G3.backdrop, live = false;
@@ -6043,8 +6122,8 @@
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
+        if (stepGovernor(B, live)) return;
         if (live) {
-            if (stepGovernor(B)) return;
             if (!R.plate) addWorldPlate(B);
             R.bgTex.needsUpdate = true;
             var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
@@ -7807,6 +7886,11 @@
         setWaterQuality: setWaterQuality,
         setQuality: setQuality,
         get quality() { return R.quality; },
+        // Auto's rung, 0 = sharpest (CONFIG.QUALITY_AUTO); null under a named preset.
+        get autoStep() { return R.quality === 'auto' && R.autoStep !== undefined ? R.autoStep : null; },
+        setAutoStep: setAutoStep,
+        govFeed: govFeed,
+        govRelease: govRelease,
         setLive: setLive,
         get liveWanted() { return liveWanted(); },
         get live() { return !!R.live; },
