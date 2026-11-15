@@ -41,8 +41,8 @@
        length and nothing else; a hole is wide as well as long. Which side is
        not a coin toss — it is whichever one the course itself is on, so the
        sweep passes over the hole rather than out beyond its edge. */
-    function keyframes(hole, ball, seat) {
-        var F = C.FLY;
+    function keyframes(hole, ball, seat, F) {
+        F = F || C.FLY;
         var cup = hole.cup;
         var dx = cup.x - ball.x, dz = cup.z - ball.z;
         var d = Math.hypot(dx, dz);
@@ -125,8 +125,9 @@
        chord length, softened by a power — straight chord length lets the one
        long leg swallow the run and makes the short ones flick past, and a flat
        share does the opposite. */
-    function spend(keys, dur) {
-        var F = C.FLY, w = [], total = 0, i, len;
+    function spend(keys, dur, F) {
+        F = F || C.FLY;
+        var w = [], total = 0, i, len;
         for (i = 0; i < keys.length - 1; i++) {
             len = Math.hypot(keys[i + 1].p.x - keys[i].p.x,
                              keys[i + 1].p.y - keys[i].p.y,
@@ -137,13 +138,13 @@
         }
         keys[0].t = 0;
         for (i = 0; i < w.length; i++) keys[i + 1].t = keys[i].t + dur * w[i] / total;
-        // Floating point, four times over: the last key must land exactly on
+        // Floating point, a key at a time: the last key must land exactly on
         // the duration or the arrival is a hair short of the seat.
         keys[keys.length - 1].t = dur;
     }
 
-    function seconds(d) {
-        var F = C.FLY;
+    function seconds(d, F) {
+        F = F || C.FLY;
         return clamp(F.BASE_SECONDS + d * F.PER_UNIT, F.MIN_SECONDS, F.MAX_SECONDS);
     }
 
@@ -270,13 +271,139 @@
        exactly what render.js's seat maths produces. Handing it in rather than
        working it out here is the point — this file has no opinion about which
        seat the player has chosen, and the path ends wherever that seat is. */
-    function plan(hole, ball, seat) {
+    function plan(hole, ball, seat, opts) {
         var d = Math.hypot(hole.cup.x - ball.x, hole.cup.z - ball.z);
-        var keys = keyframes(hole, ball, seat);
-        var dur = seconds(d);
-        spend(keys, dur);
+        var F = knobs(opts && opts.tour);
+        var keys = null, dur;
+        if (opts && opts.line) {
+            keys = worldLine(hole, ball, seat, opts.line, F);
+            if (keys) dur = clamp(F.LINE_BASE + pathLength(keys) * F.LINE_PER_UNIT,
+                                  F.LINE_MIN, F.LINE_MAX);
+        }
+        if (!keys) {
+            keys = keyframes(hole, ball, seat, F);
+            dur = seconds(d, F);
+        }
+        spend(keys, dur, F);
         lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
-        return { keys: keys, dur: dur, out: pose() };
+        return { keys: keys, dur: dur, out: pose(), line: keys.length > 4 };
+    }
+
+    /* The tour's own numbers: FLY with FLY.TOUR laid over it. A world is the
+       thing being shown off on the tour (the owner: "showcase the cool portal
+       maps"), so its sweep is slower, opens further out and higher, and leans
+       further off the line — more of the world in the picture for longer. */
+    var tourKnobs = null;
+    function knobs(tour) {
+        var F = C.FLY;
+        if (!tour || !F.TOUR) return F;
+        if (!tourKnobs || tourKnobs.from !== F.TOUR) {
+            tourKnobs = {};
+            Object.keys(F).forEach(function (k) { tourKnobs[k] = F[k]; });
+            Object.keys(F.TOUR).forEach(function (k) { tourKnobs[k] = F.TOUR[k]; });
+            tourKnobs.from = F.TOUR;
+        }
+        return tourKnobs;
+    }
+
+    function pathLength(keys) {
+        var i, len = 0;
+        for (i = 0; i < keys.length - 1; i++) {
+            len += Math.hypot(keys[i + 1].p.x - keys[i].p.x, keys[i + 1].p.y - keys[i].p.y,
+                              keys[i + 1].p.z - keys[i].p.z);
+        }
+        return len;
+    }
+
+    /* ── the world's own line ───────────────────────────────────────────
+
+       Every world in Portals is flown through along a line its makers drew
+       (vendor/portals → makePath), kept clear of the world's things — and a
+       tour hole is laid out on that line: the seat on the tee stands on it,
+       and the hole runs the way it runs (backdrop.mjs → fitAt). So the line
+       carries on past the green, out into the world, and that is where the
+       tour's intro starts: LINE_PAST units down it beyond the cup, flown back
+       along it — through the world as its makers meant it to be seen — over
+       the green and down the hole, until it is LINE_STOP of the way back to
+       the tee, where it leaves the line for the same approach and seat the
+       ordinary sweep ends on.
+
+       `line` is backdrop.mjs's: the line's points in golf units. It is only
+       used if it actually passes over this hole — near the cup and near the
+       tee, both within LINE_NEAR — which a world whose hole was placed by
+       hand rather than on its line need not do; then this returns null and
+       the tour gets the ordinary sweep on its own numbers.
+
+       Each key looks LOOK_AHEAD units further along the way it is flying and
+       a little down, which is what the world's own camera does; over the
+       last of the line the look swings on to the ball. */
+    function worldLine(hole, ball, seat, line, F) {
+        var pts = line.pts, n = pts ? pts.length : 0;
+        if (n < 4) return null;
+        var cup = hole.cup, i;
+        var dx = cup.x - ball.x, dz = cup.z - ball.z, d = Math.hypot(dx, dz);
+        if (d < 4) return null;
+        var ux = dx / d, uz = dz / d;
+        var ic = nearest(pts, cup.x, cup.z), it = nearest(pts, ball.x, ball.z);
+        if (flat(pts[ic], cup) > F.LINE_NEAR || flat(pts[it], ball) > F.LINE_NEAR || ic === it) return null;
+        var step = ic > it ? 1 : -1;            // the way the line runs past the cup
+
+        // Out along it beyond the cup, as far as LINE_PAST or the end of it.
+        var j = ic, run = 0;
+        while (j + step >= 0 && j + step < n && run < F.LINE_PAST) {
+            run += seg(pts[j], pts[j + step]);
+            j += step;
+        }
+        if (run < F.LINE_PAST * 0.4) return null;
+
+        /* Back along it to the hole, a key every KEY_STEP units, as long as
+           it is still LINE_STOP of the way down the hole from the tee. */
+        var chosen = [j], gap = 0;
+        for (i = j - step; i !== it; i -= step) {
+            gap += seg(pts[i + step], pts[i]);
+            if (alongOf(pts[i], ball, ux, uz) < d * F.LINE_STOP) break;
+            if (gap >= F.KEY_STEP) { chosen.push(i); gap = 0; }
+        }
+        if (chosen.length < 2) return null;
+
+        var keys = [], k, a, b, look = F.LOOK_AHEAD, w, lx, ly, lz, q;
+        var bx = ball.x, by = ball.y, bz = ball.z;
+        for (k = 0; k < chosen.length; k++) {
+            a = pts[chosen[k]];
+            q = ahead(pts, chosen[k], -step, look);
+            lx = q[0]; ly = q[1] - F.LOOK_DROP; lz = q[2];
+            // The last third of the line turns the look on to the ball.
+            w = clamp((k - chosen.length * 0.6) / (chosen.length * 0.4), 0, 1);
+            w = w * w * (3 - 2 * w);
+            keys.push(key(a[0], a[1], a[2],
+                lx + (bx - lx) * w, ly + (by + 0.8 - ly) * w, lz + (bz - lz) * w));
+        }
+
+        // The approach and the seat, exactly as the ordinary sweep has them.
+        var tail = keyframes(hole, ball, seat, F);
+        keys.push(tail[2], tail[3]);
+        return keys;
+    }
+
+    function flat(p, o) { return Math.hypot(p[0] - o.x, p[2] - o.z); }
+    function seg(a, b) { return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]); }
+    function alongOf(p, o, ux, uz) { return (p[0] - o.x) * ux + (p[2] - o.z) * uz; }
+    function nearest(pts, x, z) {
+        var i, best = Infinity, bi = 0, dd;
+        for (i = 0; i < pts.length; i++) {
+            dd = (pts[i][0] - x) * (pts[i][0] - x) + (pts[i][2] - z) * (pts[i][2] - z);
+            if (dd < best) { best = dd; bi = i; }
+        }
+        return bi;
+    }
+    // The point `dist` units further along the line from `i`, going `dir`.
+    function ahead(pts, i, dir, dist) {
+        var run = 0, j = i;
+        while (j + dir >= 0 && j + dir < pts.length && run < dist) {
+            run += seg(pts[j], pts[j + dir]);
+            j += dir;
+        }
+        return pts[j];
     }
 
     /* The seat can move under a sweep that is still running — the player has
@@ -301,7 +428,7 @@
         at: at,
         // For the tests, which have a legitimate interest in the shape of the
         // path and none at all in the arithmetic that draws it.
-        seconds: seconds
+        seconds: function (d, tour) { return seconds(d, knobs(tour)); }
     };
 
 })(window.G3);

@@ -5565,6 +5565,57 @@
                     approx(end.px, seat.px, 1e-9) && approx(end.pz, seat.pz, 1e-9));
             })();
 
+            /* ── the tour ── */
+
+            /* A world is the thing being shown on the tour, so its sweep is
+               the slower, wider one; and where the world's own flight line
+               runs over the hole, the intro flies that line in from beyond the
+               green. Both still land exactly on the seat. */
+            (function () {
+                var T = F.TOUR, b = teeBall(flat), seat = seatBehind(flat, b);
+                var tour = G3.flyover.plan(flat, b, seat, { tour: true });
+                assert('the tour sweep runs longer than the ordinary one',
+                    tour.dur > plan.dur + 1, tour.dur.toFixed(2) + 's vs ' + plan.dur.toFixed(2) + 's');
+                assert('and opens higher', tour.keys[0].p.y > plan.keys[0].p.y + 2);
+                var end = poseAt(tour, tour.dur);
+                assert('and lands exactly on the seat',
+                    ['px', 'py', 'pz', 'tx', 'ty', 'tz'].every(function (k) { return approx(end[k], seat[k], 1e-9); }));
+
+                // A world's line: straight down the hole five units up, from
+                // well behind the tee to well past the cup, as backdrop.line
+                // hands it over.
+                var pts = [], z;
+                for (z = -80; z <= 120; z += 1) pts.push([6 + Math.sin(z / 9) * 2, 5, z]);
+                var lp = G3.flyover.plan(flat, b, seat, { tour: true, line: { pts: pts, u: 0.4 } });
+                assert('a line over the hole is flown', lp.line && lp.keys.length > 4, lp.keys.length + ' keys');
+                var o = poseAt(lp, 0);
+                assert('from out along it beyond the cup',
+                    along(o.px, o.pz) > d + T.LINE_PAST * 0.8, along(o.px, o.pz).toFixed(1));
+                assert('on the line itself', Math.abs(o.py - 5) < 0.01 && Math.abs(o.px - (6 + Math.sin(o.pz / 9) * 2)) < 0.01);
+                assert('looking back along it the way it flies', along(o.tx, o.tz) < along(o.px, o.pz));
+                assert('for a run inside its own bounds',
+                    lp.dur >= T.LINE_MIN - 1e-9 && lp.dur <= T.LINE_MAX + 1e-9, lp.dur.toFixed(2) + 's');
+                var le = poseAt(lp, lp.dur);
+                assert('and it too lands exactly on the seat',
+                    ['px', 'py', 'pz', 'tx', 'ty', 'tz'].every(function (k) { return approx(le[k], seat[k], 1e-9); }));
+                var i, s, prev = Infinity, worst = 0, pose, low = Infinity;
+                for (i = 0; i <= 160; i++) {
+                    pose = G3.flyover.at(lp, lp.dur * i / 160);
+                    s = along(pose.px, pose.pz);
+                    if (s - prev > worst) worst = s - prev;
+                    prev = s;
+                    if (i / 160 <= 1 - F.SETTLE) low = Math.min(low, pose.py - groundAt(flat, pose.px, pose.pz, b.y));
+                }
+                assert('flying the line home without doubling back', worst < 0.35, worst.toFixed(3));
+                assert('and over the ground rather than through it', low > 1.2, low.toFixed(2));
+
+                // A line that never comes near this hole is not its line.
+                var off = pts.map(function (p) { return [p[0] + 40, p[1], p[2]]; });
+                var fp = G3.flyover.plan(flat, b, seat, { tour: true, line: { pts: off, u: 0.4 } });
+                assert('a line elsewhere in the world falls back to the tour sweep',
+                    !fp.line && fp.keys.length === 4 && approx(fp.dur, tour.dur, 1e-9));
+            })();
+
             // The pose is the plan's own scratch, and every frame of every
             // sweep reads it. Handing back a fresh object instead would be
             // sixty allocations a second for the length of the intro.
