@@ -853,9 +853,7 @@
             <div class="worlds-panel" id="menu-worlds-panel" role="tabpanel" hidden>
                 <p class="sh-label" id="menu-worlds-label">Pick a hole</p>
                 <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
-                <p class="tour-credit">
-                    <button type="button" class="linkish" id="menu-quality" title="Cycle graphics quality preset">Graphics: Auto</button>
-                    <button type="button" class="linkish" id="menu-draw-settings">What Surprise me draws from</button></p>
+                <p class="tour-credit"><button type="button" class="linkish" id="menu-draw-settings">What Surprise me draws from</button></p>
             </div>
             <!-- One card's page: what it is, how you have done, its holes
                  and the button that plays it. game.js → drawDetail. -->
@@ -961,6 +959,7 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
+<<<<<<< HEAD
     <script src="js/config.js?v=1.171.0"></script>
     <script src="js/themes.js?v=1.171.0"></script>
     <script src="js/physics.js?v=1.171.0"></script>
@@ -990,6 +989,37 @@
     <script src="js/minimap.js?v=1.171.0"></script>
     <script src="js/debug.js?v=1.171.0"></script>
     <script src="js/game.js?v=1.171.0"></script>
+=======
+    <script src="js/config.js?v=1.170.1"></script>
+    <script src="js/themes.js?v=1.170.1"></script>
+    <script src="js/physics.js?v=1.170.1"></script>
+    <script src="js/courses.js?v=1.170.1"></script>
+    <script src="js/tour-ground.js?v=1.170.1"></script>
+    <script src="js/portals.js?v=1.170.1"></script>
+    <script src="js/audit.js?v=1.170.1"></script>
+    <script src="js/custom.js?v=1.170.1"></script>
+    <script src="js/scoring.js?v=1.170.1"></script>
+    <script src="js/swing.js?v=1.170.1"></script>
+    <script src="js/school.js?v=1.170.1"></script>
+    <script src="js/audio.js?v=1.170.1"></script>
+    <script src="js/music.js?v=1.170.1"></script>
+    <script src="js/bag.js?v=1.170.1"></script>
+    <script src="js/textures.js?v=1.170.1"></script>
+    <script src="js/shaders.js?v=1.170.1"></script>
+    <script src="js/postfx.js?v=1.170.1"></script>
+    <script src="js/weather.js?v=1.170.1"></script>
+    <script src="js/flyover.js?v=1.170.1"></script>
+    <script src="js/replay.js?v=1.170.1"></script>
+    <script src="js/bot.js?v=1.170.1"></script>
+    <script src="js/models.js?v=1.170.1"></script>
+    <script src="js/life.js?v=1.170.1"></script>
+    <script src="js/worlds.js?v=1.170.1"></script>
+    <script src="js/sandfx.js?v=1.170.1"></script>
+    <script src="js/render.js?v=1.170.1"></script>
+    <script src="js/minimap.js?v=1.170.1"></script>
+    <script src="js/debug.js?v=1.170.1"></script>
+    <script src="js/game.js?v=1.170.1"></script>
+>>>>>>> golf_game_sanity_check
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as

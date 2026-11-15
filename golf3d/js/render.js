@@ -5915,6 +5915,7 @@
         if (!C.QUALITY_TIERS || !C.QUALITY_TIERS[q]) q = 'auto';
         R.quality = q;
         gov.napUntil = 0;
+        R.liveK = undefined;
         syncLiveScale();
         govReset(2.0);
         if (G3.postfx && G3.postfx.setQuality) G3.postfx.setQuality(q);
@@ -6189,9 +6190,10 @@
                 '            vec4 k = keep[i];',
                 '            if (at.x > k.x && at.x < k.z && at.z > k.y && at.z < k.w) ours = true;',
                 '        }',
-                // A room pillar or arch that passes right in front of the lens
-                // on a table-in-a-room hole stays behind the table rather than
-                // slicing a dark bar across the ball and club.
+                // `clear` (c.near in stepPlace/backdrop) drops world geometry between the
+                // camera and the ball; on non-sculpted holes, ground scatter just
+                // beyond c.near (such as Spore Rain's leaves around the tee) still
+                // pokes above the tee pad unless pushed behind the course here.
                 '        if (decalOn < 0.5 && z < 6.2) ours = true;',
                 /* The mown ground of a sculpted hole is not a sheet laid on
                    the world: it is paint on the world's own picture. This
