@@ -81,7 +81,21 @@
         'uniform vec3 tint, lift;',
         'uniform vec4 lens[' + 4 + '];',
         'uniform float lensAspect;',
+        'uniform float portalK, portalOpen;',
+        'uniform vec3 portalIn, portalOut;',
         'varying vec2 vUv;',
+
+        'float bhPortalHash(vec2 p){',
+        '  p = fract(p * vec2(123.34, 456.21));',
+        '  p += dot(p, p + 45.32);',
+        '  return fract(p.x * p.y);',
+        '}',
+        'float bhPortalNoise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  vec2 u = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(bhPortalHash(i), bhPortalHash(i + vec2(1.0, 0.0)), u.x),',
+        '             mix(bhPortalHash(i + vec2(0.0, 1.0)), bhPortalHash(i + vec2(1.0, 1.0)), u.x), u.y);',
+        '}',
 
         // Narkowicz's fit of the ACES curve: lifts the mid-tones a shade and,
         // more to the point, gives the top end somewhere to go.
@@ -115,6 +129,53 @@
         '    uv -= (d / r) * defl * fade / vec2(lensAspect, 1.0);',
         '  }',
         '  vec2 off = vUv - 0.5;',
+        '  float pInside = 0.0;',
+        '  vec3 pGlow = vec3(0.0);',
+        '  vec3 pVoid = vec3(0.0);',
+        '  if (portalK > 0.001) {',
+        '    vec2 pp = off * vec2(lensAspect, 1.0) * 2.0;',
+        '    float pr = max(length(pp), 1e-4);',
+        '    float pa = atan(pp.y, pp.x);',
+        '    float maxR = length(vec2(lensAspect, 1.0));',
+        '    float lr = log(pr + 0.04);',
+        '    float edgeR = portalOpen < 0.5',
+        '      ? mix(0.02, maxR * 1.16, portalK * portalK)',
+        '      : (1.0 - portalK) * maxR * 1.18;',
+        '    vec2 pdir = pp / pr;',
+        '    vec2 ptang = vec2(-pdir.y, pdir.x);',
+        '    float ringBand = exp(-pow((pr - edgeR) / (0.09 + 0.08 * portalK), 2.0));',
+        '    float pull = portalOpen < 0.5',
+        '      ? (edgeR * edgeR) / max(pr * pr, edgeR * edgeR * 0.35)',
+        '      : ringBand * 0.7;',
+        '    uv -= (pdir * pull * 0.20 + ptang * ringBand * 0.16) * portalK / vec2(lensAspect, 1.0);',
+        '    uv = clamp(uv, vec2(0.001), vec2(0.999));',
+        '    pInside = portalOpen < 0.5',
+        '      ? 1.0 - smoothstep(edgeR * 0.90, edgeR * 1.04, pr)',
+        '      : smoothstep(edgeR * 0.92, edgeR * 1.06, pr);',
+        '    float w = time * (0.6 + 1.1 / (pr * 2.0 + 0.25));',
+        '    float ang = pa + w + lr * 2.2;',
+        '    vec2 ac = vec2(cos(ang), sin(ang));',
+        '    float n = bhPortalNoise(ac * (2.5 + pr * 4.0) + 5.1) * 0.65 + bhPortalNoise(ac * (6.0 + pr * 9.0) - 2.7) * 0.35;',
+        '    float arms = 0.5 + 0.5 * sin(3.0 * pa + lr * 7.0 - time * 3.0);',
+        '    float dr = pr - edgeR;',
+        '    float photon = exp(-pow(dr / (0.022 + 0.032 * portalK), 2.0)) * (1.8 + 0.9 * portalK);',
+        '    float discEnv = exp(-pow(max(dr, 0.0) / (0.22 + 0.18 * portalK), 2.0)) * smoothstep(-0.08, 0.02, dr);',
+        '    float beam = 1.0 + 0.35 * cos(pa - time * 0.9 - 0.7);',
+        '    vec3 hotCol = mix(vec3(1.25, 0.78, 0.38), portalIn * 1.4 + vec3(0.35), 0.35);',
+        '    vec3 coolCol = mix(vec3(0.45, 0.22, 0.95), portalOut * 1.2 + vec3(0.15, 0.08, 0.35), 0.55);',
+        '    pGlow = (hotCol * photon + mix(coolCol, hotCol, n) * discEnv * (0.4 + 1.3 * n * arms)) * beam * smoothstep(0.0, 0.12, portalK);',
+        '    float neb = bhPortalNoise(ac * (1.8 + pr * 2.5) + time * 0.15) * 0.6 + bhPortalNoise(pp * 3.2 - time * 0.25) * 0.4;',
+        '    float fc = fract(lr * 2.4 + time * 0.85);',
+        '    float feed = smoothstep(0.55, 0.82, fc) * (1.0 - smoothstep(0.82, 1.0, fc));',
+        '    float stA = time * 0.08;',
+        '    mat2 stR = mat2(cos(stA), -sin(stA), sin(stA), cos(stA));',
+        '    vec2 sq = (stR * pp) * 11.0;',
+        '    vec2 sid = floor(sq), sf = fract(sq) - 0.5;',
+        '    float sh = bhPortalHash(sid);',
+        '    vec2 soff = (vec2(bhPortalHash(sid + 1.7), bhPortalHash(sid + 2.9)) - 0.5) * 0.55;',
+        '    float star = step(0.93, sh) * smoothstep(0.18, 0.02, length(sf - soff)) * (0.45 + 0.55 * sin(time * 3.5 + sh * 40.0));',
+        '    pVoid = vec3(0.010, 0.008, 0.022) + mix(portalOut, portalIn, neb * 0.75) * (0.10 + 0.22 * neb * neb + 0.16 * feed * (1.0 - smoothstep(0.0, maxR, pr))) + vec3(0.92, 0.96, 1.0) * star * 0.85;',
+        '  }',
         // A lens is not one lens: the corners split colour a little, and the
         // amount grows with the square of the distance out from the middle.
         // The constant puts a nominal aberration of 1.0 at about two pixels in
@@ -148,6 +209,9 @@
         '    c += acc * (rays / 12.0);',
         '  }',
 
+        '  if (portalK > 0.001) {',
+        '    c = mix(c, pVoid, pInside) + pGlow;',
+        '  }',
         '  c = aces(c * exposure) * tint + lift;',
 
         '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
@@ -268,7 +332,11 @@
                 tint: { value: new THREE.Color(1, 1, 1) },
                 lift: { value: new THREE.Color(0, 0, 0) },
                 lens: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
-                lensAspect: { value: 1 }
+                lensAspect: { value: 1 },
+                portalK: { value: 0 },
+                portalOpen: { value: 0 },
+                portalIn: { value: new THREE.Color(0xf0a868) },
+                portalOut: { value: new THREE.Color(0x1b2a55) }
             };
 
             FX.mBright = material(BRIGHT_FS, FX.uBright);
@@ -413,6 +481,18 @@
 
         if (sun) u.sunUv.value.copy(sun.uv);
         u.time.value = (u.time.value + (dt || 0.016)) % 1000;
+        u.lensAspect.value = FX.w / Math.max(1, FX.h);
+
+        // Inside the event horizon while the next world builds: skip the 3D
+        // scene & bloom passes and draw the live black hole interior directly.
+        if (u.portalK.value >= 0.999 && u.portalOpen.value < 0.5) {
+            u.bloom.value = 0;
+            u.rays.value = 0;
+            u.aberration.value = 0;
+            u.grain.value = tier >= 1 ? base.grain : 0;
+            draw(FX.mComp, null);
+            return true;
+        }
 
         if (front && front.k > 0.002) {
             backdrop(scene, camera, front);
@@ -496,6 +576,18 @@
         FX.uComp.lensAspect.value = FX.w / Math.max(1, FX.h);
     }
 
+    /* Full-screen black hole portal transition: { k, open, inCol, outCol }.
+       k = 0 is normal play; k = 1 is deep inside the event horizon. */
+    function setPortal(p) {
+        if (!FX.ok) return;
+        var u = FX.uComp;
+        if (!p) { u.portalK.value = 0; u.portalOpen.value = 0; return; }
+        if (p.k !== undefined) u.portalK.value = Math.max(0, Math.min(1, p.k));
+        if (p.open !== undefined) u.portalOpen.value = p.open ? 1 : 0;
+        if (p.inCol !== undefined) u.portalIn.value.setHex(p.inCol);
+        if (p.outCol !== undefined) u.portalOut.value.setHex(p.outCol);
+    }
+
     G3.postfx = {
         init: init,
         resize: resize,
@@ -503,6 +595,7 @@
         setGrade: setGrade,
         setQuality: setQuality,
         lens: lens,
+        setPortal: setPortal,
         get ok() { return FX.ok; },
         get tier() { return FX.tier; },
         state: FX

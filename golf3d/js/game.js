@@ -309,48 +309,94 @@
        either way, and a second press while it is closing is ignored — the
        same latch the picker keeps (menuTaking), for the same impatient
        thumb. */
-    var portalBusy = false;
-    function wipeSkies(el, themeName) {
+    var portalBusy = false, portalRaf = 0;
+    function portalSkies(themeName) {
         var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
-        var hex = function (n) { return '#' + ('000000' + n.toString(16)).slice(-6); };
-        el.style.setProperty('--pw-in', hex(sky[1]));
-        el.style.setProperty('--pw-out', hex(sky[0]));
+        return { inCol: sky[1], outCol: sky[0] };
     }
-    /* `dive` is the way out of a hole that was holed: the camera goes down
-       the cup first (render.js → startDive) — the cup is the portal — and
-       the wipe starts closing on the next sky while it is still falling, so
-       the last thing seen of a world is the inside of its hole and the
-       first thing seen of the next is the sky the wipe is painted in. The
-       swap waits for both: the dive has reached the rim by the time the
-       wipe is shut. */
+    function glPortal() {
+        return !!(R.state && R.state.fx && G3.postfx && G3.postfx.setPortal);
+    }
+    function wipeSkies(el, themeName) {
+        var sk = portalSkies(themeName);
+        var hex = function (n) { return '#' + ('000000' + n.toString(16)).slice(-6); };
+        el.style.setProperty('--pw-in', hex(sk.inCol));
+        el.style.setProperty('--pw-out', hex(sk.outCol));
+    }
+    /* `dive` is the way out of a hole that was holed: the camera arcs up and
+       plunges straight down into the cup's black hole (render.js → startDive),
+       and the black hole portal (postfx.js → setPortal, or the CSS wipe when
+       postfx is off) closes in exact frame sync with the plunge — so the swap
+       happens the frame the camera enters the hole. */
     var WIPE_CLOSE = 850;
+    function animPortal(dur, step, done) {
+        if (portalRaf) cancelAnimationFrame(portalRaf);
+        var t0 = performance.now();
+        function tick(now) {
+            var p = Math.min(1, (now - t0) / dur);
+            step(p);
+            if (p < 1) portalRaf = requestAnimationFrame(tick);
+            else { portalRaf = 0; if (done) done(); }
+        }
+        portalRaf = requestAnimationFrame(tick);
+    }
     function throughPortal(themeName, then, dive) {
         var el = $('portal-wipe');
-        if (!el || reducedMotion()) { then(); return; }
+        if (!el || reducedMotion()) {
+            if (G3.postfx && G3.postfx.setPortal) G3.postfx.setPortal(null);
+            then();
+            return;
+        }
         if (portalBusy) return;
         portalBusy = true;
-        var lead = 0;
-        if (dive && R.startDive && R.startDive(state.world.hole, state.world.ball)) {
-            lead = Math.max(0, C.DIVE.DUR * 1000 - WIPE_CLOSE);
+        if (portalRaf) { cancelAnimationFrame(portalRaf); portalRaf = 0; }
+        var sk = portalSkies(themeName), useGL = glPortal();
+        wipeSkies(el, themeName);
+        if (useGL) G3.postfx.setPortal({ k: 0, open: 0, inCol: sk.inCol, outCol: sk.outCol });
+
+        var warpPlayed = false;
+        var onPortal = function (pk) {
+            if (!warpPlayed) {
+                warpPlayed = true;
+                if (A.warpIn) A.warpIn();
+                if (!useGL) el.className = 'portal-wipe closing';
+            }
+            if (useGL) G3.postfx.setPortal({ k: pk, open: 0 });
+        };
+        var finish = function () {
+            if (useGL) G3.postfx.setPortal({ k: 1, open: 0 });
+            // Whatever the swap does, the screen is not left shut on it.
+            try { then(); } finally { portalBusy = false; }
+            // A world still building keeps it shut (holdForWorld, below),
+            // and says where it is going while it does.
+            if (!curtain.up) openWipe();
+            else el.className = curtainClass();
+        };
+
+        if (dive && R.startDive && R.startDive(state.world.hole, state.world.ball, onPortal, finish)) {
             if (A.rocket) A.rocket();
+            return;
         }
-        setTimeout(function () {
-            wipeSkies(el, themeName);
-            el.className = 'portal-wipe closing';
-            if (A.warpIn) A.warpIn();
-            setTimeout(function () {
-                // Whatever the swap does, the screen is not left shut on it.
-                try { then(); } finally { portalBusy = false; }
-                // A world still building keeps it shut (holdForWorld, below),
-                // and says where it is going while it does.
-                if (!curtain.up) openWipe();
-                else el.className = curtainClass();
-            }, WIPE_CLOSE);
-        }, lead);
+        if (useGL) {
+            animPortal(WIPE_CLOSE, function (p) { onPortal(p * p * (3 - 2 * p)); }, finish);
+        } else {
+            onPortal(1);
+            setTimeout(finish, WIPE_CLOSE);
+        }
     }
     function openWipe() {
         var el = $('portal-wipe');
         if (A.warpOpen) A.warpOpen();
+        if (glPortal()) {
+            el.className = 'portal-wipe';
+            animPortal(800, function (p) {
+                var e = 1 - Math.pow(1 - p, 2.2);
+                G3.postfx.setPortal({ k: 1 - e, open: 1 });
+            }, function () {
+                G3.postfx.setPortal(null);
+            });
+            return;
+        }
         el.className = 'portal-wipe opening';
         setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 800);
     }
@@ -376,7 +422,9 @@
     /* A world built ahead (prepareNext) is only waiting for its first frames
        — a fraction of a second — and a card saying "building" would be a
        flash of something untrue, so the wipe holds on its colour alone. */
-    function curtainClass() { return 'portal-wipe holding' + (curtain.built ? ' quiet' : ''); }
+    function curtainClass() {
+        return 'portal-wipe holding' + (glPortal() ? ' gl-portal' : '') + (curtain.built ? ' quiet' : '');
+    }
     /* The bar under the card: how far the world's build has got, as
        backdrop.mjs estimates it from the step the engine is on and how long
        each step took on this device before. Never moves backwards — a step
@@ -434,6 +482,10 @@
         curtain.shown = 0;
         curtainBar(hole.place.world);
         wipeSkies(el, themeAt(i));
+        if (glPortal()) {
+            var sk = portalSkies(themeAt(i));
+            G3.postfx.setPortal({ k: 1, open: 0, inCol: sk.inCol, outCol: sk.outCol });
+        }
         curtain.up = true; curtain.t0 = Date.now();
         if (!/closing/.test(el.className)) el.className = curtainClass();
         curtain.timer = setInterval(function () {
