@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.171.0';
+G3.VERSION = '1.172.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1233,8 +1233,22 @@ G3.CONFIG = {
        chain. World build geometry detail stays at `medium` (0.75) on every
        tier so sculpted holes keep the exact heights they were baked to. */
     QUALITY_KEY: 'loftLinks.quality',
+    /* Auto's ladder, sharpest first (render.js → stepGovernor). `k` is the
+       world's share of this canvas's pixels and `maxW` the widest it may be
+       (0.85 of that on a touch screen); `dpr` caps this canvas's pixel ratio;
+       `shells` the grass layers (never more than the device's own). A phone
+       starts on the second rung — the resolution worlds had before v1.169 —
+       and a desktop on the first; the frame rate moves them from there. */
+    QUALITY_AUTO: [
+        { k: 0.88, maxW: 1440, dpr: 2,    bloom: true,  shells: 6 },
+        { k: 0.74, maxW: 1240, dpr: 2,    bloom: true,  shells: 6 },
+        { k: 0.64, maxW: 1000, dpr: 1.6,  bloom: true,  shells: 5 },
+        { k: 0.54, maxW: 820,  dpr: 1.35, bloom: false, shells: 4 },
+        { k: 0.45, maxW: 660,  dpr: 1.15, bloom: false, shells: 3 },
+        { k: 0.36, maxW: 520,  dpr: 1,    bloom: false, shells: 2 }
+    ],
     QUALITY_TIERS: {
-        auto:   { label: 'Auto',   liveK: 0.85, liveMaxW: 1600, dprCap: 2.0, shells: 6, fxTier: null, worldBloom: true,  depthScale: 0.5, shadowEvery: 1, says: 'Adapts resolution to hold a steady frame rate; reverts drops that do not help.' },
+        auto:   { label: 'Auto',   liveK: 0.85, liveMaxW: 1600, dprCap: 2.0, shells: 6, fxTier: null, worldBloom: true,  depthScale: 0.5, shadowEvery: 1, says: 'Follows the frame rate: steps resolution, sharpness, bloom and grass down when it drops and back up when there is room.' },
         low:    { label: 'Low',    liveK: 0.60, liveMaxW: 1080, dprCap: 1.0, shells: 2, fxTier: 0,    worldBloom: false, depthScale: 0.5, shadowEvery: 3, says: 'Half-res worlds, grade-only post, two grass shells — coolest and fastest.' },
         medium: { label: 'Medium', liveK: 0.78, liveMaxW: 1360, dprCap: 1.5, shells: 4, fxTier: 1,    worldBloom: true,  depthScale: 0.5, shadowEvery: 2, says: 'Balanced resolution, bloom and four grass shells.' },
         high:   { label: 'High',   liveK: 1.00, liveMaxW: 1920, dprCap: 2.0, shells: 6, fxTier: 2,    worldBloom: true,  depthScale: 1.0, shadowEvery: 1, says: 'Full native world resolution, full bloom and light shafts, six grass shells.' },
