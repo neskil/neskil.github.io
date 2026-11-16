@@ -62,7 +62,9 @@
             lock: false, bearing: 0,
             kick: 0,          // impact flinch, decays
             speedPull: 0,     // extra distance while the ball is quick
-            demoT: 0          // how long the demo's orbit has been turning
+            demoT: 0,         // how long the demo's orbit has been turning
+            flight: { x: 0, y: 8, z: 0, yaw: 0, pitch: -0.25 },
+            preFlightMode: 'follow'
         },
         smooth: { pos: new THREE.Vector3(), target: new THREE.Vector3(), started: false },
         particles: null, pAlive: 0,
@@ -6725,9 +6727,36 @@
     var VIEWS = ['follow', 'side', 'over'];
 
     function viewLabel(mode) {
+        if (mode === 'flight') return 'Flight';
         if (mode === 'over') return 'Overview';
         if (mode === 'side') return 'Side on';
         return mode === 'demo' ? 'Demo' : 'Follow';
+    }
+
+    function enterFlight() {
+        var c = R.cam;
+        if (c.mode === 'flight') return false;
+        c.preFlightMode = VIEWS.indexOf(c.mode) >= 0 ? c.mode : 'follow';
+        R.fly = null;
+        R.lap = null;
+        var pos = R.camera ? R.camera.position : R.smooth.pos;
+        var tgt = R.smooth.target;
+        c.flight.x = pos.x;
+        c.flight.y = Math.max(0.5, pos.y);
+        c.flight.z = pos.z;
+        var dx = tgt.x - pos.x, dy = tgt.y - pos.y, dz = tgt.z - pos.z;
+        var horiz = Math.sqrt(dx * dx + dz * dz);
+        c.flight.yaw = horiz > 1e-4 ? Math.atan2(dx, dz) : c.yaw;
+        c.flight.pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(dy, Math.max(1e-4, horiz))));
+        c.mode = 'flight';
+        return true;
+    }
+
+    function exitFlight() {
+        var c = R.cam;
+        if (c.mode !== 'flight') return false;
+        c.mode = c.preFlightMode || 'follow';
+        return true;
     }
 
     function cycleView() {
@@ -6778,6 +6807,22 @@
         var tx, ty, tz, px, py, pz, dist;
         var bx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var bz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
+
+        if (c.mode === 'flight') {
+            var fl = c.flight;
+            var cosP = Math.cos(fl.pitch);
+            px = fl.x; py = fl.y; pz = fl.z;
+            tx = px + Math.sin(fl.yaw) * cosP * 10;
+            ty = py + Math.sin(fl.pitch) * 10;
+            tz = pz + Math.cos(fl.yaw) * cosP * 10;
+            var fex = (hole.bounds.maxX - hole.bounds.minX) / 2;
+            var fez = (hole.bounds.maxZ - hole.bounds.minZ) / 2;
+            R.overRadius = Math.max(18, Math.hypot(fex, fez) * 1.12);
+            R.overDist = Math.max(20, Math.hypot(px - bx, py, pz - bz));
+            out.px = px; out.py = py; out.pz = pz;
+            out.tx = tx; out.ty = ty; out.tz = tz;
+            return out;
+        }
 
         if (c.mode === 'editor') {
             tx = c.target ? c.target.x : bx;
@@ -7016,7 +7061,7 @@
     var _lp = new THREE.Vector3(), _lt = new THREE.Vector3(), _lf = new THREE.Vector3();
     function startLap(hole) {
         if (!R.ready || !hole || !R.camera) return false;
-        if (R.cam.mode === 'demo' || R.cam.mode === 'editor') return false;
+        if (R.cam.mode === 'demo' || R.cam.mode === 'editor' || R.cam.mode === 'flight') return false;
         var L = C.LAP, cup = hole.cup, p = R.camera.position;
         var top = R.cupTop === undefined ? cup.y : R.cupTop;
         var dx = p.x - cup.x, dz = p.z - cup.z, r0 = Math.sqrt(dx * dx + dz * dz);
@@ -7345,12 +7390,12 @@
 
         var px = _seat.px, py = _seat.py, pz = _seat.pz;
         var tx = _seat.tx, ty = _seat.ty, tz = _seat.tz;
-        if (R.loopCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor') {
+        if (R.loopCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor' && R.cam.mode !== 'flight') {
             loopSeat(R.loopCam, _seat);
             px = _seat.px; py = _seat.py; pz = _seat.pz;
             tx = _seat.tx; ty = _seat.ty; tz = _seat.tz;
         }
-        if (R.warpCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor' && R.cam.mode !== 'demo') {
+        if (R.warpCam && R.cam.mode !== 'over' && R.cam.mode !== 'editor' && R.cam.mode !== 'demo' && R.cam.mode !== 'flight') {
             var wc = R.warpCam;
             px = wc.px; py = wc.py; pz = wc.pz;
             tx = wc.tx; ty = wc.ty; tz = wc.tz;
@@ -7361,7 +7406,7 @@
             }
         }
 
-        if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant)) {
+        if (!R.smooth.started || (R.cam.mode === 'editor' && R.cam.instant) || R.cam.mode === 'flight') {
             R.smooth.pos.set(px, py, pz);
             R.smooth.target.set(tx, ty, tz);
             R.smooth.started = true;
@@ -7518,6 +7563,10 @@
         var want = R.cam.mode === 'over' ? 1
                  : (R.cam.mode === 'demo' ? C.DEMO_CAM.LIFT
                  : (R.cam.mode === 'editor' ? 0.75 : 0));
+        if (R.cam.mode === 'flight' && R.hole) {
+            var fOver = R.cam.flight.y - flyGround(R.hole, R.cam.flight.x, R.cam.flight.z, 0);
+            want = Math.max(0, Math.min(1, (fOver - C.FLY.AIR_FROM) / C.FLY.AIR_SPAN));
+        }
         /* The intro sweep asks for the same thing, in proportion to how far off
            the ground it is: at the apex it is as far up as the map and looking
            through as much weather, and near the tee it is on the course and
@@ -7584,7 +7633,7 @@
            through the ground so a ridge hides neither — and a sweep over the
            course with the depth test off is a sweep with two glowing discs
            riding over the hills in front of it. */
-        R.marks.visible = R.lift > 0.01 && !R.fly;
+        R.marks.visible = R.lift > 0.01 && !R.fly && R.cam.mode !== 'flight';
         if (!R.marks.visible) return;
         R.markCup.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
         R.markCupHalo.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
@@ -7693,7 +7742,7 @@
            that there is nobody there to pick a club out of it. */
         var front = null;
         if (G3.bag) {
-            G3.bag.setVisible(!R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo');
+            G3.bag.setVisible(!R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo' && R.cam.mode !== 'flight');
             // With the post chain the course behind the open row is blurred
             // (postfx.js `backdrop`) and the bag lit on its own layer, so the
             // course keeps its light and its water; without it, the scrim.
@@ -7701,7 +7750,7 @@
             G3.bag.update(dt, R.camera, R.camera.aspect);
             // And the club in hand, behind the ball (bag.js `address`).
             G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
-                !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo', world.ball, aim ? aim.yaw : 0, R.camera);
+                !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo' && R.cam.mode !== 'flight', world.ball, aim ? aim.yaw : 0, R.camera);
             var open01 = G3.bag.state.open01;
             if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
             /* And the course's own light goes down as the clubs come out.
@@ -7882,6 +7931,8 @@
         replaying: replaying,
         cycleView: cycleView,
         viewLabel: viewLabel,
+        enterFlight: enterFlight,
+        exitFlight: exitFlight,
         setLock: setLock,
         setWaterQuality: setWaterQuality,
         setQuality: setQuality,
