@@ -448,6 +448,30 @@
                     segs.length > 0 && !lowSeg, lowSeg || (segs.length + ' segments'));
                 qPad.hidden = true;
             })();
+            (function () {
+                var bf = doc.getElementById('btn-flight'), fp = doc.getElementById('flight-pad');
+                var sw = doc.getElementById('swipe'), swWas = sw.hidden;
+                assert('#btn-flight and #flight-pad exist and start hidden',
+                    !!bf && bf.hidden && !!fp && fp.hidden);
+                bf.hidden = false; bf.classList.add('on');
+                var rChip = contrast(parseColor(win.getComputedStyle(bf).color), effectiveBg(bf));
+                assert('#btn-flight reads when lit', rChip >= CONTRAST, rChip.toFixed(2) + ':1');
+                bf.classList.remove('on'); bf.hidden = true;
+                fp.hidden = false; sw.hidden = false;
+                doc.body.classList.add('flight-mode');
+                assert('flight-mode hides swing overlays',
+                    win.getComputedStyle(sw).display === 'none');
+                var lowBtn = '', btns = fp.querySelectorAll('button');
+                for (var b = 0; b < btns.length; b++) {
+                    var cs = win.getComputedStyle(btns[b]);
+                    var r = contrast(parseColor(cs.color), effectiveBg(btns[b]));
+                    if (r < CONTRAST) { lowBtn = btns[b].id + ' ' + r.toFixed(2) + ':1'; break; }
+                }
+                assert('every control inside #flight-pad clears ' + CONTRAST + ':1',
+                    btns.length > 0 && !lowBtn, lowBtn || (btns.length + ' buttons'));
+                doc.body.classList.remove('flight-mode');
+                sw.hidden = swWas; fp.hidden = true;
+            })();
 
             /* The kinds row is built by drawKinds, so the sweep above finds an
                empty container where the chips are. One is stood up here by
