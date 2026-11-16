@@ -23,6 +23,7 @@
          audio or game module, so nothing here needs WebGL, an AudioContext or a
          DOM beyond this page. -->
     <script src="js/config.js"></script>
+    <script src="js/balls.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
     <script src="js/tour-ground.js"></script>
@@ -5901,6 +5902,95 @@
             assert('bot and demo settle wait after a tour curtain is positive',
                 typeof C.BOT_SETTLE === 'number' && C.BOT_SETTLE > 0 &&
                 typeof C.DEMO_HOLD === 'number' && C.DEMO_HOLD > 0);
+        })();
+
+        section('PRO SHOP & BALL COSMETICS');
+        (function () {
+            var balls = G3.BALLS || [];
+            assert('catalog defines at least 15 balls including classic, camo, rainbow/shader and crystal glass',
+                balls.length >= 16 &&
+                balls[0].id === 'tour-white' && balls[0].cost === 0 &&
+                !!G3.ballById('woodland-camo') && !!G3.ballById('rainbow-tie') &&
+                !!G3.ballById('holo-prism') && !!G3.ballById('crystal-glass') &&
+                !!G3.ballById('black-hole'));
+
+            var seen = {}, nonDecreasing = true, totalCost = 0;
+            for (var bi = 0; bi < balls.length; bi++) {
+                if (seen[balls[bi].id]) seen._dup = true;
+                seen[balls[bi].id] = true;
+                if (bi > 0 && balls[bi].cost < balls[bi - 1].cost) nonDecreasing = false;
+                totalCost += balls[bi].cost;
+            }
+            var maxStars = S.earnedStars(S.emptySave()).max;
+            assert('ball ids are unique, priced in rising tiers, and total cost fits inside earnable stars',
+                !seen._dup && nonDecreasing && totalCost > 0 && totalCost <= maxStars,
+                'cost ' + totalCost + ' / max ' + maxStars);
+
+            // Build a save with ~50 earned stars across mock holes + worlds and test buying in ANY order.
+            var sv = S.emptySave();
+            assert('fresh save starts with Tour White unlocked and equipped',
+                S.ownsBall(sv, 'tour-white') && S.equippedBall(sv) === 'tour-white' &&
+                !S.ownsBall(sv, 'crystal-glass'));
+
+            // Earn stars via real courses & worlds (first 17 courses*holes + some worlds -> give 48 stars).
+            var mockCourses = [{ id: 'c1', holes: [{ par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }] },
+                               { id: 'c2', holes: [{ par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }] },
+                               { id: 'c3', holes: [{ par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }, { par: 3 }] }];
+            var mockWorlds = [{ id: 'w1' }, { id: 'w2' }];
+            for (var hi = 0; hi < 6; hi++) {
+                sv = S.recordHole(sv, 'c1', hi, 1, 3, { scored: true }).save; // 18★
+                sv = S.recordHole(sv, 'c2', hi, 1, 3, { scored: true }).save; // +18 = 36★
+            }
+            for (hi = 0; hi < 3; hi++) {
+                sv = S.recordHole(sv, 'c3', hi, 1, 3, { scored: true }).save; // +9 = 45★
+            }
+            sv = S.recordHole(sv, 'world-w1', 0, 2, 3, { scored: true }).save; // +3 = 48★
+            var opts = { courses: mockCourses, worlds: mockWorlds };
+            assert('earnedStars sums both courses and World Tour stars',
+                S.earnedStars(sv, mockCourses, mockWorlds).got === 48 &&
+                S.availableStars(sv, mockCourses, mockWorlds) === 48);
+
+            // Buying a high-tier ball (crystal-glass = 35★) immediately without buying any earlier balls works!
+            var glassCost = G3.ballById('crystal-glass').cost;
+            var tripleCost = G3.ballById('triple-track').cost;
+            var holeCost = G3.ballById('black-hole').cost;
+            var buyGlass = S.buyBall(sv, 'crystal-glass', opts);
+            assert('expensive ball can be bought first in any order without prerequisites',
+                buyGlass.ok && !buyGlass.alreadyOwned && S.ownsBall(buyGlass.save, 'crystal-glass') &&
+                S.equippedBall(buyGlass.save) === 'crystal-glass');
+            assert('spending stars reduces available balance without lowering earned stars',
+                S.earnedStars(buyGlass.save, mockCourses, mockWorlds).got === 48 &&
+                S.spentStars(buyGlass.save) === glassCost &&
+                S.availableStars(buyGlass.save, mockCourses, mockWorlds) === 48 - glassCost);
+
+            // Buying another affordable ball (triple-track = 5★)
+            var buyTriple = S.buyBall(buyGlass.save, 'triple-track', opts);
+            var afterTriple = 48 - glassCost - tripleCost;
+            assert('remaining stars can buy any other affordable ball in any order',
+                buyTriple.ok && S.availableStars(buyTriple.save, mockCourses, mockWorlds) === afterTriple &&
+                S.ownsBall(buyTriple.save, 'triple-track'));
+
+            // Cannot buy expensive ball when balance is short
+            var buyHole = S.buyBall(buyTriple.save, 'black-hole', opts);
+            assert('insufficient stars purchase fails cleanly and leaves save untouched',
+                !buyHole.ok && buyHole.reason === 'insufficient' && buyHole.need === holeCost - afterTriple &&
+                !S.ownsBall(buyHole.save, 'black-hole'));
+
+            // Switching back to an owned ball works; switching to a locked ball fails cleanly
+            var eqWhite = S.equipBall(buyTriple.save, 'tour-white');
+            var eqLocked = S.equipBall(eqWhite.save, 'woodland-camo');
+            assert('can equip any owned ball and cannot equip a locked ball',
+                eqWhite.ok && S.equippedBall(eqWhite.save) === 'tour-white' &&
+                !eqLocked.ok && S.equippedBall(eqLocked.save) === 'tour-white');
+
+            // LocalStorage round-trip preserves unlocked balls and equipped ball
+            S.save(buyTriple.save);
+            var reloaded = S.load();
+            assert('save and load round-trip unlocked balls and equipped selection',
+                S.ownsBall(reloaded, 'crystal-glass') && S.ownsBall(reloaded, 'triple-track') &&
+                S.equippedBall(reloaded) === 'triple-track' &&
+                S.spentStars(reloaded) === glassCost + tripleCost);
+            try { localStorage.removeItem(C.SAVE_KEY); } catch (e) {}
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */

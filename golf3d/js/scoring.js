@@ -55,7 +55,7 @@
     }
 
     function emptySave() {
-        return { courses: {}, holes: {}, rounds: 0, aces: 0 };
+        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], ball: 'tour-white' };
     }
 
     /* ── stars, and the holes behind them ──────────────────────────────
@@ -130,15 +130,37 @@
         return { got: got, max: max };
     }
 
+    function normBalls(list) {
+        var out = ['tour-white'], seen = { 'tour-white': true }, i, id;
+        if (Array.isArray(list)) {
+            for (i = 0; i < list.length; i++) {
+                id = list[i];
+                if (typeof id === 'string' && id && !seen[id]) {
+                    seen[id] = true;
+                    out.push(id);
+                }
+            }
+        }
+        return out;
+    }
+
     // A save one level deep, so a record folded in never edits the one it came from.
     function copySave(prev) {
-        var next = { courses: {}, holes: {}, rounds: prev.rounds || 0, aces: prev.aces || 0 }, id;
+        var next = {
+            courses: {},
+            holes: {},
+            rounds: prev.rounds || 0,
+            aces: prev.aces || 0,
+            balls: normBalls(prev.balls),
+            ball: typeof prev.ball === 'string' && prev.ball ? prev.ball : 'tour-white'
+        }, id;
         for (id in prev.courses) {
             if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
         }
         for (id in prev.holes || {}) {
             if (Object.prototype.hasOwnProperty.call(prev.holes, id)) next.holes[id] = prev.holes[id];
         }
+        if (next.balls.indexOf(next.ball) === -1) next.ball = 'tour-white';
         return next;
     }
 
@@ -150,6 +172,8 @@
             var s = emptySave();
             if (typeof d.rounds === 'number') s.rounds = d.rounds;
             if (typeof d.aces === 'number') s.aces = d.aces;
+            s.balls = normBalls(d.balls);
+            if (typeof d.ball === 'string' && s.balls.indexOf(d.ball) !== -1) s.ball = d.ball;
             if (d.courses && typeof d.courses === 'object') {
                 for (var id in d.courses) {
                     if (!Object.prototype.hasOwnProperty.call(d.courses, id)) continue;
@@ -219,6 +243,104 @@
         return { save: next, isBest: isBest, totals: t };
     }
 
+    function defaultCourses() {
+        if (coursesCache()) return coursesCache();
+        return [];
+    }
+    function coursesCache() {
+        if (!G3.COURSE_GROUPS || !G3.coursesInGroup) return null;
+        var list = [];
+        G3.COURSE_GROUPS.forEach(function (g) {
+            G3.coursesInGroup(g.id).forEach(function (c) { list.push(c); });
+        });
+        return list;
+    }
+
+    /* Total stars earned across every course and World Tour hole — matches the
+       progression bar in the course picker (`game.js -> pickables`), and never
+       decreases when stars are spent in the Pro Shop. */
+    function earnedStars(saveData, courses, worlds) {
+        var cs = courses || defaultCourses();
+        var ws = worlds || (G3.portals && G3.portals.WORLDS) || [];
+        var got = 0, max = 0, i;
+        for (i = 0; i < cs.length; i++) {
+            var st = courseStars(saveData, cs[i]);
+            got += st.got;
+            max += st.max;
+        }
+        for (i = 0; i < ws.length; i++) {
+            var rec = holeRecord(saveData, 'world-' + ws[i].id, 0);
+            got += rec.stars || 0;
+            max += 3;
+        }
+        return { got: got, max: max };
+    }
+
+    function findBall(catalog, id) {
+        var list = catalog || G3.BALLS || [];
+        for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+        return null;
+    }
+
+    function ownsBall(saveData, ballId) {
+        if (ballId === 'tour-white') return true;
+        var list = saveData && saveData.balls;
+        return Array.isArray(list) && list.indexOf(ballId) !== -1;
+    }
+
+    function equippedBall(saveData, catalog) {
+        var id = saveData && typeof saveData.ball === 'string' ? saveData.ball : 'tour-white';
+        if (!ownsBall(saveData, id) || !findBall(catalog, id)) return 'tour-white';
+        return id;
+    }
+
+    function spentStars(saveData, catalog) {
+        var list = saveData && Array.isArray(saveData.balls) ? saveData.balls : [];
+        var seen = {}, total = 0, i, b;
+        for (i = 0; i < list.length; i++) {
+            var id = list[i];
+            if (seen[id] || id === 'tour-white') continue;
+            seen[id] = true;
+            b = findBall(catalog, id);
+            if (b && b.cost > 0) total += b.cost;
+        }
+        return total;
+    }
+
+    function availableStars(saveData, courses, worlds, catalog) {
+        var earned = earnedStars(saveData, courses, worlds).got;
+        return Math.max(0, earned - spentStars(saveData, catalog));
+    }
+
+    /* Buy any locked ball in any order as soon as availableStars >= ball.cost,
+       and equip it immediately. Returns `{ ok, reason?, save, need? }`. */
+    function buyBall(prev, ballId, opts) {
+        var o = opts || {};
+        var b = findBall(o.catalog, ballId);
+        if (!b) return { ok: false, reason: 'missing', save: prev };
+        if (ownsBall(prev, ballId)) {
+            var eq = equipBall(prev, ballId, o.catalog);
+            return { ok: true, alreadyOwned: true, save: eq.save };
+        }
+        var avail = availableStars(prev, o.courses, o.worlds, o.catalog);
+        if (avail < b.cost) {
+            return { ok: false, reason: 'insufficient', need: b.cost - avail, save: prev };
+        }
+        var next = copySave(prev);
+        if (next.balls.indexOf(ballId) === -1) next.balls.push(ballId);
+        next.ball = ballId;
+        return { ok: true, alreadyOwned: false, save: next, spent: b.cost };
+    }
+
+    function equipBall(prev, ballId, catalog) {
+        if (!ownsBall(prev, ballId) || !findBall(catalog, ballId)) {
+            return { ok: false, reason: 'locked', save: prev };
+        }
+        var next = copySave(prev);
+        next.ball = ballId;
+        return { ok: true, save: next };
+    }
+
     G3.scoring = {
         term: term,
         formatVsPar: formatVsPar,
@@ -235,7 +357,14 @@
         holeRecord: holeRecord,
         recordHole: recordHole,
         courseStars: courseStars,
-        totalStars: totalStars
+        totalStars: totalStars,
+        earnedStars: earnedStars,
+        spentStars: spentStars,
+        availableStars: availableStars,
+        ownsBall: ownsBall,
+        equippedBall: equippedBall,
+        buyBall: buyBall,
+        equipBall: equipBall
     };
 
 })(window.G3);

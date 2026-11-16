@@ -157,17 +157,136 @@
 
     /* ── persistent objects ─────────────────────────────────────────────── */
 
-    function buildBall() {
-        var geo = new THREE.SphereGeometry(C.BALL_R, 32, 24);
-        var mat = new THREE.MeshPhongMaterial({
+    var BALL_MODES = {
+        tour: 0, optic: 1, matte: 2, triple: 3, divide: 4,
+        pix: 5, truvis: 6, splatter: 7, camo: 8, carbon: 9,
+        rainbow: 10, holo: 11, magma: 12, cyber: 13
+    };
+
+    function makeBallBundle() {
+        var u = {
+            uGbTime: { value: 0 },
+            uGbMode: { value: 0 },
+            uGbTint: { value: new THREE.Color(1, 1, 1) },
+            uGbSunDir: { value: new THREE.Vector3(0.4, 0.8, 0.4) },
+            uGbSkyTop: { value: new THREE.Color(0x3f93cf) },
+            // Shared uniforms for glass & singularity ShaderMaterials
+            time: { value: 0 },
+            sunDir: { value: new THREE.Vector3(0.4, 0.8, 0.4) },
+            sunColour: { value: new THREE.Color(0xfff3dc) },
+            skyTop: { value: new THREE.Color(0x3f93cf) },
+            skyColour: { value: new THREE.Color(0xc9e8f7) },
+            fogColour: { value: new THREE.Color(0xc9e8f7) },
+            fogNear: { value: 30 },
+            fogFar: { value: 140 },
+            tint: { value: new THREE.Color(1, 1, 1) }
+        };
+        var phong = new THREE.MeshPhongMaterial({
             color: 0xffffff,
-            bumpMap: TX.dimple,
-            bumpScale: 0.012,
-            shininess: 55,
-            specular: 0x9aa4ac
+            shininess: 85,
+            specular: 0xd0d8de
         });
-        R.ball = new THREE.Mesh(geo, mat);
+        if (SH.BALL_VS_HEAD && SH.BALL_FS_HEAD) {
+            phong.onBeforeCompile = function (shader) {
+                shader.uniforms.uGbTime = u.uGbTime;
+                shader.uniforms.uGbMode = u.uGbMode;
+                shader.uniforms.uGbTint = u.uGbTint;
+                shader.uniforms.uGbSunDir = u.uGbSunDir;
+                shader.uniforms.uGbSkyTop = u.uGbSkyTop;
+                shader.vertexShader = SH.BALL_VS_HEAD +
+                    shader.vertexShader.replace('#include <begin_vertex>', SH.BALL_VS_BODY);
+                shader.fragmentShader = SH.BALL_FS_HEAD +
+                    shader.fragmentShader
+                        .replace('#include <color_fragment>', SH.BALL_FS_COLOR)
+                        .replace('#include <normal_fragment_maps>', SH.BALL_FS_NORMAL)
+                        .replace('#include <emissivemap_fragment>', SH.BALL_FS_EMISSIVE);
+            };
+            phong.customProgramCacheKey = function () { return 'golfball-phong-v1'; };
+        } else {
+            phong.bumpMap = TX.dimple;
+            phong.bumpScale = 0.012;
+        }
+
+        var glass = SH.BALL_GLASS_VS && SH.BALL_GLASS_FS ? new THREE.ShaderMaterial({
+            uniforms: u,
+            vertexShader: SH.BALL_GLASS_VS,
+            fragmentShader: SH.BALL_GLASS_FS,
+            transparent: true
+        }) : phong;
+
+        var voidMat = SH.BALL_VOID_VS && SH.BALL_VOID_FS ? new THREE.ShaderMaterial({
+            uniforms: u,
+            vertexShader: SH.BALL_VOID_VS,
+            fragmentShader: SH.BALL_VOID_FS
+        }) : phong;
+
+        return { phong: phong, glass: glass, voidMat: voidMat, uniforms: u };
+    }
+
+    function applyBallStyleTo(mesh, bundle, styleId, tintHex) {
+        if (!mesh || !bundle) return;
+        var def = G3.ballById ? G3.ballById(styleId) : null;
+        var modeName = def ? def.mode : 'tour';
+        var u = bundle.uniforms;
+        if (tintHex !== undefined && tintHex !== null) {
+            u.uGbTint.value.setHex(tintHex);
+            u.tint.value.setHex(tintHex);
+        }
+        if (modeName === 'glass') {
+            mesh.material = bundle.glass;
+            return;
+        }
+        if (modeName === 'singularity') {
+            mesh.material = bundle.voidMat;
+            return;
+        }
+        mesh.material = bundle.phong;
+        u.uGbMode.value = BALL_MODES[modeName] !== undefined ? BALL_MODES[modeName] : 0;
+        // Surface finish per material family: velvet matte vs tour urethane vs holo/carbon clearcoat
+        if (modeName === 'matte' || modeName === 'camo') {
+            bundle.phong.shininess = 22;
+            bundle.phong.specular.setHex(0x6e736b);
+        } else if (modeName === 'holo' || modeName === 'carbon' || modeName === 'rainbow') {
+            bundle.phong.shininess = 120;
+            bundle.phong.specular.setHex(0xffffff);
+        } else if (modeName === 'magma' || modeName === 'cyber') {
+            bundle.phong.shininess = 68;
+            bundle.phong.specular.setHex(0x8fa4b8);
+        } else {
+            bundle.phong.shininess = 88;
+            bundle.phong.specular.setHex(0xd6dde2);
+        }
+    }
+
+    function syncBallUniforms(bundle, t, sunDir, theme, weather, fogNear, fogFar) {
+        if (!bundle) return;
+        var u = bundle.uniforms;
+        u.uGbTime.value = t;
+        u.time.value = t;
+        if (sunDir) {
+            u.uGbSunDir.value.copy(sunDir);
+            u.sunDir.value.copy(sunDir);
+        }
+        if (theme) {
+            var w = weather || { cloud: 0, warm: theme.sun };
+            u.uGbSkyTop.value.copy(skyTint(theme.sky[0], w, false));
+            u.skyTop.value.copy(skyTint(theme.sky[0], w, true));
+            u.skyColour.value.copy(skyTint(theme.sky[1], w, true));
+            u.sunColour.value.copy(lin(w.warm || theme.sun));
+            u.fogColour.value.copy(skyTint(theme.fog, w, true));
+        }
+        if (fogNear !== undefined) u.fogNear.value = fogNear;
+        if (fogFar !== undefined) u.fogFar.value = fogFar;
+    }
+
+    function buildBall() {
+        var geo = new THREE.SphereGeometry(C.BALL_R, 56, 40);
+        R.ballMats = makeBallBundle();
+        R.ballStyleId = R.ballStyleId || 'tour-white';
+        R.ballTintHex = R.ballTintHex !== undefined ? R.ballTintHex : 0xffffff;
+        R.ball = new THREE.Mesh(geo, R.ballMats.phong);
         R.ball.castShadow = true;
+        applyBallStyleTo(R.ball, R.ballMats, R.ballStyleId, R.ballTintHex);
         R.scene.add(R.ball);
     }
 
@@ -5704,6 +5823,7 @@
             u.fogColour.value.copy(skyTint(theme.fog, weather, false));
         }
         if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);
+        if (R.ballMats) syncBallUniforms(R.ballMats, R.clock || 0, R.sunDir, theme, weather, R.fogNear, R.fogFar);
 
         setPlace(hole);
         R.scene.add(g);
@@ -7658,6 +7778,12 @@
 
         syncMovers(world.time);
         rollBall(world.ball);
+        if (R.ballMats) {
+            R.ballMats.uniforms.uGbTime.value = R.clock;
+            R.ballMats.uniforms.time.value = R.clock;
+            R.ballMats.uniforms.fogNear.value = R.scene.fog ? R.scene.fog.near : R.fogNear;
+            R.ballMats.uniforms.fogFar.value = R.scene.fog ? R.scene.fog.far : R.fogFar;
+        }
 
         /* Speed, spent two ways: the camera eases back and the lens opens a
            little, both of which read as "this one is going somewhere". */
@@ -7908,13 +8034,109 @@
         for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) R.cam[k] = patch[k];
     }
 
-    // Whose ball it is (game.js, pass and play): the same ball, repainted.
+    // Whose ball it is (game.js, pass and play): tint or cosmetic style on the shared ball mesh.
     function setBallColour(hex) {
-        if (R.ball) R.ball.material.color.setHex(hex);
+        R.ballTintHex = hex === undefined || hex === null ? 0xffffff : hex;
+        if (R.ball && R.ballMats) applyBallStyleTo(R.ball, R.ballMats, R.ballStyleId || 'tour-white', R.ballTintHex);
+    }
+
+    function setBallStyle(id) {
+        R.ballStyleId = id || 'tour-white';
+        if (R.ball && R.ballMats) applyBallStyleTo(R.ball, R.ballMats, R.ballStyleId, R.ballTintHex);
+    }
+
+    /* Interactive 3D preview renderer for the Pro Shop modal — uses the exact
+       same geodesic shaders on one lightweight WebGL context so every ball
+       can be spun and inspected up close before buying. */
+    function createBallPreview(canvas) {
+        if (!canvas || typeof THREE === 'undefined') return null;
+        var gl;
+        try {
+            gl = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        } catch (e) {
+            return null;
+        }
+        if (THREE.sRGBEncoding !== undefined) gl.outputEncoding = THREE.sRGBEncoding;
+        gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        var w = canvas.clientWidth || canvas.width || 220;
+        var h = canvas.clientHeight || canvas.height || 220;
+        gl.setSize(w, h, false);
+
+        var sc = new THREE.Scene();
+        var cam = new THREE.PerspectiveCamera(34, w / Math.max(1, h), 0.1, 20);
+        cam.position.set(0, 0.13, 0.78);
+        cam.lookAt(0, -0.02, 0);
+
+        var sun = new THREE.DirectionalLight(0xfff4de, 1.15);
+        sun.position.set(1.6, 2.2, 1.9);
+        sc.add(sun);
+        var fill = new THREE.DirectionalLight(0x7ab4df, 0.36);
+        fill.position.set(-1.5, 0.6, -1.2);
+        sc.add(fill);
+        var amb = new THREE.HemisphereLight(0xc2dcf2, 0x2c3624, 0.55);
+        sc.add(amb);
+
+        // Subtle dark turf coaster tucked directly beneath the ball so Crystal Glass
+        // refracts real green underneath without cutting across its silhouette.
+        var turfGeo = new THREE.CircleGeometry(C.BALL_R * 1.12, 40);
+        turfGeo.rotateX(-Math.PI / 2);
+        var turfMat = new THREE.MeshPhongMaterial({ color: 0x16381c, shininess: 4, specular: 0x0b1a0d });
+        var plinth = new THREE.Mesh(turfGeo, turfMat);
+        plinth.position.y = -C.BALL_R - 0.012;
+        sc.add(plinth);
+
+        var bundle = makeBallBundle();
+        var ballMesh = new THREE.Mesh(new THREE.SphereGeometry(C.BALL_R, 56, 40), bundle.phong);
+        sc.add(ballMesh);
+
+        var sunDir = sun.position.clone().normalize();
+        var th = (G3.THEMES && G3.THEMES.seaside) || null;
+        syncBallUniforms(bundle, 0, sunDir, th, null, 20, 100);
+        applyBallStyleTo(ballMesh, bundle, R.ballStyleId || 'tour-white', 0xffffff);
+
+        var clock = 0, rotY = 0.4, rotX = 0.15;
+        return {
+            setStyle: function (id) {
+                applyBallStyleTo(ballMesh, bundle, id, 0xffffff);
+            },
+            rotate: function (dx, dy) {
+                rotY += dx;
+                rotX = Math.max(-1.1, Math.min(1.1, rotX + dy));
+            },
+            resize: function () {
+                var cw = canvas.clientWidth || canvas.width || 220;
+                var ch = canvas.clientHeight || canvas.height || 220;
+                if (cw > 0 && ch > 0) {
+                    gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                    gl.setSize(cw, ch, false);
+                    cam.aspect = cw / ch;
+                    cam.updateProjectionMatrix();
+                }
+            },
+            tick: function (dt, dragging) {
+                clock += dt;
+                if (!dragging) rotY += dt * 0.65;
+                ballMesh.rotation.set(rotX, rotY, 0);
+                bundle.uniforms.uGbTime.value = clock;
+                bundle.uniforms.time.value = clock;
+                gl.render(sc, cam);
+            },
+            dispose: function () {
+                ballMesh.geometry.dispose();
+                plinth.geometry.dispose();
+                turfMat.dispose();
+                bundle.phong.dispose();
+                if (bundle.glass !== bundle.phong) bundle.glass.dispose();
+                if (bundle.voidMat !== bundle.phong) bundle.voidMat.dispose();
+                gl.dispose();
+            }
+        };
     }
 
     G3.render = {
         setBallColour: setBallColour,
+        setBallStyle: setBallStyle,
+        createBallPreview: createBallPreview,
         init: init,
         resize: resize,
         buildHole: buildHole,
