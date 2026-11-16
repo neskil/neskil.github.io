@@ -103,7 +103,28 @@
     }
 
     function init(canvas) {
-        R.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+        /* The canvas is not antialiased where the picture reaches it through
+           postfx.js — which is every WebGL2 device. The course is drawn into
+           that file's own multisampled buffer, and all that is ever drawn on
+           the canvas itself is one full-screen triangle with no edge in it;
+           an antialiased canvas under that was a second multisampled buffer
+           the size of the screen, and a resolve of it every frame, smoothing
+           nothing. So the WebGL2 context is asked for by hand, without it
+           (three.js would otherwise ask with the one flag for both kinds). A
+           device with only WebGL1 has no multisampled buffer to draw into
+           and keeps the canvas's antialiasing, as before. */
+        var gl2 = null;
+        try {
+            if (G3.postfx && THREE.WebGLMultisampleRenderTarget && window.WebGL2RenderingContext) {
+                gl2 = canvas.getContext('webgl2', {
+                    alpha: false, depth: true, stencil: true, antialias: false,
+                    premultipliedAlpha: true, preserveDrawingBuffer: false
+                });
+            }
+        } catch (e) { gl2 = null; }
+        R.renderer = gl2
+            ? new THREE.WebGLRenderer({ canvas: canvas, context: gl2, antialias: false, alpha: false })
+            : new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
         R.renderer.setPixelRatio(dprFor());
         R.renderer.shadowMap.enabled = true;
         R.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -5527,7 +5548,31 @@
         group.add(fill.target);
         // Kept with what they were lit at, for the bag to turn down (frame).
         R.courseLights = [amb, sun, fill];
-        R.courseLights.forEach(function (l) { l.userData.base = l.intensity; });
+        R.courseLights.forEach(function (l) {
+            l.userData.base = l.intensity;
+            // Counted in the picker's bag-only pass as well (passLights).
+            l.layers.enable(1);
+        });
+        R.courseDim = 1;
+    }
+
+    /* The open picker is drawn in two passes (postfx.js `backdrop`): the
+       course alone, blurred, and then the bag alone on top, each lit by its
+       own lights and none of the other's. That used to be left to the
+       layers — a light is only counted on a layer the camera is looking at —
+       and a light that stops being counted is a different program for every
+       lit material in the pass: opening the picker compiled the whole course
+       and the whole bag a second time, and closing it a third. So every
+       light is on both layers now, the count never changes, and a pass
+       switches the other side's lights to nothing instead. `which` is
+       'course', 'bag', or nothing for the ordinary single draw. */
+    function passLights(which) {
+        var c = which === 'bag' ? 0 : R.courseDim, i, l;
+        for (i = 0; i < (R.courseLights || []).length; i++) {
+            l = R.courseLights[i];
+            l.intensity = l.userData.base * c;
+        }
+        if (G3.bag && G3.bag.lightPass) G3.bag.lightPass(which !== 'course');
     }
 
     /* How far a hole asks you to see.
@@ -5845,6 +5890,33 @@
         // A hole changed with a ball inside a pipe would leave it shrunk.
         R.ball.scale.setScalar(1);
         R.ball.visible = true;
+        warmPrograms();
+    }
+
+    /* Every shader the hole will need, compiled now.
+
+       three.js compiles a material's program the first time it draws
+       something wearing it, on the frame that needs it, and the page waits
+       while the driver does it. Left to that, a hole was compiled a piece at
+       a time while it was played: what the flyover showed on its first
+       frame, then the bag, the club at the ball and the aim on the frame the
+       sweep landed, then the spray off the first bounce, the ring round the
+       cup, the sparks — each a stall at exactly the moment something was
+       happening. A hole is built behind the loading screen or the wipe
+       between two holes, where nobody is watching the frame rate, so the lot
+       is compiled here instead: everything in the scene, shown or not.
+
+       It only works because the list of lights no longer changes (bag.js
+       `lightRig`, `passLights` above): a material's program is compiled for
+       a count of lights, and this compiles for the one count there is. */
+    function warmPrograms() {
+        if (!R.renderer || !R.renderer.compile || !R.scene || !R.camera) return;
+        var t0 = window.performance && performance.now ? performance.now() : 0;
+        try {
+            R.scene.updateMatrixWorld();
+            R.renderer.compile(R.scene, R.camera);
+        } catch (e) { /* the first frame compiles whatever this did not */ }
+        R.warmMs = (window.performance && performance.now ? performance.now() : 0) - t0;
     }
 
     /* ── the live world behind a tour hole ──────────────────────────────
@@ -7886,7 +7958,7 @@
             G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
                 !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo' && R.cam.mode !== 'flight', world.ball, aim ? aim.yaw : 0, R.camera);
             var open01 = G3.bag.state.open01;
-            if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
+            if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER, lights: passLights };
             /* And the course's own light goes down as the clubs come out.
                Those three are the hole's weather — a dusk sky, a low sun — and
                they light the clubs as well as the course, so the same row read
@@ -7895,10 +7967,8 @@
                spotlight, which are the same everywhere. The course is behind
                the scrim by then and going dark anyway; the sky and the water
                are unlit and keep their colour. */
-            var dim = (1 - (R.fx ? 0 : COURSE_DIM * open01)) * (R.live ? 0.9 : 1);
-            if (R.courseLights) R.courseLights.forEach(function (l) {
-                l.intensity = l.userData.base * dim;
-            });
+            R.courseDim = (1 - (R.fx ? 0 : COURSE_DIM * open01)) * (R.live ? 0.9 : 1);
+            passLights(null);
             hideWaterUnderBag(!R.fx && open01 > 0.5);
         }
 
