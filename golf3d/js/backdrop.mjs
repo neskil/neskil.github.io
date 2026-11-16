@@ -751,6 +751,12 @@ function line(place, seat, n) {
 G3.backdrop = {
     canvas, want, prepare, frame, info,
     setQuality(t) { qualityTier = t || 'auto'; applyQuality(); },
+    // Auto's rung says whether the world blooms (render.js → syncLiveScale).
+    setAutoBloom(on) {
+        if (qualityTier !== 'auto' || worldBloom === on) return;
+        worldBloom = on;
+        if (engine && engine.post && engine.post.bloom) engine.post.bloom.enabled = on && engine.rtType === THREE.HalfFloatType;
+    },
     get quality() { return qualityTier; },
     failed(id) { return !!failed[id]; },
     play() { ev.on = true; },

@@ -4467,10 +4467,13 @@
         var fps = Math.round(fpsFrames / fpsAcc);
         fpsAcc = 0;
         fpsFrames = 0;
-        if (fps === fpsShown) return;
-        fpsShown = fps;
+        // Under Auto the rung it is on rides along (1 = sharpest), so the
+        // player can watch it follow the frame rate.
+        var rung = R.autoStep, key = fps * 10 + (rung === null || rung === undefined ? 9 : rung);
+        if (key === fpsShown) return;
+        fpsShown = key;
         var el = $('fps');
-        el.textContent = fps + ' fps';
+        el.textContent = fps + ' fps' + (rung === null || rung === undefined ? '' : ' · auto ' + (rung + 1) + '/' + C.QUALITY_AUTO.length);
         el.classList.toggle('low', fps < 45 && fps >= 30);
         el.classList.toggle('bad', fps < 30);
     }
