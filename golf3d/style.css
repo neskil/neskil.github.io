@@ -3909,7 +3909,10 @@ body.compact-ui .picker { padding-top: 52px; }
 .stage.flying .needle,
 body.demo .swipe,
 body.demo .arc,
-body.demo .needle { display: none; }
+body.demo .needle,
+body.flight-mode .swipe,
+body.flight-mode .arc,
+body.flight-mode .needle { display: none; }
 
 /* While a lane style (the touch swing, the needle) is in charge, the meter is
    a readout and Swing gives its place to a line saying what to do instead.

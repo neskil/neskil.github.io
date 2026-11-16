@@ -6739,8 +6739,16 @@
         c.preFlightMode = VIEWS.indexOf(c.mode) >= 0 ? c.mode : 'follow';
         R.fly = null;
         R.lap = null;
-        var pos = R.camera ? R.camera.position : R.smooth.pos;
-        var tgt = R.smooth.target;
+        var pos, tgt;
+        if (!R.smooth.started && R.hole && R.hole.tee) {
+            var tee = { x: R.hole.tee.x, y: R.hole.tee.y || 0, z: R.hole.tee.z };
+            var s = seatFor(R.hole, tee, _seat);
+            pos = { x: s.px, y: s.py, z: s.pz };
+            tgt = { x: s.tx, y: s.ty, z: s.tz };
+        } else {
+            pos = R.camera ? R.camera.position : R.smooth.pos;
+            tgt = R.smooth.target;
+        }
         c.flight.x = pos.x;
         c.flight.y = Math.max(0.5, pos.y);
         c.flight.z = pos.z;
