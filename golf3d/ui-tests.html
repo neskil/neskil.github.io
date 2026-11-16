@@ -525,6 +525,68 @@
             }
             assert('no control in the bar or the picker is wider than the viewport',
                 !wide.length, wide.slice(0, 4).join(', ') + ' (viewport ' + w + 'px)');
+
+            /* ── Pro Shop modal contrast & mobile fit ──────────────────────── */
+
+            section('pro shop mobile layout and contrast');
+            var shopBtn = doc.getElementById('menu-btn-shop');
+            assert('course picker and topbar carry Pro Shop triggers',
+                !!shopBtn && !!doc.getElementById('btn-balls'));
+            if (shopBtn) {
+                var sbCs = win.getComputedStyle(shopBtn);
+                var sbRatio = contrast(parseColor(sbCs.color), effectiveBg(shopBtn));
+                assert('#menu-btn-shop meets ' + CONTRAST + ':1 contrast',
+                    sbRatio >= CONTRAST, sbRatio.toFixed(2) + ':1');
+            }
+
+            var shopModal = doc.getElementById('ball-shop');
+            var catsWrap = doc.getElementById('shop-cats');
+            var gridWrap = doc.getElementById('shop-grid');
+            if (shopModal && catsWrap && gridWrap) {
+                shopModal.classList.add('show');
+                [false, true].forEach(function (isOn) {
+                    var cBtn = doc.createElement('button');
+                    cBtn.type = 'button';
+                    cBtn.className = 'shop-cat' + (isOn ? ' on' : '');
+                    cBtn.textContent = isOn ? 'Shader FX' : 'Tour';
+                    catsWrap.appendChild(cBtn);
+                    var cs = win.getComputedStyle(cBtn);
+                    var ratio = contrast(parseColor(cs.color), effectiveBg(cBtn));
+                    assert('Pro Shop category tab clears ' + CONTRAST + ':1 when ' + (isOn ? 'selected' : 'idle'),
+                        ratio >= CONTRAST, ratio.toFixed(2) + ':1');
+                    catsWrap.removeChild(cBtn);
+                });
+
+                var actBtn = doc.getElementById('shop-d-action');
+                actBtn.className = 'shop-action buy';
+                actBtn.textContent = 'Unlock & Equip (★ 14)';
+                var aCs = win.getComputedStyle(actBtn);
+                var aRatio = contrast(parseColor(aCs.color), effectiveBg(actBtn));
+                assert('Pro Shop primary buy CTA clears ' + CONTRAST + ':1',
+                    aRatio >= CONTRAST, aRatio.toFixed(2) + ':1');
+
+                // Probe a representative card + status pills and confirm zero overflow at 412px
+                var sampleCard = doc.createElement('button');
+                sampleCard.type = 'button';
+                sampleCard.className = 'ball-card inspecting';
+                sampleCard.innerHTML = '<span class="bc-badge">Shader FX</span>' +
+                    '<canvas class="bc-swatch" width="116" height="116"></canvas>' +
+                    '<span class="bc-name">Crystal Glass</span>' +
+                    '<span class="bc-status buyable">★ 42</span>';
+                gridWrap.appendChild(sampleCard);
+                var stEl = sampleCard.querySelector('.bc-status');
+                var stCs = win.getComputedStyle(stEl);
+                var stRatio = contrast(parseColor(stCs.color), effectiveBg(stEl));
+                assert('Pro Shop buyable star pill clears ' + CONTRAST + ':1',
+                    stRatio >= CONTRAST, stRatio.toFixed(2) + ':1');
+                gridWrap.removeChild(sampleCard);
+
+                var shopInner = shopModal.querySelector('.modal-inner');
+                var sRect = shopInner.getBoundingClientRect();
+                assert('Pro Shop dialog fits inside ' + w + 'px phone viewport without clipping',
+                    sRect.width <= w + 1, Math.round(sRect.width) + 'px');
+                shopModal.classList.remove('show');
+            }
         }
     })();
     </script>

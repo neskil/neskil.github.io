@@ -36,6 +36,7 @@
 
     <script src="../vendor/three.min.js"></script>
     <script src="js/config.js"></script>
+    <script src="js/balls.js"></script>
     <script src="js/themes.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
@@ -862,6 +863,64 @@
                 !tourFault && tourCount === G3.portals.WORLDS.length, tourFault);
             assert('with no live world drawn, the hole keeps its own sky',
                 R.state.live === false && R.state.outer.visible === true && !R.state.scene.background);
+        }
+
+        if (glOK && G3.BALLS) {
+            section('GOLF BALL COSMETICS & SHADERS');
+            drainErrors();
+            var hBall = G3.courseById('mini').holes[0];
+            R.buildHole(hBall, 'seaside', null);
+            assert('upgraded base ball sphere has denser geometry and casts shadows',
+                R.state.ball && R.state.ball.castShadow === true &&
+                R.state.ball.geometry.attributes.position.count >= 1500,
+                R.state.ball ? R.state.ball.geometry.attributes.position.count + ' verts' : 'no ball');
+
+            var ballFault = '';
+            G3.BALLS.forEach(function (b) {
+                if (ballFault) return;
+                var ran = attempt('equip & render ball ' + b.id, function () {
+                    R.setBallStyle(b.id);
+                    renderOnce();
+                });
+                var errs = drainErrors(), bad = unlinkedPrograms();
+                if (!ran.ok || errs.length || bad.length) {
+                    ballFault = b.id + ': ' + (ran.err ? ran.err.message : errs.concat(bad).join(' | ')).slice(0, 300);
+                }
+            });
+            assert('all ' + G3.BALLS.length + ' ball cosmetics and shaders compile and render clean',
+                !ballFault, ballFault);
+
+            // Check player color tinting (pass-and-play P2 -> P1) + night theme glass rendering
+            var tintFault = attempt('pass-and-play tint + night crystal glass render', function () {
+                R.setBallStyle('crystal-glass');
+                R.setBallColour(0xff7d6b);
+                renderOnce();
+                R.buildHole(G3.courseById('neon').holes[0], 'neon', null);
+                R.setBallColour(0xffffff);
+                renderOnce();
+                R.setBallStyle('black-hole');
+                renderOnce();
+                R.setBallStyle('tour-white');
+                renderOnce();
+            });
+            assert('glass, singularity and pass-and-play tinting render clean day and night',
+                tintFault.ok && drainErrors().length === 0 && unlinkedPrograms().length === 0,
+                tintFault.err ? tintFault.err.message : '');
+
+            // Exercise shop 3D preview renderer briefly
+            var pvCanvas = document.createElement('canvas');
+            pvCanvas.width = 160; pvCanvas.height = 160;
+            var pvRun = attempt('shop 3D preview ticks holo & glass shaders cleanly', function () {
+                var pv = R.createBallPreview(pvCanvas);
+                if (!pv) return;
+                pv.setStyle('holo-prism'); pv.tick(0.016, false);
+                pv.setStyle('crystal-glass'); pv.tick(0.016, false);
+                pv.setStyle('black-hole'); pv.tick(0.016, false);
+                pv.dispose();
+            });
+            assert('shop 3D preview compiles and disposes without errors',
+                pvRun.ok && drainErrors().length === 0,
+                pvRun.err ? pvRun.err.message : '');
         }
 
         } catch (e) {

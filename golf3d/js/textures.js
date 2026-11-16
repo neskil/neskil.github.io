@@ -554,21 +554,22 @@
        a hex grid of soft circles in a canvas costs nothing and reads the same
        at every distance the game ever uses. */
     function dimpleTexture() {
-        return canvasTex(256, function (g, s) {
-            var cols = 16, r = s / cols / 2, row, col, cx, cz, grd;
-            g.fillStyle = '#b4b4b4';
+        return canvasTex(512, function (g, s) {
+            var cols = 20, r = s / cols / 2, row, col, cx, cz, grd;
+            g.fillStyle = '#cfcfcf';
             g.fillRect(0, 0, s, s);
             for (row = 0; row < cols * 2; row++) {
-                for (col = 0; col < cols; col++) {
+                for (col = -1; col <= cols; col++) {
                     cx = col * (s / cols) + (row % 2 ? r : 0) + r;
                     cz = row * (s / (cols * 2)) + r / 2;
-                    grd = g.createRadialGradient(cx, cz, 0, cx, cz, r * 0.92);
-                    grd.addColorStop(0, '#3a3a3a');
-                    grd.addColorStop(0.72, '#a0a0a0');
+                    grd = g.createRadialGradient(cx, cz, r * 0.08, cx, cz, r * 0.94);
+                    grd.addColorStop(0, '#2a2a2a');
+                    grd.addColorStop(0.68, '#8a8a8a');
+                    grd.addColorStop(0.9, '#e8e8e8');
                     grd.addColorStop(1, '#ffffff');
                     g.fillStyle = grd;
                     g.beginPath();
-                    g.arc(cx, cz, r * 0.92, 0, 6.283);
+                    g.arc(cx, cz, r * 0.94, 0, 6.283);
                     g.fill();
                 }
             }

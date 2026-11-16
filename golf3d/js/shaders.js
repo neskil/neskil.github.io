@@ -766,6 +766,417 @@
         '}'
     ].join('\n');
 
+    /* ── golf ball cosmetics & geodesic dimples ──────────────────────────────
+
+       Every dimpled ball uses analytic 362-point icosahedral geodesic math in
+       object space (`vGbObj`) instead of an equirectangular UV bump map, so
+       there is zero pole pinching and razor-sharp rim shading up close.
+
+       Base Tour, real-life inspired prints, camo and animated surface FX ride on
+       MeshPhongMaterial via `onBeforeCompile` so they inherit course lighting,
+       shadows and fog automatically. Translucent Crystal Glass and Singularity
+       use dedicated ShaderMaterials so they can ray-trace an inner core,
+       Fresnel sky reflections and gravitational accretion rings. */
+
+    var GB_DIMPLE_FN = [
+        'float gbHash(vec3 p) {',
+        '  p = fract(p * vec3(127.1, 311.7, 74.7));',
+        '  p += dot(p, p.yzx + 19.19);',
+        '  return fract((p.x + p.y) * p.z);',
+        '}',
+        'float gbNoise(vec3 p) {',
+        '  vec3 i = floor(p); vec3 f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  return mix(',
+        '    mix(mix(gbHash(i), gbHash(i + vec3(1.0, 0.0, 0.0)), f.x),',
+        '        mix(gbHash(i + vec3(0.0, 1.0, 0.0)), gbHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),',
+        '    mix(mix(gbHash(i + vec3(0.0, 0.0, 1.0)), gbHash(i + vec3(1.0, 0.0, 1.0)), f.x),',
+        '        mix(gbHash(i + vec3(0.0, 1.0, 1.0)), gbHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),',
+        '    f.z);',
+        '}',
+        'float gbFbm(vec3 p) {',
+        '  float v = 0.55 * gbNoise(p);',
+        '  v += 0.30 * gbNoise(p * 2.07 + 3.1);',
+        '  v += 0.15 * gbNoise(p * 4.31 + 7.4);',
+        '  return v;',
+        '}',
+        'void gbDimple(vec3 p, out vec3 gradObj, out float depth) {',
+        '  vec3 s = vec3(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0, p.z < 0.0 ? -1.0 : 1.0);',
+        '  vec3 q = abs(p);',
+        '  vec3 c0 = vec3(0.57735027);',
+        '  vec3 c1 = vec3(0.93417236, 0.35682209, 0.0);',
+        '  vec3 c2 = vec3(0.0, 0.93417236, 0.35682209);',
+        '  vec3 c3 = vec3(0.35682209, 0.0, 0.93417236);',
+        '  float d0 = dot(q, c0); float d1 = dot(q, c1); float d2 = dot(q, c2); float d3 = dot(q, c3);',
+        '  vec3 V0 = vec3(0.0, 0.52573111, 0.85065081);',
+        '  vec3 V1 = vec3(0.52573111, 0.85065081, 0.0);',
+        '  vec3 V2 = vec3(0.85065081, 0.0, 0.52573111);',
+        '  vec3 A = V0; vec3 B = V1; vec3 C = V2;',
+        '  if (d1 >= d0 && d1 >= d2 && d1 >= d3) {',
+        '    A = V1; B = V2; C = vec3(0.85065081, 0.0, -0.52573111);',
+        '  } else if (d2 >= d0 && d2 >= d1 && d2 >= d3) {',
+        '    A = V0; B = V1; C = vec3(-0.52573111, 0.85065081, 0.0);',
+        '  } else if (d3 >= d0 && d3 >= d1 && d3 >= d2) {',
+        '    A = V2; B = V0; C = vec3(0.0, -0.52573111, 0.85065081);',
+        '  }',
+        '  vec3 bc = vec3(dot(q, cross(B, C)), dot(q, cross(C, A)), dot(q, cross(A, B)));',
+        '  bc *= 6.0 / max(bc.x + bc.y + bc.z, 1e-5);',
+        '  vec3 fl = floor(bc);',
+        '  vec3 fr = bc - fl;',
+        '  float up = step(1.5, fr.x + fr.y + fr.z);',
+        '  vec3 o1 = mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 1.0), up);',
+        '  vec3 o2 = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 1.0), up);',
+        '  vec3 o3 = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 0.0), up);',
+        '  if (fr.x + fr.y + fr.z < 0.25) o1 = vec3(0.0);',
+        '  vec3 w1 = fl + o1; vec3 w2 = fl + o2; vec3 w3 = fl + o3;',
+        '  vec3 p1 = normalize(w1.x * A + w1.y * B + w1.z * C);',
+        '  vec3 p2 = normalize(w2.x * A + w2.y * B + w2.z * C);',
+        '  vec3 p3 = normalize(w3.x * A + w3.y * B + w3.z * C);',
+        '  float l1 = dot(q, p1); float l2 = dot(q, p2); float l3 = dot(q, p3);',
+        '  vec3 pBest = p1;',
+        '  if (l2 > l1 && l2 >= l3) pBest = p2;',
+        '  else if (l3 > l1 && l3 > l2) pBest = p3;',
+        '  vec3 dCenter = s * pBest;',
+        '  float chord = length(p - dCenter);',
+        '  float r = clamp(chord / 0.072, 0.0, 1.0);',
+        '  float inv = 1.0 - r * r;',
+        '  depth = inv * inv;',
+        '  vec3 tanOut = p - dCenter * dot(p, dCenter);',
+        '  float tLen = length(tanOut);',
+        '  tanOut = tLen > 1e-4 ? tanOut / tLen : vec3(0.0);',
+        '  gradObj = tanOut * (r * inv * 0.92);',
+        '}'
+    ].join('\n');
+
+    var BALL_VS_HEAD = [
+        'varying vec3 vGbObj;',
+        'varying vec3 vGbX;',
+        'varying vec3 vGbY;',
+        'varying vec3 vGbZ;',
+        ''
+    ].join('\n');
+
+    var BALL_VS_BODY = [
+        '#include <begin_vertex>',
+        '  vGbObj = normalize(position);',
+        '  vGbX = normalize(normalMatrix * vec3(1.0, 0.0, 0.0));',
+        '  vGbY = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));',
+        '  vGbZ = normalize(normalMatrix * vec3(0.0, 0.0, 1.0));'
+    ].join('\n');
+
+    var BALL_FS_HEAD = [
+        'uniform float uGbTime;',
+        'uniform int uGbMode;',
+        'uniform vec3 uGbTint;',
+        'uniform vec3 uGbSunDir;',
+        'uniform vec3 uGbSkyTop;',
+        'varying vec3 vGbObj;',
+        'varying vec3 vGbX;',
+        'varying vec3 vGbY;',
+        'varying vec3 vGbZ;',
+        GB_DIMPLE_FN,
+        'vec3 gbSpectrum(float t) {',
+        '  return 0.52 + 0.48 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67)));',
+        '}',
+        'float gbIcoDots(vec3 p, float scale, float sharp) {',
+        '  vec3 a = abs(p);',
+        '  float d = 0.0;',
+        '  vec3 i0 = vec3(0.0, 0.525731, 0.850651);',
+        '  vec3 i1 = vec3(0.525731, 0.850651, 0.0);',
+        '  vec3 i2 = vec3(0.850651, 0.0, 0.525731);',
+        '  d = max(d, dot(a, i0)); d = max(d, dot(a, i1)); d = max(d, dot(a, i2));',
+        '  return smoothstep(scale - sharp, scale + sharp, d);',
+        '}',
+        'float gbPentagonMask(vec3 p, float rad) {',
+        // Symmetric 12-vertex dodecahedron/icosahedron vertices -> flat pentagon faces via abs + plane symmetry!
+        '  vec3 q = abs(p);',
+        '  vec3 v0 = vec3(0.0, 0.525731, 0.850651);',
+        '  vec3 v1 = vec3(0.525731, 0.850651, 0.0);',
+        '  vec3 v2 = vec3(0.850651, 0.0, 0.525731);',
+        '  float d0 = dot(q, v0); float d1 = dot(q, v1); float d2 = dot(q, v2);',
+        '  vec3 ax = v0; vec3 uA = vec3(1.0, 0.0, 0.0); vec3 uB = vec3(0.0, 0.850651, -0.525731);',
+        '  if (d1 >= d0 && d1 >= d2) { ax = v1; uA = vec3(0.0, 0.0, 1.0); uB = vec3(0.850651, -0.525731, 0.0); }',
+        '  else if (d2 >= d0 && d2 >= d1) { ax = v2; uA = vec3(0.0, 1.0, 0.0); uB = vec3(-0.525731, 0.0, 0.850651); }',
+        '  vec2 loc = vec2(dot(q, uA), dot(q, uB));',
+        '  float ang = atan(loc.y, loc.x);',
+        '  float sec = mod(ang + 0.6283185, 1.256637) - 0.6283185;',
+        '  float poly = length(loc) * cos(sec) / 0.809017;',
+        '  return 1.0 - smoothstep(rad - 0.015, rad + 0.015, poly);',
+        '}',
+        ''
+    ].join('\n');
+
+    var BALL_FS_COLOR = [
+        '#include <color_fragment>',
+        '  vec3 gbGradObj; float gbDepth;',
+        '  vec3 gbP = normalize(vGbObj);',
+        '  gbDimple(gbP, gbGradObj, gbDepth);',
+        '  vec3 gbBase = vec3(0.95, 0.94, 0.90);',
+        '  vec3 gbEmit = vec3(0.0);',
+        '  float gbAO = 1.0 - gbDepth * 0.14;',
+        '  float gbSeam = 1.0 - smoothstep(0.0, 0.022, abs(gbP.y));',
+        '  vec3 gbV = normalize(vViewPosition);',
+        '  vec3 gbVObj = normalize(vec3(dot(gbV, vGbX), dot(gbV, vGbY), dot(gbV, vGbZ)));',
+        '  float gbRim = pow(1.0 - max(dot(gbP, gbVObj), 0.0), 3.0);',
+        '  if (uGbMode == 0) {', // tour-white
+        '    gbBase = vec3(0.96, 0.95, 0.91);',
+        '    gbBase = mix(gbBase, vec3(0.86, 0.85, 0.81), gbSeam * 0.35);',
+        // Clean tour sight stripe & brass crown mark
+        '    float line = (1.0 - smoothstep(0.018, 0.026, abs(gbP.y))) * smoothstep(0.45, 0.52, gbP.x);',
+        '    float dotMark = 1.0 - smoothstep(0.08, 0.10, length(gbP - vec3(0.0, 0.0, 1.0)));',
+        '    float dotInner = 1.0 - smoothstep(0.045, 0.06, length(gbP - vec3(0.0, 0.0, 1.0)));',
+        '    gbBase = mix(gbBase, vec3(0.72, 0.22, 0.17), line * 0.9);',
+        '    gbBase = mix(gbBase, vec3(0.79, 0.64, 0.32), dotMark * (1.0 - dotInner * 0.7));',
+        '  } else if (uGbMode == 1) {', // optic-yellow
+        '    gbBase = vec3(0.89, 0.95, 0.16);',
+        '    float s1 = (1.0 - smoothstep(0.02, 0.028, abs(gbP.y))) * smoothstep(0.42, 0.48, abs(gbP.x));',
+        '    gbBase = mix(gbBase, vec3(0.11, 0.16, 0.28), s1 * 0.85);',
+        '  } else if (uGbMode == 2) {', // coral-matte
+        '    float grain = 0.96 + 0.08 * gbNoise(gbP * 28.0);',
+        '    gbBase = vec3(0.82, 0.18, 0.20) * grain;',
+        '    float bar = (1.0 - smoothstep(0.02, 0.028, abs(gbP.y))) * smoothstep(0.44, 0.50, gbP.x);',
+        '    gbBase = mix(gbBase, vec3(0.95, 0.94, 0.90), bar * 0.92);',
+        '    gbAO = 1.0 - gbDepth * 0.18;',
+        '  } else if (uGbMode == 3) {', // triple-track
+        '    gbBase = vec3(0.96, 0.95, 0.91);',
+        '    float center = 1.0 - smoothstep(0.024, 0.032, abs(gbP.y));',
+        '    float sideA = 1.0 - smoothstep(0.013, 0.020, abs(gbP.y - 0.085));',
+        '    float sideB = 1.0 - smoothstep(0.013, 0.020, abs(gbP.y + 0.085));',
+        '    float mask = smoothstep(-0.3, 0.1, gbP.z + abs(gbP.x));',
+        '    gbBase = mix(gbBase, vec3(0.78, 0.15, 0.20), center * 0.95 * mask);',
+        '    gbBase = mix(gbBase, vec3(0.13, 0.34, 0.72), max(sideA, sideB) * 0.95 * mask);',
+        '  } else if (uGbMode == 4) {', // tour-divide
+        '    float halfSplit = smoothstep(-0.014, 0.014, gbP.y);',
+        '    gbBase = mix(vec3(0.78, 0.16, 0.21), vec3(0.92, 0.71, 0.22), halfSplit);',
+        '    float eq = 1.0 - smoothstep(0.0, 0.018, abs(gbP.y));',
+        '    gbBase = mix(gbBase, vec3(0.18, 0.14, 0.12), eq * 0.45);',
+        '  } else if (uGbMode == 5) {', // pix-tour
+        '    gbBase = vec3(0.95, 0.94, 0.90);',
+        '    float triOuter = gbIcoDots(gbP, 0.958, 0.005);',
+        '    float triInner = gbIcoDots(gbP, 0.979, 0.004);',
+        '    gbBase = mix(gbBase, vec3(0.12, 0.19, 0.35), triOuter * 0.95);',
+        '    gbBase = mix(gbBase, vec3(0.92, 0.38, 0.12), triInner * 0.95);',
+        '  } else if (uGbMode == 6) {', // truvis-club
+        '    gbBase = vec3(0.96, 0.95, 0.91);',
+        '    float pent = gbPentagonMask(gbP, 0.27);',
+        '    float trim = gbPentagonMask(gbP, 0.295) - pent;',
+        '    gbBase = mix(gbBase, vec3(0.78, 0.63, 0.30), max(0.0, trim) * 0.85);',
+        '    gbBase = mix(gbBase, vec3(0.13, 0.27, 0.50), pent * 0.96);',
+        '  } else if (uGbMode == 7) {', // splatter-drip
+        '    gbBase = vec3(0.95, 0.93, 0.88);',
+        '    float n1 = gbFbm(gbP * 4.2 + vec3(1.2, 0.5, 2.3));',
+        '    float n2 = gbFbm(gbP * 5.0 + vec3(8.1, 3.7, 0.9));',
+        '    float n3 = gbFbm(gbP * 6.4 + vec3(4.3, 9.2, 5.1));',
+        '    gbBase = mix(gbBase, vec3(0.12, 0.65, 0.59), smoothstep(0.61, 0.65, n1));',
+        '    gbBase = mix(gbBase, vec3(0.88, 0.33, 0.27), smoothstep(0.62, 0.66, n2));',
+        '    gbBase = mix(gbBase, vec3(0.85, 0.64, 0.23), smoothstep(0.64, 0.68, n3));',
+        '    gbBase = mix(gbBase, vec3(0.14, 0.22, 0.42), smoothstep(0.71, 0.74, n1 + 0.12 * n2));',
+        '  } else if (uGbMode == 8) {', // woodland-camo
+        '    vec3 warp = vec3(gbFbm(gbP * 2.4), gbFbm(gbP * 2.4 + 5.2), gbFbm(gbP * 2.4 + 11.4));',
+        '    float f1 = gbFbm(gbP * 2.8 + warp * 1.4);',
+        '    float f2 = gbFbm(gbP * 3.4 - warp * 1.1 + 4.7);',
+        '    gbBase = vec3(0.28, 0.37, 0.20);',
+        '    gbBase = mix(gbBase, vec3(0.48, 0.55, 0.31), smoothstep(0.46, 0.50, f1));',
+        '    gbBase = mix(gbBase, vec3(0.56, 0.47, 0.32), smoothstep(0.54, 0.58, f2));',
+        '    gbBase = mix(gbBase, vec3(0.14, 0.16, 0.11), smoothstep(0.64, 0.68, f1 * 0.6 + f2 * 0.5));',
+        '    gbAO = 1.0 - gbDepth * 0.20;',
+        '  } else if (uGbMode == 9) {', // carbon-gold
+        '    vec3 w = gbP * 28.0;',
+        '    float weaveA = 0.5 + 0.5 * sin(w.x + w.z) * cos(w.y * 1.3);',
+        '    float weaveB = 0.5 + 0.5 * sin(w.x - w.z) * cos(w.y * 1.3 + 1.57);',
+        '    gbBase = mix(vec3(0.12, 0.13, 0.16), vec3(0.26, 0.28, 0.32), mix(weaveA, weaveB, step(0.5, fract(gbP.y * 9.0))));',
+        '    float ring = 1.0 - smoothstep(0.04, 0.055, abs(gbP.y));',
+        '    gbBase = mix(gbBase, vec3(0.84, 0.68, 0.34), ring);',
+        '  } else if (uGbMode == 10) {', // rainbow-tie
+        '    vec3 sp = gbP * 2.5;',
+        '    float sw = gbFbm(sp + vec3(uGbTime * 0.22, -uGbTime * 0.17, uGbTime * 0.14));',
+        '    float sw2 = gbFbm(sp * 1.7 + sw * 2.2 - uGbTime * 0.18);',
+        '    gbBase = gbSpectrum(sw * 1.4 + sw2 * 0.9 + uGbTime * 0.06);',
+        '    gbEmit = gbBase * 0.10;',
+        '  } else if (uGbMode == 11) {', // holo-prism
+        '    vec3 dN = normalize(gbP - gbGradObj * 1.6);',
+        '    float viewAng = dot(dN, gbVObj);',
+        '    float sunAng = dot(dN, normalize(uGbSunDir));',
+        '    float film = viewAng * 1.45 + sunAng * 0.65 + gbDepth * 0.55 + uGbTime * 0.18;',
+        '    vec3 iri = gbSpectrum(film);',
+        '    float flake = smoothstep(0.84, 0.96, gbHash(floor(gbP * 44.0)));',
+        '    vec3 flakeCol = gbSpectrum(gbHash(floor(gbP * 44.0) + 2.7) + viewAng * 2.0);',
+        '    gbBase = mix(vec3(0.75, 0.80, 0.88), iri, 0.78);',
+        '    gbBase = mix(gbBase, flakeCol * 1.2, flake * 0.65);',
+        '    gbEmit = iri * (0.14 + 0.28 * gbRim) + flakeCol * flake * 0.25;',
+        '  } else if (uGbMode == 12) {', // magma-core
+        '    float warp = gbFbm(gbP * 3.1 + uGbTime * 0.12);',
+        '    float ridge = 1.0 - abs(gbNoise(gbP * 4.8 + warp * 2.0) * 2.0 - 1.0);',
+        '    float crack = pow(clamp(ridge, 0.0, 1.0), 4.0);',
+        '    float pulse = 0.82 + 0.28 * sin(uGbTime * 2.6 + warp * 5.0);',
+        '    gbBase = mix(vec3(0.11, 0.09, 0.09), vec3(0.24, 0.10, 0.07), clamp(crack * 1.4, 0.0, 1.0));',
+        '    vec3 lava = mix(vec3(1.0, 0.28, 0.03), vec3(1.25, 0.88, 0.30), smoothstep(0.35, 0.85, crack));',
+        '    gbEmit = lava * crack * pulse * 1.35;',
+        '  } else if (uGbMode == 13) {', // cyber-wire
+        '    float lat = abs(fract(asin(clamp(gbP.y, -0.999, 0.999)) / 3.14159 * 10.0) - 0.5);',
+        '    float lon = abs(fract(atan(gbP.z, gbP.x) / 6.28318 * 14.0) - 0.5);',
+        '    float grid = 1.0 - smoothstep(0.03, 0.09, min(lat, lon));',
+        '    float wave = exp(-pow((gbP.y - sin(uGbTime * 1.7) * 0.75) * 4.5, 2.0));',
+        '    vec3 neon = mix(vec3(0.10, 0.92, 1.0), vec3(1.0, 0.24, 0.75), wave);',
+        '    gbBase = vec3(0.08, 0.06, 0.16);',
+        '    gbEmit = neon * (grid * (0.75 + 0.65 * wave) + 0.18 * gbRim);',
+        '  }',
+        '  gbBase *= uGbTint * gbAO;',
+        '  gbBase = mix(gbBase, uGbSkyTop * 0.45 + 0.55 * gbBase, gbRim * 0.25);',
+        '  diffuseColor.rgb = gbBase;'
+    ].join('\n');
+
+    var BALL_FS_NORMAL = [
+        '#include <normal_fragment_maps>',
+        '  vec3 gbViewGrad = vGbX * gbGradObj.x + vGbY * gbGradObj.y + vGbZ * gbGradObj.z;',
+        '  normal = normalize(normal - gbViewGrad * 0.90);'
+    ].join('\n');
+
+    var BALL_FS_EMISSIVE = [
+        '#include <emissivemap_fragment>',
+        '  totalEmissiveRadiance += gbEmit;'
+    ].join('\n');
+
+    /* Crystal Glass Ball Shader — translucent optical glass with Fresnel sky/sun
+       reflections, geodesic dimples, chromatic rim and an internally refracted
+       faceted emerald crystal prism core. */
+    var BALL_GLASS_VS = [
+        'varying vec3 vObj;',
+        'varying vec3 vWorldNormal;',
+        'varying vec3 vWorldPos;',
+        'varying vec3 vWorldX;',
+        'varying vec3 vWorldY;',
+        'varying vec3 vWorldZ;',
+        'void main() {',
+        '  vObj = normalize(position);',
+        '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+        '  vWorldPos = wp.xyz;',
+        '  vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);',
+        '  vWorldX = normalize((modelMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xyz);',
+        '  vWorldY = normalize((modelMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);',
+        '  vWorldZ = normalize((modelMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz);',
+        '  gl_Position = projectionMatrix * viewMatrix * wp;',
+        '}'
+    ].join('\n');
+
+    var BALL_GLASS_FS = [
+        'uniform float time;',
+        'uniform vec3 sunDir;',
+        'uniform vec3 sunColour;',
+        'uniform vec3 skyTop;',
+        'uniform vec3 skyColour;',
+        'uniform vec3 fogColour;',
+        'uniform float fogNear;',
+        'uniform float fogFar;',
+        'uniform vec3 tint;',
+        'varying vec3 vObj;',
+        'varying vec3 vWorldNormal;',
+        'varying vec3 vWorldPos;',
+        'varying vec3 vWorldX;',
+        'varying vec3 vWorldY;',
+        'varying vec3 vWorldZ;',
+        GB_DIMPLE_FN,
+        'void main() {',
+        '  vec3 p = normalize(vObj);',
+        '  vec3 gradObj; float depth;',
+        '  gbDimple(p, gradObj, depth);',
+        '  vec3 N = normalize(vWorldNormal);',
+        '  vec3 wg = vWorldX * gradObj.x + vWorldY * gradObj.y + vWorldZ * gradObj.z;',
+        '  vec3 N_dimp = normalize(N - wg * 0.90);',
+        '  vec3 V = normalize(cameraPosition - vWorldPos);',
+        '  float NdotV = max(dot(N_dimp, V), 0.0);',
+        '  float fresnel = 0.05 + 0.95 * pow(1.0 - NdotV, 3.6);',
+        // Reflected sky & sun
+        '  vec3 R = reflect(-V, N_dimp);',
+        '  vec3 skyRef = mix(skyColour, skyTop, clamp(R.y * 0.65 + 0.35, 0.0, 1.0));',
+        '  float sunSpec = pow(max(dot(R, normalize(sunDir)), 0.0), 140.0);',
+        '  float dimpleGlint = pow(max(dot(R, normalize(sunDir)), 0.0), 36.0) * (1.0 - depth * 0.5);',
+        // Inner refracted crystal core (faceted emerald octahedron + bubbles)
+        '  vec3 T = refract(-V, N_dimp, 1.0 / 1.52);',
+        '  float angleT = time * 0.9;',
+        '  mat2 rot = mat2(cos(angleT), -sin(angleT), sin(angleT), cos(angleT));',
+        // Ray closest point to sphere center inside glass
+        '  vec3 ro = N_dimp * 0.98;',
+        '  float bProj = dot(-ro, T);',
+        '  vec3 closest = ro + T * max(bProj, 0.0);',
+        '  vec3 q = vec3(rot * closest.xz, closest.y);',
+        '  float octDist = (abs(q.x) + abs(q.y) + abs(q.z)) * 0.577;',
+        '  float coreMask = 1.0 - smoothstep(0.24, 0.44, octDist);',
+        '  float facets = 0.55 + 0.45 * abs(sin(dot(q, vec3(6.0, 8.0, 5.0))));',
+        '  vec3 coreCol = mix(vec3(0.08, 0.52, 0.55), vec3(0.32, 0.96, 0.80), facets) * coreMask;',
+        // Tiny suspended micro-bubbles + caustic arc
+        '  float bubble = smoothstep(0.88, 0.97, gbNoise(closest * 7.5 + vec3(0.0, time * 0.3, 0.0)));',
+        // Chromatic dispersion rim tint
+        '  vec3 prism = 0.5 + 0.5 * cos(6.28318 * (NdotV * 0.9 + vec3(0.0, 0.33, 0.67)));',
+        '  vec3 bodyCol = mix(vec3(0.45, 0.78, 0.86), skyRef, fresnel);',
+        '  vec3 col = bodyCol * 0.58 + coreCol * 0.95 + prism * pow(1.0 - NdotV, 2.2) * 0.42;',
+        '  col += sunColour * (sunSpec * 2.2 + dimpleGlint * 0.45) + vec3(0.9, 1.0, 1.0) * bubble * 0.65;',
+        '  col *= tint;',
+        '  float d = distance(cameraPosition, vWorldPos);',
+        '  float fg = smoothstep(fogNear, fogFar, d);',
+        '  col = mix(col, fogColour, fg * 0.7);',
+        '  float alpha = clamp(0.38 + fresnel * 0.54 + coreMask * 0.30 + sunSpec * 0.6, 0.38, 0.98);',
+        '  gl_FragColor = vec4(col, alpha);',
+        '  #include <encodings_fragment>',
+        '}'
+    ].join('\n');
+
+    /* Singularity Golf Ball Shader — event horizon with swirling gravitational
+       accretion disc & lensed starlight mapped over the sphere. */
+    var BALL_VOID_VS = [
+        'varying vec3 vObj;',
+        'varying vec3 vWorldNormal;',
+        'varying vec3 vWorldPos;',
+        'void main() {',
+        '  vObj = normalize(position);',
+        '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+        '  vWorldPos = wp.xyz;',
+        '  vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);',
+        '  gl_Position = projectionMatrix * viewMatrix * wp;',
+        '}'
+    ].join('\n');
+
+    var BALL_VOID_FS = [
+        'uniform float time;',
+        'uniform vec3 fogColour;',
+        'uniform float fogNear;',
+        'uniform float fogFar;',
+        'uniform vec3 tint;',
+        'varying vec3 vObj;',
+        'varying vec3 vWorldNormal;',
+        'varying vec3 vWorldPos;',
+        GB_DIMPLE_FN,
+        'void main() {',
+        '  vec3 p = normalize(vObj);',
+        '  vec3 gradObj; float depth;',
+        '  gbDimple(p, gradObj, depth);',
+        '  vec3 N = normalize(vWorldNormal);',
+        '  vec3 V = normalize(cameraPosition - vWorldPos);',
+        '  float NdotV = max(dot(N, V), 0.0);',
+        '  float rRim = 1.0 - NdotV;',
+        // Black hole core inside rRim < 0.56, bright photon ring around rRim ~ 0.68
+        '  float horizon = smoothstep(0.46, 0.58, rRim);',
+        '  float photon = exp(-pow((rRim - 0.68) / 0.09, 2.0));',
+        // Swirling accretion bands in rotated 3D coordinates around the sphere
+        '  float a = atan(p.z, p.x) + time * 1.4 + p.y * 2.5;',
+        '  float swirl = gbNoise(vec3(cos(a) * 2.2, p.y * 5.0, sin(a) * 2.2) - time * 0.4);',
+        '  float eq = exp(-pow(p.y * 3.8, 2.0));',
+        '  float stars = pow(gbNoise(p * 18.0 + swirl), 7.0) * horizon;',
+        '  vec3 hot = vec3(1.18, 0.76, 0.28);',
+        '  vec3 cool = vec3(0.58, 0.30, 1.02);',
+        '  vec3 ringCol = mix(cool, hot, 0.45 + 0.55 * swirl);',
+        '  vec3 col = vec3(0.015, 0.012, 0.024);',
+        '  col += ringCol * (photon * 1.35 + eq * (0.45 + 0.75 * swirl) * horizon);',
+        '  col += vec3(0.92, 0.90, 1.0) * stars * 1.6;',
+        '  col *= 1.0 - depth * 0.18;',
+        '  col *= tint;',
+        '  float d = distance(cameraPosition, vWorldPos);',
+        '  col = mix(col, fogColour, smoothstep(fogNear, fogFar, d) * 0.6);',
+        '  gl_FragColor = vec4(col, 1.0);',
+        '  #include <encodings_fragment>',
+        '}'
+    ].join('\n');
+
     G3.shaders = {
         BLACKHOLE_VS: BLACKHOLE_VS,
         BLACKHOLE_FS: BLACKHOLE_FS,
@@ -782,7 +1193,17 @@
         SUR_FS_HEAD: SUR_FS_HEAD,
         SUR_FS_BODY: SUR_FS_BODY,
         RIDGE_VS: RIDGE_VS,
-        RIDGE_FS: RIDGE_FS
+        RIDGE_FS: RIDGE_FS,
+        BALL_VS_HEAD: BALL_VS_HEAD,
+        BALL_VS_BODY: BALL_VS_BODY,
+        BALL_FS_HEAD: BALL_FS_HEAD,
+        BALL_FS_COLOR: BALL_FS_COLOR,
+        BALL_FS_NORMAL: BALL_FS_NORMAL,
+        BALL_FS_EMISSIVE: BALL_FS_EMISSIVE,
+        BALL_GLASS_VS: BALL_GLASS_VS,
+        BALL_GLASS_FS: BALL_GLASS_FS,
+        BALL_VOID_VS: BALL_VOID_VS,
+        BALL_VOID_FS: BALL_VOID_FS
     };
 
 })(window.G3);

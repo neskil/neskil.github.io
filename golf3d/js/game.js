@@ -706,7 +706,8 @@
     function modalUp() {
         return curtain.up || $('menu').classList.contains('show') ||
                $('howto').classList.contains('show') ||
-               $('scorecard').classList.contains('show');
+               $('scorecard').classList.contains('show') ||
+               ($('ball-shop') && $('ball-shop').classList.contains('show'));
     }
 
     function maybeFly() {
@@ -4038,6 +4039,7 @@
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
         if (k === 'w' || k === 'W') { cycleWeather(); return; }
         if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
+        if (k === 'b' || k === 'B') { openShop(); return; }
         if (k === 'Escape') {
             if (auto) { stopAuto('Your club again'); return; }
             if (sim) { stopSim('Your club again'); return; }
@@ -4045,6 +4047,7 @@
             toggleStylePad(false);
             toggleQualityPad(false);
             closeHowTo();
+            closeShop();
             closeTopMenu();
             hideHoleCard();
             return;
@@ -4733,8 +4736,11 @@
         // How much of all of it is done, across the top.
         var got = 0, max = 0;
         pickables().forEach(function (o) { got += o.got; max += o.max; });
-        $('menu-progress-text').textContent = '\u2605 ' + got + ' / ' + max;
+        var save = state && state.save ? state.save : S.load();
+        var avail = S.availableStars ? S.availableStars(save) : got;
+        $('menu-progress-text').textContent = '\u2605 ' + got + ' / ' + max + '  \u00b7  ' + avail + ' to spend';
         $('menu-progress-bar').style.width = (max ? Math.round(100 * got / max) : 0) + '%';
+        if ($('menu-shop-stars')) $('menu-shop-stars').textContent = '\u2605 ' + avail;
         // Keyboard and screen reader land on what is being offered.
         if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
     }
@@ -6264,6 +6270,9 @@
            machine drew, which is the kind around a stall. */
         tickFps(raw);
         if (G3.backdrop && G3.backdrop.hold) G3.backdrop.hold(buildHeld(now));
+        if (shopPreview && $('ball-shop') && $('ball-shop').classList.contains('show')) {
+            shopPreview.tick(dt, !!shopDrag);
+        }
         if (!state || !state.world) return;
         // The replay draws a world of its own and nothing else moves under it.
         if (replay) { tickReplay(dt); return; }
@@ -6411,6 +6420,358 @@
         return out;
     }
 
+    /* ── Pro Shop (golf ball cosmetics) ────────────────────────────────────── */
+
+    var shopCat = 'all';
+    var shopInspect = null;
+    var shopPreview = null;
+    var shopDrag = null;
+    var shopFromMenu = false;
+
+    function applyEquippedBall(overrideId) {
+        if (!R.setBallStyle) return;
+        var save = state && state.save ? state.save : S.load();
+        var id = (overrideId && G3.ballById && G3.ballById(overrideId).id === overrideId)
+            ? overrideId
+            : (S.equippedBall ? S.equippedBall(save) : 'tour-white');
+        R.setBallStyle(id);
+    }
+
+    function drawBallSwatch(canvas, ball) {
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        var w = canvas.width, h = canvas.height, cx = w * 0.5, cy = h * 0.5, rad = w * 0.42;
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+        ctx.clip();
+
+        var sw = ball.swatch || {};
+        var grd;
+        if (sw.type === 'divide') {
+            ctx.fillStyle = sw.left;
+            ctx.fillRect(0, 0, w, cy);
+            ctx.fillStyle = sw.right;
+            ctx.fillRect(0, cy, w, h - cy);
+        } else if (sw.type === 'camo') {
+            ctx.fillStyle = sw.palette[0];
+            ctx.fillRect(0, 0, w, h);
+            var spots = [[0.3, 0.35, 0.24, 1], [0.72, 0.62, 0.26, 2], [0.5, 0.2, 0.18, 3], [0.25, 0.72, 0.2, 3], [0.68, 0.28, 0.17, 1]];
+            for (var si = 0; si < spots.length; si++) {
+                ctx.fillStyle = sw.palette[spots[si][3]];
+                ctx.beginPath();
+                ctx.ellipse(w * spots[si][0], h * spots[si][1], rad * spots[si][2] * 1.4, rad * spots[si][2], 0.5 * si, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (sw.type === 'rainbow' || sw.type === 'holo') {
+            grd = ctx.createLinearGradient(0, 0, w, h);
+            grd.addColorStop(0, '#ff5f87');
+            grd.addColorStop(0.28, '#ffd452');
+            grd.addColorStop(0.56, '#4be0c8');
+            grd.addColorStop(0.82, '#6d83ff');
+            grd.addColorStop(1, '#e87aff');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, w, h);
+        } else if (sw.type === 'magma') {
+            ctx.fillStyle = '#1b1514';
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = '#ff6524';
+            ctx.lineWidth = w * 0.055;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.18, h * 0.35);
+            ctx.lineTo(w * 0.48, h * 0.46);
+            ctx.lineTo(w * 0.78, h * 0.28);
+            ctx.moveTo(w * 0.48, h * 0.46);
+            ctx.lineTo(w * 0.56, h * 0.82);
+            ctx.stroke();
+            ctx.strokeStyle = '#ffd15c';
+            ctx.lineWidth = w * 0.02;
+            ctx.stroke();
+        } else if (sw.type === 'cyber') {
+            ctx.fillStyle = '#120f24';
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = '#33f0ff';
+            ctx.lineWidth = Math.max(1.5, w * 0.025);
+            for (var g = 0.28; g <= 0.75; g += 0.22) {
+                ctx.beginPath(); ctx.moveTo(0, h * g); ctx.lineTo(w, h * g); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(w * g, 0); ctx.lineTo(w * g, h); ctx.stroke();
+            }
+            ctx.strokeStyle = '#ff47b6';
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+        } else if (sw.type === 'glass') {
+            grd = ctx.createRadialGradient(cx - rad * 0.28, cy - rad * 0.28, rad * 0.08, cx, cy, rad);
+            grd.addColorStop(0, '#eafcff');
+            grd.addColorStop(0.45, '#6cd3e6');
+            grd.addColorStop(0.82, '#2d8b9e');
+            grd.addColorStop(1, '#bfefff');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = '#38efb8';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - rad * 0.34);
+            ctx.lineTo(cx + rad * 0.28, cy);
+            ctx.lineTo(cx, cy + rad * 0.34);
+            ctx.lineTo(cx - rad * 0.28, cy);
+            ctx.closePath();
+            ctx.fill();
+        } else if (sw.type === 'singularity') {
+            grd = ctx.createRadialGradient(cx, cy, rad * 0.35, cx, cy, rad);
+            grd.addColorStop(0, '#07060b');
+            grd.addColorStop(0.55, '#090710');
+            grd.addColorStop(0.76, '#ffb84d');
+            grd.addColorStop(0.92, '#8e5bff');
+            grd.addColorStop(1, '#1c1230');
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, w, h);
+        } else {
+            ctx.fillStyle = sw.base || '#f5f3ea';
+            ctx.fillRect(0, 0, w, h);
+            if (sw.type === 'stripe') {
+                ctx.fillStyle = sw.accent || '#b9382c';
+                ctx.fillRect(w * 0.14, cy - h * 0.032, w * 0.72, h * 0.064);
+            } else if (sw.type === 'triple') {
+                ctx.fillStyle = sw.side;
+                ctx.fillRect(w * 0.12, cy - h * 0.11, w * 0.76, h * 0.04);
+                ctx.fillRect(w * 0.12, cy + h * 0.07, w * 0.76, h * 0.04);
+                ctx.fillStyle = sw.center;
+                ctx.fillRect(w * 0.12, cy - h * 0.035, w * 0.76, h * 0.07);
+            } else if (sw.type === 'dots') {
+                var pts = [[0.34, 0.35], [0.66, 0.35], [0.5, 0.56], [0.34, 0.72], [0.68, 0.68]];
+                for (var di = 0; di < pts.length; di++) {
+                    ctx.fillStyle = di % 2 ? sw.b : sw.a;
+                    ctx.beginPath(); ctx.arc(w * pts[di][0], h * pts[di][1], rad * 0.14, 0, Math.PI * 2); ctx.fill();
+                }
+            } else if (sw.type === 'pentagon') {
+                var ppts = [[0.5, 0.32], [0.3, 0.56], [0.7, 0.56], [0.5, 0.78]];
+                ctx.fillStyle = sw.accent;
+                for (var pi = 0; pi < ppts.length; pi++) {
+                    ctx.beginPath();
+                    for (var k = 0; k < 5; k++) {
+                        var ang = k * Math.PI * 2 / 5 - Math.PI / 2;
+                        var px = w * ppts[pi][0] + Math.cos(ang) * rad * 0.22;
+                        var py = h * ppts[pi][1] + Math.sin(ang) * rad * 0.22;
+                        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath(); ctx.fill();
+                }
+            } else if (sw.type === 'splatter') {
+                var sp = [[0.35, 0.32, 0.18, 0], [0.66, 0.42, 0.16, 1], [0.46, 0.68, 0.2, 2], [0.28, 0.64, 0.12, 3], [0.68, 0.72, 0.11, 0]];
+                for (var qi = 0; qi < sp.length; qi++) {
+                    ctx.fillStyle = sw.palette[sp[qi][3]];
+                    ctx.beginPath(); ctx.arc(w * sp[qi][0], h * sp[qi][1], rad * sp[qi][2], 0, Math.PI * 2); ctx.fill();
+                }
+            } else if (sw.type === 'carbon') {
+                ctx.fillStyle = sw.weave;
+                for (var cyi = 0; cyi < h; cyi += 10) {
+                    for (var cxi = (cyi % 20 ? 5 : 0); cxi < w; cxi += 10) ctx.fillRect(cxi, cyi, 5, 5);
+                }
+                ctx.fillStyle = sw.ring;
+                ctx.fillRect(0, cy - h * 0.045, w, h * 0.09);
+            }
+        }
+
+        // Subtle dimple texture dots + spherical shading + top specular highlight
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        for (var dr = -3; dr <= 3; dr++) {
+            for (var dc = -3; dc <= 3; dc++) {
+                var dx = cx + dc * rad * 0.27 + (dr % 2 ? rad * 0.135 : 0);
+                var dy = cy + dr * rad * 0.24;
+                if (Math.hypot(dx - cx, dy - cy) < rad * 0.88) {
+                    ctx.beginPath(); ctx.arc(dx, dy, rad * 0.055, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+        }
+        var shade = ctx.createRadialGradient(cx - rad * 0.32, cy - rad * 0.32, rad * 0.1, cx, cy, rad);
+        shade.addColorStop(0, 'rgba(255, 255, 255, 0.36)');
+        shade.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+        shade.addColorStop(1, 'rgba(0, 0, 0, 0.44)');
+        ctx.fillStyle = shade;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+    }
+
+    function openShop(inspectId) {
+        if (!$('ball-shop')) return;
+        shopFromMenu = $('menu') && $('menu').classList.contains('show');
+        if (shopFromMenu) $('menu').className = 'modal';
+        var save = state && state.save ? state.save : S.load();
+        shopInspect = (typeof inspectId === 'string' && G3.ballById && G3.ballById(inspectId).id === inspectId)
+            ? inspectId
+            : (S.equippedBall ? S.equippedBall(save) : 'tour-white');
+        $('ball-shop').className = 'modal show';
+        if (!shopPreview && R.createBallPreview) {
+            shopPreview = R.createBallPreview($('shop-preview'));
+        }
+        if (shopPreview) {
+            shopPreview.resize();
+            shopPreview.setStyle(shopInspect);
+            shopPreview.tick(0.016, false);
+        }
+        drawShop();
+    }
+
+    function closeShop() {
+        if (!$('ball-shop') || !$('ball-shop').classList.contains('show')) return;
+        $('ball-shop').className = 'modal';
+        if (shopFromMenu) {
+            shopFromMenu = false;
+            openMenu();
+        }
+    }
+
+    function drawShop() {
+        if (!$('ball-shop')) return;
+        var save = state && state.save ? state.save : S.load();
+        var earned = S.earnedStars ? S.earnedStars(save).got : 0;
+        var avail = S.availableStars ? S.availableStars(save) : earned;
+        var equipped = S.equippedBall ? S.equippedBall(save) : 'tour-white';
+        if (!shopInspect || !G3.ballById) shopInspect = equipped;
+
+        $('shop-avail').textContent = '\u2605 ' + avail;
+        $('shop-earned').textContent = earned + ' earned total';
+
+        // Category filter pills
+        var catsEl = $('shop-cats');
+        catsEl.innerHTML = '';
+        (G3.BALL_CATEGORIES || []).forEach(function (c) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'shop-cat' + (shopCat === c.id ? ' on' : '');
+            btn.textContent = c.name;
+            btn.setAttribute('role', 'tab');
+            btn.setAttribute('aria-selected', shopCat === c.id ? 'true' : 'false');
+            btn.addEventListener('click', function () {
+                shopCat = c.id;
+                drawShop();
+            });
+            catsEl.appendChild(btn);
+        });
+
+        // Inspected detail + 3D preview
+        var cur = G3.ballById(shopInspect);
+        if (shopPreview) shopPreview.setStyle(cur.id);
+        var ownedCur = S.ownsBall(save, cur.id);
+        var isEqCur = equipped === cur.id;
+        $('shop-d-cat').textContent = cur.badge || cur.category;
+        $('shop-d-cost').textContent = cur.cost === 0 ? 'Included' : (ownedCur ? 'Unlocked (\u2605 ' + cur.cost + ')' : '\u2605 ' + cur.cost);
+        $('shop-d-name').textContent = cur.name;
+        $('shop-d-inspired').textContent = cur.inspired ? 'Inspired by: ' + cur.inspired : '';
+        $('shop-d-blurb').textContent = cur.blurb || '';
+
+        var act = $('shop-d-action');
+        act.className = 'shop-action';
+        if (isEqCur) {
+            act.textContent = '\u2713 Equipped';
+            act.disabled = true;
+        } else if (ownedCur) {
+            act.textContent = 'Equip Ball';
+            act.className = 'shop-action equip';
+            act.disabled = false;
+        } else if (avail >= cur.cost) {
+            act.textContent = 'Unlock & Equip (\u2605 ' + cur.cost + ')';
+            act.className = 'shop-action buy';
+            act.disabled = false;
+        } else {
+            act.textContent = 'Need ' + (cur.cost - avail) + ' more \u2605';
+            act.disabled = true;
+        }
+
+        // Card grid (sorted by cost, any-order purchase!)
+        var grid = $('shop-grid');
+        grid.innerHTML = '';
+        (G3.BALLS || []).forEach(function (b) {
+            if (shopCat !== 'all' && b.category !== shopCat) return;
+            var owned = S.ownsBall(save, b.id);
+            var eq = equipped === b.id;
+            var canBuy = !owned && avail >= b.cost;
+            var card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'ball-card' +
+                (shopInspect === b.id ? ' inspecting' : '') +
+                (eq ? ' equipped' : '') +
+                (owned ? '' : ' locked') +
+                (canBuy ? ' can-buy' : '');
+            card.setAttribute('data-ball', b.id);
+
+            var badge = document.createElement('span');
+            badge.className = 'bc-badge';
+            badge.textContent = b.badge || b.category;
+            card.appendChild(badge);
+
+            var sw = document.createElement('canvas');
+            sw.className = 'bc-swatch';
+            sw.width = 116;
+            sw.height = 116;
+            drawBallSwatch(sw, b);
+            card.appendChild(sw);
+
+            var nm = document.createElement('span');
+            nm.className = 'bc-name';
+            nm.textContent = b.name;
+            card.appendChild(nm);
+
+            var st = document.createElement('span');
+            st.className = 'bc-status' + (eq ? ' on' : owned ? ' owned' : canBuy ? ' buyable' : '');
+            st.textContent = eq ? '\u2713 Equipped' : owned ? 'Owned' : '\u2605 ' + b.cost;
+            card.appendChild(st);
+
+            card.addEventListener('click', function () {
+                if (shopInspect === b.id && owned && !eq) {
+                    onShopAction();
+                    return;
+                }
+                shopInspect = b.id;
+                drawShop();
+            });
+            grid.appendChild(card);
+        });
+    }
+
+    function onShopAction() {
+        var save = state && state.save ? state.save : S.load();
+        var id = shopInspect;
+        if (!id) return;
+        var owned = S.ownsBall(save, id);
+        var res = owned ? S.equipBall(save, id) : S.buyBall(save, id);
+        if (!res.ok) return;
+        if (state) state.save = S.save(res.save);
+        else S.save(res.save);
+        applyEquippedBall();
+        drawShop();
+        if ($('menu-shop-stars') && S.availableStars) {
+            $('menu-shop-stars').textContent = '\u2605 ' + S.availableStars(res.save);
+        }
+    }
+
+    function wireShop() {
+        if (!$('ball-shop')) return;
+        $('shop-close').addEventListener('click', closeShop);
+        $('ball-shop').addEventListener('click', function (e) {
+            if (e.target === this) closeShop();
+        });
+        $('shop-d-action').addEventListener('click', onShopAction);
+        var wrap = $('shop-preview-wrap');
+        if (wrap) {
+            wrap.addEventListener('pointerdown', function (e) {
+                shopDrag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+                if (wrap.setPointerCapture) { try { wrap.setPointerCapture(e.pointerId); } catch (er) {} }
+            });
+            wrap.addEventListener('pointermove', function (e) {
+                if (!shopDrag || !shopPreview) return;
+                var dx = (e.clientX - shopDrag.x) * 0.014;
+                var dy = (e.clientY - shopDrag.y) * 0.014;
+                shopDrag.x = e.clientX;
+                shopDrag.y = e.clientY;
+                shopPreview.rotate(dx, dy);
+            });
+            var endDrag = function () { shopDrag = null; };
+            wrap.addEventListener('pointerup', endDrag);
+            wrap.addEventListener('pointercancel', endDrag);
+            wrap.addEventListener('lostpointercapture', endDrag);
+        }
+    }
+
     function boot() {
         canvas = $('board');
         if (!window.THREE) {
@@ -6527,6 +6888,8 @@
         if ($('btn-players')) $('btn-players').addEventListener('click', cyclePlayers);
         syncPlayersChip();
         if ($('menu-btn-range')) $('menu-btn-range').addEventListener('click', function () { maybeAutoFullscreen(); closeMenu(); newRound('range'); });
+        if ($('btn-balls')) $('btn-balls').addEventListener('click', openShop);
+        if ($('menu-btn-shop')) $('menu-btn-shop').addEventListener('click', openShop);
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-map').addEventListener('click', function () { toggleMiniMap(); });
         $('btn-view').addEventListener('click', cycleSeat);
@@ -6812,6 +7175,8 @@
         loadFlight();
 
         state = { save: S.load() };
+        applyEquippedBall(q.ball);
+        wireShop();
         loadShuffle();
         // ?weather=rain holds for the whole round, the same as picking it with
         // W would; anything unrecognised is simply ignored.
@@ -6867,6 +7232,7 @@
         } else {
             maybeFly();
         }
+        if (q.shop === '1') openShop(q.ball);
 
         // One measurement before the first frame, so the bag stands in the
         // right corner of the round rather than the frame after it.
@@ -6891,6 +7257,8 @@
         toggleFullscreen: toggleFullscreen,
         toggleFlight: toggleFlight,
         openHowTo: openHowTo,
+        openShop: openShop,
+        closeShop: closeShop,
         get state() { return state; },
         /* The swing gate, for the inspector and for a driver that has to time
            a strike without a thumb. Read-only from out here in the sense that
