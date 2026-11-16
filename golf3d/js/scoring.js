@@ -55,7 +55,7 @@
     }
 
     function emptySave() {
-        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], ball: 'tour-white' };
+        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white' };
     }
 
     /* ── stars, and the holes behind them ──────────────────────────────
@@ -130,8 +130,12 @@
         return { got: got, max: max };
     }
 
-    function normBalls(list) {
-        var out = ['tour-white'], seen = { 'tour-white': true }, i, id;
+    function normIdList(list, requiredId) {
+        var out = [], seen = {}, i, id;
+        if (requiredId) {
+            out.push(requiredId);
+            seen[requiredId] = true;
+        }
         if (Array.isArray(list)) {
             for (i = 0; i < list.length; i++) {
                 id = list[i];
@@ -151,7 +155,8 @@
             holes: {},
             rounds: prev.rounds || 0,
             aces: prev.aces || 0,
-            balls: normBalls(prev.balls),
+            balls: normIdList(prev.balls, 'tour-white'),
+            freeBalls: normIdList(prev.freeBalls, null),
             ball: typeof prev.ball === 'string' && prev.ball ? prev.ball : 'tour-white'
         }, id;
         for (id in prev.courses) {
@@ -160,7 +165,7 @@
         for (id in prev.holes || {}) {
             if (Object.prototype.hasOwnProperty.call(prev.holes, id)) next.holes[id] = prev.holes[id];
         }
-        if (next.balls.indexOf(next.ball) === -1) next.ball = 'tour-white';
+        if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
         return next;
     }
 
@@ -172,8 +177,9 @@
             var s = emptySave();
             if (typeof d.rounds === 'number') s.rounds = d.rounds;
             if (typeof d.aces === 'number') s.aces = d.aces;
-            s.balls = normBalls(d.balls);
-            if (typeof d.ball === 'string' && s.balls.indexOf(d.ball) !== -1) s.ball = d.ball;
+            s.balls = normIdList(d.balls, 'tour-white');
+            s.freeBalls = normIdList(d.freeBalls, null);
+            if (typeof d.ball === 'string' && ownsBall(s, d.ball)) s.ball = d.ball;
             if (d.courses && typeof d.courses === 'object') {
                 for (var id in d.courses) {
                     if (!Object.prototype.hasOwnProperty.call(d.courses, id)) continue;
@@ -285,7 +291,9 @@
     function ownsBall(saveData, ballId) {
         if (ballId === 'tour-white') return true;
         var list = saveData && saveData.balls;
-        return Array.isArray(list) && list.indexOf(ballId) !== -1;
+        var free = saveData && saveData.freeBalls;
+        return (Array.isArray(list) && list.indexOf(ballId) !== -1) ||
+               (Array.isArray(free) && free.indexOf(ballId) !== -1);
     }
 
     function equippedBall(saveData, catalog) {
@@ -341,6 +349,34 @@
         return { ok: true, save: next };
     }
 
+    /* Dev-mode unlocks sit in `freeBalls` rather than `balls`, so unlocking
+       cosmetics to test shaders never adds phantom star debt to `spentStars`. */
+    function unlockBallFree(prev, ballId, catalog) {
+        var b = findBall(catalog, ballId);
+        if (!b) return { ok: false, reason: 'missing', save: prev };
+        var next = copySave(prev);
+        if (!ownsBall(next, ballId)) next.freeBalls.push(ballId);
+        next.ball = ballId;
+        return { ok: true, save: next };
+    }
+
+    function unlockAllBallsFree(prev, catalog) {
+        var list = catalog || G3.BALLS || [];
+        var next = copySave(prev);
+        for (var i = 0; i < list.length; i++) {
+            var id = list[i].id;
+            if (!ownsBall(next, id)) next.freeBalls.push(id);
+        }
+        return { ok: true, save: next };
+    }
+
+    function resetFreeBalls(prev) {
+        var next = copySave(prev);
+        next.freeBalls = [];
+        if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
+        return { ok: true, save: next };
+    }
+
     G3.scoring = {
         term: term,
         formatVsPar: formatVsPar,
@@ -364,7 +400,10 @@
         ownsBall: ownsBall,
         equippedBall: equippedBall,
         buyBall: buyBall,
-        equipBall: equipBall
+        equipBall: equipBall,
+        unlockBallFree: unlockBallFree,
+        unlockAllBallsFree: unlockAllBallsFree,
+        resetFreeBalls: resetFreeBalls
     };
 
 })(window.G3);
