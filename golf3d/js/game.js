@@ -706,6 +706,7 @@
     function modalUp() {
         return curtain.up || $('menu').classList.contains('show') ||
                $('howto').classList.contains('show') ||
+               ($('about') && $('about').classList.contains('show')) ||
                $('scorecard').classList.contains('show') ||
                ($('ball-shop') && $('ball-shop').classList.contains('show'));
     }
@@ -4047,6 +4048,7 @@
             toggleStylePad(false);
             toggleQualityPad(false);
             closeHowTo();
+            closeAbout();
             closeShop();
             closeTopMenu();
             hideHoleCard();
@@ -4405,6 +4407,64 @@
     function closeHowTo() {
         $('howto').className = 'modal';
         maybeFly();
+    }
+
+    function openAbout() {
+        if (!$('about')) return;
+        syncDevUI();
+        $('about').className = 'modal show';
+    }
+
+    function closeAbout() {
+        if (!$('about')) return;
+        $('about').className = 'modal';
+        maybeFly();
+    }
+
+    function setDev(on, quiet) {
+        dev = !!on;
+        try { localStorage.setItem(C.DEV_KEY, dev ? '1' : '0'); } catch (e) { /* ignore */ }
+        syncStyle();
+        syncDevUI();
+        if ($('ball-shop') && $('ball-shop').classList.contains('show')) drawShop();
+        if (!quiet) {
+            toast(dev
+                ? 'Dev mode enabled \u2014 free Pro Shop unlocks active'
+                : 'Dev mode disabled');
+        }
+    }
+
+    function syncDevUI() {
+        if ($('about-ver')) $('about-ver').textContent = 'v' + (G3.VERSION || '1.0');
+        if ($('about-dev-pill')) $('about-dev-pill').hidden = !dev;
+        if ($('about-dev-box')) $('about-dev-box').hidden = !dev;
+        if ($('btn-about')) $('btn-about').classList.toggle('on', dev);
+    }
+
+    function unlockAllShopDev() {
+        if (!dev || !S.unlockAllBallsFree) return;
+        var save = state && state.save ? state.save : S.load();
+        var res = S.unlockAllBallsFree(save);
+        if (!res.ok) return;
+        if (state) state.save = S.save(res.save);
+        else S.save(res.save);
+        applyEquippedBall();
+        if ($('ball-shop') && $('ball-shop').classList.contains('show')) drawShop();
+        syncDevUI();
+        toast('All 16 golf balls unlocked (dev)');
+    }
+
+    function resetShopDev() {
+        if (!S.resetFreeBalls) return;
+        var save = state && state.save ? state.save : S.load();
+        var res = S.resetFreeBalls(save);
+        if (!res.ok) return;
+        if (state) state.save = S.save(res.save);
+        else S.save(res.save);
+        applyEquippedBall();
+        if ($('ball-shop') && $('ball-shop').classList.contains('show')) drawShop();
+        syncDevUI();
+        toast('Dev ball unlocks cleared');
     }
 
     function toggleMute() {
@@ -6631,6 +6691,20 @@
         $('shop-avail').textContent = '\u2605 ' + avail;
         $('shop-earned').textContent = earned + ' earned total';
 
+        if ($('shop-dev-bar')) {
+            $('shop-dev-bar').hidden = !dev;
+            if (dev) {
+                var allList = G3.BALLS || [];
+                var allOwned = allList.length > 0 && allList.every(function (x) { return S.ownsBall(save, x.id); });
+                var hasFree = Array.isArray(save.freeBalls) && save.freeBalls.length > 0;
+                if ($('shop-dev-unlock-all')) {
+                    $('shop-dev-unlock-all').textContent = allOwned ? '\u2713 All Balls Unlocked' : 'Unlock All Balls';
+                    $('shop-dev-unlock-all').disabled = allOwned;
+                }
+                if ($('shop-dev-reset')) $('shop-dev-reset').hidden = !hasFree;
+            }
+        }
+
         // Category filter pills
         var catsEl = $('shop-cats');
         catsEl.innerHTML = '';
@@ -6671,6 +6745,10 @@
         } else if (avail >= cur.cost) {
             act.textContent = 'Unlock & Equip (\u2605 ' + cur.cost + ')';
             act.className = 'shop-action buy';
+            act.disabled = false;
+        } else if (dev) {
+            act.textContent = 'Unlock & Equip (Dev)';
+            act.className = 'shop-action dev';
             act.disabled = false;
         } else {
             act.textContent = 'Need ' + (cur.cost - avail) + ' more \u2605';
@@ -6733,7 +6811,12 @@
         var id = shopInspect;
         if (!id) return;
         var owned = S.ownsBall(save, id);
-        var res = owned ? S.equipBall(save, id) : S.buyBall(save, id);
+        var b = G3.ballById ? G3.ballById(id) : null;
+        var avail = S.availableStars ? S.availableStars(save) : 0;
+        var res;
+        if (owned) res = S.equipBall(save, id);
+        else if (b && avail < b.cost && dev && S.unlockBallFree) res = S.unlockBallFree(save, id);
+        else res = S.buyBall(save, id);
         if (!res.ok) return;
         if (state) state.save = S.save(res.save);
         else S.save(res.save);
@@ -6988,7 +7071,8 @@
         bindFlightHold('flight-back', 'back');
         bindFlightHold('flight-up', 'up');
         bindFlightHold('flight-down', 'down');
-        // Secret tap/click unlock: 5 taps on the title or About reveals & toggles Flight.
+        // Secret tap/click unlock: 5 taps on the title reveals & toggles Flight;
+        // 5 taps on About (button, fold, or About heading/version) toggles Dev Mode.
         (function () {
             var taps = 0, lastTap = 0;
             function onSecretTap() {
@@ -7003,7 +7087,24 @@
             }
             var brandTitle = document.querySelector('.brand .title');
             if (brandTitle) brandTitle.addEventListener('click', onSecretTap);
-            if ($('tm-about')) $('tm-about').addEventListener('click', onSecretTap);
+
+            var devTaps = 0, devLastTap = 0;
+            function onDevTap() {
+                var now = performance.now();
+                devTaps = (now - devLastTap < 2500) ? devTaps + 1 : 1;
+                devLastTap = now;
+                if (devTaps >= 5) {
+                    devTaps = 0;
+                    setDev(!dev, false);
+                }
+            }
+            if ($('btn-about')) $('btn-about').addEventListener('click', onDevTap);
+            if ($('btn-about-2')) $('btn-about-2').addEventListener('click', onDevTap);
+            if ($('about-ver')) $('about-ver').addEventListener('click', onDevTap);
+            if ($('about-title')) $('about-title').addEventListener('click', onDevTap);
+            if ($('tm-about')) $('tm-about').addEventListener('click', onDevTap);
+            var aboutFold = document.querySelector('.tm-fold[data-fold="tm-about"]');
+            if (aboutFold) aboutFold.addEventListener('click', onDevTap);
         })();
         // Belt and braces: a press anywhere has already left the demo by the
         // time this fires, but a keyboard activating the focused button has
@@ -7039,6 +7140,8 @@
         syncFsReminder();
         $('btn-help').addEventListener('click', openHowTo);
         $('btn-help-2').addEventListener('click', openHowTo);
+        if ($('btn-about')) $('btn-about').addEventListener('click', openAbout);
+        if ($('btn-about-2')) $('btn-about-2').addEventListener('click', openAbout);
         $('btn-mute').addEventListener('click', toggleMute);
         $('btn-music').addEventListener('click', toggleMusic);
         $('btn-water').addEventListener('click', toggleWater);
@@ -7062,7 +7165,7 @@
                 t.setAttribute('aria-expanded', o ? 'true' : 'false');
                 return;
             }
-            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-style' && t.id !== 'btn-quality') return;
+            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-about' && t.id !== 'btn-style' && t.id !== 'btn-quality') return;
             closeTopMenu();
         });
         // A press anywhere else shuts it, the way a menu should.
@@ -7082,6 +7185,15 @@
         }
         $('howto-close').addEventListener('click', closeHowTo);
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
+        if ($('about-close')) $('about-close').addEventListener('click', closeAbout);
+        if ($('about')) $('about').addEventListener('click', function (e) { if (e.target === this) closeAbout(); });
+        if ($('about-shop')) $('about-shop').addEventListener('click', function () { closeAbout(); openShop(); });
+        if ($('about-dev-unlock')) $('about-dev-unlock').addEventListener('click', unlockAllShopDev);
+        if ($('about-dev-reset')) $('about-dev-reset').addEventListener('click', resetShopDev);
+        if ($('about-dev-off')) $('about-dev-off').addEventListener('click', function () { setDev(false, false); });
+        if ($('shop-dev-unlock-all')) $('shop-dev-unlock-all').addEventListener('click', unlockAllShopDev);
+        if ($('shop-dev-reset')) $('shop-dev-reset').addEventListener('click', resetShopDev);
+        syncDevUI();
         document.addEventListener('fullscreenchange', onFullscreenChange);
         document.addEventListener('webkitfullscreenchange', onFullscreenChange);
         if (window.visualViewport) window.visualViewport.addEventListener('resize', onPageResize);
@@ -7257,6 +7369,9 @@
         toggleFullscreen: toggleFullscreen,
         toggleFlight: toggleFlight,
         openHowTo: openHowTo,
+        openAbout: openAbout,
+        closeAbout: closeAbout,
+        setDev: setDev,
         openShop: openShop,
         closeShop: closeShop,
         get state() { return state; },

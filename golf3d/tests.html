@@ -5990,6 +5990,19 @@
                 S.ownsBall(reloaded, 'crystal-glass') && S.ownsBall(reloaded, 'triple-track') &&
                 S.equippedBall(reloaded) === 'triple-track' &&
                 S.spentStars(reloaded) === glassCost + tripleCost);
+
+            // Dev-mode free unlocks & reset do not inflate spentStars
+            var devOne = S.unlockBallFree(sv, 'black-hole').save;
+            assert('dev unlock equips locked ball without spending stars',
+                S.ownsBall(devOne, 'black-hole') && S.equippedBall(devOne) === 'black-hole' &&
+                S.spentStars(devOne) === 0 && S.availableStars(devOne, mockCourses, mockWorlds) === 48);
+            var devAll = S.unlockAllBallsFree(buyTriple.save).save;
+            assert('dev unlockAll unlocks every catalog ball without adding star debt',
+                balls.every(function (b) { return S.ownsBall(devAll, b.id); }) &&
+                S.spentStars(devAll) === glassCost + tripleCost);
+            var devReset = S.resetFreeBalls(devOne).save;
+            assert('resetFreeBalls removes dev-only unlocks and falls back to tour-white if unowned',
+                !S.ownsBall(devReset, 'black-hole') && S.equippedBall(devReset) === 'tour-white');
             try { localStorage.removeItem(C.SAVE_KEY); } catch (e) {}
         })();
 

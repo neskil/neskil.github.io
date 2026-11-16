@@ -609,7 +609,30 @@
                 var sRect = shopInner.getBoundingClientRect();
                 assert('Pro Shop dialog fits inside ' + w + 'px phone viewport without clipping',
                     sRect.width <= w + 1, Math.round(sRect.width) + 'px');
+
+                var devBar = doc.getElementById('shop-dev-bar');
+                var devUnlockBtn = doc.getElementById('shop-dev-unlock-all');
+                if (devBar && devUnlockBtn) {
+                    devBar.hidden = false;
+                    var dbCs = win.getComputedStyle(devUnlockBtn);
+                    var dbRatio = contrast(parseColor(dbCs.color), effectiveBg(devUnlockBtn));
+                    assert('Pro Shop Dev Unlock All button clears ' + CONTRAST + ':1 contrast',
+                        dbRatio >= CONTRAST, dbRatio.toFixed(2) + ':1');
+                    devBar.hidden = true;
+                }
                 shopModal.classList.remove('show');
+            }
+
+            var aboutBtn = doc.getElementById('btn-about');
+            var aboutModal = doc.getElementById('about');
+            assert('top bar carries an About trigger and About modal exists',
+                !!aboutBtn && !!aboutModal && !!doc.getElementById('about-ver'));
+            if (aboutModal) {
+                aboutModal.classList.add('show');
+                var aRect = aboutModal.querySelector('.modal-inner').getBoundingClientRect();
+                assert('About modal fits inside ' + w + 'px phone viewport without clipping',
+                    aRect.width <= w + 1, Math.round(aRect.width) + 'px');
+                aboutModal.classList.remove('show');
             }
         }
     })();
