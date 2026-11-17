@@ -38,7 +38,39 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.175.0">
+    <link rel="stylesheet" href="style.css?v=1.177.0">
+    <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
+         imports Portals' engine and its three.js, which import more, four
+         levels deep — and a browser only learns of each level by fetching and
+         reading the one above, a round trip to the server apiece before a
+         world can start to build. Named here, all of them are fetched at
+         once while the game's own scripts are still arriving (at low
+         priority, behind those). The import map has to come first: a map
+         met after a module has begun loading is ignored by older browsers.
+         ui-tests.html holds this list to the module's real imports. -->
+    <script type="importmap">
+    { "imports": { "three": "./vendor/portals/vendor/three/three.module.min.js", "three/addons/": "./vendor/portals/vendor/three/addons/" } }
+    </script>
+    <link rel="modulepreload" href="vendor/portals/src/core/engine.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/three.module.min.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/kit/core.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/extras.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/perf.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/pick.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/portal.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/post.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/quality.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/safemath.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/core/style.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/extras.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/EffectComposer.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/RenderPass.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/ShaderPass.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/UnrealBloomPass.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/shaders/CopyShader.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/MaskPass.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/Pass.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/vendor/three/addons/shaders/LuminosityHighPassShader.js" fetchpriority="low">
 <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -791,7 +823,7 @@
             <div class="about-head" id="about-head">
                 <div class="about-title-row">
                     <h2 id="about-title">About Loft Links</h2>
-                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.175.0</button>
+                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.176.1</button>
                     <span class="dev-pill" id="about-dev-pill" hidden>DEV MODE</span>
                 </div>
             </div>
@@ -1054,43 +1086,42 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.175.0"></script>
-    <script src="js/balls.js?v=1.175.0"></script>
-    <script src="js/themes.js?v=1.175.0"></script>
-    <script src="js/physics.js?v=1.175.0"></script>
-    <script src="js/courses.js?v=1.175.0"></script>
-    <script src="js/tour-ground.js?v=1.175.0"></script>
-    <script src="js/portals.js?v=1.175.0"></script>
-    <script src="js/audit.js?v=1.175.0"></script>
-    <script src="js/custom.js?v=1.175.0"></script>
-    <script src="js/scoring.js?v=1.175.0"></script>
-    <script src="js/swing.js?v=1.175.0"></script>
-    <script src="js/school.js?v=1.175.0"></script>
-    <script src="js/audio.js?v=1.175.0"></script>
-    <script src="js/music.js?v=1.175.0"></script>
-    <script src="js/bag.js?v=1.175.0"></script>
-    <script src="js/textures.js?v=1.175.0"></script>
-    <script src="js/shaders.js?v=1.175.0"></script>
-    <script src="js/postfx.js?v=1.175.0"></script>
-    <script src="js/weather.js?v=1.175.0"></script>
-    <script src="js/flyover.js?v=1.175.0"></script>
-    <script src="js/replay.js?v=1.175.0"></script>
-    <script src="js/bot.js?v=1.175.0"></script>
-    <script src="js/models.js?v=1.175.0"></script>
-    <script src="js/life.js?v=1.175.0"></script>
-    <script src="js/worlds.js?v=1.175.0"></script>
-    <script src="js/sandfx.js?v=1.175.0"></script>
-    <script src="js/render.js?v=1.175.0"></script>
-    <script src="js/minimap.js?v=1.175.0"></script>
-    <script src="js/debug.js?v=1.175.0"></script>
-    <script src="js/game.js?v=1.175.0"></script>
+    <script src="js/config.js?v=1.177.0"></script>
+    <script src="js/balls.js?v=1.177.0"></script>
+    <script src="js/themes.js?v=1.177.0"></script>
+    <script src="js/physics.js?v=1.177.0"></script>
+    <script src="js/courses.js?v=1.177.0"></script>
+    <script src="js/tour-ground.js?v=1.177.0"></script>
+    <script src="js/portals.js?v=1.177.0"></script>
+    <script src="js/audit.js?v=1.177.0"></script>
+    <script src="js/custom.js?v=1.177.0"></script>
+    <script src="js/scoring.js?v=1.177.0"></script>
+    <script src="js/swing.js?v=1.177.0"></script>
+    <script src="js/school.js?v=1.177.0"></script>
+    <script src="js/audio.js?v=1.177.0"></script>
+    <script src="js/music.js?v=1.177.0"></script>
+    <script src="js/bag.js?v=1.177.0"></script>
+    <script src="js/textures.js?v=1.177.0"></script>
+    <script src="js/shaders.js?v=1.177.0"></script>
+    <script src="js/postfx.js?v=1.177.0"></script>
+    <script src="js/weather.js?v=1.177.0"></script>
+    <script src="js/flyover.js?v=1.177.0"></script>
+    <script src="js/replay.js?v=1.177.0"></script>
+    <script src="js/bot.js?v=1.177.0"></script>
+    <script src="js/models.js?v=1.177.0"></script>
+    <script src="js/life.js?v=1.177.0"></script>
+    <script src="js/worlds.js?v=1.177.0"></script>
+    <script src="js/sandfx.js?v=1.177.0"></script>
+    <script src="js/render.js?v=1.177.0"></script>
+    <script src="js/minimap.js?v=1.177.0"></script>
+    <script src="js/debug.js?v=1.177.0"></script>
+    <script src="js/game.js?v=1.177.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
-         the background. Last, a module, and nothing waits for it. -->
-    <script type="importmap">
-    { "imports": { "three": "./vendor/portals/vendor/three/three.module.min.js", "three/addons/": "./vendor/portals/vendor/three/addons/" } }
-    </script>
-    <script type="module" src="js/backdrop.mjs?v=1.175.0"></script>
+         the background. Last, a module, and nothing waits for it. Its import
+         map and the files it pulls in are named in the head, so they are on
+         their way before this line is reached. -->
+    <script type="module" src="js/backdrop.mjs?v=1.177.0"></script>
 </body>
 </html>

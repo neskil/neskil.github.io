@@ -4501,11 +4501,14 @@ down into it (`render.js → startDive`, `diveCamera`, `C.DIVE`), each part ease
 so it leaves at the speed the lap was going and is falling fastest as it goes
 in. It looks just past the cup's axis on the far side, so the last look is
 never exactly straight down and the picture turns with the spiral instead of
-flicking round. It stops just over the lip where the cup fills the picture — the height
-worked out from the field of view, so a phone held either way ends on the
-inside of the hole and the ball lying in it, never on the ball's dimples.
-The wipe on to the next sky starts closing while it falls (`throughPortal`'s
-`dive`), so it opens out of the cup. The pose holds at the lip until the
+flicking round. The plunge reaches the rim (`RIM_AT`, `RIM_Y` over it) with the
+cup's black hole filling the picture, and only then does the wipe on to the
+next sky start closing (`PORTAL_AT`, `throughPortal`'s `dive`): the camera
+goes on `INTO` the hole at the speed it arrived with, easing to rest, with the
+black-hole disc kept just below it so the view is never the underside of the
+green, and the next sky opens out of that dark (v1.176.1 — before, the wipe
+began while the camera was still metres up, and the owner wanted it "further
+down into the hole before the transition starts"). The pose holds until the
 next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
 is over (`phase === 'holed'`, a picked-up ball included — then with no lap
 to carry on from, so it starts from standing); reduced motion gets neither
@@ -5697,6 +5700,48 @@ cup and the wind speed — **compare before they write**, because writing the
 string that is already there is a layout the browser did not need to do. And
 the bag, which is a still object once it is shut, **stops easing** until one of
 the four things that can move it says otherwise.
+
+### Nothing compiles mid-hole, and what stands still is drawn together (v1.176.0)
+
+Measured on a phone-speed CPU (four times throttled), the first frame now
+comes about 40% sooner and a live world shows about 3 s sooner. During a
+hole, the stalls of most of a second are gone. They came from shaders
+compiling on the frame something happened. Five changes:
+
+- **The light count never changes.** A lit material's program is compiled
+  for a number of lights. The bag's lamps were inside its rigs, so hiding
+  the bag (flyover, victory lap, dive, replay) took them out of the scene.
+  The picker's two passes each counted only their own layer's lights. Each
+  of those compiled the whole course again. Now the lamps ride beside the
+  rigs and go dark instead of leaving (`bag.js → lightRig`). Every light is
+  on both layers, and a pass dims the other side's lights to nothing
+  (`render.js → passLights`). **Don't add a light that comes and goes.**
+  Turn it to zero instead.
+- **A hole is compiled as it is built** (`render.js → warmPrograms`), behind
+  the loading screen or the wipe. Its programs are kept between holes
+  (`keepPrograms`), so the next hole reuses them. The clubs at the ball are
+  modelled when the hole loads (`bag.addressWarm`), not on the first swing.
+- **Fewer draw calls.** Still rails, trunks and rocks become one mesh per
+  material (`stand`/`standAll`). A box pad is drawn as a cap and its sides,
+  two calls instead of six (`capAndSides`). The sun's shadow map is redrawn
+  every other frame while nothing in play moves (`shadowRests`). It is drawn
+  every frame while a ball rolls and on holes with moving walls. On the
+  Marble Run this took calls from 387 to 229 a frame.
+- **The driver head** was 38,000 triangles, as many as the rest of the bag.
+  It also stood in the corner, at the ball and in the shadow map. Now those
+  use a sweep a seventh as fine, and the fine one is swapped in only while
+  the picker is open (`fineShells`). Its artwork is painted once and shared
+  (`drvArtOnce`). `drvRadius` finds its entry by halving the list, not by
+  walking it, which was 1.1 s of a 2 s desktop boot.
+- **The worlds' modules are preloaded.** `index.html` lists every file
+  `backdrop.mjs` imports as a `modulepreload`, with the import map before
+  them. `ui-tests.html` holds that list to the module's real imports. Under
+  the post chain on WebGL2, the canvas itself is not antialiased: the
+  course is already drawn into a multisampled buffer.
+
+`shader-tests.html` now runs on WebGL2, as phones do; it used to claim the
+canvas for WebGL1 first. It also loads the bag. Its section "Nothing is
+compiled while a hole is played" holds all of the above to numbers.
 
 ## Tests
 

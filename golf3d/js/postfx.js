@@ -531,6 +531,8 @@
     function backdrop(scene, camera, front) {
         var r = FX.renderer, mask = camera.layers.mask, auto = r.autoClear;
         camera.layers.set(0);
+        // Lit by the course's own lights alone (render.js `passLights`).
+        if (front.lights) front.lights('course');
         r.setRenderTarget(FX.rt);
         r.clear();
         r.render(scene, camera);
@@ -557,7 +559,14 @@
         r.setRenderTarget(FX.rt);
         r.clearDepth();
         camera.layers.set(front.layer);
+        /* …and the bag by the bag's alone. The sun is still counted in this
+           pass (its strength is nought), so its shadow map would be drawn
+           again here, of a layer nothing casts a shadow on: the one the
+           course pass drew is left as it is. */
+        var shadows = r.shadowMap.autoUpdate;
+        if (front.lights) { front.lights('bag'); r.shadowMap.autoUpdate = false; }
         r.render(scene, camera);
+        if (front.lights) { r.shadowMap.autoUpdate = shadows; front.lights(null); }
         camera.layers.mask = mask;
         r.autoClear = auto;
     }
