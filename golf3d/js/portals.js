@@ -711,7 +711,7 @@
        waiting. Both on one putt is the two gaps coming round together, and
        a weight that is through the second before it shuts.
 
-       It is laid on the Attic Line's own level crossing (PLACES, v1.177.0).
+       It is laid on the Attic Line's own level crossing (PLACES, v1.179.0).
        That world's up line and down line run side by side through the town,
        fourteen toy centimetres apart, and the hole's two tracks are five
        units apart: at 2.8 centimetres to the unit they are the same two

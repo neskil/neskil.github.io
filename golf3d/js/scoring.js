@@ -55,7 +55,7 @@
     }
 
     function emptySave() {
-        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white' };
+        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white', club: 'club-stock' };
     }
 
     /* ── stars, and the holes behind them ──────────────────────────────
@@ -157,7 +157,8 @@
             aces: prev.aces || 0,
             balls: normIdList(prev.balls, 'tour-white'),
             freeBalls: normIdList(prev.freeBalls, null),
-            ball: typeof prev.ball === 'string' && prev.ball ? prev.ball : 'tour-white'
+            ball: typeof prev.ball === 'string' && prev.ball ? prev.ball : 'tour-white',
+            club: typeof prev.club === 'string' && prev.club ? prev.club : 'club-stock'
         }, id;
         for (id in prev.courses) {
             if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
@@ -166,6 +167,7 @@
             if (Object.prototype.hasOwnProperty.call(prev.holes, id)) next.holes[id] = prev.holes[id];
         }
         if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
+        if (!ownsBall(next, next.club)) next.club = 'club-stock';
         return next;
     }
 
@@ -180,6 +182,7 @@
             s.balls = normIdList(d.balls, 'tour-white');
             s.freeBalls = normIdList(d.freeBalls, null);
             if (typeof d.ball === 'string' && ownsBall(s, d.ball)) s.ball = d.ball;
+            if (typeof d.club === 'string' && ownsBall(s, d.club)) s.club = d.club;
             if (d.courses && typeof d.courses === 'object') {
                 for (var id in d.courses) {
                     if (!Object.prototype.hasOwnProperty.call(d.courses, id)) continue;
@@ -282,14 +285,15 @@
         return { got: got, max: max };
     }
 
+    // The catalog is everything the wallet buys: balls and club finishes.
     function findBall(catalog, id) {
-        var list = catalog || G3.BALLS || [];
+        var list = catalog || G3.SHOP_ITEMS || G3.BALLS || [];
         for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
         return null;
     }
 
     function ownsBall(saveData, ballId) {
-        if (ballId === 'tour-white') return true;
+        if (ballId === 'tour-white' || ballId === 'club-stock') return true;
         var list = saveData && saveData.balls;
         var free = saveData && saveData.freeBalls;
         return (Array.isArray(list) && list.indexOf(ballId) !== -1) ||
@@ -307,7 +311,7 @@
         var seen = {}, total = 0, i, b;
         for (i = 0; i < list.length; i++) {
             var id = list[i];
-            if (seen[id] || id === 'tour-white') continue;
+            if (seen[id] || id === 'tour-white' || id === 'club-stock') continue;
             seen[id] = true;
             b = findBall(catalog, id);
             if (b && b.cost > 0) total += b.cost;
@@ -320,8 +324,68 @@
         return Math.max(0, earned - spentStars(saveData, catalog));
     }
 
-    /* Buy any locked ball in any order as soon as availableStars >= ball.cost,
-       and equip it immediately. Returns `{ ok, reason?, save, need? }`. */
+    /* ── achievements ──────────────────────────────────────────────────
+
+       How far the player is towards a lock in balls.js (`G3.SHOP_LOCKS`).
+       Counted from the save alone, so it is the same answer in the shop, on
+       the card and in the tests. `have` is capped at `need`. */
+    function lockProgress(saveData, key, courses, worlds) {
+        var sv = saveData || emptySave();
+        var cs = courses || defaultCourses();
+        var played = function (id) { var r = sv.courses && sv.courses[id]; return !!(r && r.rounds > 0); };
+        var n = 0, i, j;
+        if (key === 'ace') return sv.aces || 0;
+        if (key === 'rounds') return sv.rounds || 0;
+        if (key === 'under') {
+            for (var id in sv.courses || {}) {
+                if (!Object.prototype.hasOwnProperty.call(sv.courses, id)) continue;
+                var r = sv.courses[id];
+                if (r && r.rounds > 0 && typeof r.bestVsPar === 'number' && r.bestVsPar < 0) return 1;
+            }
+            return 0;
+        }
+        if (key === 'kinds') {
+            var groups = {};
+            for (i = 0; i < cs.length; i++) if (cs[i].group && played(cs[i].id)) groups[cs[i].group] = true;
+            for (var g in groups) if (Object.prototype.hasOwnProperty.call(groups, g)) n++;
+            return n;
+        }
+        if (key === 'courses') {
+            for (i = 0; i < cs.length; i++) if (played(cs[i].id)) n++;
+            return n;
+        }
+        if (key === 'perfect') {
+            for (i = 0; i < cs.length; i++) {
+                var three = 0;
+                for (j = 0; j < cs[i].holes.length; j++) if (holeRecord(sv, cs[i].id, j).stars >= 3) three++;
+                n = Math.max(n, three);
+            }
+            return n;
+        }
+        if (key === 'tour') {
+            var ws = worlds || (G3.portals && G3.portals.WORLDS) || [];
+            for (i = 0; i < ws.length; i++) if (holeRecord(sv, 'world-' + ws[i].id, 0).stars > 0) n++;
+            return n;
+        }
+        return 0;
+    }
+
+    /* `{ locked, met, have, need, text }` for one shop item. An item with no
+       lock, or one already owned, is never locked. */
+    function lockStatus(saveData, itemId, opts) {
+        var o = opts || {};
+        var b = findBall(o.catalog, itemId);
+        var L = b && b.lock && G3.SHOP_LOCKS ? G3.SHOP_LOCKS[b.lock] : null;
+        if (!L) return { locked: false, met: true, have: 0, need: 0, text: '' };
+        var have = Math.min(L.need, lockProgress(saveData, b.lock, o.courses, o.worlds));
+        var met = have >= L.need;
+        return { locked: !met && !ownsBall(saveData, itemId), met: met, have: have, need: L.need, text: L.text };
+    }
+
+    /* Buy any item in any order as soon as availableStars >= its cost and its
+       achievement (if it has one) is met, and equip it immediately. Returns
+       `{ ok, reason?, save, need? }`; reason is 'insufficient' or
+       'achievement'. */
     function buyBall(prev, ballId, opts) {
         var o = opts || {};
         var b = findBall(o.catalog, ballId);
@@ -330,13 +394,15 @@
             var eq = equipBall(prev, ballId, o.catalog);
             return { ok: true, alreadyOwned: true, save: eq.save };
         }
+        var ls = lockStatus(prev, ballId, o);
+        if (ls.locked) return { ok: false, reason: 'achievement', lock: ls, save: prev };
         var avail = availableStars(prev, o.courses, o.worlds, o.catalog);
         if (avail < b.cost) {
             return { ok: false, reason: 'insufficient', need: b.cost - avail, save: prev };
         }
         var next = copySave(prev);
         if (next.balls.indexOf(ballId) === -1) next.balls.push(ballId);
-        next.ball = ballId;
+        if (b.kind === 'club') next.club = ballId; else next.ball = ballId;
         return { ok: true, alreadyOwned: false, save: next, spent: b.cost };
     }
 
@@ -345,8 +411,15 @@
             return { ok: false, reason: 'locked', save: prev };
         }
         var next = copySave(prev);
-        next.ball = ballId;
+        if (findBall(catalog, ballId).kind === 'club') next.club = ballId; else next.ball = ballId;
         return { ok: true, save: next };
+    }
+
+    function equippedClub(saveData) {
+        var id = saveData && typeof saveData.club === 'string' ? saveData.club : 'club-stock';
+        var f = findBall(null, id);
+        if (!ownsBall(saveData, id) || !f || f.kind !== 'club') return 'club-stock';
+        return id;
     }
 
     /* Dev-mode unlocks sit in `freeBalls` rather than `balls`, so unlocking
@@ -356,12 +429,12 @@
         if (!b) return { ok: false, reason: 'missing', save: prev };
         var next = copySave(prev);
         if (!ownsBall(next, ballId)) next.freeBalls.push(ballId);
-        next.ball = ballId;
+        if (b.kind === 'club') next.club = ballId; else next.ball = ballId;
         return { ok: true, save: next };
     }
 
     function unlockAllBallsFree(prev, catalog) {
-        var list = catalog || G3.BALLS || [];
+        var list = catalog || G3.SHOP_ITEMS || G3.BALLS || [];
         var next = copySave(prev);
         for (var i = 0; i < list.length; i++) {
             var id = list[i].id;
@@ -374,6 +447,7 @@
         var next = copySave(prev);
         next.freeBalls = [];
         if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
+        if (!ownsBall(next, next.club)) next.club = 'club-stock';
         return { ok: true, save: next };
     }
 
@@ -401,6 +475,9 @@
         equippedBall: equippedBall,
         buyBall: buyBall,
         equipBall: equipBall,
+        equippedClub: equippedClub,
+        lockProgress: lockProgress,
+        lockStatus: lockStatus,
         unlockBallFree: unlockBallFree,
         unlockAllBallsFree: unlockAllBallsFree,
         resetFreeBalls: resetFreeBalls
