@@ -4803,6 +4803,7 @@
         $('menu-progress-text').textContent = '\u2605 ' + got + ' / ' + max + '  \u00b7  ' + avail + ' to spend';
         $('menu-progress-bar').style.width = (max ? Math.round(100 * got / max) : 0) + '%';
         if ($('menu-shop-stars')) $('menu-shop-stars').textContent = '\u2605 ' + avail;
+        syncShopNew(save, avail);
         // Keyboard and screen reader land on what is being offered.
         if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
     }
@@ -5618,6 +5619,7 @@
            is over, and the card used to leave you standing on it. Its third
            button is the course list instead (closeCard opens it). */
         $('card-close').textContent = res ? 'Choose a course' : 'Close';
+        cardShop(res);
         if (res) {
             next.hidden = false;
             /* Shuffle is the mode where this button stops naming where you are
@@ -5637,6 +5639,42 @@
         } else {
             next.hidden = true;
         }
+    }
+
+    /* Balls the player could buy right now and does not own. */
+    function affordableBalls(save, avail) {
+        if (!G3.BALLS || !S.ownsBall) return 0;
+        var n = 0;
+        G3.BALLS.forEach(function (b) {
+            if (b.cost > 0 && b.cost <= avail && !S.ownsBall(save, b.id)) n++;
+        });
+        return n;
+    }
+
+    // The menu's Pro Shop button says when something new is in reach.
+    function syncShopNew(save, avail) {
+        var el = $('menu-shop-new');
+        if (!el) return;
+        var n = affordableBalls(save, avail);
+        el.hidden = !n;
+        el.textContent = n ? n + ' new' : '';
+        if ($('menu-btn-shop')) $('menu-btn-shop').classList.toggle('has-new', !!n);
+    }
+
+    /* Six holes played is when there are stars to spend, so a finished round's
+       card carries the way to the Pro Shop: what is in the wallet and how many
+       balls it would buy. Not on a pass-and-play card or the range. */
+    function cardShop(res) {
+        var el = $('card-shop');
+        if (!el) return;
+        if (!res || multi() || state.course.isRange || !S.availableStars) { el.hidden = true; return; }
+        var save = state && state.save ? state.save : S.load();
+        var avail = S.availableStars(save);
+        var n = affordableBalls(save, avail);
+        $('card-shop-sub').textContent = '\u2605 ' + avail + ' to spend' +
+            (n ? ' \u00b7 ' + n + (n === 1 ? ' ball' : ' balls') + ' you can unlock now' : ' \u00b7 change your ball');
+        el.classList.toggle('has-new', !!n);
+        el.hidden = false;
     }
 
     /* What a finished tour was worth, said on its card: gold three or more
@@ -6489,6 +6527,7 @@
     var shopPreview = null;
     var shopDrag = null;
     var shopFromMenu = false;
+    var shopFromCard = false;
 
     function applyEquippedBall(overrideId) {
         if (!R.setBallStyle) return;
@@ -6577,6 +6616,40 @@
             ctx.lineTo(cx - rad * 0.28, cy);
             ctx.closePath();
             ctx.fill();
+        } else if (sw.type === 'featherie') {
+            ctx.fillStyle = sw.base;
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = sw.dark;
+            ctx.lineWidth = w * 0.07;
+            ctx.beginPath();
+            ctx.moveTo(cx - rad, cy - rad * 0.35);
+            ctx.bezierCurveTo(cx - rad * 0.3, cy + rad * 0.55, cx + rad * 0.3, cy + rad * 0.55, cx + rad, cy - rad * 0.35);
+            ctx.stroke();
+            ctx.strokeStyle = sw.thread;
+            ctx.lineWidth = Math.max(1, w * 0.022);
+            ctx.setLineDash([w * 0.035, w * 0.03]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else if (sw.type === 'aurora') {
+            ctx.fillStyle = '#0a1430';
+            ctx.fillRect(0, 0, w, h);
+            grd = ctx.createLinearGradient(0, h * 0.25, 0, h * 0.7);
+            grd.addColorStop(0, 'rgba(164, 107, 255, 0)');
+            grd.addColorStop(0.35, 'rgba(164, 107, 255, 0.85)');
+            grd.addColorStop(0.7, 'rgba(60, 240, 160, 0.95)');
+            grd.addColorStop(1, 'rgba(60, 240, 160, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.moveTo(0, h * 0.5);
+            ctx.bezierCurveTo(w * 0.3, h * 0.2, w * 0.6, h * 0.7, w, h * 0.35);
+            ctx.lineTo(w, h * 0.6);
+            ctx.bezierCurveTo(w * 0.6, h * 0.95, w * 0.3, h * 0.45, 0, h * 0.75);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#eef3ff';
+            [[0.3, 0.22], [0.62, 0.18], [0.75, 0.8], [0.22, 0.85], [0.5, 0.88]].forEach(function (st) {
+                ctx.fillRect(w * st[0], h * st[1], Math.max(1, w * 0.02), Math.max(1, w * 0.02));
+            });
         } else if (sw.type === 'singularity') {
             grd = ctx.createRadialGradient(cx, cy, rad * 0.35, cx, cy, rad);
             grd.addColorStop(0, '#07060b');
@@ -6657,6 +6730,8 @@
         if (!$('ball-shop')) return;
         shopFromMenu = $('menu') && $('menu').classList.contains('show');
         if (shopFromMenu) $('menu').className = 'modal';
+        shopFromCard = !shopFromMenu && $('scorecard') && $('scorecard').classList.contains('show');
+        if (shopFromCard) $('scorecard').className = 'modal';
         var save = state && state.save ? state.save : S.load();
         shopInspect = (typeof inspectId === 'string' && G3.ballById && G3.ballById(inspectId).id === inspectId)
             ? inspectId
@@ -6679,6 +6754,10 @@
         if (shopFromMenu) {
             shopFromMenu = false;
             openMenu();
+        } else if (shopFromCard) {
+            shopFromCard = false;
+            cardShop(state && state.phase === 'finished' ? {} : null);
+            $('scorecard').className = 'modal show';
         }
     }
 
@@ -6826,6 +6905,7 @@
         drawShop();
         if ($('menu-shop-stars') && S.availableStars) {
             $('menu-shop-stars').textContent = '\u2605 ' + S.availableStars(res.save);
+            syncShopNew(res.save, S.availableStars(res.save));
         }
     }
 
@@ -7208,6 +7288,7 @@
         if (window.visualViewport) window.visualViewport.addEventListener('resize', onPageResize);
         window.addEventListener('resize', onPageResize);
         $('card-close').addEventListener('click', closeCard);
+        if ($('card-shop')) $('card-shop').addEventListener('click', function () { openShop(); });
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
             $('scorecard').className = 'modal';

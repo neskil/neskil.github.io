@@ -4833,18 +4833,84 @@ body.flight-mode .controls { display: none; }
     align-items: center;
     gap: 0.4rem;
 }
-.chip-shop {
-    background: #272d1f;
+/* The menu's way into the shop is a brass plate, not one chip among many:
+   it is where the stars go. A count of balls now in reach rides on it. */
+#menu .chip-shop {
+    position: relative;
+    background: var(--accent);
     border-color: var(--accent);
-    color: var(--ink);
-    font-weight: 600;
+    color: #16180f;
+    font-weight: 700;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
 }
-.chip-shop b {
+#menu .chip-shop b {
+    color: #16180f;
+    margin-left: 0.2rem;
+    padding: 0 0.35rem;
+    border-radius: 4px;
+    background: rgba(22, 24, 15, 0.14);
+}
+#menu .chip-shop:hover {
+    background: #dcc28a;
+}
+.shop-new {
+    font-style: normal;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: #16180f;
     color: var(--gold);
-    margin-left: 0.15rem;
 }
-.chip-shop:hover {
-    background: var(--accent-soft);
+
+/* The finished round's card: a full-width plate between the scores and the
+   buttons, so the shop is the next thing a thumb finds after six holes. */
+.card-shop {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.65rem 0.85rem;
+    font: inherit;
+    text-align: left;
+    color: var(--ink);
+    background: #272d1f;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+.card-shop[hidden] { display: none; }
+.card-shop:hover { background: #313826; }
+.card-shop.has-new { background: #33361f; }
+.card-shop-ball {
+    flex: none;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 35% 32%, #fffdf6 0 18%, transparent 19%),
+        radial-gradient(circle at 50% 50%, #f1ecdd 0 58%, #b9b19a 100%);
+    box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.12);
+}
+.card-shop-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+.card-shop-text b { color: var(--gold); font-weight: 700; }
+.card-shop-text span { color: var(--ink-dim); font-size: 0.86rem; }
+.card-shop.has-new .card-shop-text span { color: var(--ink); }
+.card-shop-go {
+    flex: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--accent);
 }
 
 #ball-shop .modal-inner {

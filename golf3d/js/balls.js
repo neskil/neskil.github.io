@@ -18,7 +18,7 @@ window.G3 = window.G3 || {};
         { id: 'glass',   name: 'Glass & Void' }
     ];
 
-    /* Costs sum to 260 stars across all 15 unlockable balls against ~330 total
+    /* Costs sum to 300 stars across all 17 unlockable balls against ~330 total
        stars in the game (and <= 270 on the 15 main courses), so early favorites
        unlock in 1-2 holes and collectors can buy in any order. */
     var BALLS = [
@@ -29,7 +29,7 @@ window.G3 = window.G3 || {};
             category: 'tour',
             badge: 'Classic',
             inspired: 'Classic Cast Urethane Tour',
-            blurb: 'Crisp pearlescent white urethane, 362 geodesic dimples, equatorial seam and brass sight line.',
+            blurb: 'Crisp pearlescent white urethane, 492 geodesic dimples, equatorial seam and brass sight line.',
             mode: 'tour',
             colors: ['#f7f5ee', '#b9382c', '#c9a352'],
             swatch: { type: 'stripe', base: '#f7f5ee', accent: '#b9382c', trim: '#c9a352' }
@@ -81,6 +81,18 @@ window.G3 = window.G3 || {};
             mode: 'divide',
             colors: ['#c92b39', '#eab63e', '#261d19'],
             swatch: { type: 'divide', left: '#c92b39', right: '#eab63e' }
+        },
+        {
+            id: 'featherie',
+            name: 'Featherie',
+            cost: 8,
+            category: 'tour',
+            badge: 'Heritage',
+            inspired: 'Hand-Stitched Leather, c. 1840',
+            blurb: 'Before dimples: oiled cowhide stitched tight over a hatful of boiled feathers, with a waxed-linen seam all round.',
+            mode: 'featherie',
+            colors: ['#b98a55', '#6b4527', '#efe2c4'],
+            swatch: { type: 'featherie', base: '#b98a55', dark: '#6b4527', thread: '#efe2c4' }
         },
         {
             id: 'pix-tour',
@@ -193,6 +205,19 @@ window.G3 = window.G3 || {};
             animated: true,
             colors: ['#131026', '#33f0ff', '#ff47b6'],
             swatch: { type: 'cyber' }
+        },
+        {
+            id: 'aurora',
+            name: 'Northern Lights',
+            cost: 32,
+            category: 'shader',
+            badge: 'Animated',
+            inspired: 'Arctic Midnight Links',
+            blurb: 'A night sky in urethane: green and violet aurora curtains rippling slowly over a starfield.',
+            mode: 'aurora',
+            animated: true,
+            colors: ['#0a1430', '#3cf0a0', '#a46bff'],
+            swatch: { type: 'aurora' }
         },
         {
             id: 'crystal-glass',
