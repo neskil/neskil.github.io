@@ -3956,6 +3956,20 @@ body.lane-swing .power-dist { margin-left: 0; font-size: 0.85rem; font-weight: 6
    ← and → still nudge the aim from a keyboard. */
 body.lane-swing .aim-nudge,
 body.lane-swing .power-dist { visibility: hidden; }
+/* With the row empty, the bottom strip is free, and the two things that
+   were floating about the stage move into it (the owner, v1.181.0): the frame
+   rate down into the bottom-right corner rather than standing on top of an
+   empty row, and on a phone the fullscreen offer centred at the bottom rather
+   than hung off the right edge under the club chip, over the course. */
+body.lane-swing .fps { position: absolute; right: 0; bottom: 0; margin-right: max(0px, calc((100% - 980px) / 2)); }
+body.compact-ui.lane-swing .fs-prompt {
+    top: auto;
+    right: auto;
+    bottom: 14px;
+    left: 50%;
+    transform: translate(-50%, 10px);
+}
+body.compact-ui.lane-swing .fs-prompt.show { transform: translate(-50%, 0); }
 body.lane-swing .swipe-hint {
     display: block;
     visibility: hidden;
