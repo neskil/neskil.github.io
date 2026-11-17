@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.180.0">
+    <link rel="stylesheet" href="style.css?v=1.181.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -61,6 +61,7 @@
     <link rel="modulepreload" href="vendor/portals/src/core/post.js" fetchpriority="low">
     <link rel="modulepreload" href="vendor/portals/src/core/quality.js" fetchpriority="low">
     <link rel="modulepreload" href="vendor/portals/src/core/safemath.js" fetchpriority="low">
+    <link rel="modulepreload" href="vendor/portals/src/worlds/index.js" fetchpriority="low">
     <link rel="modulepreload" href="vendor/portals/src/core/style.js" fetchpriority="low">
     <link rel="modulepreload" href="vendor/portals/src/extras.js" fetchpriority="low">
     <link rel="modulepreload" href="vendor/portals/vendor/three/addons/postprocessing/EffectComposer.js" fetchpriority="low">
@@ -823,7 +824,7 @@
             <div class="about-head" id="about-head">
                 <div class="about-title-row">
                     <h2 id="about-title">About Loft Links</h2>
-                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.180.0</button>
+                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.181.0</button>
                     <span class="dev-pill" id="about-dev-pill" hidden>DEV MODE</span>
                 </div>
             </div>
@@ -896,6 +897,16 @@
                     <span class="door-text">
                         <b id="menu-portals-title">Play the World Tour</b>
                         <span class="door-sub" id="menu-portals-sub">Six holes, each in a different world, and a new six every round.</span>
+                    </span>
+                    <span class="door-go" aria-hidden="true">&#x2192;</span>
+                </button>
+                <!-- Endless: mini golf made up a hole at a time, riding the
+                     flight of every Portals world in turn. endless.js. -->
+                <button type="button" class="door endless-door" id="menu-endless">
+                    <span class="door-eye endless-eye" aria-hidden="true"><b>&#x221E;</b></span>
+                    <span class="door-text">
+                        <b>Endless</b>
+                        <span class="door-sub" id="menu-endless-sub">Made-up mini golf riding through all 471 Portals worlds, for ever.</span>
                     </span>
                     <span class="door-go" aria-hidden="true">&#x2192;</span>
                 </button>
@@ -1108,42 +1119,44 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.180.0"></script>
-    <script src="js/balls.js?v=1.180.0"></script>
-    <script src="js/themes.js?v=1.180.0"></script>
-    <script src="js/physics.js?v=1.180.0"></script>
-    <script src="js/courses.js?v=1.180.0"></script>
-    <script src="js/tour-ground.js?v=1.180.0"></script>
-    <script src="js/portals.js?v=1.180.0"></script>
-    <script src="js/audit.js?v=1.180.0"></script>
-    <script src="js/custom.js?v=1.180.0"></script>
-    <script src="js/scoring.js?v=1.180.0"></script>
-    <script src="js/swing.js?v=1.180.0"></script>
-    <script src="js/school.js?v=1.180.0"></script>
-    <script src="js/audio.js?v=1.180.0"></script>
-    <script src="js/music.js?v=1.180.0"></script>
-    <script src="js/bag.js?v=1.180.0"></script>
-    <script src="js/textures.js?v=1.180.0"></script>
-    <script src="js/shaders.js?v=1.180.0"></script>
-    <script src="js/postfx.js?v=1.180.0"></script>
-    <script src="js/weather.js?v=1.180.0"></script>
-    <script src="js/flyover.js?v=1.180.0"></script>
-    <script src="js/replay.js?v=1.180.0"></script>
-    <script src="js/bot.js?v=1.180.0"></script>
-    <script src="js/models.js?v=1.180.0"></script>
-    <script src="js/life.js?v=1.180.0"></script>
-    <script src="js/worlds.js?v=1.180.0"></script>
-    <script src="js/sandfx.js?v=1.180.0"></script>
-    <script src="js/render.js?v=1.180.0"></script>
-    <script src="js/minimap.js?v=1.180.0"></script>
-    <script src="js/debug.js?v=1.180.0"></script>
-    <script src="js/game.js?v=1.180.0"></script>
+    <script src="js/config.js?v=1.181.0"></script>
+    <script src="js/balls.js?v=1.181.0"></script>
+    <script src="js/themes.js?v=1.181.0"></script>
+    <script src="js/physics.js?v=1.181.0"></script>
+    <script src="js/courses.js?v=1.181.0"></script>
+    <script src="js/tour-ground.js?v=1.181.0"></script>
+    <script src="js/portals.js?v=1.181.0"></script>
+    <script src="js/portal-worlds.js?v=1.181.0"></script>
+    <script src="js/endless.js?v=1.181.0"></script>
+    <script src="js/audit.js?v=1.181.0"></script>
+    <script src="js/custom.js?v=1.181.0"></script>
+    <script src="js/scoring.js?v=1.181.0"></script>
+    <script src="js/swing.js?v=1.181.0"></script>
+    <script src="js/school.js?v=1.181.0"></script>
+    <script src="js/audio.js?v=1.181.0"></script>
+    <script src="js/music.js?v=1.181.0"></script>
+    <script src="js/bag.js?v=1.181.0"></script>
+    <script src="js/textures.js?v=1.181.0"></script>
+    <script src="js/shaders.js?v=1.181.0"></script>
+    <script src="js/postfx.js?v=1.181.0"></script>
+    <script src="js/weather.js?v=1.181.0"></script>
+    <script src="js/flyover.js?v=1.181.0"></script>
+    <script src="js/replay.js?v=1.181.0"></script>
+    <script src="js/bot.js?v=1.181.0"></script>
+    <script src="js/models.js?v=1.181.0"></script>
+    <script src="js/life.js?v=1.181.0"></script>
+    <script src="js/worlds.js?v=1.181.0"></script>
+    <script src="js/sandfx.js?v=1.181.0"></script>
+    <script src="js/render.js?v=1.181.0"></script>
+    <script src="js/minimap.js?v=1.181.0"></script>
+    <script src="js/debug.js?v=1.181.0"></script>
+    <script src="js/game.js?v=1.181.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.180.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.181.0"></script>
 </body>
 </html>
