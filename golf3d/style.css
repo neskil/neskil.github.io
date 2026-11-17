@@ -3816,9 +3816,10 @@ body.compact-ui .picker { padding-top: 52px; }
     transform: translateX(-50%);
     /* A light grey panel, so the place to swipe is somewhere you can see
        rather than somewhere you have to remember — but faint (the owner,
-       v1.168.3: "a bit more subtle"), so the hole still reads through it. */
-    background: rgba(18, 20, 14, 0.1);
-    border: 1px dashed rgba(232, 225, 203, 0.18);
+       v1.168.3: "a bit more subtle", and again v1.176.2), so the hole still
+       reads through it. */
+    background: rgba(18, 20, 14, 0.06);
+    border: 1px dashed rgba(232, 225, 203, 0.11);
     border-radius: 6px;
     box-shadow: none;
     touch-action: none;
@@ -3834,7 +3835,7 @@ body.compact-ui .picker { padding-top: 52px; }
 @media (max-width: 640px), (pointer: coarse) {
     .swipe { width: min(42%, 240px); }
 }
-.swipe.held { cursor: grabbing; background: rgba(18, 20, 14, 0.2); border-color: rgba(201, 163, 82, 0.55); }
+.swipe.held { cursor: grabbing; background: rgba(18, 20, 14, 0.14); border-color: rgba(201, 163, 82, 0.45); }
 .swipe-svg {
     position: absolute;
     inset: 0;
@@ -3906,7 +3907,8 @@ body.compact-ui .picker { padding-top: 52px; }
 /* Nor while the picker is up: the lane is a panel up the middle of the stage,
    which is where the row comes out, and it is drawn over the canvas — so it
    sat across the clubs and took the taps meant for them. You cannot swing a
-   club you are still choosing (see `.stage.picker-open .controls`). */
+   club you are still choosing (see `.stage.picker-open .controls`). Nor
+   down the cup (`body.diving`, game.js → throughPortal): the hole is over. */
 .stage.picker-open .swipe,
 .stage.picker-open .arc,
 .stage.picker-open .needle,
@@ -3918,7 +3920,10 @@ body.demo .arc,
 body.demo .needle,
 body.flight-mode .swipe,
 body.flight-mode .arc,
-body.flight-mode .needle { display: none; }
+body.flight-mode .needle,
+body.diving .swipe,
+body.diving .arc,
+body.diving .needle { display: none; }
 
 /* While a lane style (the touch swing, the needle) is in charge, the meter is
    a readout and Swing gives its place to a line saying what to do instead.
