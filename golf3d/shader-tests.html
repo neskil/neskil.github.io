@@ -50,6 +50,8 @@
     <script src="js/life.js"></script>
     <script src="js/worlds.js"></script>
     <script src="js/sandfx.js"></script>
+    <script src="js/swing.js"></script>
+    <script src="js/bag.js"></script>
     <script src="js/render.js"></script>
 
     <script>
@@ -277,10 +279,20 @@
         var renderer = null, glOK = false;
 
         try {
-            // Ask for a context the same way render.js will, so a machine that
-            // cannot give us one fails here rather than halfway through a hole.
-            var probe = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            /* Ask whether there is a context at all, so a machine that cannot
+               give us one fails here rather than halfway through a hole — but
+               ask on a canvas of our own. This used to ask the game's canvas
+               for `webgl`, and a canvas keeps the first kind of context it is
+               given: every test below then ran on WebGL1, while every phone
+               the game is played on gets WebGL2 — another dialect of the
+               shader language, and the only one with the multisampled buffer
+               postfx.js draws the course into. Left alone, the game's canvas
+               is given its context by render.js exactly as it is in the game. */
+            var spare = document.createElement('canvas');
+            var probe = spare.getContext('webgl2') || spare.getContext('webgl') || spare.getContext('experimental-webgl');
             glOK = !!probe;
+            var lose = probe && probe.getExtension && probe.getExtension('WEBGL_lose_context');
+            if (lose) lose.loseContext();
         } catch (e) {
             glOK = false;
         }
@@ -553,6 +565,143 @@
                 var frameErrs = drainErrors();
                 assert('and it logs nothing', frameErrs.length === 0,
                     frameErrs.join(' | ').slice(0, 400));
+            }
+
+            /* Nothing is compiled while a hole is played (v1.176.0).
+
+               three.js compiles a program the first time something wearing
+               its material is drawn, and the page waits for the driver while
+               it does. Two things made that happen in the middle of a hole.
+               The bag's lamps left the scene whenever the bag was put away
+               (the flyover, the victory lap, the dive, the replay) and the
+               picker's two passes each counted only half the lights — and a
+               lit material's program is compiled for a count of lights, so
+               each of those was the whole course compiled again. And nothing
+               was compiled before it was first shown. render.js now compiles
+               a hole as it is built (warmPrograms) for the one count of
+               lights there is (bag.js lightRig, render.js passLights). */
+            section('NOTHING IS COMPILED WHILE A HOLE IS PLAYED');
+            if (!G3.bag || !G3.bag.state || !G3.bag.state.ready) {
+                skip('the warm-up tests', 'the bag did not build on this page');
+            } else {
+                // A hole with rails enough to be worth counting.
+                var plainRail = function (w) {
+                    return (!w.kind || w.kind === 'rail') &&
+                        !(w.move || w.spin || w.swing || w.sails || w.tri || w.bend) && !P.isPost(w);
+                };
+                var wc = null, wh = null;
+                G3.COURSES.forEach(function (c) {
+                    c.holes.forEach(function (h) {
+                        if (!wh && !h.longGame && h.walls.filter(plainRail).length >= 6) { wc = c; wh = h; }
+                    });
+                });
+                drainErrors();
+                R.buildHole(wh, wc.theme, null);
+                var wWorld = P.createWorld(wh, { x: wh.tee.x, z: wh.tee.z }, 0);
+                var wAim = { show: true, yaw: 0, power: 0.5, loft: 0, bite: 0, over: 0, bend: 0, spin: 0, topped: false };
+                var wFrames = function (n) { for (var i = 0; i < n; i++) R.frame(0.05, wWorld, wAim); };
+                var wCount = function () { return renderer.info.programs.length; };
+                var built = wCount();
+                wFrames(3);
+                var settled = wCount();
+                assert('a hole is compiled as it is built: its first frames add only the shadow pass and the post chain',
+                    built > 10 && settled - built <= 6, built + ' at the build, ' + settled + ' after three frames');
+
+                G3.bag.setVisible(false);
+                wFrames(2);
+                var away = wCount();
+                G3.bag.setVisible(true);
+                wFrames(2);
+                assert('putting the bag away and bringing it back compiles nothing',
+                    away === settled && wCount() === settled, settled + ' → ' + away + ' → ' + wCount());
+
+                G3.bag.setExpanded(true);
+                wFrames(6);
+                var opened = wCount();
+                G3.bag.setExpanded(false);
+                wFrames(24);
+                assert('opening the picker compiles at most its own backdrop pass, and shutting it nothing',
+                    opened - settled <= 1 && wCount() === opened, settled + ' → ' + opened + ' → ' + wCount());
+
+                var wLights = [], both = new THREE.Layers(), l0 = new THREE.Layers(), l1 = new THREE.Layers();
+                l0.set(0); l1.set(G3.bag.LAYER);
+                R.state.scene.traverseVisible(function (o) { if (o.isLight) wLights.push(o); });
+                assert('every light is counted on the course\'s layer and on the bag\'s (' + wLights.length + ' lights)',
+                    wLights.length >= 9 && wLights.every(function (l) { return l.layers.test(l0) && l.layers.test(l1); }));
+                G3.bag.setVisible(false);
+                var wSeen = 0;
+                R.state.scene.traverseVisible(function (o) { if (o.isLight) wSeen++; });
+                G3.bag.setVisible(true);
+                assert('and none of them leaves the scene with the bag', wSeen === wLights.length,
+                    wSeen + ' of ' + wLights.length);
+
+                var wErrs = drainErrors();
+                assert('all of it without a word in the console', wErrs.length === 0, wErrs.join(' | ').slice(0, 400));
+                assert('and every program linked', unlinkedPrograms().length === 0, unlinkedPrograms().join(', '));
+
+                /* What stands still is drawn together, a box is a cap and
+                   its sides, and the driver is drawn coarse outside the row
+                   (render.js stand, capAndSides; bag.js fineShells). Counted
+                   here because each is a number of draw calls nothing else
+                   would notice creeping back. */
+                var rails = wh.walls.filter(plainRail);
+                var stood = 0, lone = 0, sixes = 0;
+                R.state.holeGroup.traverse(function (o) {
+                    if (!o.isMesh) return;
+                    if (o.userData.standing) stood += o.userData.standing;
+                    else if (o.geometry.type === 'BoxGeometry' && o.material === R.state.surf.walls.rail) lone++;
+                    // (a box in one material is one call whatever its groups)
+                    if (o.geometry.type === 'BoxGeometry' && Array.isArray(o.material) && o.geometry.groups.length > 2) sixes++;
+                });
+                assert('the rails that never move are one mesh between them (' + rails.length + ' rails on ' + wh.name + ')',
+                    rails.length >= 6 && stood >= rails.length && lone === 0, stood + ' standing, ' + lone + ' on their own');
+                assert('no box on the hole is drawn a face at a time', sixes === 0, sixes + ' boxes of six groups');
+
+                var shellOf = function () {
+                    var n = [];
+                    R.state.scene.traverse(function (o) {
+                        var m = o.material;
+                        if (m && m.customProgramCacheKey && m.customProgramCacheKey() === 'loft-driver-skin-2' &&
+                            o.parent && o.geometry.index) n.push(o.geometry.index.count / 3);
+                    });
+                    return n;
+                };
+                G3.bag.setBag(G3.CONFIG.ALL_CLUBS);
+                wFrames(2);
+                var shutTris = Math.max.apply(null, shellOf());
+                G3.bag.setExpanded(true);
+                wFrames(3);
+                var openTris = Math.max.apply(null, shellOf());
+                G3.bag.setExpanded(false);
+                wFrames(24);
+                var againTris = Math.max.apply(null, shellOf());
+                assert('the driver wears its fine shell only while the row is open',
+                    shutTris < 8000 && openTris > 30000 && againTris === shutTris,
+                    shutTris + ' shut, ' + openTris + ' open, ' + againTris + ' shut again');
+                G3.bag.setBag(G3.CONFIG.CLUBS);
+
+                /* The shadow map rests on alternate frames while nothing in
+                   play moves (render.js shadowRests), and never while a ball
+                   is rolling. Counted off the driver: a frame that draws the
+                   map makes more draw calls than one that does not. */
+                var callsOf = function (w) {
+                    var i = renderer.info, a;
+                    i.autoReset = false; i.reset();
+                    R.frame(0.016, w, wAim);
+                    a = i.render.calls;
+                    i.autoReset = true;
+                    return a;
+                };
+                var c1 = callsOf(wWorld), c2 = callsOf(wWorld), c3 = callsOf(wWorld), c4 = callsOf(wWorld);
+                assert('at rest the shadow map is drawn every other frame',
+                    c1 !== c2 && c1 === c3 && c2 === c4, [c1, c2, c3, c4].join(', ') + ' calls');
+                wWorld.moving = true;
+                var m1 = callsOf(wWorld), m2 = callsOf(wWorld), m3 = callsOf(wWorld);
+                wWorld.moving = false;
+                assert('and every frame while a ball is moving',
+                    m1 === m2 && m2 === m3, [m1, m2, m3].join(', ') + ' calls');
+                assert('the switch is left on for anything else that draws the scene',
+                    renderer.shadowMap.autoUpdate === true);
             }
 
             /* Auto follows the frame rate (render.js → stepGovernor). v1.169's
