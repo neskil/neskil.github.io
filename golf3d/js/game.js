@@ -364,6 +364,7 @@
             if (useGL) G3.postfx.setPortal({ k: pk, open: 0 });
         };
         var finish = function () {
+            document.body.classList.remove('diving');
             if (useGL) G3.postfx.setPortal({ k: 1, open: 0 });
             // Whatever the swap does, the screen is not left shut on it.
             try { then(); } finally { portalBusy = false; }
@@ -374,6 +375,8 @@
         };
 
         if (dive && R.startDive && R.startDive(state.world.hole, state.world.ball, onPortal, finish)) {
+            // No swing lane over the plunge, whatever phase it is in.
+            document.body.classList.add('diving');
             if (A.rocket) A.rocket();
             return;
         }
@@ -571,6 +574,8 @@
        one difference that matters here: the intro flyover is a first look at a
        hole, and you have already had it. */
     function loadHole(i, again) {
+        // A new hole is never mid-dive, however the last one was left.
+        document.body.classList.remove('diving');
         closeGate();
         endReplay(true);
         hideSwingCard();
