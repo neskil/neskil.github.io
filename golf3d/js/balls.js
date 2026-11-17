@@ -18,9 +18,15 @@ window.G3 = window.G3 || {};
         { id: 'glass',   name: 'Glass & Void' }
     ];
 
-    /* Costs sum to 260 stars across all 15 unlockable balls against ~330 total
-       stars in the game (and <= 270 on the 15 main courses), so early favorites
-       unlock in 1-2 holes and collectors can buy in any order. */
+    /* The economy: 330 stars in the game (270 on the fifteen courses, 60 on
+       the World Tour). The seventeen balls cost 220 and the nine club
+       finishes 88, so 308 buys everything with room to spare; early favourites
+       unlock in a hole or two and anything can be bought in any order.
+
+       Stars are not the only price at the top. A ball with a `lock` also needs
+       the achievement of that name met (LOCKS below, judged by
+       `scoring.lockStatus`), so the showpieces are earned by playing the game
+       widely rather than by grinding one course for stars. */
     var BALLS = [
         {
             id: 'tour-white',
@@ -29,7 +35,7 @@ window.G3 = window.G3 || {};
             category: 'tour',
             badge: 'Classic',
             inspired: 'Classic Cast Urethane Tour',
-            blurb: 'Crisp pearlescent white urethane, 362 geodesic dimples, equatorial seam and brass sight line.',
+            blurb: 'Crisp pearlescent white urethane, 492 geodesic dimples, equatorial seam and brass sight line.',
             mode: 'tour',
             colors: ['#f7f5ee', '#b9382c', '#c9a352'],
             swatch: { type: 'stripe', base: '#f7f5ee', accent: '#b9382c', trim: '#c9a352' }
@@ -61,7 +67,7 @@ window.G3 = window.G3 || {};
         {
             id: 'triple-track',
             name: 'Triple Track',
-            cost: 5,
+            cost: 4,
             category: 'tour',
             badge: 'Tour',
             inspired: 'Vernier 3-Line Alignment',
@@ -73,7 +79,7 @@ window.G3 = window.G3 || {};
         {
             id: 'tour-divide',
             name: 'Half & Half',
-            cost: 7,
+            cost: 5,
             category: 'tour',
             badge: 'Spin',
             inspired: '50/50 Dual-Tone Divide',
@@ -83,9 +89,21 @@ window.G3 = window.G3 || {};
             swatch: { type: 'divide', left: '#c92b39', right: '#eab63e' }
         },
         {
+            id: 'featherie',
+            name: 'Featherie',
+            cost: 6,
+            category: 'tour',
+            badge: 'Heritage',
+            inspired: 'Hand-Stitched Leather, c. 1840',
+            blurb: 'Before dimples: oiled cowhide stitched tight over a hatful of boiled feathers, with a waxed-linen seam all round.',
+            mode: 'featherie',
+            colors: ['#b98a55', '#6b4527', '#efe2c4'],
+            swatch: { type: 'featherie', base: '#b98a55', dark: '#6b4527', thread: '#efe2c4' }
+        },
+        {
             id: 'pix-tour',
             name: 'Pix Diamond',
-            cost: 9,
+            cost: 7,
             category: 'pattern',
             badge: 'Tour',
             inspired: 'ClearPath Geometric Clusters',
@@ -97,7 +115,7 @@ window.G3 = window.G3 || {};
         {
             id: 'truvis-club',
             name: 'Checkered Classic',
-            cost: 11,
+            cost: 8,
             category: 'pattern',
             badge: 'Pattern',
             inspired: 'Soccer-Pentagon Tour Print',
@@ -109,7 +127,7 @@ window.G3 = window.G3 || {};
         {
             id: 'splatter-drip',
             name: 'Clubhouse Drip',
-            cost: 13,
+            cost: 10,
             category: 'pattern',
             badge: 'Custom',
             inspired: 'Paint-Splatter Tour Drip',
@@ -121,7 +139,7 @@ window.G3 = window.G3 || {};
         {
             id: 'woodland-camo',
             name: 'Woodland Camo',
-            cost: 15,
+            cost: 11,
             category: 'pattern',
             badge: 'Camo',
             inspired: 'Tactical Peat & Moss',
@@ -133,7 +151,7 @@ window.G3 = window.G3 || {};
         {
             id: 'carbon-gold',
             name: 'Forged Carbon',
-            cost: 18,
+            cost: 13,
             category: 'pattern',
             badge: 'Crafted',
             inspired: 'Woven Twill & Brass',
@@ -145,7 +163,8 @@ window.G3 = window.G3 || {};
         {
             id: 'rainbow-tie',
             name: 'Chroma Swirl',
-            cost: 21,
+            cost: 15,
+            lock: 'kinds',
             category: 'shader',
             badge: 'Animated',
             inspired: 'Liquid Spectrum Shader',
@@ -158,7 +177,8 @@ window.G3 = window.G3 || {};
         {
             id: 'holo-prism',
             name: 'Prismatic Holo',
-            cost: 24,
+            cost: 17,
+            lock: 'ace',
             category: 'shader',
             badge: 'Shader FX',
             inspired: 'Thin-Film Iridescent Foil',
@@ -171,7 +191,8 @@ window.G3 = window.G3 || {};
         {
             id: 'magma-core',
             name: 'Molten Ember',
-            cost: 27,
+            cost: 19,
+            lock: 'tour',
             category: 'shader',
             badge: 'Emissive',
             inspired: 'Volcanic Obsidian Core',
@@ -184,7 +205,8 @@ window.G3 = window.G3 || {};
         {
             id: 'cyber-wire',
             name: 'Neon Grid',
-            cost: 30,
+            cost: 21,
+            lock: 'rounds',
             category: 'shader',
             badge: 'Shader FX',
             inspired: 'Challenge Mode Synth Grid',
@@ -195,9 +217,24 @@ window.G3 = window.G3 || {};
             swatch: { type: 'cyber' }
         },
         {
+            id: 'aurora',
+            name: 'Northern Lights',
+            cost: 23,
+            lock: 'under',
+            category: 'shader',
+            badge: 'Animated',
+            inspired: 'Arctic Midnight Links',
+            blurb: 'A night sky in urethane: green and violet aurora curtains rippling slowly over a starfield.',
+            mode: 'aurora',
+            animated: true,
+            colors: ['#0a1430', '#3cf0a0', '#a46bff'],
+            swatch: { type: 'aurora' }
+        },
+        {
             id: 'crystal-glass',
             name: 'Crystal Glass',
-            cost: 35,
+            cost: 26,
+            lock: 'courses',
             category: 'glass',
             badge: 'Glass Shader',
             inspired: 'Refractive Optical Crystal',
@@ -211,7 +248,8 @@ window.G3 = window.G3 || {};
         {
             id: 'black-hole',
             name: 'Singularity',
-            cost: 40,
+            cost: 30,
+            lock: 'perfect',
             category: 'glass',
             badge: 'Void Shader',
             inspired: 'World Tour Accretion Horizon',
@@ -223,6 +261,87 @@ window.G3 = window.G3 || {};
         }
     ];
 
+    /* Achievements a top-shelf item asks for besides its stars. `need` is the
+       target, and scoring.lockStatus counts the player's progress to it. */
+    var LOCKS = {
+        kinds:   { need: 4,  text: 'Finish a round in all four kinds of course: mini, crazy, adventure and the long game' },
+        ace:     { need: 1,  text: 'Make a hole in one' },
+        tour:    { need: 6,  text: 'Earn stars on six World Tour holes' },
+        rounds:  { need: 10, text: 'Finish ten rounds' },
+        under:   { need: 1,  text: 'Finish a round under par' },
+        courses: { need: 8,  text: 'Finish a round on eight different courses' },
+        perfect: { need: 6,  text: 'Three stars on all six holes of one course' }
+    };
+
+    /* Club finishes: the second tab of the Pro Shop. A finish repaints every
+       club in the bag at once — the lacquered `paint` panels, a tint on the
+       head's steel, and the grips — and `paint: null` keeps each club's own
+       colour, which is how the bag ships. Bought with the same stars as the
+       balls and kept in the same list (`save.balls`), so the wallet is one
+       wallet. */
+    var CLUB_FINISHES = [
+        {
+            id: 'club-stock', kind: 'club', name: 'Factory Colours', cost: 0, badge: 'Classic',
+            blurb: 'Every club in its own colour, as the bag ships: blue driver, orange five iron, gold wedge.',
+            paint: null, head: null, grip: 0x1d2127,
+            colors: ['#1f6fff', '#f97316', '#eab308', '#22c55e']
+        },
+        {
+            id: 'club-brass', kind: 'club', name: 'Clubhouse Brass', cost: 3, badge: 'Finish',
+            blurb: 'Brass inlays, warm satin steel and oxblood leather grips — the set behind the bar.',
+            paint: 0xc9a352, head: 0xb8a27a, grip: 0x4a2620,
+            colors: ['#c9a352', '#b8a27a', '#4a2620']
+        },
+        {
+            id: 'club-blackout', kind: 'club', name: 'Blackout', cost: 4, badge: 'Finish',
+            blurb: 'Gunmetal heads, black paint fills and black cord grips. Nothing catches the light but the face.',
+            paint: 0x2a2d33, head: 0x3f444c, grip: 0x101113,
+            colors: ['#2a2d33', '#3f444c', '#101113']
+        },
+        {
+            id: 'club-copper', kind: 'club', name: 'Raw Copper', cost: 5, badge: 'Finish',
+            blurb: 'Copper-plated heads left to warm with age, burnt-orange fills and tan grips.',
+            paint: 0xd0703c, head: 0xc07a52, grip: 0x7a5434,
+            colors: ['#d0703c', '#c07a52', '#7a5434']
+        },
+        {
+            id: 'club-racing', kind: 'club', name: 'Racing Green', cost: 6, badge: 'Finish',
+            blurb: 'Deep green lacquer over bright steel with cream grips, like an old roadster.',
+            paint: 0x1f6b45, head: 0xa6b0b8, grip: 0xe8dfc8,
+            colors: ['#1f6b45', '#a6b0b8', '#e8dfc8']
+        },
+        {
+            id: 'club-glacier', kind: 'club', name: 'Glacier', cost: 8, badge: 'Finish',
+            blurb: 'Ice-blue fills, frosted silver heads and white grips.',
+            paint: 0x7fd3ff, head: 0xcfdde8, grip: 0xeef2f5,
+            colors: ['#7fd3ff', '#cfdde8', '#eef2f5']
+        },
+        {
+            id: 'club-rose', kind: 'club', name: 'Rose Gold', cost: 10, badge: 'Finish',
+            blurb: 'Rose-gold heads with blush fills and ivory grips.',
+            paint: 0xe39a8f, head: 0xd9a48c, grip: 0xf1e9dd,
+            colors: ['#e39a8f', '#d9a48c', '#f1e9dd']
+        },
+        {
+            id: 'club-tour-gold', kind: 'club', name: 'Tour Gold', cost: 14, badge: 'Trophy', lock: 'under',
+            blurb: 'Gold-plated heads and black fills: the set they hand you with the trophy.',
+            paint: 0x16181c, head: 0xe0b44a, grip: 0x16181c,
+            colors: ['#e0b44a', '#16181c', '#f5d37a']
+        },
+        {
+            id: 'club-frostbite', kind: 'club', name: 'Frostbite', cost: 18, badge: 'Extreme', lock: 'tour',
+            blurb: 'Heads frosted in hoarfrost, fills glowing glacier-cyan and breathing slowly, grips white as a snowfield.',
+            paint: 0x9ff3ff, head: 0x9fd8f5, grip: 0xf4f9fc, glow: 'ice', emissive: 0x3cc8f0, headGlow: 0x1f6e94,
+            colors: ['#9ff3ff', '#d8f1ff', '#2fb8e8']
+        },
+        {
+            id: 'club-inferno', kind: 'club', name: 'Inferno', cost: 20, badge: 'Extreme', lock: 'perfect',
+            blurb: 'Charred black heads split by ember-orange fills that flicker like a forge, on scorched leather grips.',
+            paint: 0xff6a1a, head: 0x2a1f1b, grip: 0x3a1a10, glow: 'fire', emissive: 0xff4a0a, headGlow: 0x8a2a06,
+            colors: ['#ff6a1a', '#2a1f1b', '#ffd15c']
+        }
+    ];
+
     var BY_ID = {};
     for (var i = 0; i < BALLS.length; i++) BY_ID[BALLS[i].id] = BALLS[i];
 
@@ -230,8 +349,19 @@ window.G3 = window.G3 || {};
         return (id && BY_ID[id]) ? BY_ID[id] : BALLS[0];
     }
 
+    var CLUB_BY_ID = {};
+    for (i = 0; i < CLUB_FINISHES.length; i++) CLUB_BY_ID[CLUB_FINISHES[i].id] = CLUB_FINISHES[i];
+    function clubFinishById(id) {
+        return (id && CLUB_BY_ID[id]) ? CLUB_BY_ID[id] : CLUB_FINISHES[0];
+    }
+
     G3.BALL_CATEGORIES = CATEGORIES;
     G3.BALLS = BALLS;
     G3.ballById = ballById;
+    G3.CLUB_FINISHES = CLUB_FINISHES;
+    G3.clubFinishById = clubFinishById;
+    // Everything the one wallet buys: what scoring's spentStars counts.
+    G3.SHOP_ITEMS = BALLS.concat(CLUB_FINISHES);
+    G3.SHOP_LOCKS = LOCKS;
 
 })(window.G3);

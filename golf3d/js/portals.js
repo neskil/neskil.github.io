@@ -78,8 +78,10 @@
            a hole is laid on a world's ground (backdrop.mjs) and whatever it
            had underneath would stand up out of that ground as a block. A
            `grounded` hole's own stand-in floor is just under the slab
-           (its theme's surroundY); the rest hang in the air. */
-        h.pads.forEach(function (p) { if (!p.inlay) p.hover = true; });
+           (its theme's surroundY); the rest hang in the air. A hole placed
+           exactly, on something that stands up off its world's floor, says
+           how deep its slab has to be to reach that floor (`plinth`). */
+        h.pads.forEach(function (p) { if (!p.inlay) { p.hover = true; if (h.plinth) p.deck = h.plinth; } });
         h.fence = { x: minX - m, z: minZ - m, w: maxX - minX + 2 * m, d: maxZ - minZ + 2 * m };
         return A.build(h);
     }
@@ -94,7 +96,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "scale": 1.6, "turn": 0.65, "ground": false, "drop": 3.6}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -707,13 +709,27 @@
        speeds, and each is as long as the lane is wide: the crossing is open
        for a little over a third of the time. One train is a matter of
        waiting. Both on one putt is the two gaps coming round together, and
-       a weight that is through the second before it shuts. */
+       a weight that is through the second before it shuts.
+
+       It is laid on the Attic Line's own level crossing (PLACES, v1.179.0).
+       That world's up line and down line run side by side through the town,
+       fourteen toy centimetres apart, and the hole's two tracks are five
+       units apart: at 2.8 centimetres to the unit they are the same two
+       tracks, so the hole's trains run along the world's rails, between its
+       crossing lamps, and the lane is the road. The rails stand on a bank
+       five centimetres over the table, so the lane is a block that deep
+       (`plinth`), and the tin cars that queue at the gates are put away:
+       two of them waited inside it. Until then it hung in the air beside
+       the trestle past the table's edge, at a size where one sleeper of
+       the world's track was as wide as the lane (the owner: "weak scaling
+       and the minigolf is placed really bad"). The hole itself is as it
+       was. */
     add({
         id: 'railway', title: 'The Level Crossing', world: 'The Attic Line', kind: 'home', tier: 1,
         caption: 'A straight putt over two tracks of a model railway, with a train on each.',
         theme: 'railway',
         hole: world({
-            name: 'The Level Crossing', grounded: true, par: 3, bag: ROLL,
+            name: 'The Level Crossing', grounded: true, plinth: 1.85, par: 3, bag: ROLL,
             blurb: 'Two tracks, two trains, opposite ways. Wait for one and stop between them — or go when both gaps come round together.',
             pads: [pad(0, 0, 5, 18, 0, 'green')],
             extra: [

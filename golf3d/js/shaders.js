@@ -768,7 +768,7 @@
 
     /* ── golf ball cosmetics & geodesic dimples ──────────────────────────────
 
-       Every dimpled ball uses analytic 362-point icosahedral geodesic math in
+       Every dimpled ball uses analytic 492-point icosahedral geodesic math in
        object space (`vGbObj`) instead of an equirectangular UV bump map, so
        there is zero pole pinching and razor-sharp rim shading up close.
 
@@ -800,18 +800,39 @@
         '  v += 0.15 * gbNoise(p * 4.31 + 7.4);',
         '  return v;',
         '}',
+        /* One dimple, worked out where it is drawn. The 492 dimple centres are
+           a frequency-7 geodesic grid on the icosahedron; folding into the
+           positive octant (the icosahedron is symmetric in all three planes)
+           leaves four candidate faces, then the grid triangle under the point
+           gives three candidate centres, and the nearest of those is the
+           dimple. Every face is wound the same way: the central one used to be
+           wound backwards, its barycentric sum came out negative, and eight of
+           the twenty faces were drawn smooth.
+
+           A dimple is a shallow spherical dish: slope grows with distance
+           from its centre and stops at a crisp rim. Its radius is just under
+           half the distance to its nearest neighbour, read off how far its
+           flat grid point stood from the centre (only eight distances occur),
+           so they pack nearly edge to edge in the mix of sizes a real cover
+           has. `fwidth` says how much ball one pixel covers: the rim softens
+           to it, and once a pixel covers more than about half a dimple the
+           relief fades to its average shade instead of shimmering — and a
+           ball that small skips the search entirely. */
         'void gbDimple(vec3 p, out vec3 gradObj, out float depth) {',
+        '  float fw = length(fwidth(p));',
+        '  gradObj = vec3(0.0);',
+        '  depth = 0.28;',
+        '  if (fw > 0.05) return;',
         '  vec3 s = vec3(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0, p.z < 0.0 ? -1.0 : 1.0);',
         '  vec3 q = abs(p);',
-        '  vec3 c0 = vec3(0.57735027);',
-        '  vec3 c1 = vec3(0.93417236, 0.35682209, 0.0);',
-        '  vec3 c2 = vec3(0.0, 0.93417236, 0.35682209);',
-        '  vec3 c3 = vec3(0.35682209, 0.0, 0.93417236);',
-        '  float d0 = dot(q, c0); float d1 = dot(q, c1); float d2 = dot(q, c2); float d3 = dot(q, c3);',
+        '  float d0 = dot(q, vec3(0.57735027));',
+        '  float d1 = dot(q, vec3(0.93417236, 0.35682209, 0.0));',
+        '  float d2 = dot(q, vec3(0.0, 0.93417236, 0.35682209));',
+        '  float d3 = dot(q, vec3(0.35682209, 0.0, 0.93417236));',
         '  vec3 V0 = vec3(0.0, 0.52573111, 0.85065081);',
         '  vec3 V1 = vec3(0.52573111, 0.85065081, 0.0);',
         '  vec3 V2 = vec3(0.85065081, 0.0, 0.52573111);',
-        '  vec3 A = V0; vec3 B = V1; vec3 C = V2;',
+        '  vec3 A = V0; vec3 B = V2; vec3 C = V1;',
         '  if (d1 >= d0 && d1 >= d2 && d1 >= d3) {',
         '    A = V1; B = V2; C = vec3(0.85065081, 0.0, -0.52573111);',
         '  } else if (d2 >= d0 && d2 >= d1 && d2 >= d3) {',
@@ -820,31 +841,34 @@
         '    A = V2; B = V0; C = vec3(0.0, -0.52573111, 0.85065081);',
         '  }',
         '  vec3 bc = vec3(dot(q, cross(B, C)), dot(q, cross(C, A)), dot(q, cross(A, B)));',
-        '  bc *= 6.0 / max(bc.x + bc.y + bc.z, 1e-5);',
+        '  bc *= 7.0 / max(bc.x + bc.y + bc.z, 1e-5);',
         '  vec3 fl = floor(bc);',
-        '  vec3 fr = bc - fl;',
-        '  float up = step(1.5, fr.x + fr.y + fr.z);',
+        '  float rem = 7.0 - (fl.x + fl.y + fl.z);',
+        '  float up = step(1.5, rem);',
         '  vec3 o1 = mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 1.0), up);',
         '  vec3 o2 = mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 1.0), up);',
         '  vec3 o3 = mix(vec3(0.0, 0.0, 1.0), vec3(1.0, 1.0, 0.0), up);',
-        '  if (fr.x + fr.y + fr.z < 0.25) o1 = vec3(0.0);',
-        '  vec3 w1 = fl + o1; vec3 w2 = fl + o2; vec3 w3 = fl + o3;',
-        '  vec3 p1 = normalize(w1.x * A + w1.y * B + w1.z * C);',
-        '  vec3 p2 = normalize(w2.x * A + w2.y * B + w2.z * C);',
-        '  vec3 p3 = normalize(w3.x * A + w3.y * B + w3.z * C);',
-        '  float l1 = dot(q, p1); float l2 = dot(q, p2); float l3 = dot(q, p3);',
-        '  vec3 pBest = p1;',
-        '  if (l2 > l1 && l2 >= l3) pBest = p2;',
-        '  else if (l3 > l1 && l3 > l2) pBest = p3;',
-        '  vec3 dCenter = s * pBest;',
-        '  float chord = length(p - dCenter);',
-        '  float r = clamp(chord / 0.072, 0.0, 1.0);',
-        '  float inv = 1.0 - r * r;',
-        '  depth = inv * inv;',
-        '  vec3 tanOut = p - dCenter * dot(p, dCenter);',
-        '  float tLen = length(tanOut);',
-        '  tanOut = tLen > 1e-4 ? tanOut / tLen : vec3(0.0);',
-        '  gradObj = tanOut * (r * inv * 0.92);',
+        '  if (rem < 0.5) o1 = vec3(0.0);',
+        '  if (rem > 2.5) o1 = vec3(1.0);',
+        '  mat3 M = mat3(A, B, C);',
+        '  vec3 g1 = M * (fl + o1); vec3 g2 = M * (fl + o2); vec3 g3 = M * (fl + o3);',
+        '  float L1 = length(g1); float L2 = length(g2); float L3 = length(g3);',
+        '  float l1 = dot(q, g1) / L1; float l2 = dot(q, g2) / L2; float l3 = dot(q, g3) / L3;',
+        '  vec3 g = g1; float L = L1; float lb = l1;',
+        '  if (l2 > lb) { g = g2; L = L2; lb = l2; }',
+        '  if (l3 > lb) { g = g3; L = L3; lb = l3; }',
+        '  L /= 7.0;',
+        '  float nn = L < 0.806 ? 0.1816 : L < 0.820 ? 0.1735 : L < 0.840 ? 0.1648 : L < 0.860 ? 0.1707 : L < 0.873 ? 0.1520 : L < 0.905 ? 0.1566 : 0.1377;',
+        '  float rad = nn * 0.485;',
+        '  vec3 dCenter = s * (g / (L * 7.0));',
+        '  vec3 off = p - dCenter;',
+        '  float r = length(off) / rad;',
+        '  float px = fw / rad;',
+        '  float edge = 1.0 - smoothstep(1.0 - max(0.07, px * 1.2), 1.0, r);',
+        '  float fade = 1.0 - smoothstep(0.30, 0.65, px);',
+        '  vec3 tanOut = off - dCenter * dot(off, dCenter);',
+        '  gradObj = tanOut / rad * (0.62 * edge * fade);',
+        '  depth = mix(0.28, (1.0 - r * r) * edge, fade);',
         '}'
     ].join('\n');
 
@@ -1020,6 +1044,37 @@
         '    vec3 neon = mix(vec3(0.10, 0.92, 1.0), vec3(1.0, 0.24, 0.75), wave);',
         '    gbBase = vec3(0.08, 0.06, 0.16);',
         '    gbEmit = neon * (grid * (0.75 + 0.65 * wave) + 0.18 * gbRim);',
+        '  } else if (uGbMode == 14) {', // featherie: no dimples, stitched leather
+        '    gbGradObj = vec3(0.0);',
+        '    gbAO = 1.0;',
+        // A tennis-ball seam: the saddle where y = 0.55 (x^2 - z^2).
+        '    float seamF = gbP.y - 0.55 * (gbP.x * gbP.x - gbP.z * gbP.z);',
+        '    float seamD = abs(seamF);',
+        '    float grain = gbFbm(gbP * 9.0);',
+        '    float patina = gbFbm(gbP * 2.3 + 4.0);',
+        '    gbBase = mix(vec3(0.40, 0.25, 0.13), vec3(0.58, 0.39, 0.21), patina) * (0.82 + 0.30 * grain);',
+        '    float hollow = 1.0 - smoothstep(0.02, 0.09, seamD);',
+        '    gbBase *= 1.0 - hollow * 0.35;',
+        '    float along = atan(gbP.z, gbP.x) * 13.0 + gbP.y * 9.0;',
+        '    float stitch = (1.0 - smoothstep(0.012, 0.022, seamD)) * smoothstep(0.15, 0.35, abs(fract(along) - 0.5));',
+        '    gbBase = mix(gbBase, vec3(0.93, 0.87, 0.74), stitch);',
+        '    vec3 seamG = vec3(-1.1 * gbP.x, 1.0, 1.1 * gbP.z);',
+        '    seamG -= gbP * dot(seamG, gbP);',
+        '    gbGradObj = seamG / (length(seamG) + 1e-4) * sign(seamF) * hollow * 0.22;',
+        '  } else if (uGbMode == 15) {', // aurora: curtains over a starfield
+        '    float az = atan(gbP.z, gbP.x);',
+        '    float t = uGbTime;',
+        '    float wob = 0.22 * sin(az * 3.0 + t * 0.45) + 0.09 * sin(az * 7.0 - t * 0.8) + 0.12 * (gbFbm(gbP * 2.2 + t * 0.07) - 0.5);',
+        '    float h = gbP.y - wob;',
+        '    float band = exp(-h * h * 22.0);',
+        '    float rays = 0.55 + 0.45 * sin(az * 38.0 + gbFbm(gbP * 5.0) * 6.0 + t * 0.9);',
+        '    float upper = smoothstep(-0.05, 0.35, h);',
+        '    vec3 auroraC = mix(vec3(0.20, 0.95, 0.58), vec3(0.62, 0.38, 1.0), upper);',
+        '    float band2 = exp(-pow((gbP.y + 0.42 - wob * 0.6) * 6.0, 2.0)) * 0.45;',
+        '    float glow = band * rays + band2 * (0.6 + 0.4 * rays);',
+        '    float star = smoothstep(0.93, 0.99, gbHash(floor(gbP * 60.0))) * (0.6 + 0.4 * sin(t * 3.0 + gbHash(floor(gbP * 60.0) + 1.3) * 30.0));',
+        '    gbBase = mix(vec3(0.03, 0.05, 0.13), vec3(0.06, 0.10, 0.22), smoothstep(-0.6, 0.6, gbP.y));',
+        '    gbEmit = auroraC * glow * 0.95 + vec3(0.85, 0.9, 1.0) * star * (1.0 - glow) * 0.8;',
         '  }',
         '  gbBase *= uGbTint * gbAO;',
         '  gbBase = mix(gbBase, uGbSkyTop * 0.45 + 0.55 * gbBase, gbRim * 0.25);',

@@ -406,6 +406,7 @@
             if (useGL) G3.postfx.setPortal({ k: pk, open: 0 });
         };
         var finish = function () {
+            document.body.classList.remove('diving');
             if (useGL) G3.postfx.setPortal({ k: 1, open: 0 });
             // Whatever the swap does, the screen is not left shut on it.
             try { then(); } finally { portalBusy = false; }
@@ -416,6 +417,8 @@
         };
 
         if (dive && R.startDive && R.startDive(state.world.hole, state.world.ball, onPortal, finish)) {
+            // No swing lane over the plunge, whatever phase it is in.
+            document.body.classList.add('diving');
             if (A.rocket) A.rocket();
             return;
         }
@@ -623,6 +626,8 @@
        one difference that matters here: the intro flyover is a first look at a
        hole, and you have already had it. */
     function loadHole(i, again) {
+        // A new hole is never mid-dive, however the last one was left.
+        document.body.classList.remove('diving');
         closeGate();
         endReplay(true);
         hideSwingCard();
@@ -4868,6 +4873,7 @@
         $('menu-progress-text').textContent = '\u2605 ' + got + ' / ' + max + '  \u00b7  ' + avail + ' to spend';
         $('menu-progress-bar').style.width = (max ? Math.round(100 * got / max) : 0) + '%';
         if ($('menu-shop-stars')) $('menu-shop-stars').textContent = '\u2605 ' + avail;
+        syncShopNew(save, avail);
         // Keyboard and screen reader land on what is being offered.
         if (focus) { try { focus.focus(); } catch (e) { /* ignore */ } }
     }
@@ -5698,6 +5704,7 @@
            is over, and the card used to leave you standing on it. Its third
            button is the course list instead (closeCard opens it). */
         $('card-close').textContent = res ? 'Choose a course' : 'Close';
+        cardShop(res);
         if (res) {
             next.hidden = false;
             /* Shuffle is the mode where this button stops naming where you are
@@ -5719,6 +5726,46 @@
         } else {
             next.hidden = true;
         }
+    }
+
+    /* Shop items — balls and club finishes — the player could buy right now:
+       not owned, affordable, and with any achievement on them met. */
+    function affordableBalls(save, avail) {
+        var list = G3.SHOP_ITEMS || G3.BALLS;
+        if (!list || !S.ownsBall) return 0;
+        var n = 0;
+        list.forEach(function (b) {
+            if (b.cost > 0 && b.cost <= avail && !S.ownsBall(save, b.id) &&
+                !(S.lockStatus && S.lockStatus(save, b.id).locked)) n++;
+        });
+        return n;
+    }
+
+    // The menu's Pro Shop button says when something new is in reach.
+    function syncShopNew(save, avail) {
+        var el = $('menu-shop-new');
+        if (!el) return;
+        var n = affordableBalls(save, avail);
+        el.hidden = !n;
+        el.textContent = n ? n + ' to unlock' : '';
+        if ($('menu-btn-shop')) $('menu-btn-shop').classList.toggle('has-new', !!n);
+        if ($('menu-shop-stars')) $('menu-shop-stars').textContent = '\u2605 ' + avail;
+    }
+
+    /* Six holes played is when there are stars to spend, so a finished round's
+       card carries the way to the Pro Shop: what is in the wallet and how many
+       balls it would buy. Not on a pass-and-play card or the range. */
+    function cardShop(res) {
+        var el = $('card-shop');
+        if (!el) return;
+        if (!res || multi() || state.course.isRange || !S.availableStars) { el.hidden = true; return; }
+        var save = state && state.save ? state.save : S.load();
+        var avail = S.availableStars(save);
+        var n = affordableBalls(save, avail);
+        $('card-shop-sub').textContent = '\u2605 ' + avail + ' to spend' +
+            (n ? ' \u00b7 ' + n + ' new ' + (n === 1 ? 'ball or finish' : 'balls and finishes') + ' in reach' : ' \u00b7 balls and club colours');
+        el.classList.toggle('has-new', !!n);
+        el.hidden = false;
     }
 
     /* What a finished tour was worth, said on its card: gold three or more
@@ -6571,6 +6618,9 @@
     var shopPreview = null;
     var shopDrag = null;
     var shopFromMenu = false;
+    var shopFromCard = false;
+    var shopTab = 'balls';
+    var shopInspectClub = null;
 
     function applyEquippedBall(overrideId) {
         if (!R.setBallStyle) return;
@@ -6579,6 +6629,62 @@
             ? overrideId
             : (S.equippedBall ? S.equippedBall(save) : 'tour-white');
         R.setBallStyle(id);
+        if (G3.bag && G3.bag.setFinish && S.equippedClub && G3.clubFinishById) {
+            G3.bag.setFinish(G3.clubFinishById(S.equippedClub(save)));
+        }
+    }
+
+    function hexCss(n) { return '#' + ('000000' + (n >>> 0).toString(16)).slice(-6); }
+
+    /* A club finish, drawn: an iron's blade with its cavity in the paint, the
+       hosel and shaft rising out of it and the grip at the top. The stock
+       finish has no single paint, so its cavity carries the bag's colours. */
+    function drawClubSwatch(canvas, f) {
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        var w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        var head = f.head != null ? hexCss(f.head) : '#9aa6b4';
+        var grip = hexCss(f.grip != null ? f.grip : 0x1d2127);
+        ctx.save();
+        ctx.lineCap = 'round';
+        // Shaft, then grip.
+        ctx.strokeStyle = '#aeb7c0';
+        ctx.lineWidth = w * 0.035;
+        ctx.beginPath(); ctx.moveTo(w * 0.40, h * 0.66); ctx.lineTo(w * 0.70, h * 0.10); ctx.stroke();
+        ctx.strokeStyle = grip;
+        ctx.lineWidth = w * 0.06;
+        ctx.beginPath(); ctx.moveTo(w * 0.62, h * 0.25); ctx.lineTo(w * 0.73, h * 0.04); ctx.stroke();
+        // Blade.
+        ctx.fillStyle = head;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.36, h * 0.62);
+        ctx.lineTo(w * 0.44, h * 0.60);
+        ctx.quadraticCurveTo(w * 0.80, h * 0.55, w * 0.88, h * 0.66);
+        ctx.quadraticCurveTo(w * 0.92, h * 0.86, w * 0.80, h * 0.90);
+        ctx.lineTo(w * 0.22, h * 0.90);
+        ctx.quadraticCurveTo(w * 0.12, h * 0.88, w * 0.16, h * 0.80);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.fillRect(w * 0.22, h * 0.86, w * 0.58, h * 0.025);
+        // Cavity badge in the paint.
+        var cols = f.paint != null ? [hexCss(f.paint)] : (f.colors || ['#38bdf8']);
+        var bx = w * 0.30, bw = w * 0.48, by = h * 0.70, bh = h * 0.11;
+        if (f.glow) {
+            // The extreme finishes glow, so their swatch does too.
+            ctx.shadowColor = hexCss(f.emissive);
+            ctx.shadowBlur = w * 0.12;
+        }
+        for (var i = 0; i < cols.length; i++) {
+            ctx.fillStyle = cols[i];
+            ctx.fillRect(bx + bw * i / cols.length, by, bw / cols.length + 0.5, bh);
+        }
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.lineWidth = Math.max(1, w * 0.012);
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.restore();
     }
 
     function drawBallSwatch(canvas, ball) {
@@ -6659,6 +6765,40 @@
             ctx.lineTo(cx - rad * 0.28, cy);
             ctx.closePath();
             ctx.fill();
+        } else if (sw.type === 'featherie') {
+            ctx.fillStyle = sw.base;
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = sw.dark;
+            ctx.lineWidth = w * 0.07;
+            ctx.beginPath();
+            ctx.moveTo(cx - rad, cy - rad * 0.35);
+            ctx.bezierCurveTo(cx - rad * 0.3, cy + rad * 0.55, cx + rad * 0.3, cy + rad * 0.55, cx + rad, cy - rad * 0.35);
+            ctx.stroke();
+            ctx.strokeStyle = sw.thread;
+            ctx.lineWidth = Math.max(1, w * 0.022);
+            ctx.setLineDash([w * 0.035, w * 0.03]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else if (sw.type === 'aurora') {
+            ctx.fillStyle = '#0a1430';
+            ctx.fillRect(0, 0, w, h);
+            grd = ctx.createLinearGradient(0, h * 0.25, 0, h * 0.7);
+            grd.addColorStop(0, 'rgba(164, 107, 255, 0)');
+            grd.addColorStop(0.35, 'rgba(164, 107, 255, 0.85)');
+            grd.addColorStop(0.7, 'rgba(60, 240, 160, 0.95)');
+            grd.addColorStop(1, 'rgba(60, 240, 160, 0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.moveTo(0, h * 0.5);
+            ctx.bezierCurveTo(w * 0.3, h * 0.2, w * 0.6, h * 0.7, w, h * 0.35);
+            ctx.lineTo(w, h * 0.6);
+            ctx.bezierCurveTo(w * 0.6, h * 0.95, w * 0.3, h * 0.45, 0, h * 0.75);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#eef3ff';
+            [[0.3, 0.22], [0.62, 0.18], [0.75, 0.8], [0.22, 0.85], [0.5, 0.88]].forEach(function (st) {
+                ctx.fillRect(w * st[0], h * st[1], Math.max(1, w * 0.02), Math.max(1, w * 0.02));
+            });
         } else if (sw.type === 'singularity') {
             grd = ctx.createRadialGradient(cx, cy, rad * 0.35, cx, cy, rad);
             grd.addColorStop(0, '#07060b');
@@ -6739,6 +6879,8 @@
         if (!$('ball-shop')) return;
         shopFromMenu = $('menu') && $('menu').classList.contains('show');
         if (shopFromMenu) $('menu').className = 'modal';
+        shopFromCard = !shopFromMenu && $('scorecard') && $('scorecard').classList.contains('show');
+        if (shopFromCard) $('scorecard').className = 'modal';
         var save = state && state.save ? state.save : S.load();
         shopInspect = (typeof inspectId === 'string' && G3.ballById && G3.ballById(inspectId).id === inspectId)
             ? inspectId
@@ -6761,6 +6903,10 @@
         if (shopFromMenu) {
             shopFromMenu = false;
             openMenu();
+        } else if (shopFromCard) {
+            shopFromCard = false;
+            cardShop(state && state.phase === 'finished' ? {} : null);
+            $('scorecard').className = 'modal show';
         }
     }
 
@@ -6769,90 +6915,128 @@
         var save = state && state.save ? state.save : S.load();
         var earned = S.earnedStars ? S.earnedStars(save).got : 0;
         var avail = S.availableStars ? S.availableStars(save) : earned;
-        var equipped = S.equippedBall ? S.equippedBall(save) : 'tour-white';
-        if (!shopInspect || !G3.ballById) shopInspect = equipped;
+        var clubs = shopTab === 'clubs' && G3.CLUB_FINISHES;
+        var items = clubs ? G3.CLUB_FINISHES : (G3.BALLS || []);
+        var byId = clubs ? G3.clubFinishById : G3.ballById;
+        var equipped = clubs ? S.equippedClub(save) : (S.equippedBall ? S.equippedBall(save) : 'tour-white');
+        if (clubs) {
+            if (!shopInspectClub) shopInspectClub = equipped;
+        } else if (!shopInspect || !G3.ballById) shopInspect = equipped;
+        var inspect = clubs ? shopInspectClub : shopInspect;
 
-        $('shop-avail').textContent = '\u2605 ' + avail;
+        $('shop-avail').textContent = '★ ' + avail;
         $('shop-earned').textContent = earned + ' earned total';
+
+        // Balls | Clubs
+        if ($('shop-tabs')) {
+            Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button'), function (btn) {
+                var on = btn.getAttribute('data-tab') === (clubs ? 'clubs' : 'balls');
+                btn.classList.toggle('on', on);
+                btn.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+        }
+        $('shop-preview-wrap').hidden = !!clubs;
+        if ($('shop-club-wrap')) $('shop-club-wrap').hidden = !clubs;
 
         if ($('shop-dev-bar')) {
             $('shop-dev-bar').hidden = !dev;
             if (dev) {
-                var allList = G3.BALLS || [];
+                var allList = G3.SHOP_ITEMS || G3.BALLS || [];
                 var allOwned = allList.length > 0 && allList.every(function (x) { return S.ownsBall(save, x.id); });
                 var hasFree = Array.isArray(save.freeBalls) && save.freeBalls.length > 0;
                 if ($('shop-dev-unlock-all')) {
-                    $('shop-dev-unlock-all').textContent = allOwned ? '\u2713 All Balls Unlocked' : 'Unlock All Balls';
+                    $('shop-dev-unlock-all').textContent = allOwned ? '✓ All Unlocked' : 'Unlock Everything';
                     $('shop-dev-unlock-all').disabled = allOwned;
                 }
                 if ($('shop-dev-reset')) $('shop-dev-reset').hidden = !hasFree;
             }
         }
 
-        // Category filter pills
+        // Category filter pills (balls only: the clubs are one shelf)
         var catsEl = $('shop-cats');
         catsEl.innerHTML = '';
-        (G3.BALL_CATEGORIES || []).forEach(function (c) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'shop-cat' + (shopCat === c.id ? ' on' : '');
-            btn.textContent = c.name;
-            btn.setAttribute('role', 'tab');
-            btn.setAttribute('aria-selected', shopCat === c.id ? 'true' : 'false');
-            btn.addEventListener('click', function () {
-                shopCat = c.id;
-                drawShop();
+        catsEl.hidden = !!clubs;
+        if (!clubs) {
+            (G3.BALL_CATEGORIES || []).forEach(function (c) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'shop-cat' + (shopCat === c.id ? ' on' : '');
+                btn.textContent = c.name;
+                btn.setAttribute('role', 'tab');
+                btn.setAttribute('aria-selected', shopCat === c.id ? 'true' : 'false');
+                btn.addEventListener('click', function () {
+                    shopCat = c.id;
+                    drawShop();
+                });
+                catsEl.appendChild(btn);
             });
-            catsEl.appendChild(btn);
-        });
+        }
 
-        // Inspected detail + 3D preview
-        var cur = G3.ballById(shopInspect);
-        if (shopPreview) shopPreview.setStyle(cur.id);
+        // Inspected detail + preview
+        var cur = byId(inspect);
+        if (clubs) {
+            if ($('shop-club-preview')) drawClubSwatch($('shop-club-preview'), cur);
+        } else if (shopPreview) shopPreview.setStyle(cur.id);
         var ownedCur = S.ownsBall(save, cur.id);
         var isEqCur = equipped === cur.id;
+        var lockCur = S.lockStatus ? S.lockStatus(save, cur.id) : { locked: false };
         $('shop-d-cat').textContent = cur.badge || cur.category;
-        $('shop-d-cost').textContent = cur.cost === 0 ? 'Included' : (ownedCur ? 'Unlocked (\u2605 ' + cur.cost + ')' : '\u2605 ' + cur.cost);
+        $('shop-d-cost').textContent = cur.cost === 0 ? 'Included' : (ownedCur ? 'Unlocked (★ ' + cur.cost + ')' : '★ ' + cur.cost);
         $('shop-d-name').textContent = cur.name;
         $('shop-d-inspired').textContent = cur.inspired ? 'Inspired by: ' + cur.inspired : '';
         $('shop-d-blurb').textContent = cur.blurb || '';
+        var lockEl = $('shop-d-lock');
+        if (lockEl) {
+            lockEl.hidden = !(cur.lock && !ownedCur);
+            if (!lockEl.hidden) {
+                lockEl.className = 'shop-d-lock' + (lockCur.met ? ' met' : '');
+                lockEl.textContent = (lockCur.met ? '✓ ' : '🔒 ') + lockCur.text +
+                    ' — ' + lockCur.have + ' / ' + lockCur.need;
+            }
+        }
 
         var act = $('shop-d-action');
+        var noun = clubs ? 'Finish' : 'Ball';
         act.className = 'shop-action';
         if (isEqCur) {
-            act.textContent = '\u2713 Equipped';
+            act.textContent = '✓ Equipped';
             act.disabled = true;
         } else if (ownedCur) {
-            act.textContent = 'Equip Ball';
+            act.textContent = 'Equip ' + noun;
             act.className = 'shop-action equip';
             act.disabled = false;
-        } else if (avail >= cur.cost) {
-            act.textContent = 'Unlock & Equip (\u2605 ' + cur.cost + ')';
+        } else if (!lockCur.locked && avail >= cur.cost) {
+            act.textContent = 'Unlock & Equip (★ ' + cur.cost + ')';
             act.className = 'shop-action buy';
             act.disabled = false;
         } else if (dev) {
             act.textContent = 'Unlock & Equip (Dev)';
             act.className = 'shop-action dev';
             act.disabled = false;
+        } else if (lockCur.locked) {
+            act.textContent = '🔒 Locked · ' + lockCur.have + ' / ' + lockCur.need;
+            act.disabled = true;
         } else {
-            act.textContent = 'Need ' + (cur.cost - avail) + ' more \u2605';
+            act.textContent = 'Need ' + (cur.cost - avail) + ' more ★';
             act.disabled = true;
         }
 
         // Card grid (sorted by cost, any-order purchase!)
         var grid = $('shop-grid');
         grid.innerHTML = '';
-        (G3.BALLS || []).forEach(function (b) {
-            if (shopCat !== 'all' && b.category !== shopCat) return;
+        items.forEach(function (b) {
+            if (!clubs && shopCat !== 'all' && b.category !== shopCat) return;
             var owned = S.ownsBall(save, b.id);
             var eq = equipped === b.id;
-            var canBuy = !owned && avail >= b.cost;
+            var lk = S.lockStatus ? S.lockStatus(save, b.id) : { locked: false };
+            var canBuy = !owned && !lk.locked && avail >= b.cost;
             var card = document.createElement('button');
             card.type = 'button';
             card.className = 'ball-card' +
-                (shopInspect === b.id ? ' inspecting' : '') +
+                (inspect === b.id ? ' inspecting' : '') +
                 (eq ? ' equipped' : '') +
                 (owned ? '' : ' locked') +
+                (lk.locked ? ' achievement' : '') +
                 (canBuy ? ' can-buy' : '');
             card.setAttribute('data-ball', b.id);
 
@@ -6865,7 +7049,7 @@
             sw.className = 'bc-swatch';
             sw.width = 116;
             sw.height = 116;
-            drawBallSwatch(sw, b);
+            if (clubs) drawClubSwatch(sw, b); else drawBallSwatch(sw, b);
             card.appendChild(sw);
 
             var nm = document.createElement('span');
@@ -6874,16 +7058,18 @@
             card.appendChild(nm);
 
             var st = document.createElement('span');
-            st.className = 'bc-status' + (eq ? ' on' : owned ? ' owned' : canBuy ? ' buyable' : '');
-            st.textContent = eq ? '\u2713 Equipped' : owned ? 'Owned' : '\u2605 ' + b.cost;
+            st.className = 'bc-status' + (eq ? ' on' : owned ? ' owned' : canBuy ? ' buyable' : lk.locked ? ' lock' : '');
+            st.textContent = eq ? '✓ Equipped' : owned ? 'Owned'
+                : lk.locked ? '🔒 ' + lk.have + '/' + lk.need + ' · ★ ' + b.cost
+                : '★ ' + b.cost;
             card.appendChild(st);
 
             card.addEventListener('click', function () {
-                if (shopInspect === b.id && owned && !eq) {
+                if (inspect === b.id && owned && !eq) {
                     onShopAction();
                     return;
                 }
-                shopInspect = b.id;
+                if (clubs) shopInspectClub = b.id; else shopInspect = b.id;
                 drawShop();
             });
             grid.appendChild(card);
@@ -6892,14 +7078,15 @@
 
     function onShopAction() {
         var save = state && state.save ? state.save : S.load();
-        var id = shopInspect;
+        var id = shopTab === 'clubs' ? shopInspectClub : shopInspect;
         if (!id) return;
         var owned = S.ownsBall(save, id);
-        var b = G3.ballById ? G3.ballById(id) : null;
+        var b = shopTab === 'clubs' ? G3.clubFinishById(id) : (G3.ballById ? G3.ballById(id) : null);
         var avail = S.availableStars ? S.availableStars(save) : 0;
         var res;
         if (owned) res = S.equipBall(save, id);
-        else if (b && avail < b.cost && dev && S.unlockBallFree) res = S.unlockBallFree(save, id);
+        else if (b && dev && S.unlockBallFree &&
+                 (avail < b.cost || (S.lockStatus && S.lockStatus(save, id).locked))) res = S.unlockBallFree(save, id);
         else res = S.buyBall(save, id);
         if (!res.ok) return;
         if (state) state.save = S.save(res.save);
@@ -6908,6 +7095,7 @@
         drawShop();
         if ($('menu-shop-stars') && S.availableStars) {
             $('menu-shop-stars').textContent = '\u2605 ' + S.availableStars(res.save);
+            syncShopNew(res.save, S.availableStars(res.save));
         }
     }
 
@@ -6918,6 +7106,14 @@
             if (e.target === this) closeShop();
         });
         $('shop-d-action').addEventListener('click', onShopAction);
+        if ($('shop-tabs')) {
+            Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button'), function (btn) {
+                btn.addEventListener('click', function () {
+                    shopTab = btn.getAttribute('data-tab');
+                    drawShop();
+                });
+            });
+        }
         var wrap = $('shop-preview-wrap');
         if (wrap) {
             wrap.addEventListener('pointerdown', function (e) {
@@ -7290,6 +7486,7 @@
         if (window.visualViewport) window.visualViewport.addEventListener('resize', onPageResize);
         window.addEventListener('resize', onPageResize);
         $('card-close').addEventListener('click', closeCard);
+        if ($('card-shop')) $('card-shop').addEventListener('click', function () { openShop(); });
         $('card-again').addEventListener('click', function () { if (state.course.isEndless) newEndless(); else newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
             $('scorecard').className = 'modal';

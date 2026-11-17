@@ -4501,11 +4501,14 @@ down into it (`render.js → startDive`, `diveCamera`, `C.DIVE`), each part ease
 so it leaves at the speed the lap was going and is falling fastest as it goes
 in. It looks just past the cup's axis on the far side, so the last look is
 never exactly straight down and the picture turns with the spiral instead of
-flicking round. It stops just over the lip where the cup fills the picture — the height
-worked out from the field of view, so a phone held either way ends on the
-inside of the hole and the ball lying in it, never on the ball's dimples.
-The wipe on to the next sky starts closing while it falls (`throughPortal`'s
-`dive`), so it opens out of the cup. The pose holds at the lip until the
+flicking round. The plunge reaches the rim (`RIM_AT`, `RIM_Y` over it) with the
+cup's black hole filling the picture, and only then does the wipe on to the
+next sky start closing (`PORTAL_AT`, `throughPortal`'s `dive`): the camera
+goes on `INTO` the hole at the speed it arrived with, easing to rest, with the
+black-hole disc kept just below it so the view is never the underside of the
+green, and the next sky opens out of that dark (v1.176.1 — before, the wipe
+began while the camera was still metres up, and the owner wanted it "further
+down into the hole before the transition starts"). The pose holds until the
 next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
 is over (`phase === 'holed'`, a picked-up ball included — then with no lap
 to carry on from, so it starts from standing); reduced motion gets neither
@@ -6068,6 +6071,37 @@ you liked it chosen; and `loftLinks.shuffleSkip`, the kinds of golf left out of
 the draw, stored as the ones excluded so that an empty value is every kind and
 a new group of courses arrives ticked rather than hidden. All these writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
+
+## The Pro Shop: balls, club finishes and what they cost
+
+Two shelves behind one wallet (`B`, the menu's brass plate, or the plate on a
+finished round's card). `js/balls.js` is the catalog — `BALLS`, `CLUB_FINISHES`,
+and `LOCKS` — and `js/scoring.js` owns the rules: `availableStars` is stars
+earned minus stars spent, both kinds of purchase live in `save.balls`, and the
+equipped club finish is `save.club`.
+
+- **The economy.** 330 stars exist (270 on the courses, 60 on the World Tour).
+  Balls cost 220 and club finishes 88, so a completionist can own everything
+  with stars to spare. `tests.html` holds the sum under the cap; add an item
+  and re-price rather than loosen it.
+- **Achievement locks.** A top-shelf item with `lock` also needs that
+  achievement met — counted from the save alone by `scoring.lockProgress`
+  (rounds, aces, a round under par, every kind of course, eight courses, six
+  World Tour holes, a perfect course). `buyBall` refuses with reason
+  `'achievement'`. Owning an item already is never undone by a lock.
+- **Club finishes recolour, never rebuild.** `bag.js` keeps every material set
+  `mats()` hands out and `setFinish` repaints paint, head steel and grips in
+  place. The extreme finishes (`glow: 'fire' | 'ice'`) breathe an emissive
+  intensity in `glowTick`; no light is added, so nothing recompiles.
+- **The dimples** (`shaders.js → GB_DIMPLE_FN`) are a frequency-7 geodesic
+  grid, 492 of them, found per pixel: fold to the positive octant, pick one of
+  four icosahedron faces, then the nearest of three grid corners. Every face
+  must be wound the same way — the central one was once backwards, its
+  barycentric sum went negative and eight faces drew smooth. Each dimple's
+  radius is just under half the distance to its nearest neighbour (a table of
+  eight, keyed by how far its flat grid point stood from the centre), and
+  `fwidth` softens the rim and fades the relief once a pixel covers half a
+  dimple, skipping the search entirely on a small ball.
 
 ## Sound
 
