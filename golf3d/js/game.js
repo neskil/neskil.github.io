@@ -532,7 +532,15 @@
         heldAt = performance.now();
     }
     function buildHeld(now) {
-        if (!state || demo) return false;
+        if (!state) return false;
+        /* The demo has nobody's finger on it, but it does have the two
+           moments a dropped frame shows worst: the intro sweep and a ball
+           in the air. The tour's first world is built aside behind the demo
+           (warmTour), and its shaders compile in one piece that cannot be
+           sliced (vendor/portals → _warmDraw); held over those two, it lands
+           while the caddie stands at the ball or the hole is held after the
+           sink, which is most of a demo hole. */
+        if (demo) return R.flying() || state.phase === 'rolling';
         if (heldDown > 0 && now - heldAt < 4000) return true;
         if (gate || arc || needle) return true;
         return state.phase === 'rolling';
@@ -620,8 +628,13 @@
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
-            // …and each of them stood up for the ball, while nothing is watching.
-            if (G3.bag.addressWarm) G3.bag.addressWarm(state.bag);
+            /* …and each of them stood up for the ball, while nothing is
+               watching. Not under the demo: the demo's camera never shows
+               the club at the ball, and its holes are built in front of the
+               player rather than behind a loading screen — the clubs were
+               a third of the stall between two demo rounds. A club the
+               player takes is still built on first use (bag.js addressTake). */
+            if (G3.bag.addressWarm && !demo) G3.bag.addressWarm(state.bag);
         }
         state.phase = 'aim';
         state.aim.power = 0;
@@ -757,6 +770,30 @@
         // `picker-open` are told from the body.
         $('stage').classList.toggle('flying', on);
         document.body.classList.toggle('flying', on);
+    }
+
+    /* The iris over the sweep's cut (render.js → iris), painted from the
+       state the renderer keeps: where the ball is as fractions of the stage
+       and how shut the circle is. The radius is a share of the distance to
+       the stage's furthest corner from the ball, so a shut iris is shut on
+       any screen and an open one clears every corner. */
+    var irisUp = false, irisEl = null;
+
+    function syncIris() {
+        var i = R.iris ? R.iris() : null;
+        if (!i) {
+            if (irisUp) { irisUp = false; irisEl.hidden = true; }
+            return;
+        }
+        if (!irisEl) irisEl = $('fly-iris');
+        var w = irisEl.clientWidth || window.innerWidth, h = irisEl.clientHeight || window.innerHeight;
+        if (!irisUp) { irisUp = true; irisEl.hidden = false; w = irisEl.clientWidth || w; h = irisEl.clientHeight || h; }
+        var x = i.x * w, y = i.y * h;
+        var far = Math.sqrt(Math.max(x, w - x) * Math.max(x, w - x) + Math.max(y, h - y) * Math.max(y, h - y));
+        var r = (1 - i.k) * (far + 4) - 3;   // below zero when shut: no pinhole
+        irisEl.style.setProperty('--ix', x.toFixed(1) + 'px');
+        irisEl.style.setProperty('--iy', y.toFixed(1) + 'px');
+        irisEl.style.setProperty('--ir', Math.max(-3, r).toFixed(1) + 'px');
     }
 
     function toggleFlyover() {
@@ -6233,20 +6270,37 @@
         } catch (e) { return []; }
     }
 
-    function demoRound() {
+    /* `wipe` is from one demo round to the next, which happens in front of
+       whoever is watching: the new hole is built while the portal wipe has
+       the screen shut, as a tour's hole-to-hole is, instead of the picture
+       freezing on the last green for the length of the build (the owner:
+       "a bit stutter on the first load during the demo"). The first round
+       is built under the loading screen and needs none. */
+    function demoRound(wipe) {
         var last = state && state.course && !state.course.isShowcase ?
             G3.demoKey(state.course.id, state.holeIndex) : null;
         var d = G3.demoDraw(demoSeen(), { last: last });
         try { localStorage.setItem(C.DEMO_SEEN_KEY, JSON.stringify(d.seen)); } catch (e) { /* ignore */ }
+        var go = function () {
+            if (!demo) return;              // left while the wipe was shut
+            demo.playing = false;
+            demo.wait = 0;
+            newRound(d.id, d.hole);
+            syncDemo();
+        };
+        var course = wipe && !portalBusy && G3.courseById(d.id);
+        if (!course) { go(); return; }
+        // Held, not walked, while the screen is shut: the walk would see the
+        // last hole still holed and start its hold over again.
         demo.playing = false;
-        demo.wait = 0;
-        newRound(d.id, d.hole);
-        syncDemo();
+        demo.wait = 1e9;
+        var at = Math.max(0, Math.min(course.holes.length - 1, d.hole || 0));
+        throughPortal(course.themes ? course.themes[at] : course.theme, go);
     }
 
     function demoNext() {
         stopSim(null);
-        demoRound();
+        demoRound(true);
     }
 
     function syncDemo() {
@@ -6441,10 +6495,20 @@
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
-        if (!loaderGone) hideLoader();
+        if (!loaderGone) {
+            /* The world renderer, made while the loader still covers the
+               page (backdrop.mjs → warm): it would be made a moment later
+               anyway, by the first world built, and that moment was in
+               front of the demo. Only where worlds are wanted at all. */
+            if (R.liveWanted && G3.backdrop && G3.backdrop.warm) {
+                try { G3.backdrop.warm(); } catch (e) { /* the world's own build will say */ }
+            }
+            hideLoader();
+        }
 
         // The sweep can end on any frame and nothing else would notice.
         syncFlyHint();
+        syncIris();
 
         // After the frame, so the inspector's outlines are placed from the
         // same clock the course was just drawn on.

@@ -53,10 +53,6 @@
         cols: 0,
         openScale: 2,
         openY: -0.26,
-        // How far out of the bag the club in hand stands, as a multiple of
-        // the offset `heldSpot` is written in. Read off the frustum in
-        // `place`, for the reason written there.
-        heldK: 1,
         crest: 1.31          // how tall the bag stands with its clubs in it
     };
 
@@ -1192,12 +1188,19 @@
        the row opening. */
     var _drvFine = [], _fineOn = false, _forBall = false;
     function shownAll(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
+    /* Asked per driver and every frame rather than once per opening: the
+       club in hand comes back into the row a few frames after the row
+       starts to open (`inHand`), and a driver judged while it was still
+       hidden would be read coarse for the whole of the picker. */
     function fineShells(on) {
         on = !!on;
-        if (on === _fineOn) return;
+        if (!on && !_fineOn) return;
         _fineOn = on;
         _drvFine.forEach(function (d) {
-            d.mesh.geometry = driverShellOnce(d.tl, !(on && shownAll(d.mesh.parent)));
+            var fine = on && shownAll(d.mesh.parent);
+            if (fine === !!d.fine) return;
+            d.fine = fine;
+            d.mesh.geometry = driverShellOnce(d.tl, !fine);
         });
     }
 
@@ -2624,7 +2627,7 @@
         (clubs || C.CLUBS).forEach(function (c) { want[c.id] = 1; });
         for (i = 0; i < B.clubs.length; i++) {
             B.clubs[i].on = !!want[B.clubs[i].id];
-            B.clubs[i].group.visible = B.clubs[i].on;
+            B.clubs[i].group.visible = B.clubs[i].on && !inHand(B.clubs[i]);
         }
         var row = live();
         B.crest = 0;
@@ -2664,51 +2667,24 @@
         };
     }
 
-    /* …and where the club in hand stands instead, which is not in the bag at
-       all: out of the mouth, down on the ground in front of it and leaning
-       back against the cuff, the way anybody who is about to play a shot
-       parks the club they are about to play it with.
-
-       The shut bag's whole job is to answer "your clubs are here" without
-       being opened, and it was answering only half of it. Five heads bunched
-       in a cuff say what you have; nothing there said which one is in your
-       hand — that lived in a chip along the top of the screen and in a colour
-       on a ferrule two millimetres tall. Standing the chosen club out of the
-       bunch says it in the place a player is already looking, and it says it
-       in silhouette, which survives being four hundred pixels away on a
-       phone.
-
-       It stands on the ground rather than in the well, so it is a little
-       lower than the bunch and the same real length it always was; it leans a
-       few degrees out, away from the bag's silhouette rather than across it;
-       and its yaw is nearer face-on than anything in the mouth, because this
-       is the one club worth reading and so the one turned to be read.
-
-       Two things about the numbers. They are worked in the *camera's* axes
-       and written back in the bag's, since the bag is stood at an angle to
-       the lens (`TWIST`) and the two do not agree — the first pass read as
-       "0.18 to the right", landed a fifth of a unit nearer the lens than the
-       bag, and perspective then carried it left *across* the bag rather than
-       clear of it. And they are scaled by `heldK`, which is the same lesson
-       `BAG_EDGE` is written in fractions of the frame for: a fixed offset in
-       metres is a different place on every screen. A fifth of a laptop's
-       frustum is half of a phone's held upright, so a club that stood neatly
-       beside the bag on a desk stood in the middle of the hole on a phone,
-       over the power meter. `place` measures it off the frustum. */
-    function heldSpot() {
-        var k = B.heldK;
-        return {
-            x: 0.36 * k, y: 0.05, z: -0.10 * k,
-            rz: -0.06, rx: 0.04, ry: -0.42, scale: 1
-        };
+    /* Where a club rests while the bag is shut: in the bunch, every one of
+       them, the club in hand included — though that one is not drawn there
+       (see `inHand`). It used to stand beside the bag (`heldSpot`, through
+       v1.176.0), which was the one way to tell which club was taken until
+       the club stood at the ball as well; then it was in two places at once
+       (the owner: "showing the club next to the bag when it's also by the
+       ball?"). */
+    function restSpot(c) {
+        return c.spot.closed;
     }
 
-    /* Which of the two a club is resting at while the bag is shut. Everything
-       that puts a club away goes through here rather than reaching for
-       `spot.closed`, so the club in hand leaves the bunch on selection and
-       goes back into it the moment another one is taken. */
-    function restSpot(c) {
-        return c.id === B.selected ? heldSpot() : c.spot.closed;
+    /* The club in hand is in the player's hands, not in the bag: hidden
+       while the bag is shut, and back in the row the moment it opens, so
+       the picker still shows every club with the one taken lit. It leaves
+       and rejoins at the bag's mouth, where the shut bunch has it, so the
+       swap happens where the clubs are small and close together. */
+    function inHand(c) {
+        return c.id === B.selected && B.open01 < 0.04;
     }
 
     /* And where it goes when the bag opens: out of it altogether and right up
@@ -2979,9 +2955,8 @@
         var haze = new THREE.Sprite(new THREE.SpriteMaterial({
             map: hazeTexture(), transparent: true, opacity: 0.3, depthWrite: false
         }));
-        // Wide enough to take in the club standing beside the bag as well as
-        // the bag: chrome against a bright sky needs something behind it, and
-        // the club in hand is the one most often against open sky.
+        // Wider than the bag: chrome against a bright sky needs something
+        // behind it.
         haze.scale.set(1.9, 2.0, 1);
         haze.position.set(0.11, 0.72, -0.3);
         B.haze = haze;
@@ -3178,19 +3153,6 @@
         put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
         follow(B.rigLights, B.rig);
 
-        /* And how far out of the bag the club in hand may stand: a fifth of
-           the half-width the bag was placed against, expressed as a multiple
-           of the offset `heldSpot` is written in. Clamped at both ends — a
-           phone held upright should still put the club clearly outside the
-           bag, and an ultrawide should not park it halfway across the hole. */
-        var heldK = Math.max(0.55, Math.min(1.25, bagW * 0.208 / 0.16));
-        /* …and a change to it is a fifth thing that can give a shut bag
-           something to do again. `update` stops easing once nothing is
-           moving, and a window resized or a phone turned over moves the
-           whole rig from `place` without ever asking a club to ease
-           anywhere — so without this the club in hand keeps the offset it
-           was standing at on the old frustum. */
-        if (Math.abs(heldK - B.heldK) > 1e-4) { B.heldK = heldK; B.settled = false; }
 
         /* How the clubs are arranged, how big they get and how high they sit
            are all measured against this window, every frame — the lens opens as
@@ -3405,6 +3367,7 @@
             // no slot in the arrangement to be moved towards.
             if (!c.on || !c.spot.open) return;
             var chosen = c.id === B.selected;
+            c.group.visible = !inHand(c);
             var to = B.expanded ? c.spot.open : restSpot(c);
             var under = B.expanded && B.hover === c.id;
             // Kept small: at the zoom the open row uses, a tenth of a unit is
@@ -3415,9 +3378,8 @@
                click: the row is five near-identical silhouettes and the one
                thing a player wants to know while moving across them is which
                one they are about to take. */
-            /* Shut, the club in hand no longer needs lifting clear of the
-               bunch — it is not in the bunch (see `heldSpot`), and a lift on
-               top of that is a club hovering over the grass. */
+            /* Shut, the club in hand is not drawn in the bag at all (see
+               `inHand`), so there is nothing to lift. */
             var lift = under ? 0.042 : (chosen && B.expanded ? 0.022 : 0);
             var glow = chosen ? 1 : (under ? 0.62 : 0);
 
@@ -3464,11 +3426,10 @@
             /* Gentle. A driver crown is nearly black, and any more than
                this floods it pale blue — the club in hand ends up the one you
                can see least of. */
-            /* And only while the row is out. Shut, the club in hand is
-               already marked by standing outside the bag (`heldSpot`) —
-               lighting it as well put a lamp on the one club with nothing
-               behind it, and bloom turned a chrome head so lit into a white
-               blob with a coloured ring round it. */
+            /* And only while the row is out. Shut, the club in hand is at
+               the ball rather than in the bag (`inHand`); and lit in the
+               bag it was a lamp on the one club with nothing behind it,
+               which bloom turned into a white blob with a coloured ring. */
             var e = 0.10 * c.now.glow * B.open01;
             c.group.traverse(function (o) {
                 if (o.material && o.material.emissive) o.material.emissive.setRGB(e * 0.45, e * 0.7, e);

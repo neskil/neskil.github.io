@@ -678,6 +678,25 @@
                 assert('the driver wears its fine shell only while the row is open',
                     shutTris < 8000 && openTris > 30000 && againTris === shutTris,
                     shutTris + ' shut, ' + openTris + ' open, ' + againTris + ' shut again');
+
+                /* The club in hand stands at the ball (bag.js `address`), so
+                   the shut bag does not show it as well — and the open row
+                   still does, lit, with the rest. */
+                var wasHeld = G3.bag.state.selected;
+                var held = function () {
+                    return G3.bag.state.clubs.filter(function (c) { return c.id === 'driver'; })[0].group.visible;
+                };
+                G3.bag.setSelected('driver');
+                wFrames(3);
+                var heldShut = held();
+                G3.bag.setExpanded(true);
+                wFrames(6);
+                var heldOpen = held();
+                G3.bag.setExpanded(false);
+                wFrames(24);
+                assert('the club in hand is out of the shut bag, and back in the row when it opens',
+                    !heldShut && heldOpen && !held(), [heldShut, heldOpen, held()].join(', '));
+                G3.bag.setSelected(wasHeld);
                 G3.bag.setBag(G3.CONFIG.CLUBS);
 
                 /* The shadow map rests on alternate frames while nothing in

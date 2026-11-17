@@ -1781,6 +1781,24 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     .fly-fade.run { animation-duration: 0.2s; }
 }
 
+/* The cut at the end of a sweep (render.js → iris): a circle closed on the
+   ball, the camera put on the seat behind it, and the circle opened again.
+   game.js sets where the ball is on the stage and how wide the hole is, on
+   every frame it is up; the rest of the time it is not drawn at all. */
+.fly-iris {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    --ix: 50%;
+    --iy: 50%;
+    --ir: 0px;
+    background: radial-gradient(circle at var(--ix) var(--iy),
+        transparent 0, transparent var(--ir), #06080b calc(var(--ir) + 2px));
+}
+
+.fly-iris[hidden] { display: none; }
+
 @keyframes fly-hint-in {
     from { opacity: 0; transform: translate(-50%, 6px); }
     to   { opacity: 1; transform: translate(-50%, 0); }

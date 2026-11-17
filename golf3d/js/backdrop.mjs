@@ -758,6 +758,12 @@ G3.backdrop = {
         if (engine && engine.post && engine.post.bloom) engine.post.bloom.enabled = on && engine.rtType === THREE.HalfFloatType;
     },
     get quality() { return qualityTier; },
+    /* The world renderer made, and nothing built in it: its context, its
+       targets and its first resize, which are one long synchronous step a
+       phone feels. game.js asks for it under the loading screen, since the
+       demo's tour warm-up (game.js → warmTour) would otherwise make it a
+       second after the loader lifts, in front of the demo. */
+    warm() { boot(); },
     failed(id) { return !!failed[id]; },
     play() { ev.on = true; },
     rewind() { ev.on = false; ev.t = 0; },

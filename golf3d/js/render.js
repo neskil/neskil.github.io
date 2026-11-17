@@ -71,6 +71,7 @@
         marks: null,           // the overview's ball ring and the two at the cup
         lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
         fly: null,             // the intro sweep while one is running; see flyCamera()
+        iris: null,            // the circle that covers its cut; see stepIris()
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
@@ -2135,18 +2136,31 @@
        crag steps back where a bed is softer. Never outside the outline (a
        chord of a convex outline lies inside it, and the result is clamped
        to it anyway), and never at the rim. */
-    function facetRadius(pad, a, wy, seed, rOut) {
+    /* `memo` is the wall's: a knot's angle and the outline's radius there,
+       by knot, which every vertex of the face asked for again — four
+       outline walks a vertex, and most of a crag hole's build on a phone.
+       Same numbers, worked out once a knot. */
+    function facetRadius(pad, a, wy, seed, rOut, memo) {
         var n = 6 + Math.floor(treeHash(seed, 3.1) * 3), step = Math.PI * 2 / n;
         var u = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / step, i = Math.floor(u);
-        function knotAngle(k) { return (k + (treeHash(seed + k * 1.7, 9.1) - 0.5) * 0.5) * step; }
+        memo = memo || {};
+        function knot(k) {
+            var m = memo[k];
+            if (!m) {
+                var ka = (k + (treeHash(seed + k * 1.7, 9.1) - 0.5) * 0.5) * step;
+                m = memo[k] = { a: ka, r: P.padRadius(pad, ka) };
+            }
+            return m;
+        }
         function chord(band) {
-            var a0 = knotAngle(i), a1 = knotAngle(i + 1);
+            var k0 = knot(i), k1 = knot(i + 1);
             // the jitter can move a knot past `a`; step back or on one knot.
-            if (a < a0 - 1e-9 && u - i < 0.5) { a1 = a0; a0 = knotAngle(i - 1); }
-            else if (a > a1) { a0 = a1; a1 = knotAngle(i + 2); }
+            if (a < k0.a - 1e-9 && u - i < 0.5) { k1 = k0; k0 = knot(i - 1); }
+            else if (a > k1.a) { k0 = k1; k1 = knot(i + 2); }
+            var a0 = k0.a, a1 = k1.a;
             var c0 = 0.03 + 0.3 * treeHash(seed + (((i % n) + n) % n) * 7.3, band * 3.7 + 1.3);
             var c1 = 0.03 + 0.3 * treeHash(seed + ((((i + 1) % n) + n) % n) * 7.3, band * 3.7 + 1.3);
-            var r0 = P.padRadius(pad, a0) * (1 - c0), r1 = P.padRadius(pad, a1) * (1 - c1);
+            var r0 = k0.r * (1 - c0), r1 = k1.r * (1 - c1);
             var ax = Math.cos(a0) * r0, az = Math.sin(a0) * r0, bx = Math.cos(a1) * r1, bz = Math.sin(a1) * r1;
             var ex = bx - ax, ez = bz - az, dx = Math.cos(a), dz = Math.sin(a);
             var den = dx * ez - dz * ex;
@@ -2160,7 +2174,7 @@
 
     function weatherWall(geo, pad, thick, cy) {
         var pos = geo.attributes.position, gs = geo.groups, k, i, end;
-        var seed = pad.x * 0.37 + pad.z * 0.61;
+        var seed = pad.x * 0.37 + pad.z * 0.61, memo = {};
         for (k = 0; k < gs.length; k++) {
             if (gs[k].materialIndex !== 1) continue;
             for (i = gs[k].start, end = gs[k].start + gs[k].count; i < end; i++) {
@@ -2169,7 +2183,7 @@
                 if (r < 1e-6 || below < 1e-4) continue;
                 var a = Math.atan2(z, x), wy = cy - thick / 2 + y, cut;
                 if (pad.facets) {
-                    cut = (r - facetRadius(pad, a, wy, seed, r)) * Math.min(1, below / 0.7);
+                    cut = (r - facetRadius(pad, a, wy, seed, r, memo)) * Math.min(1, below / 0.7);
                 } else {
                     var m1 = Math.max(3, Math.round(r * 1.6)), m2 = Math.max(5, Math.round(r * 3.1));
                     var f = 0.5 + 0.32 * Math.sin(a * m1 + seed + wy * 0.35) +
@@ -5979,6 +5993,7 @@
         // Whatever was being flown over is no longer the course. game.js starts
         // the next one, if the player wants one at all.
         R.fly = null;
+        R.iris = null;
         // A new hole is a new world; nothing the last one's preview was
         // computed from can be assumed to mean the same thing.
         clearPathCache();
@@ -7059,6 +7074,7 @@
         if (c.mode === 'flight') return false;
         c.preFlightMode = VIEWS.indexOf(c.mode) >= 0 ? c.mode : 'follow';
         R.fly = null;
+        R.iris = null;
         R.lap = null;
         var pos, tgt;
         if (!R.smooth.started && R.hole && R.hole.tee) {
@@ -7316,7 +7332,13 @@
         var f = R.fly;
         f.t += dt;
         G3.flyover.retarget(f.plan, _seat);
-        if (f.t >= f.plan.dur) { R.fly = null; return false; }
+        /* The end of it is cut, not flown (flyover.js → cutAt): the iris has
+           closed on the ball by now, and the camera goes to the seat behind
+           it and opens there. */
+        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
+        if (f.t >= cut) { landFlyover(ball); return true; }
+        var I = C.FLY.IRIS;
+        if (!R.iris && f.t >= cut - I.CLOSE) R.iris = { mode: 'close', t: Math.max(0, f.t - (cut - I.CLOSE)), k: 0, x: 0.5, y: 0.5 };
 
         var pose = G3.flyover.at(f.plan, f.t);
         R.smooth.pos.set(pose.px, pose.py, pose.pz);
@@ -7324,6 +7346,7 @@
         R.smooth.started = true;
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+        if (R.iris) irisOn(ball);
 
         var over = pose.py - flyGround(hole, pose.px, pose.pz, ball.y);
         f.lift = Math.max(0, Math.min(C.FLY.AIR_MAX,
@@ -7365,11 +7388,64 @@
     // Cutting it short is a deletion and nothing more; the frame after this one
     // eases from wherever the camera stands back to the seat, on the lerp it
     // would have been using anyway.
+    /* Skipped, it lands the same way it does at the end: on the seat, under
+       a shut iris that opens. Easing back from wherever the sweep had got to
+       was the same spin over the ball the cut is there to avoid, only
+       faster. */
     function skipFlyover() {
         if (!R.fly) return false;
-        R.fly = null;
+        landFlyover(R.lastBall);
         return true;
     }
+
+    /* The camera on the seat, this frame, with nothing to ease: the iris is
+       shut over the jump (HOLD) and opens round the ball from there. */
+    function landFlyover(ball) {
+        R.fly = null;
+        R.smooth.pos.set(_seat.px, _seat.py, _seat.pz);
+        R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
+        R.smooth.started = true;
+        if (R.camera) {
+            R.camera.position.copy(R.smooth.pos);
+            R.camera.lookAt(R.smooth.target);
+        }
+        R.iris = { mode: 'open', t: 0, k: 1, x: 0.5, y: 0.5 };
+        if (ball) irisOn(ball);
+    }
+
+    /* ── the iris ────────────────────────────────────────────────────────
+
+       A circle closing on the ball and opening on it again: the oldest cut
+       there is, and the one that says "same ball, other side" without a
+       word. render.js keeps its state (how shut, and where on the screen,
+       as fractions of it) and game.js paints it over the stage, the way it
+       paints the fade at the start of the sweep. */
+    var _iv = new THREE.Vector3();
+    function irisOn(ball) {
+        if (!R.iris || !R.camera || !ball) return;
+        R.camera.updateMatrixWorld();
+        _iv.set(ball.x, ball.y, ball.z).project(R.camera);
+        if (_iv.z > 1) return;                      // behind the lens: keep the last
+        R.iris.x = Math.max(0, Math.min(1, (_iv.x + 1) / 2));
+        R.iris.y = Math.max(0, Math.min(1, (1 - _iv.y) / 2));
+    }
+
+    function stepIris(dt) {
+        var i = R.iris;
+        if (!i) return;
+        var I = C.FLY.IRIS, u;
+        i.t += dt;
+        if (i.mode === 'close') {
+            u = Math.min(1, i.t / I.CLOSE);
+            i.k = u * u * (3 - 2 * u);
+        } else {
+            u = Math.max(0, Math.min(1, (i.t - I.HOLD) / I.OPEN));
+            i.k = 1 - u * u * (3 - 2 * u);
+            if (u >= 1) R.iris = null;
+        }
+    }
+
+    function iris() { return R.iris; }
 
     function flying() { return !!R.fly; }
 
@@ -7712,6 +7788,7 @@
         // that stopped with it would say so.
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
+        stepIris(dt);
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
@@ -8382,6 +8459,7 @@
         diving: diving,
         startFlyover: startFlyover,
         skipFlyover: skipFlyover,
+        iris: iris,
         flying: flying,
         startReplay: startReplay,
         cutReplay: cutReplay,
