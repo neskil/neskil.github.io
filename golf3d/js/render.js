@@ -181,7 +181,8 @@
     var BALL_MODES = {
         tour: 0, optic: 1, matte: 2, triple: 3, divide: 4,
         pix: 5, truvis: 6, splatter: 7, camo: 8, carbon: 9,
-        rainbow: 10, holo: 11, magma: 12, cyber: 13
+        rainbow: 10, holo: 11, magma: 12, cyber: 13,
+        featherie: 14, aurora: 15
     };
 
     function makeBallBundle() {
@@ -208,6 +209,9 @@
             specular: 0xd0d8de
         });
         if (SH.BALL_VS_HEAD && SH.BALL_FS_HEAD) {
+            // The dimples ask how much ball a pixel covers (`fwidth`): core in
+            // WebGL 2, an extension to declare in WebGL 1.
+            phong.extensions = { derivatives: true };
             phong.onBeforeCompile = function (shader) {
                 shader.uniforms.uGbTime = u.uGbTime;
                 shader.uniforms.uGbMode = u.uGbMode;
@@ -222,7 +226,7 @@
                         .replace('#include <normal_fragment_maps>', SH.BALL_FS_NORMAL)
                         .replace('#include <emissivemap_fragment>', SH.BALL_FS_EMISSIVE);
             };
-            phong.customProgramCacheKey = function () { return 'golfball-phong-v1'; };
+            phong.customProgramCacheKey = function () { return 'golfball-phong-v2'; };
         } else {
             phong.bumpMap = TX.dimple;
             phong.bumpScale = 0.012;
@@ -232,13 +236,15 @@
             uniforms: u,
             vertexShader: SH.BALL_GLASS_VS,
             fragmentShader: SH.BALL_GLASS_FS,
-            transparent: true
+            transparent: true,
+            extensions: { derivatives: true }
         }) : phong;
 
         var voidMat = SH.BALL_VOID_VS && SH.BALL_VOID_FS ? new THREE.ShaderMaterial({
             uniforms: u,
             vertexShader: SH.BALL_VOID_VS,
-            fragmentShader: SH.BALL_VOID_FS
+            fragmentShader: SH.BALL_VOID_FS,
+            extensions: { derivatives: true }
         }) : phong;
 
         return { phong: phong, glass: glass, voidMat: voidMat, uniforms: u };
@@ -264,13 +270,16 @@
         mesh.material = bundle.phong;
         u.uGbMode.value = BALL_MODES[modeName] !== undefined ? BALL_MODES[modeName] : 0;
         // Surface finish per material family: velvet matte vs tour urethane vs holo/carbon clearcoat
-        if (modeName === 'matte' || modeName === 'camo') {
+        if (modeName === 'featherie') {
+            bundle.phong.shininess = 14;
+            bundle.phong.specular.setHex(0x4a3a2a);
+        } else if (modeName === 'matte' || modeName === 'camo') {
             bundle.phong.shininess = 22;
             bundle.phong.specular.setHex(0x6e736b);
         } else if (modeName === 'holo' || modeName === 'carbon' || modeName === 'rainbow') {
             bundle.phong.shininess = 120;
             bundle.phong.specular.setHex(0xffffff);
-        } else if (modeName === 'magma' || modeName === 'cyber') {
+        } else if (modeName === 'magma' || modeName === 'cyber' || modeName === 'aurora') {
             bundle.phong.shininess = 68;
             bundle.phong.specular.setHex(0x8fa4b8);
         } else {
