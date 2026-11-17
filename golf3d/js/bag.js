@@ -398,7 +398,7 @@
         var steel = L ? L.steel : 0x929daa;
         var shine = L ? L.shine : 70;
         var fin = finishOf(club);
-        return {
+        var out = {
             /* The paint: the club's own colour, on the parts of a head that
                are allowed to be any colour at all — a driver's sole plate and
                alignment mark, a mallet's sight line. It is
@@ -471,6 +471,54 @@
             // Polished weights and screws.
             chrome: metal(0xd4dce4, FINISH.chrome, { rough: 0.08 })
         };
+        _sets.push({ club: club || null, M: out });
+        paintSet(_sets[_sets.length - 1]);
+        return out;
+    }
+
+    /* The Pro Shop's club finishes (balls.js → CLUB_FINISHES). Every material
+       set `mats` hands out is kept, so a finish is a recolour of materials
+       that already exist — the paint panels, the head's steel and the grips —
+       and never a rebuild or a recompile. A finish's `null` is "the club's own
+       colour", which is how the bag ships. */
+    var _sets = [];
+    var _finish = null;
+    function paintSet(set) {
+        var L = set.club ? look(set.club.id) : null, f = _finish, M = set.M;
+        M.paint.color.copy(ink(f && f.paint != null ? f.paint : (L ? L.metal : 0x38bdf8)));
+        M.head.color.copy(ink(f && f.head != null ? f.head : (L ? L.steel : 0x929daa)));
+        M.crown.color.copy(ink(f && f.head != null ? f.head : (L ? L.steel : 0x36435a)));
+        M.grip.color.copy(ink(f && f.grip != null ? f.grip : 0x1d2127));
+        // The extreme finishes glow: an emissive on the paint (and a little
+        // on the head), which `glowTick` breathes. Zero for everything else.
+        M.paint.emissive.copy(ink(f && f.emissive != null ? f.emissive : 0x000000));
+        M.head.emissive.copy(ink(f && f.headGlow != null ? f.headGlow : 0x000000));
+        M.crown.emissive.copy(M.head.emissive);
+        M.paint.emissiveIntensity = M.head.emissiveIntensity = M.crown.emissiveIntensity = 1;
+    }
+    function setFinish(finish) {
+        _finish = finish || null;
+        _glowT = 0;
+        for (var i = 0; i < _sets.length; i++) paintSet(_sets[i]);
+    }
+
+    /* Fire flickers, ice breathes. Only intensities change — no colour, no
+       material, no recompile — and nothing at all unless the finish glows. */
+    var _glowT = 0;
+    function glowTick(dt) {
+        if (!_finish || !_finish.glow) return;
+        _glowT += dt || 0;
+        var t = _glowT, k;
+        if (_finish.glow === 'fire') {
+            k = 0.78 + 0.16 * Math.sin(t * 9.1) + 0.10 * Math.sin(t * 23.7 + 1.3) + 0.06 * Math.sin(t * 41.0);
+        } else {
+            k = 0.80 + 0.20 * Math.sin(t * 1.6);
+        }
+        for (var i = 0; i < _sets.length; i++) {
+            var M = _sets[i].M;
+            M.paint.emissiveIntensity = k;
+            M.head.emissiveIntensity = M.crown.emissiveIntensity = 0.6 + 0.4 * k;
+        }
     }
 
     // Daylight falling into an open bag, drawn: a strip, light at the top.
@@ -3383,6 +3431,7 @@
 
     function update(dt, camera, aspect) {
         if (!B.ready) return;
+        glowTick(dt);
         fineShells(B.expanded || B.open01 > 0.002);
         if (B.settled && !B.expanded) { place(camera, aspect); return; }
 
@@ -3857,6 +3906,7 @@
     };
 
     G3.bag = {
+        setFinish: setFinish,
         address: address,
         addressUpdate: addressUpdate,
         build: build,
