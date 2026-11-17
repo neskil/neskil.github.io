@@ -10,7 +10,16 @@
 // --y0 h              the world height that is golf's y = 0 (a sea level, a floor)
 // --box, --step       the golf rectangle to bake and its grid spacing
 // --flat gx,gz,r0,r1  level the ground inside r0 and ease back to it by r1: a tee, a green
+//        …,y          the same, at this golf height instead of the one the ground has there
 // --min h             nothing is baked lower than this golf height (default 0: the sea)
+// --pyramid gx,gz,top,half[,cap]   a square pyramid, exact, axis-aligned in the hole's
+//                     units, standing on y = 0: a world's own pyramid sampled and blurred
+//                     is a mound, and a ball rolls off a mound the wrong way. `cap`
+//                     levels its top off at that height (a tee)
+// --open w            take out of the world's ground whatever stands on it narrower than w
+//                     world units (a tomb, a wall, a causeway): for a hole played at a size
+//                     where those are gravel under the ball
+// --keep x0,z0,x1,z1  …except inside this world rectangle, which is left as sampled
 //
 // It writes one entry of js/tour-ground.js (G3.TOUR_GROUND[id]) and prints the
 // `place.at` to put in portals.js. Where the world has no ground the bake is
@@ -37,6 +46,30 @@ function worldH(wx, wz) {
     const ux = fx - ix, uz = fz - iz;
     return (q[0] * (1 - ux) + q[1] * ux) * (1 - uz) + (q[2] * (1 - ux) + q[3] * ux) * uz;
 }
+/* --open: a morphological opening of the sample (the least over a window,
+   then the most over the same window of that). A plane, a slope or a cliff
+   comes back as it went in; anything narrower than the window is gone. */
+if (one('--open')) {
+    const r = Math.max(1, Math.round(+one('--open') / src.step / 2)), R = src.rows, NZ = R.length, NX = R[0].length;
+    const keeps = all('--keep').map((k) => k.split(',').map(Number));
+    const pass = (A, pick) => A.map((row, k) => row.map((v, i) => {
+        if (v === null) return null;
+        let m = v;
+        for (let a = Math.max(0, k - r); a <= Math.min(NZ - 1, k + r); a++) for (let e = Math.max(0, i - r); e <= Math.min(NX - 1, i + r); e++) {
+            const q = A[a][e]; if (q !== null) m = pick(m, q);
+        }
+        return m;
+    }));
+    const opened = pass(pass(R, Math.min), Math.max);
+    let gone = 0;
+    src.rows = R.map((row, k) => row.map((v, i) => {
+        const wx = src.box[0] + i * src.step, wz = src.box[1] + k * src.step;
+        if (v === null || keeps.some((b) => wx >= b[0] && wx <= b[2] && wz >= b[1] && wz <= b[3])) return v;
+        if (v - opened[k][i] > 0.5) gone++;
+        return opened[k][i];
+    }));
+    console.log(`opened at ${(2 * r + 1) * src.step} world units: ${gone} samples lowered`);
+}
 const nx = Math.round((box[2] - box[0]) / d) + 1, nz = Math.round((box[3] - box[1]) / d) + 1;
 let h = new Float64Array(nx * nz);
 for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
@@ -52,9 +85,17 @@ for (let k = 1; k < nz - 1; k++) for (let i = 1; i < nx - 1; i++) {
     b[k * nx + i] = (t + h[k * nx + i] * 3) / 12;
 }
 h = b;
+for (const f of all('--pyramid')) {
+    const [gx, gz, top, half, cap] = f.split(',').map(Number);
+    for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
+        const c = Math.max(Math.abs(box[0] + i * d - gx), Math.abs(box[1] + k * d - gz));
+        if (c > half + d) continue;
+        h[k * nx + i] = Math.max(0, Math.min(cap === undefined ? top : cap, top * (1 - c / half)));
+    }
+}
 const at = (gx, gz) => { const i = Math.round((gx - box[0]) / d), k = Math.round((gz - box[1]) / d); return h[k * nx + i]; };
 for (const f of all('--flat')) {
-    const [gx, gz, r0, r1] = f.split(',').map(Number), level = at(gx, gz);
+    const [gx, gz, r0, r1, fy] = f.split(',').map(Number), level = fy === undefined ? at(gx, gz) : fy;
     for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) {
         const r = Math.hypot(box[0] + i * d - gx, box[1] + k * d - gz);
         if (r >= r1) continue;
@@ -75,7 +116,10 @@ const HEAD = `/* The World Tour's sculpted ground: pieces of Portals worlds' own
 `;
 let body = {};
 if (existsSync(file)) for (const m of readFileSync(file, 'utf8').matchAll(/G3\.TOUR_GROUND\['([^']+)'\] = (\{.*\});/g)) body[m[1]] = m[2];
-body[id] = JSON.stringify({ x0: box[0], z0: box[1], d, nx, nz, h: Array.from(h, (v) => +v.toFixed(2)) });
+// A hundredth of a unit is fine on a grid a unit apart. On a fine one it is
+// a staircase: the slope is read a cell at a time (physics.fieldAt).
+const places = d < 0.5 ? 3 : 2;
+body[id] = JSON.stringify({ x0: box[0], z0: box[1], d, nx, nz, h: Array.from(h, (v) => +v.toFixed(places)) });
 writeFileSync(file, HEAD + Object.keys(body).sort().map((k) => `    G3.TOUR_GROUND['${k}'] = ${body[k]};\n`).join('') + '})(window.G3);\n');
 console.log(`baked ${id}: ${nx} x ${nz}, heights ${Math.min(...h).toFixed(1)} to ${Math.max(...h).toFixed(1)}`);
 console.log(`place.at: { x: ${ox.toFixed(2)}, z: ${oz.toFixed(2)}, y: ${y0}, yaw: ${yaw.toFixed(4)}, scale: ${s} }`);

@@ -2995,7 +2995,9 @@
         if (pad.r && !pad.stands) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
         // And a hovering platform is a slab with daylight under it, which is
         // the whole of what it is (Challenge mode's raised tee).
-        if (pad.hover) thick = Math.max(least, 0.4);
+        // …unless it says how far down it goes (`deck`: a tour hole stood on
+        // a bank of its world, portals.js → world, `plinth`).
+        if (pad.hover) thick = Math.max(least, pad.deck || 0.4);
         var boxed = !pad.r && !(holed || pad.round || pad.lane);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
