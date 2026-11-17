@@ -620,6 +620,8 @@
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
+            // …and each of them stood up for the ball, while nothing is watching.
+            if (G3.bag.addressWarm) G3.bag.addressWarm(state.bag);
         }
         state.phase = 'aim';
         state.aim.power = 0;
@@ -6865,6 +6867,13 @@
         try {
             R.init(canvas);
         } catch (e) {
+            /* Said out loud as well as shown. The plate this puts up reads
+               "no WebGL", and anything thrown while the renderer is set up
+               lands here — a mistake in a model as readily as a missing
+               context — so without the line below a slip in bag.js was a
+               page that claimed the device could not draw, and nothing in
+               the console to say otherwise. */
+            if (window.console && console.error) console.error('Loft Links: the renderer did not start', e);
             $('fallback').className = 'fallback show';
             hideLoader();
             return;

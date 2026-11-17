@@ -1045,13 +1045,22 @@
                 return { a: Math.atan2(dz, dx), r: Math.sqrt(dx * dx + dz * dz) };
             }).sort(function (u, w) { return u.a - w.a; });
         }
-        var t = _drvTable, n = t.length;
-        for (var i = 0; i < n; i++) {
-            var lo = t[(i + n - 1) % n], hi = t[i];
-            var la = i === 0 ? lo.a - 2 * Math.PI : lo.a;
-            if (a >= la && a <= hi.a) return lo.r + (hi.r - lo.r) * (a - la) / ((hi.a - la) || 1);
+        /* The first entry at or past this bearing, by halving. It was a walk
+           along the table from the start, and the artwork below asks once a
+           pixel — half a million times a driver, 360 steps a time on
+           average: 1.1 s of a 2 s boot on a desktop and several seconds on a
+           phone, and again the first time the driver was taken in hand. The
+           table is sorted by bearing, so the entry the walk stopped at is the
+           one this finds, and the answer is the same number. */
+        var t = _drvTable, n = t.length, lo = 0, hi = n;
+        while (lo < hi) {
+            var mid = (lo + hi) >> 1;
+            if (t[mid].a < a) lo = mid + 1; else hi = mid;
         }
-        return t[0].r;
+        if (lo >= n) return t[0].r;
+        var p = t[(lo + n - 1) % n], q = t[lo];
+        var la = lo === 0 ? p.a - 2 * Math.PI : p.a;
+        return p.r + (q.r - p.r) * (a - la) / ((q.a - la) || 1);
     }
     // The sole's height under any point of the plan, for parts that sit on it.
     function drvSoleY(x, z) {
@@ -1080,28 +1089,15 @@
        skirt as a band of the profile rather than of height — which is what
        keeps the ring the same width all the way round a skirt that is 20mm
        tall at the toe and 10 at the tail. */
-    function driverShell(tl) {
-        var NT = 240, NP = 40;
+    /* The sweep itself: every vertex of the shell, handed to `emit` with its
+       number. Two things walk it — the shell, at either fineness, and the
+       measure of the face below — so that there is one copy of the shape. */
+    function drvSweep(NT, NP, emit) {
         var rows = [], i, j;
         for (i = NP - 1; i >= 0; i--) rows.push({ top: false, phi: i / NP * Math.PI / 2 });
         for (i = 1; i < NP; i++) rows.push({ top: true, phi: i / NP * Math.PI / 2 });
-        var nr = rows.length, count = nr * NT + 2;
-        var P = new Float32Array(count * 3), SK = new Float32Array(count), UV = new Float32Array(count * 2);
-        var face = { z0: 1, z1: -1, y0: 1, y1: -1 };
-
-        function put(k, x, y, z, sk) {
-            var fx = drvFaceX(y, z, tl);
-            if (x > fx) {
-                x = fx;
-                face.z0 = Math.min(face.z0, z); face.z1 = Math.max(face.z1, z);
-                face.y0 = Math.min(face.y0, y); face.y1 = Math.max(face.y1, y);
-            }
-            P[k * 3] = x; P[k * 3 + 1] = y; P[k * 3 + 2] = z;
-            SK[k] = sk;
-            UV[k * 2] = z / 0.008; UV[k * 2 + 1] = x / 0.008;
-        }
-
-        put(0, DRV_C.x, drvBase(DRV_C.x, DRV_C.z), DRV_C.z, -1);
+        var nr = rows.length;
+        emit(0, DRV_C.x, drvBase(DRV_C.x, DRV_C.z), DRV_C.z, -1);
         for (j = 0; j < NT; j++) {
             var a = -Math.PI + j / NT * 2 * Math.PI;
             var ca = Math.cos(a), sa = Math.sin(a), R = drvRadius(a);
@@ -1111,10 +1107,56 @@
                 var s = Math.pow(Math.cos(row.phi), 2 / n), h = Math.pow(Math.sin(row.phi), 2 / n);
                 var x = DRV_C.x + ca * R * s, z = DRV_C.z + sa * R * s;
                 var y = row.top ? e + (drvCrown(x, z) - e) * h : e - (e - drvBase(x, z)) * h;
-                put(1 + i * NT + j, x, y, z, (row.top ? 1 : -1) * row.phi / (Math.PI / 2));
+                emit(1 + i * NT + j, x, y, z, (row.top ? 1 : -1) * row.phi / (Math.PI / 2));
             }
         }
-        put(count - 1, DRV_C.x, drvCrown(DRV_C.x, DRV_C.z), DRV_C.z, 1);
+        emit(nr * NT + 1, DRV_C.x, drvCrown(DRV_C.x, DRV_C.z), DRV_C.z, 1);
+        return nr;
+    }
+
+    /* How fine the shell is swept. `FINE` is the one the picker shows: the
+       row is opened to look at the heads, a driver's fills a fifth of a
+       phone's width there, and its face is cut by pushing vertices back, so
+       the cut is only as clean as the mesh is fine. It is 38,000 triangles —
+       five times any other club and as many as the other six in a long bag
+       together — and it was also what stood in the shut bag in the corner
+       and at the ball, forty pixels wide, and what the shadow map drew: on a
+       long hole, more than half of every frame's triangles were one driver
+       head drawn three times. So those three take `COARSE`, a seventh of
+       it, and the fine one is put on only while the row is open
+       (`fineShells`). Both wear the one material, which paints by position
+       rather than by triangle, so the artwork does not move between them. */
+    var DRV_FINE = { nt: 240, np: 40 }, DRV_COARSE = { nt: 96, np: 14 };
+
+    /* Where the face lies on the shell, for the material to lay its artwork
+       on: measured off the fine sweep whichever shell is being made, so a
+       coarse head and a fine one are painted the same. */
+    var _drvFaces = {};
+    function drvFaceBox(tl) {
+        var key = tl.toFixed(5);
+        if (_drvFaces[key]) return _drvFaces[key];
+        var face = { z0: 1, z1: -1, y0: 1, y1: -1 };
+        drvSweep(DRV_FINE.nt, DRV_FINE.np, function (k, x, y, z) {
+            if (x <= drvFaceX(y, z, tl)) return;
+            face.z0 = Math.min(face.z0, z); face.z1 = Math.max(face.z1, z);
+            face.y0 = Math.min(face.y0, y); face.y1 = Math.max(face.y1, y);
+        });
+        return (_drvFaces[key] = face);
+    }
+
+    function driverShell(tl, coarse) {
+        var NT = coarse ? DRV_COARSE.nt : DRV_FINE.nt, NP = coarse ? DRV_COARSE.np : DRV_FINE.np;
+        var nr = 2 * NP - 1, count = nr * NT + 2;
+        var P = new Float32Array(count * 3), SK = new Float32Array(count), UV = new Float32Array(count * 2);
+
+        drvSweep(NT, NP, function (k, x, y, z, sk) {
+            var fx = drvFaceX(y, z, tl);
+            if (x > fx) x = fx;
+            P[k * 3] = x; P[k * 3 + 1] = y; P[k * 3 + 2] = z;
+            SK[k] = sk;
+            UV[k * 2] = z / 0.008; UV[k * 2 + 1] = x / 0.008;
+        });
+        var i, j;
 
         var idx = [];
         function at(r, c) { return 1 + r * NT + (c % NT); }
@@ -1132,8 +1174,31 @@
         geo.setAttribute('uv', new THREE.BufferAttribute(UV, 2));
         geo.setIndex(idx);
         geo.computeVertexNormals();
-        geo.userData.face = face;
+        geo.userData.face = drvFaceBox(tl);
         return geo;
+    }
+
+    // Each shell is made once and shared: the bag's driver and the one at
+    // the ball are the same club.
+    var _drvShells = {};
+    function driverShellOnce(tl, coarse) {
+        var key = tl.toFixed(5) + (coarse ? ':coarse' : ':fine');
+        return _drvShells[key] || (_drvShells[key] = driverShell(tl, coarse));
+    }
+
+    /* The bag's own drivers, which wear the fine shell while the row is open
+       and the coarse one otherwise. The fine one is only made when it is
+       first wanted — by a hole whose bag has a driver in it (`warm`), or by
+       the row opening. */
+    var _drvFine = [], _fineOn = false, _forBall = false;
+    function shownAll(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
+    function fineShells(on) {
+        on = !!on;
+        if (on === _fineOn) return;
+        _fineOn = on;
+        _drvFine.forEach(function (d) {
+            d.mesh.geometry = driverShellOnce(d.tl, !(on && shownAll(d.mesh.parent)));
+        });
     }
 
     /* The artwork, drawn flat and laid on the shell from straight above (the
@@ -1163,14 +1228,23 @@
                 d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = Math.round(255 * c[3]);
             }
         }
-        g.putImageData(img, 0, 0);
-        if (letter) {
-            letter(g, function (x, z) {
-                return [(z - DRV_ART.z0) / DRV_ART.span * N, (1 - (x - DRV_ART.x0) / DRV_ART.span) * N];
-            }, N / DRV_ART.span);
+        function lay() {
+            g.putImageData(img, 0, 0);
+            if (letter) {
+                letter(g, function (x, z) {
+                    return [(z - DRV_ART.z0) / DRV_ART.span * N, (1 - (x - DRV_ART.x0) / DRV_ART.span) * N];
+                }, N / DRV_ART.span);
+            }
         }
+        lay();
         var t = srgbCanvas(cv);
         t.anisotropy = 8;
+        /* Lettered artwork is set in the page's own typeface, which may not
+           have arrived when the bag is built. It is drawn once and kept
+           (`drvArtOnce`), so `watchFonts` lays it again when the face lands
+           — the pixels are kept for that, the lettering alone is redrawn —
+           and then lets go of them. */
+        if (letter) t.reletter = function () { lay(); t.needsUpdate = true; };
         return t;
     }
     // Coverage of "inside by `inside` metres", antialiased over a pixel.
@@ -1274,6 +1348,16 @@
         return t;
     }
 
+    /* Each piece of artwork is drawn once and kept. A driver is modelled
+       twice — in the bag, and again as the club in hand at the ball
+       (`addressClub`) — and the second copy used to paint the same half a
+       million pixels over again, on the frame the club was first shown.
+       Nothing disposes of these, and two materials may share a texture. */
+    var _drvArtKept = {};
+    function drvArtOnce(key, make) {
+        return _drvArtKept[key] || (_drvArtKept[key] = make());
+    }
+
     /* The shell's one material, painted in its shader: carbon under a clear
        coat where no artwork covers it, the artwork from above or below
        depending on which half of the profile a pixel is on, the ring and the
@@ -1292,9 +1376,9 @@
             envMap: studioRadiance(), envMapIntensity: ENV_LIGHT
         });
         var uni = {
-            uCrownArt: { value: drvCrownArt(tl) },
-            uSoleArt: { value: drvSoleArt(tl, L) },
-            uFaceArt: { value: drvFaceArt() },
+            uCrownArt: { value: drvArtOnce('crown', function () { return drvCrownArt(tl); }) },
+            uSoleArt: { value: drvArtOnce('sole:' + tl.toFixed(5) + ':' + L.metal, function () { return drvSoleArt(tl, L); }) },
+            uFaceArt: { value: drvArtOnce('face', drvFaceArt) },
             uRing: { value: ink(L.metal) },
             uFaceBox: { value: new THREE.Vector4(face.z1 - 0.002, face.y0 - 0.001,
                 face.z1 - face.z0 - 0.004, face.y1 - face.y0 + 0.002) }
@@ -1368,8 +1452,10 @@
     function buildDriver(a, M, club) {
         var L = look(club.id);
         var tl = Math.tan(club.loft || 0);
-        var shell = driverShell(tl);
-        a.add(new THREE.Mesh(shell, driverSkin(L, tl, shell.userData.face)));
+        var shell = driverShellOnce(tl, true);
+        var skinned = new THREE.Mesh(shell, driverSkin(L, tl, shell.userData.face));
+        a.add(skinned);
+        if (!_forBall) _drvFine.push({ mesh: skinned, tl: tl });
 
         // Gloss black: the keel and the neck.
         var gloss = new THREE.MeshPhysicalMaterial({
@@ -1996,9 +2082,21 @@
        Redrawing once the font is in costs four canvases, once. */
     var _labelled = [];
     var _monoMat = null;
+    // The driver's lettered artwork, laid again in the face that has arrived
+    // (or not at all), and the pixels kept for it let go.
+    function reletterArt(draw) {
+        Object.keys(_drvArtKept).forEach(function (k) {
+            var t = _drvArtKept[k];
+            if (!t.reletter) return;
+            if (draw) t.reletter();
+            t.reletter = null;
+        });
+    }
+
     function watchFonts() {
-        if (!document.fonts || !document.fonts.ready) return;
+        if (!document.fonts || !document.fonts.ready) { reletterArt(false); return; }
         document.fonts.ready.then(function () {
+            reletterArt(true);
             redrawCards();
             if (_monoMat) {
                 _mono = null;
@@ -2478,6 +2576,7 @@
     var SCRIM = 0.86;          // …and how dark it gets, fully open
     var LAYER = 1;             // the bag's own camera layer (see build)
     var AMB = 0.55;            // its ambient, fully open, on that layer alone
+    var CORNER = 0.42;         // the lamp that stays with the bag in its corner
     var SPOT = 2.2;            // the spotlight, fully open…
     var SPOT_REACH = 2.6;      // …and how far it carries, in front of the lens
 
@@ -2888,9 +2987,25 @@
         B.haze = haze;
         B.rig.add(haze);
 
-        var lamp = new THREE.PointLight(0xfff2dd, 0.42, 3.2);
-        lamp.position.set(0.6, 1.2, 0.9);
-        B.rig.add(lamp);
+        /* The four lamps below are carried *beside* the two rigs, not inside
+           them (`follow` keeps each carrier on its rig). Inside, hiding a rig
+           hid its lamps, and a light that leaves the scene changes the
+           program of every lit material in it: the flyover, the victory lap,
+           the dive and the replay all put the bag away, so the whole course
+           was compiled a second time on the frame the sweep landed and the
+           player was handed the club — fifteen-odd shaders, a stall of most
+           of a second on a phone — and again in the other direction after
+           every holed putt. Out here they are always in the scene and only
+           ever turned to nothing (`lightRig`), which is what the spotlight
+           below was already doing for the same reason. */
+        B.rigLights = new THREE.Group();
+        B.clubLights = new THREE.Group();
+        scene.add(B.rigLights);
+        scene.add(B.clubLights);
+
+        B.corner = new THREE.PointLight(0xfff2dd, CORNER, 3.2);
+        B.corner.position.set(0.6, 1.2, 0.9);
+        B.rigLights.add(B.corner);
 
         /* Lights that travel with the clubs. The bag's lamp stays in the
            corner when the picker opens, and the course's own sun is behind
@@ -2907,15 +3022,15 @@
            actually separates a shaft from the sky it stands against. */
         B.lamp = new THREE.PointLight(0xfff6e6, 0.95, 7);
         B.lamp.position.set(0.55, 1.05, 1.4);
-        B.clubRig.add(B.lamp);
+        B.clubLights.add(B.lamp);
 
         B.fill = new THREE.PointLight(0xcfe2ff, 0.38, 6);
         B.fill.position.set(-0.85, 0.25, 1.0);
-        B.clubRig.add(B.fill);
+        B.clubLights.add(B.fill);
 
         B.rim = new THREE.PointLight(0xffe9c6, 0.45, 5);
         B.rim.position.set(0.1, 1.35, -1.0);
-        B.clubRig.add(B.rim);
+        B.clubLights.add(B.rim);
 
         /* And a spotlight, because the studio above was still only half the
            light on the row. The other half was the course's: its sky, its sun
@@ -3005,6 +3120,16 @@
         [B.rig, B.clubRig, B.spot, B.spot.target, B.scrim, B.amb].forEach(function (root) {
             root.traverse(function (o) { o.layers.set(LAYER); });
         });
+        /* …drawn on its own layer. The lights are on both. A light on one
+           layer is not counted in a pass that looks only at the other, and a
+           count that changes is every lit program compiled again: the first
+           time the picker opened on a hole, the course (drawn alone, without
+           the bag's six lights) and the bag (without the course's three)
+           each needed a second set of shaders, and three.js threw the first
+           set away while it was at it, so closing the picker compiled them
+           all a third time. Now every pass counts every light, and which of
+           them a pass is lit by is said with their strength (`lightPass`). */
+        bagLights().forEach(function (l) { l.layers.enable(0); l.layers.enable(LAYER); });
 
         buildAddress(scene);
 
@@ -3051,6 +3176,7 @@
         var at = bagSpot(camera, aspect);
         var cx = at.x, cy = at.y, cz = at.z, bagW = at.w;
         put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
+        follow(B.rigLights, B.rig);
 
         /* And how far out of the bag the club in hand may stand: a fifth of
            the half-width the bag was placed against, expressed as a multiple
@@ -3112,6 +3238,7 @@
             BAG_SCALE + (B.openScale - BAG_SCALE) * k,   // up to the lens
             -TWIST + TWIST * k,
             0.1 - 0.1 * k);
+        follow(B.clubLights, B.clubRig);
     }
 
     // A point given in the camera's own frame, written into `out` in the world's.
@@ -3209,12 +3336,54 @@
        that is meant to look like nobody is holding anything. */
     function setVisible(on) {
         if (!B.ready) return;
+        on = !!on;
+        if (B.rig && B.rig.visible === on) return;
         if (B.rig) B.rig.visible = on;
         if (B.clubRig) B.clubRig.visible = on;
+        lightRig();
+    }
+
+    function bagLights() {
+        return [B.corner, B.lamp, B.fill, B.rim, B.spot, B.amb].filter(Boolean);
+    }
+
+    /* What every light of the bag's is giving this frame. The four lamps
+       brighten as the row opens — in the bag the clubs are a corner ornament
+       and should sit in the scene's own light, out in the row they are the
+       thing being read and get the full studio — and go out with the bag
+       when it is put away. `B.pass` is the picker's split draw (`lightPass`):
+       0 while the course is drawn alone, 1 otherwise. */
+    function lightRig() {
+        var k = B.open01, pass = B.pass === 0 ? 0 : 1;
+        var on = (B.rig && !B.rig.visible ? 0 : 1) * pass;
+        if (B.corner) B.corner.intensity = CORNER * on;
+        if (B.lamp) B.lamp.intensity = (0.30 + 0.95 * k) * on;
+        if (B.fill) B.fill.intensity = (0.12 + 0.38 * k) * on;
+        if (B.rim) B.rim.intensity = (0.14 + 0.45 * k) * on;
+        if (B.spot) B.spot.intensity = SPOT * k * pass;
+        if (B.amb) B.amb.intensity = AMB * k * pass;
+    }
+
+    /* The picker's backdrop draws the frame in two passes (postfx.js
+       `backdrop`): the course alone, then the bag alone over the blur of it.
+       Each is lit by its own lights only — which used to be done by layer,
+       and is done here by strength, so the light count never changes. `on`
+       is whether the bag's lights are lit for the pass about to be drawn. */
+    function lightPass(on) {
+        B.pass = on ? 1 : 0;
+        lightRig();
+    }
+
+    // A carrier of lights, kept on the rig it lights.
+    function follow(lights, rig) {
+        lights.position.copy(rig.position);
+        lights.quaternion.copy(rig.quaternion);
+        lights.scale.copy(rig.scale);
     }
 
     function update(dt, camera, aspect) {
         if (!B.ready) return;
+        fineShells(B.expanded || B.open01 > 0.002);
         if (B.settled && !B.expanded) { place(camera, aspect); return; }
 
         var moved = 0;
@@ -3229,14 +3398,8 @@
         if (B.open01 < 0.001) B.open01 = 0;
         place(camera, aspect);
         if (B.haze) B.haze.material.opacity = 0.3 * (1 - B.open01);
-        /* The rig brightens as it opens: in the bag the clubs are a corner
-           ornament and should sit in the scene's own light, out in the row
-           they are the thing being read and get the full studio. */
-        if (B.lamp) B.lamp.intensity = 0.30 + 0.95 * B.open01;
-        if (B.fill) B.fill.intensity = 0.12 + 0.38 * B.open01;
-        if (B.rim) B.rim.intensity = 0.14 + 0.45 * B.open01;
-        if (B.spot) B.spot.intensity = SPOT * B.open01;
-        if (B.amb) B.amb.intensity = AMB * B.open01;
+        // The rig brightens as it opens (lightRig).
+        lightRig();
         B.clubs.forEach(function (c) {
             // A club that is not in this hole's bag is not on screen and has
             // no slot in the arrangement to be moved towards.
@@ -3545,7 +3708,9 @@
         if (AD.built[id]) return AD.built[id];
         var club = C.ALL_CLUBS.filter(function (k) { return k.id === id; })[0];
         if (!club) return null;
-        var c = buildClub(club, mats(club));
+        _forBall = true;
+        var c;
+        try { c = buildClub(club, mats(club)); } finally { _forBall = false; }
         c.group.remove(c.hit);
         c.group.remove(c.pivot);
 
@@ -3576,6 +3741,20 @@
         holder.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
         AD.built[id] = made;
         return made;
+    }
+
+    /* The clubs a hole hands out, modelled for the ball before the hole is
+       shown. A club in hand is built the first time it is taken, which was
+       the frame the picker closed on it: twenty to fifty milliseconds of a
+       desktop's frame for a wedge or a driver and several frames of a
+       phone's, once for every club in the bag. A hole is loaded behind the
+       loading screen or the wipe, so that is where they are built now —
+       each once a visit (`AD.built`). */
+    function addressWarm(clubs) {
+        if (!AD.root) return;
+        (clubs || []).forEach(function (c) { addressClub(c.id); });
+        // …and the fine shell of a driver this bag carries, for the row.
+        _drvFine.forEach(function (d) { if (shownAll(d.mesh.parent)) driverShellOnce(d.tl, false); });
     }
 
     function buildAddress(scene) {
@@ -3689,6 +3868,8 @@
         setScale: setScale,
         figures: figures,
         setVisible: setVisible,
+        lightPass: lightPass,
+        addressWarm: addressWarm,
         setExpanded: setExpanded,
         setSelected: setSelected,
         setHover: setHover,

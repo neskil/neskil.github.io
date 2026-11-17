@@ -231,16 +231,95 @@
 
         /* ── the suite ──────────────────────────────────────────────────── */
 
+        var pageHtml = '';
         fetch('index.html').then(function (r) { return r.text(); })
-            .then(function (html) { return load(chromeOnly(html)); })
+            .then(function (html) { pageHtml = html; return load(chromeOnly(html)); })
             .then(function (doc) {
                 var win = doc.defaultView;
                 run(doc, win);
             })
+            .then(function () { return preloads(pageHtml); })
             .catch(function (e) {
                 assert('the page loads at all', false, String(e && e.message || e));
             })
             .then(done);
+
+        /* ── the live worlds' modules are named in the head ─────────────
+
+           js/backdrop.mjs imports Portals' engine and three.js, which import
+           more: four levels, each learnt of only by fetching the one above.
+           index.html names every file of that graph in a `modulepreload`
+           link so they are all fetched at once. A list like that goes stale
+           silently — a file left off it is merely fetched late, and one that
+           is no longer imported is fetched for nothing — so it is held here
+           to what the module really imports, read off the files themselves.
+           And the import map has to stand before the first of the links: a
+           map met after a module has started loading is thrown away by
+           browsers older than 2025, and with it `import … from 'three'`. */
+        function preloads(html) {
+            section('the live worlds\' modules are preloaded');
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            var map = doc.querySelector('script[type="importmap"]');
+            var links = [].slice.call(doc.querySelectorAll('link[rel="modulepreload"]'));
+            var mod = doc.querySelector('script[type="module"][src*="backdrop.mjs"]');
+            assert('index.html has an import map, preload links and the backdrop module',
+                !!map && links.length > 0 && !!mod);
+            if (!map || !links.length || !mod) return null;
+            var FOLLOWS = Node.DOCUMENT_POSITION_FOLLOWING;
+            assert('the import map stands before every modulepreload link and module script',
+                links.every(function (l) { return !!(map.compareDocumentPosition(l) & FOLLOWS); }) &&
+                !!(map.compareDocumentPosition(mod) & FOLLOWS));
+
+            var base = new URL('index.html', location.href);
+            var imports = {};
+            try { imports = JSON.parse(map.textContent).imports || {}; } catch (e) { /* asserted below */ }
+            assert('the import map parses and names three', !!imports.three);
+            function resolve(spec, from) {
+                if (imports[spec]) return new URL(imports[spec], base).href;
+                for (var k in imports) {
+                    if (k.charAt(k.length - 1) === '/' && spec.indexOf(k) === 0) {
+                        return new URL(imports[k] + spec.slice(k.length), base).href;
+                    }
+                }
+                return /^\.{1,2}\//.test(spec) ? new URL(spec, from).href : null;
+            }
+            // Static imports only: `import … from '…'`, `export … from '…'`
+            // and a bare `import '…'`. A dynamic import() is fetched when it
+            // is asked for, which is not at load.
+            var FROM = /(?:^|[\n;])\s*(?:import|export)\s[^'"()]*?from\s*['"]([^'"]+)['"]/g;
+            var BARE = /(?:^|[\n;])\s*import\s*['"]([^'"]+)['"]/g;
+            var seen = {}, missing = [];
+            function walk(url) {
+                if (seen[url]) return Promise.resolve();
+                seen[url] = true;
+                return fetch(url).then(function (r) {
+                    if (!r.ok) { missing.push(url); return ''; }
+                    return r.text();
+                }).then(function (src) {
+                    var next = [], m;
+                    FROM.lastIndex = 0; BARE.lastIndex = 0;
+                    while ((m = FROM.exec(src))) next.push(resolve(m[1], url));
+                    while ((m = BARE.exec(src))) next.push(resolve(m[1], url));
+                    return Promise.all(next.filter(Boolean).map(walk));
+                });
+            }
+            var root = new URL(mod.getAttribute('src').split('?')[0], base).href;
+            return walk(root).then(function () {
+                var graph = Object.keys(seen).filter(function (u) { return u !== root; });
+                var named = links.map(function (l) { return new URL(l.getAttribute('href'), base).href; });
+                var tail = function (u) { return u.replace(base.href.replace(/[^/]*$/, ''), ''); };
+                var late = graph.filter(function (u) { return named.indexOf(u) < 0; }).map(tail);
+                var idle = named.filter(function (u) { return graph.indexOf(u) < 0; }).map(tail);
+                assert('every file backdrop.mjs imports exists (' + graph.length + ' of them)',
+                    missing.length === 0 && graph.length >= 10, missing.map(tail).join(', '));
+                assert('every one of them is named in a modulepreload link',
+                    late.length === 0, 'not preloaded: ' + late.join(', '));
+                assert('and no link preloads a file the module does not import',
+                    idle.length === 0, 'preloaded for nothing: ' + idle.join(', '));
+                assert('the links are fetched behind the game\'s own scripts (fetchpriority="low")',
+                    links.every(function (l) { return l.getAttribute('fetchpriority') === 'low'; }));
+            });
+        }
 
         function run(doc, win) {
             var body = doc.body;

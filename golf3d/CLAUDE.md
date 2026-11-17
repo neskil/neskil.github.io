@@ -330,6 +330,12 @@ really have the game play feeling"). What that has meant in practice:
   transform it exists to skip. Between them they were about half of the
   predicted path. There is a note on each at the site; read it before tidying
   either back.
+- **The number of lights in the scene must never change.** Every lit
+  program is compiled for a light count. A light that is added, removed or
+  hidden recompiles the whole course and bag on that frame, which is a
+  stall on a phone. Dim a light to zero instead (`bag.js → lightRig`,
+  `render.js → passLights`). `shader-tests.html` → "Nothing is compiled
+  while a hole is played" catches it. README has the rest (v1.176.0).
 - **The pretty water path is `#ifdef PRETTY` inside the one water shader**,
   flipped by `render.setWaterQuality()` and remembered in `localStorage`. Keep
   both paths in that single source — a forked copy will drift — and keep the

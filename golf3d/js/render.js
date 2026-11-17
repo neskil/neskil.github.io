@@ -103,7 +103,28 @@
     }
 
     function init(canvas) {
-        R.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+        /* The canvas is not antialiased where the picture reaches it through
+           postfx.js — which is every WebGL2 device. The course is drawn into
+           that file's own multisampled buffer, and all that is ever drawn on
+           the canvas itself is one full-screen triangle with no edge in it;
+           an antialiased canvas under that was a second multisampled buffer
+           the size of the screen, and a resolve of it every frame, smoothing
+           nothing. So the WebGL2 context is asked for by hand, without it
+           (three.js would otherwise ask with the one flag for both kinds). A
+           device with only WebGL1 has no multisampled buffer to draw into
+           and keeps the canvas's antialiasing, as before. */
+        var gl2 = null;
+        try {
+            if (G3.postfx && THREE.WebGLMultisampleRenderTarget && window.WebGL2RenderingContext) {
+                gl2 = canvas.getContext('webgl2', {
+                    alpha: false, depth: true, stencil: true, antialias: false,
+                    premultipliedAlpha: true, preserveDrawingBuffer: false
+                });
+            }
+        } catch (e) { gl2 = null; }
+        R.renderer = gl2
+            ? new THREE.WebGLRenderer({ canvas: canvas, context: gl2, antialias: false, alpha: false })
+            : new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
         R.renderer.setPixelRatio(dprFor());
         R.renderer.shadowMap.enabled = true;
         R.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -562,6 +583,84 @@
         R.scene.remove(g);
     }
 
+    /* ── what stands still is drawn together ────────────────────────────
+
+       A rail is a box, a trunk is a cylinder and a rock is three lumps, and
+       each used to be a mesh of its own: a mesh is a draw call, and a draw
+       call is paid twice a frame, once for the picture and once for the
+       sun's shadow map. The Marble Run is eighty boxes — 166 of the 387
+       calls its frame made — and a parkland hole's trunks and stones were
+       another two hundred. None of them ever moves and each kind wears one
+       material, so `stand` collects them as a hole is built and `standAll`
+       leaves one mesh per material in their place: the same triangles in
+       the same places, sent in a handful of calls.
+
+       Only what is still. A gate, a blade or a flipper is placed every
+       frame (R.movers) and a tree's crown leans in the wind (R.canopies);
+       those stay meshes of their own. */
+    var _standAt = new THREE.Object3D();
+    function stand(group, geo, mat, x, y, z, rx, ry, rz) {
+        if (!R.standing) {
+            // Not inside a build (nothing calls it so): a mesh, as it was.
+            var one = new THREE.Mesh(geo, mat);
+            one.position.set(x, y, z);
+            one.rotation.set(rx || 0, ry || 0, rz || 0);
+            one.castShadow = one.receiveShadow = true;
+            group.add(one);
+            return;
+        }
+        _standAt.position.set(x, y, z);
+        _standAt.rotation.set(rx || 0, ry || 0, rz || 0);
+        _standAt.updateMatrix();
+        var lot = R.standing[mat.uuid] || (R.standing[mat.uuid] = { mat: mat, parts: [], verts: 0, idx: 0 });
+        var n = geo.attributes.position.count;
+        lot.parts.push({ geo: geo, m: _standAt.matrix.clone() });
+        lot.verts += n;
+        lot.idx += geo.index ? geo.index.count : n;
+    }
+
+    var _sv = new THREE.Vector3(), _sn = new THREE.Matrix3();
+    function standAll(group) {
+        var lots = R.standing, key, lot, i, k, part, pos, nor, uv, ix, at, ia, mesh, geo;
+        R.standing = null;
+        for (key in lots || {}) {
+            lot = lots[key];
+            var P3 = new Float32Array(lot.verts * 3), N3 = new Float32Array(lot.verts * 3);
+            var U2 = new Float32Array(lot.verts * 2);
+            var I = lot.verts > 65535 ? new Uint32Array(lot.idx) : new Uint16Array(lot.idx);
+            at = 0; ia = 0;
+            for (i = 0; i < lot.parts.length; i++) {
+                part = lot.parts[i];
+                pos = part.geo.attributes.position; nor = part.geo.attributes.normal;
+                uv = part.geo.attributes.uv; ix = part.geo.index;
+                _sn.getNormalMatrix(part.m);
+                for (k = 0; k < pos.count; k++) {
+                    _sv.fromBufferAttribute(pos, k).applyMatrix4(part.m);
+                    P3[(at + k) * 3] = _sv.x; P3[(at + k) * 3 + 1] = _sv.y; P3[(at + k) * 3 + 2] = _sv.z;
+                    if (nor) {
+                        _sv.fromBufferAttribute(nor, k).applyMatrix3(_sn).normalize();
+                        N3[(at + k) * 3] = _sv.x; N3[(at + k) * 3 + 1] = _sv.y; N3[(at + k) * 3 + 2] = _sv.z;
+                    }
+                    if (uv) { U2[(at + k) * 2] = uv.getX(k); U2[(at + k) * 2 + 1] = uv.getY(k); }
+                }
+                if (ix) for (k = 0; k < ix.count; k++) I[ia++] = ix.getX(k) + at;
+                else for (k = 0; k < pos.count; k++) I[ia++] = at + k;
+                at += pos.count;
+                part.geo.dispose();
+            }
+            geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(P3, 3));
+            geo.setAttribute('normal', new THREE.BufferAttribute(N3, 3));
+            geo.setAttribute('uv', new THREE.BufferAttribute(U2, 2));
+            geo.setIndex(new THREE.BufferAttribute(I, 1));
+            mesh = new THREE.Mesh(geo, lot.mat);
+            mesh.castShadow = mesh.receiveShadow = true;
+            // How many things this one mesh is, for the inspector and the tests.
+            mesh.userData.standing = lot.parts.length;
+            group.add(mesh);
+        }
+    }
+
     function skyDome(theme, weather) {
         var mat = new THREE.ShaderMaterial({
             side: THREE.BackSide, depthWrite: false, fog: false,
@@ -1009,6 +1108,28 @@
                 })
             }
         };
+    }
+
+    /* A box, as two things to draw rather than six.
+
+       three.js makes a box as six faces, each a group of its own so each can
+       wear a material, and draws a group at a time: a flat pad was six draw
+       calls for the picture and six more for the sun's shadow map, five of
+       each in the same earth-coloured paint. The Marble Run's seven floors
+       were 84 of its frame's calls. Here the faces are put in the order top,
+       then the other five, as two groups — the shape an extruded slab
+       already has (caps, then walls) — so a box wears the slab's pair of
+       materials and is drawn in two calls a pass. */
+    function capAndSides(geo) {
+        var ix = geo.index.array, out = new ix.constructor(ix.length), k;
+        for (k = 0; k < 6; k++) out[k] = ix[12 + k];            // +y: the top
+        for (k = 0; k < 12; k++) out[6 + k] = ix[k];            // +x, -x
+        for (k = 0; k < 18; k++) out[18 + k] = ix[18 + k];      // -y, +z, -z
+        geo.setIndex(new THREE.BufferAttribute(out, 1));
+        geo.clearGroups();
+        geo.addGroup(0, 6, 0);
+        geo.addGroup(6, 30, 1);
+        return geo;
     }
 
     function padMaterial(kind, shape) {
@@ -2875,11 +2996,12 @@
         // And a hovering platform is a slab with daylight under it, which is
         // the whole of what it is (Challenge mode's raised tee).
         if (pad.hover) thick = Math.max(least, 0.4);
+        var boxed = !pad.r && !(holed || pad.round || pad.lane);
         var geo = pad.r
             ? discGeometry(pad, thick, cup, holed)
-            : holed || pad.round || pad.lane
+            : !boxed
                 ? punchedSlab(pad, thick, holed ? cup : null)
-                : new THREE.BoxGeometry(pad.w, thick, pad.d);
+                : capAndSides(new THREE.BoxGeometry(pad.w, thick, pad.d));
         if ((holed || pad.round || pad.lane) && !pad.r) {
             // The box is centred on its own middle; the extruded slab is built
             // that way too, so both share the placement below.
@@ -2900,7 +3022,8 @@
         // The tiling rides on the pad rather than on the texture, which is
         // what lets every pad of a kind share one material (buildSurfaces).
         worldUv(geo, pad.oob ? SUR_TILE : (TX.SCALE[pad.kind] || TX.SCALE.green), cx, cz);
-        var look = padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : (holed || pad.stands ? 'slab' : 'box'));
+        // A box is a cap and its sides as well, since capAndSides.
+        var look = padMaterial(pad.kind, pad.inlay && !pad.stands ? 'inlay' : 'slab');
         // Out of play is bare rock, as it is in addTerrain: a ledge under a
         // rim or the top of a butte nobody can reach wears no grass.
         if (pad.oob) {
@@ -3402,14 +3525,9 @@
         var crown = Math.max(B.hw, B.hd) * (2.6 + b * 1.1);
         var leaf = R.surf.leaf[a < 0.5 ? 0 : 1];
 
-        var trunk = new THREE.Mesh(
-            new THREE.CylinderGeometry(trunkR * 0.7, trunkR * 1.15, h, 7),
-            R.surf.walls.tree
-        );
-        trunk.position.set(B.cx, B.base + h / 2, B.cz);
-        trunk.castShadow = true;
-        trunk.receiveShadow = true;
-        group.add(trunk);
+        // The trunk stands still, with every other trunk on the hole (stand).
+        stand(group, new THREE.CylinderGeometry(trunkR * 0.7, trunkR * 1.15, h, 7),
+            R.surf.walls.tree, B.cx, B.base + h / 2, B.cz);
 
         var top = B.base + h;
         var i, mesh, geo;
@@ -3516,16 +3634,11 @@
             f = 1 - i * 0.32;
             geo = new THREE.IcosahedronGeometry(s * f * (0.9 + a * 0.5), 0);
             geo.scale(1, 0.72 + b * 0.45, 1);
-            mesh = new THREE.Mesh(geo, R.surf.walls.rock);
-            mesh.position.set(
+            stand(group, geo, R.surf.walls.rock,
                 B.cx + (i ? s * (a - 0.42) * (i === 1 ? 1.3 : -1.2) : 0),
                 B.base + wall.h * (i ? 0.24 : 0.46),
-                B.cz + (i ? s * (b - 0.42) * (i === 1 ? -1.2 : 1.3) : 0)
-            );
-            mesh.rotation.set(a * 6.283, (a + b) * 3.141, b * 6.283);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            group.add(mesh);
+                B.cz + (i ? s * (b - 0.42) * (i === 1 ? -1.2 : 1.3) : 0),
+                a * 6.283, (a + b) * 3.141, b * 6.283);
         }
     }
 
@@ -4178,6 +4291,12 @@
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         // One material per kind, shared by every wall wearing it (see
         // buildSurfaces) — a hole has up to twenty rails and one coat of paint.
+        // …and a wall that never moves is drawn with the rest of its kind.
+        if (!(wall.move || wall.spin || wall.swing)) {
+            stand(group, geo, R.surf.walls[wall.kind] || R.surf.walls.rail,
+                B.cx, B.base + wall.h / 2, B.cz, 0, B.yaw, 0);
+            return;
+        }
         var mesh = new THREE.Mesh(geo, R.surf.walls[wall.kind] || R.surf.walls.rail);
         mesh.position.set(B.cx, B.base + wall.h / 2, B.cz);
         mesh.rotation.y = B.yaw;
@@ -5527,7 +5646,31 @@
         group.add(fill.target);
         // Kept with what they were lit at, for the bag to turn down (frame).
         R.courseLights = [amb, sun, fill];
-        R.courseLights.forEach(function (l) { l.userData.base = l.intensity; });
+        R.courseLights.forEach(function (l) {
+            l.userData.base = l.intensity;
+            // Counted in the picker's bag-only pass as well (passLights).
+            l.layers.enable(1);
+        });
+        R.courseDim = 1;
+    }
+
+    /* The open picker is drawn in two passes (postfx.js `backdrop`): the
+       course alone, blurred, and then the bag alone on top, each lit by its
+       own lights and none of the other's. That used to be left to the
+       layers — a light is only counted on a layer the camera is looking at —
+       and a light that stops being counted is a different program for every
+       lit material in the pass: opening the picker compiled the whole course
+       and the whole bag a second time, and closing it a third. So every
+       light is on both layers now, the count never changes, and a pass
+       switches the other side's lights to nothing instead. `which` is
+       'course', 'bag', or nothing for the ordinary single draw. */
+    function passLights(which) {
+        var c = which === 'bag' ? 0 : R.courseDim, i, l;
+        for (i = 0; i < (R.courseLights || []).length; i++) {
+            l = R.courseLights[i];
+            l.intensity = l.userData.base * c;
+        }
+        if (G3.bag && G3.bag.lightPass) G3.bag.lightPass(which !== 'course');
     }
 
     /* How far a hole asks you to see.
@@ -5771,6 +5914,9 @@
         for (i = 0; i < (hole.warps || []).length; i++) addMouth(g, hole, hole.warps[i], theme);
         for (i = 0; i < (hole.loops || []).length; i++) addLoop(g, hole, hole.loops[i], theme);
         var bends = [];
+        // Rails, trunks and rocks that stand still are gathered as they are
+        // built and left as one mesh a material (stand, standAll).
+        R.standing = {};
         for (i = 0; i < hole.walls.length; i++) {
             if (!hole.walls[i].bend) { addWall(g, hole.walls[i]); continue; }
             if (bends.indexOf(hole.walls[i].bend) < 0) {
@@ -5778,6 +5924,7 @@
                 addBend(g, hole.walls[i].bend);
             }
         }
+        standAll(g);
         for (i = 0; i < hole.water.length; i++) {
             n0 = g.children.length;
             addWater(g, hole.water[i], theme);
@@ -5845,6 +5992,60 @@
         // A hole changed with a ball inside a pipe would leave it shrunk.
         R.ball.scale.setScalar(1);
         R.ball.visible = true;
+        warmPrograms();
+    }
+
+    /* Every shader the hole will need, compiled now.
+
+       three.js compiles a material's program the first time it draws
+       something wearing it, on the frame that needs it, and the page waits
+       while the driver does it. Left to that, a hole was compiled a piece at
+       a time while it was played: what the flyover showed on its first
+       frame, then the bag, the club at the ball and the aim on the frame the
+       sweep landed, then the spray off the first bounce, the ring round the
+       cup, the sparks — each a stall at exactly the moment something was
+       happening. A hole is built behind the loading screen or the wipe
+       between two holes, where nobody is watching the frame rate, so the lot
+       is compiled here instead: everything in the scene, shown or not.
+
+       It only works because the list of lights no longer changes (bag.js
+       `lightRig`, `passLights` above): a material's program is compiled for
+       a count of lights, and this compiles for the one count there is. */
+    function warmPrograms() {
+        if (!R.renderer || !R.renderer.compile || !R.scene || !R.camera) return;
+        var t0 = window.performance && performance.now ? performance.now() : 0;
+        try {
+            R.scene.updateMatrixWorld();
+            R.renderer.compile(R.scene, R.camera);
+            keepPrograms();
+        } catch (e) { /* the first frame compiles whatever this did not */ }
+        R.warmMs = (window.performance && performance.now ? performance.now() : 0) - t0;
+    }
+
+    /* …and kept, so the next hole does not compile them again.
+
+       three.js counts the materials using a program and deletes it when the
+       last one is disposed of — which is every time a hole is taken down,
+       since a hole's materials are its own. The next hole then makes
+       materials that want the very same programs (a rail is a rail: the
+       colour is a uniform, not a different shader) and has them compiled
+       afresh, twenty-odd of them behind every wipe between two holes. So
+       each program is given one user that never lets go. A program is only
+       ever reused by a material that asks for exactly its source and
+       settings, so a kept one cannot be the wrong one; and there are only so
+       many kinds of surface in the game, but the number kept is capped all
+       the same, past which a program lives and dies with its materials as
+       before. */
+    var KEEP_PROGRAMS = 160;
+    function keepPrograms() {
+        var list = R.renderer.info.programs || [], i, n = 0;
+        for (i = 0; i < list.length; i++) if (list[i].kept) n++;
+        for (i = 0; i < list.length && n < KEEP_PROGRAMS; i++) {
+            if (list[i].kept || list[i].usedTimes === undefined) continue;
+            list[i].kept = true;
+            list[i].usedTimes++;
+            n++;
+        }
     }
 
     /* ── the live world behind a tour hole ──────────────────────────────
@@ -7886,7 +8087,7 @@
             G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
                 !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo' && R.cam.mode !== 'flight', world.ball, aim ? aim.yaw : 0, R.camera);
             var open01 = G3.bag.state.open01;
-            if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER };
+            if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER, lights: passLights };
             /* And the course's own light goes down as the clubs come out.
                Those three are the hole's weather — a dusk sky, a low sun — and
                they light the clubs as well as the course, so the same row read
@@ -7895,16 +8096,43 @@
                spotlight, which are the same everywhere. The course is behind
                the scrim by then and going dark anyway; the sky and the water
                are unlit and keep their colour. */
-            var dim = (1 - (R.fx ? 0 : COURSE_DIM * open01)) * (R.live ? 0.9 : 1);
-            if (R.courseLights) R.courseLights.forEach(function (l) {
-                l.intensity = l.userData.base * dim;
-            });
+            R.courseDim = (1 - (R.fx ? 0 : COURSE_DIM * open01)) * (R.live ? 0.9 : 1);
+            passLights(null);
             hideWaterUnderBag(!R.fx && open01 > 0.5);
         }
 
-        if (R.fx && G3.postfx.render(R.scene, R.camera, R.live ? null : sunOnScreen(), dt, front)) return;
-        R.renderer.setRenderTarget(null);
-        R.renderer.render(R.scene, R.camera);
+        /* The sun's shadow map is left as it is on alternate frames while
+           nothing that plays is moving (shadowRests). Only for this draw:
+           the switch goes back on behind it, so anything else that draws
+           the scene (the turntable, the suites) still gets its shadows. */
+        var rest = shadowRests(world);
+        if (rest) R.renderer.shadowMap.autoUpdate = false;
+        var drawn = R.fx && G3.postfx.render(R.scene, R.camera, R.live ? null : sunOnScreen(), dt, front);
+        if (!drawn) {
+            R.renderer.setRenderTarget(null);
+            R.renderer.render(R.scene, R.camera);
+        }
+        if (rest) R.renderer.shadowMap.autoUpdate = true;
+    }
+
+    /* Whether this frame may go without drawing the shadow map again.
+
+       The map is the whole hole drawn a second time from the sun — every
+       rail, trunk and stone, a third of a frame's draw calls on a mini hole
+       and on a parkland one alike — and the sun does not move. Most of a
+       round is spent standing over a ball that is not moving either, and
+       what still stirs then is slow: a flag, a crown in the wind, the club
+       being turned with the aim. Their shadows are drawn every other frame,
+       which at sixty frames is thirty times a second and not something an
+       eye can find. The moment a ball is struck, or on any hole with a gate,
+       a blade or a sail on it — things a shot is timed against — the map is
+       drawn every frame as it always was, and so is the first frame of a
+       hole, which has no map yet. */
+    function shadowRests(world) {
+        R.shadowTick = ((R.shadowTick || 0) + 1) & 1023;
+        if (!R.sun || !R.sun.shadow || !R.sun.shadow.map) return false;
+        if (!world || world.moving || world.warping || world.ride || R.replay || R.movers.length) return false;
+        return (R.shadowTick & 1) === 1;
     }
 
     /* Without the post chain the open picker's backdrop is the bag's scrim,
