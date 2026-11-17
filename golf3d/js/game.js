@@ -1416,7 +1416,7 @@
         var ctl = document.querySelector('.controls .ctl-row').getBoundingClientRect();
         var top = Math.round(stage.height * 0.46);
         var bottom = Math.round(ctl.top - stage.top - 34);
-        /* On a phone it stops short of the controls (the owner, v1.179.0: "a
+        /* On a phone it stops short of the controls (the owner, v1.180.0: "a
            bit smaller on mobile"). The pull is measured off the lane's height
            (`swipeLength`), so this is a slightly shorter pull for a full
            swing as well as a smaller box — the line is an angle and does not

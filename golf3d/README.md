@@ -447,7 +447,7 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
 
 - **Touch swing.** A light grey lane up the middle of the stage, from about
   where the ball sits down to the controls — narrower and a little shorter on
-  a phone (`laneSmall`, v1.179.0), so more of the course is left for aiming;
+  a phone (`laneSmall`, v1.180.0), so more of the course is left for aiming;
   a mouse drag is the same gesture, so it plays on a desktop too. Press and pull straight down — the meter fills
   with the pull (`swipeLoad`), the full swing ticked at the same white line —
   then swipe up through where you started; crossing that line is the strike,
@@ -3592,7 +3592,7 @@ disabled while there is nothing loaded and while the ball is still rolling, so
 it says what the game will accept rather than swallowing the press. The `‹` and
 `›` buttons beside it nudge the aim by a hair, which is the part a drag is too
 coarse for on a short putt. Under the touch swing — which is to say, in the game
-as it ships — the meter, its distance line and both nudges are hidden (v1.179.0):
+as it ships — the meter, its distance line and both nudges are hidden (v1.180.0):
 the lane is the meter, and ← → still nudge from a keyboard.
 
 This replaced a slingshot — press, pull away, let go. It read well with a mouse,
