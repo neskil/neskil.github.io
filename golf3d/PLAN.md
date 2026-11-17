@@ -739,7 +739,7 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   and play"). Open: names a player can type, and a record per player.
 - ~~**1-click level editor sharing**~~ (done, v1.102.0 — README → "The hole
   editor", Share 🔗): the hole travels in the link's fragment.
-- **Endless (v1.177.0): what was not done in the first pass.** The 454
+- **Endless (v1.180.0): what was not done in the first pass.** The 454
   worlds without a tour hole are sized by `autoScale` and dressed in the
   nearest tour world's palette (`STAND_IN`); neither has been looked at world
   by world. Worth doing: a contact-sheet tool that rides each world for a few

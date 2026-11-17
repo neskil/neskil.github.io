@@ -4547,7 +4547,7 @@ is; *Keep playing* is pinned to the bottom.
 
 ## Endless: mini golf through every world
 
-The owner's ask (v1.177.0): the tour's worlds have a flight path, so let a
+The owner's ask (v1.180.0): the tour's worlds have a flight path, so let a
 mini golf course float along it — through every world Portals has, at
 random, for ever, with holes made up as they are needed. The button is
 under the World Tour's door in the picker; `?course=endless&seed=<n>&from=<world id>`
