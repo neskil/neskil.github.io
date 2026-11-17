@@ -1416,10 +1416,30 @@
         var ctl = document.querySelector('.controls .ctl-row').getBoundingClientRect();
         var top = Math.round(stage.height * 0.46);
         var bottom = Math.round(ctl.top - stage.top - 34);
+        /* On a phone it stops short of the controls (the owner, v1.179.0: "a
+           bit smaller on mobile"). The pull is measured off the lane's height
+           (`swipeLength`), so this is a slightly shorter pull for a full
+           swing as well as a smaller box — the line is an angle and does not
+           care. Never under 120px, the floor it always had. */
+        var height = Math.max(120, bottom - top);
+        if (laneSmall()) height = Math.max(120, Math.round(height * LANE_SHORT));
         lane.style.top = top + 'px';
-        lane.style.height = Math.max(120, bottom - top) + 'px';
-        lane.style.width = laneWidth(stage, top, Math.max(120, bottom - top)) || '';
+        lane.style.height = height + 'px';
+        lane.style.width = laneWidth(stage, top, height) || '';
         if (!swipe) drawSwipe();
+    }
+
+    /* A phone, or anything held in the hand: the same test the view row
+       folds on (`viewCtlOpenByDefault`), and the same one style.css narrows
+       `.swipe` under. */
+    var LANE_SHORT = 0.82;
+    function laneSmall() {
+        return !!(window.matchMedia && window.matchMedia('(max-width: 640px), (pointer: coarse)').matches);
+    }
+
+    // The lane's width before the bag has its say; style.css's `.swipe`.
+    function laneNatural(stage) {
+        return laneSmall() ? Math.min(stage.width * 0.42, 240) : Math.min(stage.width * 0.72, 300);
     }
 
     /* On a phone held upright the lane's lower corner stood over the bag:
@@ -1431,18 +1451,21 @@
        that did not swing. So where the two would meet the lane narrows,
        evenly, until it clears the bag (bag.js `screenBox`) by a small gap —
        never below LANE_MIN, still a comfortable thumb's width either side of
-       the ball. Returns a CSS width, or nothing to leave the stylesheet's. */
+       the ball. Returns a CSS width, or nothing to leave the stylesheet's.
+       On a phone the lane is narrow enough already that it mostly clears the
+       bag by itself, and the floor there is most of the lane's own width
+       rather than a number wider than the lane. */
     var LANE_MIN = 200, LANE_GAP = 10;
     function laneWidth(stage, top, height) {
         var bag = G3.bag && G3.bag.screenBox && R.state.camera
             ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
         if (!bag) return null;
-        var natural = Math.min(stage.width * 0.72, 300);
+        var natural = laneNatural(stage);
         var bagTop = bag.top * stage.height, bagRight = bag.right * stage.width;
         if (bagTop >= top + height) return null;               // the bag is below the lane
         var left = (stage.width - natural) / 2;
         if (bagRight + LANE_GAP <= left) return null;           // already clear
-        return Math.round(Math.max(LANE_MIN, stage.width - 2 * (bagRight + LANE_GAP))) + 'px';
+        return Math.round(Math.max(Math.min(LANE_MIN, Math.round(natural * 0.85)), stage.width - 2 * (bagRight + LANE_GAP))) + 'px';
     }
 
     // How far a pull may go: the whole meter is the lane plus the run down
