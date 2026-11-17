@@ -4522,6 +4522,23 @@ body.lane-swing .swipe-hint {
     animation: door-turn 9s linear infinite;
 }
 @keyframes door-turn { to { transform: rotate(360deg); } }
+/* Endless: the same door in verdigris, its eye a slow turn of the brass
+   accent with the sign for for ever on it, held still while the ring turns. */
+.endless-door { --cg-tint: #8fc9b0; }
+.endless-eye {
+    --eye-a: #12302a;
+    --eye-b: #8fc9b0;
+    position: relative;
+    display: grid;
+    place-items: center;
+}
+.endless-eye b {
+    font-size: 1.7rem;
+    line-height: 1;
+    color: #f4ecd8;
+    animation: door-turn 9s linear infinite reverse;
+}
+@media (prefers-reduced-motion: reduce) { .endless-eye b { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
 
 .world-grid {

@@ -4542,6 +4542,69 @@ behind a link under the grid, not a tab. The tabs are one row of named chips
 that scrolls sideways on a phone. A bar under the title is every star there
 is; *Keep playing* is pinned to the bottom.
 
+## Endless: mini golf through every world
+
+The owner's ask (v1.177.0): the tour's worlds have a flight path, so let a
+mini golf course float along it — through every world Portals has, at
+random, for ever, with holes made up as they are needed. The button is
+under the World Tour's door in the picker; `?course=endless&seed=<n>&from=<world id>`
+is a reproducible round.
+
+**Every world.** `vendor/portals/` is the whole of Portals' release s8f now,
+all 471 worlds (its README says what is and is not copied).
+`js/portal-worlds.js` is Portals' own registry as plain data
+(`tools/portal-index.mjs` writes it), and `endless.js → worlds()` deals from
+it: a shuffled bag, refilled when empty, so every world comes round before
+any comes round twice and none twice running. The seventeen tour worlds
+lend their palette, stand-in set piece, hand-set scale and `hide` list; the
+rest take the tour world nearest them in kind (`STAND_IN`, by media then
+shelf). `backdrop.mjs` builds each world from its registry entry, as Portals
+does, so a world's `nearThrough` and media come with it.
+
+**The holes** (`endless.js → generate`, a function of seed and hole number).
+A walk of four to eight 3.4-unit cells from the tee: north first, then north,
+east or west, never south — so it cannot cross itself — and never more than
+two cells sideways. Each cell is level, a step down, or (on a straight) a
+ramp up or down; heights stay between -2.4 and +2. Straight cells may hold
+one thing from `THINGS` — bumpers, posts, a hump, a blade, a sliding gate,
+a chicane, a belt, ice, a windmill, an unrailed plank, a flipper — dealt
+more often, and the harder ones only, the further into the round
+(`d = n / 14`). Every edge that does not lead on gets a kerb (segmented and
+as tall as the climb along a ramp), every corner a bank across its outside,
+and the cup cell is plain, a bowl, a mound or guarded. Par is two plus one
+each for length, three turns and two hard things. Built with
+`portals.world()`, so every lane is open, unstaked and hung in the air.
+`tests.html → ENDLESS` plays three dozen with the bot.
+
+**The ride** (`backdrop.mjs → drift`). A place with `drift: true` is not
+fitted once: every frame the seat behind the tee is put on the world's flight
+`DRIFT.PACE` of the world's own cruise further along, the lane hanging a
+little over half a seat under the line, and the heading follows the line a
+little behind so a bend swings the world round the hole. The world's clock
+is the ride's `u`, so whatever Portals animates along the flight animates.
+The scale is the hand-set one for a tour world, and for the rest
+`autoScale`: the room under the flight (downward soundings) and over it
+(upward ones, for a ceiling), the middle of a dozen along it, or, with
+nothing under it at all, how fast Portals flies it.
+
+**Two ways into the next world**, as in Portals:
+
+- *Too slow:* the flight ends in a portal. `game.js` puts the next hole's
+  world on `place.next` and builds it aside (`prepareAhead`); once built the
+  world's own portal shows it (the engine's `_renderPortal`, driven by
+  `backdrop.mjs → portalFor`), and the lane rides through, ball and all.
+  Everything is carried over by the engine's crossing matrix (exit → next
+  entry), the old world is disposed, and the game hears `g3-world-cross`
+  (`endless.crossed` deals the next hole again, elsewhere). With the next
+  world not built yet the ride slows and stops short of the portal.
+- *Holed:* the dive into the cup, like a tour hole, into the next hole
+  in the next world.
+
+Nothing is recorded but `golf3d.endless` (holes played, worlds seen), which
+the picker's line reads. A world that fails to build is dealt round. The
+intro flyover does not use the world's line for a riding hole (`line()`
+returns null), since the line moves.
+
 ## The showcase: the game in eight holes
 
 Ninety holes is a lot to walk before you know what is in them, and
