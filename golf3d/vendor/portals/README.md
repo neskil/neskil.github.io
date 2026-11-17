@@ -18,7 +18,7 @@ functions listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) keep
 their own terms (MIT and others); the upstream README's "License and credits"
 section names further borrowed shaders.
 
-**All of it, since Loft Links v1.180.0.** Until then this folder held the
+**All of it, since Loft Links v1.181.0.** Until then this folder held the
 engine, the kit and the seventeen worlds the World Tour plays in. It now holds
 the whole of upstream's release s8f as it stands in the repository — all 471
 worlds and their set pieces (`src/worlds`, `src/parts`), the rides,
