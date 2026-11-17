@@ -7482,8 +7482,9 @@
 
        Between two worlds of the tour the cup is the portal: the camera leaves
        wherever the victory lap had got to, arcs up over the green, and plunges
-       straight down into the cup's black hole (passing below the rim while
-       the full-screen black hole portal closes round the view).
+       straight down into the cup's black hole — reaching the rim first, and
+       only then going on down into it while the full-screen black hole
+       portal closes round the view.
 
        Radius closes to zero by OVER_AT while height crests at PEAK_AT, so by
        the time the camera tips over the crest it is directly above the cup and
@@ -7519,6 +7520,7 @@
             th0: Math.atan2(dx, dz), r0: r0,
             y0: p0.y,
             yPeak: Math.max(p0.y, top + 3.5) + D.RISE,
+            yRim: top + D.RIM_Y,
             y1: top - D.INTO,
             dir: lap ? lap.dir : 1,
             w0: lap ? lap.dir * lap.w : 0,
@@ -7543,15 +7545,26 @@
             var pu2 = u / D.PEAK_AT;
             var sp = pu2 * pu2 * (3 - 2 * pu2);
             y = d.y0 + (d.yPeak - d.y0) * sp;
+        } else if (u <= D.RIM_AT) {
+            // The plunge: accelerating straight down to just over the rim…
+            var fu = (u - D.PEAK_AT) / (D.RIM_AT - D.PEAK_AT);
+            y = d.yPeak + (d.yRim - d.yPeak) * fu * fu * (0.35 + 0.65 * fu);
         } else {
-            var fu = (u - D.PEAK_AT) / (1 - D.PEAK_AT);
-            var sf = fu * fu * (0.35 + 0.65 * fu);
-            y = d.yPeak + (d.y1 - d.yPeak) * sf;
+            /* …then on down into the cup at the speed it arrived with,
+               easing to rest deep inside it (a Hermite leg, its opening
+               slope held to three times the drop so it never overshoots).
+               The portal closes over this leg, not over the plunge: the
+               camera is at the hole before the next world takes the view. */
+            var iu = (u - D.RIM_AT) / (1 - D.RIM_AT), drop = d.yRim - d.y1;
+            var m0 = Math.min(3 * drop, 2.65 * (d.yPeak - d.yRim) * (1 - D.RIM_AT) / (D.RIM_AT - D.PEAK_AT));
+            var i2 = iu * iu, i3 = i2 * iu;
+            y = d.yRim - ((-2 * i3 + 3 * i2) * drop + (i3 - 2 * i2 + iu) * m0);
         }
         var sx = Math.sin(th), cz = Math.cos(th);
         _dv.set(cup.x + sx * r, y, cup.z + cz * r);
         var a = Math.min(1, u / 0.52), e = a * a * (3 - 2 * a);
-        _dt.set(cup.x - sx * 0.05, d.top - 1.5, cup.z - cz * 0.05);
+        // Always below the camera, so it still looks down once inside the cup.
+        _dt.set(cup.x - sx * 0.05, Math.min(d.top, y) - 1.5, cup.z - cz * 0.05);
         R.smooth.pos.copy(_dv);
         R.smooth.target.copy(d.t0).lerp(_dt, e);
         R.smooth.started = true;
@@ -7562,7 +7575,10 @@
             var bhGulp = smooth01((u - 0.30) / 0.55);
             R.diveBH.material.uniforms.open.value = Math.max(0.01, bhOpen);
             R.diveBH.material.uniforms.gulp.value = bhGulp;
-            R.diveBH.visible = y > d.top + 0.22;
+            /* Inside the cup the disc goes on down ahead of the camera,
+               so what fills the view below the rim is still the black
+               hole and not the underside of the green. */
+            R.diveBH.position.y = Math.min(d.top + 0.02, y - 0.2);
         }
         if (R.pin && R.pin.visible) {
             /* Not drawn out but launched: a shudder on the pad, then away on

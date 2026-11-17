@@ -4501,11 +4501,14 @@ down into it (`render.js → startDive`, `diveCamera`, `C.DIVE`), each part ease
 so it leaves at the speed the lap was going and is falling fastest as it goes
 in. It looks just past the cup's axis on the far side, so the last look is
 never exactly straight down and the picture turns with the spiral instead of
-flicking round. It stops just over the lip where the cup fills the picture — the height
-worked out from the field of view, so a phone held either way ends on the
-inside of the hole and the ball lying in it, never on the ball's dimples.
-The wipe on to the next sky starts closing while it falls (`throughPortal`'s
-`dive`), so it opens out of the cup. The pose holds at the lip until the
+flicking round. The plunge reaches the rim (`RIM_AT`, `RIM_Y` over it) with the
+cup's black hole filling the picture, and only then does the wipe on to the
+next sky start closing (`PORTAL_AT`, `throughPortal`'s `dive`): the camera
+goes on `INTO` the hole at the speed it arrived with, easing to rest, with the
+black-hole disc kept just below it so the view is never the underside of the
+green, and the next sky opens out of that dark (v1.176.1 — before, the wipe
+began while the camera was still metres up, and the owner wanted it "further
+down into the hole before the transition starts"). The pose holds until the
 next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
 is over (`phase === 'holed'`, a picked-up ball included — then with no lap
 to carry on from, so it starts from standing); reduced motion gets neither
