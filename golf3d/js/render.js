@@ -5509,6 +5509,41 @@
         liner.position.set(cup.x, cup.y + lift - C.CUP_DEPTH / 2, cup.z);
         group.add(liner);
 
+        /* On a sculpted hole with its world on screen there is no green:
+           the ground is the world's picture, and inside the hole's plan the
+           plate pushes that picture to the far plane. So nothing hid the
+           shaft below the rim, and the cup stood on the fairway as a black
+           tube with its floor showing through the turf. This is the ground
+           the shaft is cut into, as depth only: a disc round the hole laid
+           on the hole's own ground, drawn after the plate and before the
+           shaft. stepPlace shows
+           it only while the world is live; without the world the green
+           slab does this itself. */
+        // Wide, because from a low seat the shaft stands up out of the
+        // ground: seen five degrees over the turf a floor 0.42 down shows
+        // nearly five units short of the lip.
+        var ringG = new THREE.RingGeometry(C.HOLE_R - 0.004, C.HOLE_R + 6, 40, 14);
+        ringG.rotateX(-Math.PI / 2);
+        /* Laid on the ground the ball rolls on (which is what the world was
+           pressed to), a hair under it, so a green with a fall to it does
+           not have a flat ring standing out of the slope over a ball. */
+        var rp = ringG.attributes.position, rx, rz, rr, top;
+        for (i = 0; i < rp.count; i++) {
+            rx = rp.getX(i); rz = rp.getZ(i); rr = Math.sqrt(rx * rx + rz * rz) || 1;
+            var out = Math.max(rr, C.HOLE_R + 0.02) / rr;
+            top = P.surfaceTop(hole, cup.x + rx * out, cup.z + rz * out);
+            rp.setY(i, (top ? top.y : cup.y - 1) - cup.y - 0.01);
+        }
+        var mask = new THREE.Mesh(
+            ringG,
+            new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide })
+        );
+        mask.position.set(cup.x, cup.y + lift, cup.z);
+        mask.renderOrder = -1e5;
+        mask.visible = false;
+        group.add(mask);
+        R.cupMask = mask;
+
         var floor = new THREE.Mesh(
             new THREE.CircleGeometry(C.HOLE_R, 28),
             new THREE.MeshLambertMaterial({ color: 0x1d2416 })
@@ -6449,8 +6484,13 @@
                plate's (`pushNear`): painted, but behind the hole, so a
                lamp or a branch that comes between is seen without hiding
                the shot. */
+            /* A sculpted hole (the World Turtle's) is the same: its ground
+               is the world's own, so a cut half way to the ball sliced the
+               fairway between the camera and the ball into a flat edge
+               with the sea and the waterfall under it showing (the owner's
+               phone, Across the Shell: "clipping issues"). Same answer. */
             var push = 0;
-            if (R.place.drift) { push = clear; clear *= 0.36; }
+            if (R.place.drift || R.place.grid) { push = clear; clear *= 0.36; }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
@@ -6508,6 +6548,8 @@
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
         // …and the strips and green laid on it: the world's own ground is the course.
         for (q = 0; q < (R.veils || []).length; q++) R.veils[q].visible = !live;
+        // …and with no green drawn, the cup's own (addCup).
+        if (R.cupMask) R.cupMask.visible = live && R.veils && R.veils.length > 0;
         if (live === R.live) return;
         R.live = live;
         if (live) govReset(3.5);
