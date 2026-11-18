@@ -4312,6 +4312,20 @@ is laid on anything now:
 - **The world is always built at `medium`**, whatever the device: a hole is
   baked from that level's ground, and a different level is different
   geometry.
+- **The cup is cut into a depth-only disc** (v1.184.3, `addCup` →
+  `R.cupMask`). Since v1.183.0 no green is drawn either, and the world's
+  ground inside the plan is pushed to the far plane, so nothing hid the
+  shaft: the cup stood on the fairway as a black tube with its floor
+  showing. A disc six units round the lip, laid on the hole's own ground a
+  hair under it and writing depth only, does what the green's slab did. It
+  is wide because from a low seat the floor shows several units short of
+  the lip, and it is shown only while the world is live on a sculpted hole.
+- **A sculpted hole is cut short, as a riding one is** (v1.184.3). The
+  world used to be cut half the way to the ball (the Orrery's card
+  catalogue), and on the turtle that sliced the fairway in front of the
+  ball into a flat edge with the sea and the waterfalls under it (the
+  owner: "clipping issues"). It is cut a fifth of the way now, and the rest
+  is the plate's `pushNear`, the same as Endless (see "The ride").
 
 **What a hole does to a world is undone for the next hole** (v1.158.0,
 `unsculpt`). Two holes share the breakfast table and a world is kept between
