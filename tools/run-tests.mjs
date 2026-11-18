@@ -86,7 +86,13 @@ export function parseSummary(dom) {
 async function runSuite(origin, path) {
     const started = Date.now();
     try {
-        const dom = await dumpDom(`${origin}/${path}`);
+        /* The heavy suites get twice the wall clock. golf3d's two big ones
+           passed every assertion and still went red on CI from 2026-11-17,
+           at 180s, once Endless and its 471 worlds landed — a slow suite read
+           as a broken one, four pushes running. The limit is there to catch
+           a page that never finishes, which 360s still does. */
+        const heavy = HEAVY_SUITES.includes(path.replace(/\\/g, '/'));
+        const dom = await dumpDom(`${origin}/${path}`, heavy ? { timeoutMs: 360000 } : undefined);
         return { path, ...parseSummary(dom), ms: Date.now() - started };
     } catch (err) {
         const timedOut = err.killed || /ETIMEDOUT/.test(String(err.code));

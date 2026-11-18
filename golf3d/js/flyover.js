@@ -286,7 +286,53 @@
         }
         spend(keys, dur, F);
         lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
-        return { keys: keys, dur: dur, out: pose(), line: keys.length > 4 };
+        return { keys: keys, dur: dur, out: pose(), line: keys.length > 4,
+                 cut: cutAt(keys, dur) };
+    }
+
+    /* ── the cut ────────────────────────────────────────────────────────
+
+       Where the sweep stops being flown and is cut instead. The path runs
+       green to tee and the seat looks tee to green, so the end of it has to
+       pass over the ball and turn the whole view round to face the other
+       way — and since the look is pinned to the ball by then, that turn is
+       a camera spinning on the spot above it: up to fifty degrees a second
+       on a tour hole, for the last three seconds of the run. The owner:
+       "it's focusing a bit much on the ball when it spins over … do a quick
+       fade to black (or circle in out thing)".
+
+       So render.js closes an iris on the ball just before this moment, puts
+       the camera on the seat behind the closed iris, and opens it there.
+       The moment is the first sample in the second half of the run where
+       the look turns faster than CUT_TURN degrees a second — read off the
+       path rather than set as a share of it, since a straight putting lane
+       and a tour hole with a dog-leg turn at very different points — and
+       never later than CUT_TAIL from the end, where all that is left is
+       the ease settling onto the seat. Pure, like the rest of this file:
+       tests.html can hold it to that with no canvas. */
+    function cutAt(keys, dur) {
+        var F = C.FLY, n = F.CUT_SAMPLES, i, t, dt = dur / n;
+        var a = pose(), b = pose(), turn;
+        var latest = Math.max(dur * 0.5, dur - F.CUT_TAIL);
+        sample(keys, dur, dur * 0.5 - dt, a);
+        for (i = Math.ceil(n * 0.5); i <= n; i++) {
+            t = i * dt;
+            if (t >= latest) break;
+            sample(keys, dur, t, b);
+            turn = lookTurn(a, b) / dt;
+            if (turn > F.CUT_TURN) return t;
+            var s = a; a = b; b = s;
+        }
+        return latest;
+    }
+
+    // The angle between two poses' lines of sight, in degrees.
+    function lookTurn(a, b) {
+        var ax = a.tx - a.px, ay = a.ty - a.py, az = a.tz - a.pz;
+        var bx = b.tx - b.px, by = b.ty - b.py, bz = b.tz - b.pz;
+        var d = (ax * bx + ay * by + az * bz) /
+                (Math.sqrt(ax * ax + ay * ay + az * az) * Math.sqrt(bx * bx + by * by + bz * bz) || 1);
+        return Math.acos(clamp(d, -1, 1)) * 180 / Math.PI;
     }
 
     /* The tour's own numbers: FLY with FLY.TOUR laid over it. A world is the

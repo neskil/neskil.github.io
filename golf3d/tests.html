@@ -5619,6 +5619,42 @@
                     !fp.line && fp.keys.length === 4 && approx(fp.dur, tour.dur, 1e-9));
             })();
 
+            /* The cut. The path runs green to tee and the seat looks tee to
+               green, so the end of it turns the whole view round over the
+               ball; render.js closes an iris and jumps to the seat at
+               `plan.cut` instead of flying that (the owner, v1.183.0). So: a
+               cut in the second half, never later than CUT_TAIL from the
+               end, before the spin and not inside it. */
+            (function () {
+                function turnRate(p, t0, t1) {
+                    var a = poseAt(p, t0), b = poseAt(p, t1);
+                    var ax = a.tx - a.px, ay = a.ty - a.py, az = a.tz - a.pz;
+                    var bx = b.tx - b.px, by = b.ty - b.py, bz = b.tz - b.pz;
+                    var c = (ax * bx + ay * by + az * bz) / Math.sqrt((ax * ax + ay * ay + az * az) * (bx * bx + by * by + bz * bz));
+                    return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI / (t1 - t0);
+                }
+                [['a straight lane', plan, false], ['the tour sweep', G3.flyover.plan(flat, flatBall, flatSeat, { tour: true }), false],
+                 ['a dog-leg', (function () {
+                     var dog = lab({ pads: [A.pad(0, 0, 30, 12), A.pad(18, 0, 12, 30)], tee: { x: 3, z: 6 }, cup: { x: 24, z: 26 } });
+                     var bb = teeBall(dog);
+                     return G3.flyover.plan(dog, bb, seatBehind(dog, bb));
+                 })(), true]].forEach(function (c) {
+                    var p = c[1], name = c[0], dt = p.dur / 200, i, t, before = 0, after = 0;
+                    assert(name + ': the sweep is cut in its second half',
+                        p.cut > p.dur * 0.5 && p.cut <= p.dur - Math.min(F.CUT_TAIL, p.dur * 0.5) + 1e-9,
+                        p.cut.toFixed(2) + ' of ' + p.dur.toFixed(2) + 's');
+                    for (i = 0; i < 200; i++) {
+                        t = i * dt;
+                        if (t + dt <= p.cut - F.IRIS.CLOSE) before = Math.max(before, turnRate(p, t, t + dt));
+                        else if (t >= p.cut) after = Math.max(after, turnRate(p, t, t + dt));
+                    }
+                    assert(name + ': the camera never turns faster than CUT_TURN while it is seen',
+                        before <= F.CUT_TURN + 1, before.toFixed(1) + '°/s');
+                    assert(name + ': and the turn it would have made after the cut is the spin over the ball',
+                        after > F.CUT_TURN, after.toFixed(1) + '°/s');
+                });
+            })();
+
             // The pose is the plan's own scratch, and every frame of every
             // sweep reads it. Handing back a fresh object instead would be
             // sixty allocations a second for the length of the intro.

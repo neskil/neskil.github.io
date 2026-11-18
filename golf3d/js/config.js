@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.182.1';
+G3.VERSION = '1.183.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -928,6 +928,16 @@ G3.CONFIG = {
         AIR_FROM: 6,
         AIR_SPAN: 18,
         AIR_MAX: 0.85,
+        /* Where the sweep is cut rather than flown to the end (flyover.js →
+           cutAt): the first moment in its second half that the look turns
+           faster than CUT_TURN degrees a second, and never later than
+           CUT_TAIL seconds from the end. IRIS is the circle that covers the
+           cut (render.js → iris): seconds to close on the ball, to hold shut
+           over the jump to the seat, and to open on the ball from there. */
+        CUT_TURN: 30,
+        CUT_TAIL: 1.2,
+        CUT_SAMPLES: 120,
+        IRIS: { CLOSE: 0.42, HOLD: 0.08, OPEN: 0.5 },
         /* The tour's sweep (flyover.js → knobs): laid over the numbers above
            for a hole played in a Portals world, where the world is the thing
            to show off. Slower, further out, higher and wider of the line.
