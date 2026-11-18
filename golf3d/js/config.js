@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.185.1';
+G3.VERSION = '1.186.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -843,7 +843,7 @@ G3.CONFIG = {
     KICK: 0.55,           // camera punch on impact, in units of pull-back
     TRAIL: 56,            // ball trail samples
 
-    /* The launch, as the camera tells it (render.js `launchLag`, v1.185.1).
+    /* The launch, as the camera tells it (render.js `launchLag`, v1.185.0).
        A camera that is glued to the ball cannot say how fast it left: the
        ball stays the same size in the middle of the frame and only the world
        behind it moves. So at the strike the seat lets go — the eye stays
@@ -858,7 +858,7 @@ G3.CONFIG = {
        and 0.02 a look a quarter of a second behind. */
     LAUNCH_CAM: { FROM: 6, SPAN: 15, ROLL: 0.45, HOLD: 0.35, RELEASE: 1.5, POS: 0.4, LOOK: 0.02, CLEAR: 0.6 },
 
-    /* Motion blur while that chase is on (postfx.js, v1.185.1): the course is
+    /* Motion blur while that chase is on (postfx.js, v1.185.0): the course is
        smeared along the way it moved across the screen in the last frame,
        worked out from the camera's move and the ground under the ball, so the
        grass near the lens streaks and the horizon barely does. SHUTTER is the

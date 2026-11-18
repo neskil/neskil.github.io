@@ -1865,6 +1865,14 @@ backwards. `theme.machine` is what they are painted, because the marks have to
 be the first thing read from the tee and what colour does that depends on what
 the ground is: cold cyan on the ice, hot pink at the fair.
 
+A belt's mark runs (v1.186.0, `render.js → addBelt`, stepped by `stepBelts`):
+dark seams across it and the chevrons along it slide the way it pushes and
+wrap round at the far end, so it reads as a conveyor before a ball touches it.
+The pace on screen is `beltPace`, not the ball's — a belt's real speed is up
+to thirty units a second and would strobe — and each piece shrinks to nothing
+over the last stretch of the run rather than popping in, which also keeps it
+off a rounded corner.
+
 Three things about them were each wrong once and are worth writing down:
 
 - **A decal has to clear the grass.** A green wears a stack of shells a little
@@ -4418,7 +4426,7 @@ renderer and are looked at, not asserted: `?world=<id>&live=1`, and
 ### Live worlds are on at the start of every visit
 
 They were a desktop's default only, and the owner's phone — which runs the
-game at sixty frames — showed the stand-in scenery (v1.155.0). Since v1.185.1
+game at sixty frames — showed the stand-in scenery (v1.155.0). Since v1.186.1
 every page load starts with them on, whatever the device and whatever was
 chosen last time: `render.js → liveWanted` is yes unless the switch in
 Settings or the frame-rate net has said no *this visit*. What protects a weak

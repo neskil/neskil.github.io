@@ -199,7 +199,7 @@ really have the game play feeling"). What that has meant in practice:
 ## Things that will bite
 
 - **Live worlds are on at the start of every visit, on every device, and
-  nothing remembers an "off"** (the owner, v1.155.0, v1.167.1, and v1.185.1:
+  nothing remembers an "off"** (the owner, v1.155.0, v1.167.1, and v1.186.1:
   "always on as default … each start it refreshes to on"). The switch in
   Settings and the frame-rate net in `render.js → stepPlace` turn them off for
   that visit only (`R.liveSession`). There is no stored setting and no
