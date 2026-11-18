@@ -73,6 +73,9 @@
         fly: null,             // the intro sweep while one is running; see flyCamera()
         iris: null,            // the circle that covers its cut; see stepIris()
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
+        launch: null,          // the seat letting go at the strike; see launchLag()
+        wasMoving: false,      // …which is how a strike is noticed
+        blurK: 0, blurPrev: null,   // motion blur's strength and last frame's camera; see motionBlur()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
         clock: 0,
@@ -6051,6 +6054,9 @@
         clearRipples();
         R.cam.kick = 0;
         R.cam.speedPull = 0;
+        R.launch = null;
+        R.blurK = 0;
+        R.blurPrev = null;
         clearTrail();
         // The last hole's furrows and craters were in the last hole's sand.
         if (G3.sandfx) G3.sandfx.clear();
@@ -6129,7 +6135,7 @@
        hole either way. */
     /* Live worlds are on at the start of every visit, on every device, and
        nothing carries an "off" over to the next one (the owner, v1.155.0,
-       v1.167.1 and v1.184.4: "should always be on as default … each start it
+       v1.167.1 and v1.185.1: "should always be on as default … each start it
        refreshes to on"). The switch in Settings and the frame-rate net in
        stepPlace turn them off for this visit alone (R.liveSession); the next
        page load is on again.
@@ -7910,12 +7916,117 @@
             if (R.cam.instant) R.cam.instant = false;
         } else {
             var k = 1 - Math.pow(0.0016, dt);   // frame-rate independent easing
+            var kt = k;
+            /* At the strike the seat lets go (launchLag): the eye and the look
+               each ease on a slower base, mixed in by rate rather than by
+               base so that half a lag is half as slow. */
+            var lag = (R.cam.mode === 'follow' || R.cam.mode === 'side') && !R.warpCam && !R.loopCam ? launchLag() : 0;
+            if (lag > 0) {
+                var LC = C.LAUNCH_CAM, seatRate = Math.log(0.0016);
+                k = 1 - Math.exp((seatRate + (Math.log(LC.POS) - seatRate) * lag) * dt);
+                kt = 1 - Math.exp((seatRate + (Math.log(LC.LOOK) - seatRate) * lag) * dt);
+            }
             R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
-            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), k);
+            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), kt);
+            /* An eye left behind is not riding the seat, which keeps itself
+               off the ground; a drive over a crest would otherwise drag it
+               through the hill on the way to catching up. */
+            if (lag > 0) {
+                var under = P.surfaceTop(hole, R.smooth.pos.x, R.smooth.pos.z);
+                if (under && R.smooth.pos.y < under.y + C.LAUNCH_CAM.CLEAR) R.smooth.pos.y = under.y + C.LAUNCH_CAM.CLEAR;
+            }
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
         R.camera.updateMatrixWorld();
+    }
+
+    /* The launch (CONFIG.LAUNCH_CAM). A strike is noticed as the ball
+       starting to move from rest — frame() does that, so game.js has nothing
+       to call — and how hard the seat lets go is how fast the ball left.
+       Only from the seats you play from: the overview is not following
+       anything, and the intro, the replay and the demo have cameras of
+       their own. */
+    function startLaunch(ball, speed) {
+        var LC = C.LAUNCH_CAM;
+        var s = Math.max(0, Math.min(1, (speed - LC.FROM) / LC.SPAN));
+        if (Math.abs(ball.vy) < 0.5) s *= LC.ROLL;
+        R.launch = s > 0.02 ? { s: s, t: 0 } : null;
+    }
+
+    // How much of the lag is left: all of it for HOLD, then given back.
+    function launchLag() {
+        var L = R.launch;
+        if (!L) return 0;
+        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / C.LAUNCH_CAM.RELEASE));
+    }
+
+    function stepLaunch(dt, world, speed) {
+        var m = R.cam.mode;
+        if (world.moving && !R.wasMoving && (m === 'follow' || m === 'side') &&
+            !R.fly && !R.dive && !R.replay && !R.lap) startLaunch(world.ball, speed);
+        R.wasMoving = !!world.moving;
+        if (R.launch) {
+            R.launch.t += dt;
+            if (R.launch.t > C.LAUNCH_CAM.HOLD + C.LAUNCH_CAM.RELEASE || R.fly || R.dive || R.replay ||
+                (m !== 'follow' && m !== 'side')) R.launch = null;
+        }
+    }
+
+    /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
+       where each pixel's bit of course was on the screen a frame ago, and
+       for that it needs a depth it does not have — the scene buffer is
+       multisampled and its depth cannot be read back. So it assumes one:
+       the ground is a level plane at the height of the ground under the
+       ball, and anything above the horizon is far away. On a golf hole
+       that is right where it matters (the grass streaming past the lens)
+       and harmlessly wrong elsewhere. It is handed last frame's
+       view-projection and this frame's camera and does the rest per pixel.
+
+       On only while a shot is being watched from a seat that follows it,
+       faded in with the ball's speed — and never across a cut: a camera
+       that moved further in a frame than anything here can travel has been
+       put somewhere, and a smear from the old place would be a smear of a
+       different picture. */
+    var _blurRot = new THREE.Matrix3(), _blurBall = new THREE.Vector3();
+    function motionBlur(dt, world, speed) {
+        if (!R.fx || !G3.postfx.motion) return;
+        var MB = C.MOTION_BLUR, cam = R.camera, m = R.cam.mode;
+        var seat = R.replay || ((m === 'follow' || m === 'side') && !R.fly && !R.dive && !R.lap);
+        var want = world.moving && seat && !world.warping && !world.ride
+            ? Math.max(0, Math.min(1, (speed - MB.FROM) / MB.SPAN)) : 0;
+        // In over a few frames; out much faster, so a ball dropped back on
+        // the tee after a penalty does not take the smear with it.
+        R.blurK += (want - R.blurK) * (1 - Math.pow(want > R.blurK ? 0.02 : 1e-5, dt));
+        if (want === 0 && R.blurK < 0.01) R.blurK = 0;
+        cam.updateMatrixWorld();
+        var prev = R.blurPrev;
+        if (!prev) prev = R.blurPrev = { vp: new THREE.Matrix4(), pos: new THREE.Vector3(), ok: false };
+        var jump = prev.ok ? cam.position.distanceTo(prev.pos) : Infinity;
+        if (R.blurK > 0.01 && jump < 0.5 + 60 * dt) {
+            var ball = world.ball;
+            var under = P.surfaceTop(world.hole, ball.x, ball.z);
+            _blurBall.set(ball.x, ball.y, ball.z).project(cam);
+            G3.postfx.motion({
+                k: R.blurK,
+                vp: prev.vp,
+                rot: _blurRot.setFromMatrix4(cam.matrixWorld),
+                eye: cam.position,
+                tanH: Math.tan(cam.fov * Math.PI / 360),
+                aspect: cam.aspect,
+                ground: under ? under.y : ball.y - 2,
+                scale: MB.SHUTTER * (1 / 60) / Math.max(dt, 1 / 240),
+                max: MB.MAX,
+                ball: _blurBall.z < 1 ? [_blurBall.x * 0.5 + 0.5, _blurBall.y * 0.5 + 0.5] : [-9, -9],
+                sharp: MB.SHARP,
+                keep: G3.bag && G3.bag.screenBox && !R.replay ? G3.bag.screenBox(cam, cam.aspect) : null
+            });
+        } else {
+            G3.postfx.motion(null);
+        }
+        prev.vp.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+        prev.pos.copy(cam.position);
+        prev.ok = true;
     }
 
     /* The camera on a loop (physics.js, "the loop").
@@ -8192,7 +8303,9 @@
         if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);
+        stepLaunch(dt, world, speed);
         updateCamera(world.hole, world.ball, dt);
+        motionBlur(dt, world, speed);
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
 
         // The live world behind the hole, from where the camera now is.
