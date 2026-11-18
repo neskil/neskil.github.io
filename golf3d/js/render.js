@@ -3142,8 +3142,27 @@
         return sh;
     }
 
-    /* A travelator: chevrons along it, spaced by how hard it pushes, so a
-       fast belt is a dense one and the picture carries the number. */
+    /* A travelator: a belt that runs. Seams across it and chevrons along
+       it, all sliding the way the belt carries the ball and wrapping round at
+       the far end, so it reads as a conveyor from the tee before a ball has
+       touched it (the owner, v1.185.0: "some animation of moving line like a
+       conveyor belt"). Still pictures carry the number too: the chevrons are
+       spaced by how hard it pushes, so a fast belt is a dense one.
+
+       The pace on screen is not the ball's. A belt's terminal speed is
+       |push| / -ln(friction) — thirty units a second on The Springboard's —
+       and seams going by at that rate strobe into nothing on a 30fps phone.
+       BELT_PACE gives a slow belt a slow crawl and a hard one a run, in the
+       same order, and never so fast that a seam jumps a gap in one frame.
+
+       Each piece is shrunk to nothing over the last stretch of the run, so
+       nothing pops into being at the near end and nothing hangs over a
+       rounded corner at the far one. Pieces share a material per kind, so
+       fading is done by scale, not opacity. stepBelts moves them. */
+    var BELT_SEAM = 0.55;      // gap between seams, units
+    var BELT_FADE = 0.7;       // the stretch at each end a piece shrinks over
+    function beltPace(mag) { return Math.min(5.5, 1.1 + Math.sqrt(mag) * 0.95); }
+
     function addBelt(group, pad, theme) {
         var ax = pad.push.x, az = pad.push.z;
         var mag = Math.hypot(ax, az);
@@ -3154,20 +3173,61 @@
         var wide = Math.min(0.62, across * 0.34);
         var step = Math.max(0.8, 2.4 - mag * 0.1);
         var n = Math.max(1, Math.floor(run / step));
+        step = run / n;                       // whole chevrons round the loop
+        var seams = Math.max(2, Math.round(run / BELT_SEAM));
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
-        var geo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
-        geo.rotateX(-Math.PI / 2);
-        var mat = markMat(theme.machine || 0xffd34d, 0.95);
-        var i, f, ox, oz, m;
-        for (i = 0; i < n; i++) {
-            f = (i + 0.5) / n - 0.5;
-            ox = Math.sin(yaw) * f * run;
-            oz = Math.cos(yaw) * f * run;
-            m = new THREE.Mesh(geo, mat);
-            m.rotation.y = yaw;
-            m.position.set(cx + ox, markY(pad, cx + ox, cz + oz), cz + oz);
-            group.add(m);
+        var belt = {
+            pad: pad, cx: cx, cz: cz, run: run, sx: Math.sin(yaw), sz: Math.cos(yaw),
+            pace: beltPace(mag), lanes: []
+        };
+
+        var seamGeo = new THREE.PlaneGeometry(across * 0.9, 0.07);
+        seamGeo.rotateX(-Math.PI / 2);
+        var seamMat = markMat(0x120e18, 0.5);
+        var chevGeo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
+        chevGeo.rotateX(-Math.PI / 2);
+        var chevMat = markMat(theme.machine || 0xffd34d, 0.95);
+
+        [[seamGeo, seamMat, seams, run / seams, 0, 1],
+         [chevGeo, chevMat, n, step, 0.006, 2]].forEach(function (l) {
+            var lane = { gap: l[3], lift: l[4], meshes: [] };
+            for (var i = 0; i < l[2]; i++) {
+                var m = new THREE.Mesh(l[0], l[1]);
+                m.rotation.y = yaw;
+                m.renderOrder = l[5];
+                lane.meshes.push(m);
+                group.add(m);
+            }
+            belt.lanes.push(lane);
+        });
+        placeBelt(belt, 0);
+        (R.belts || (R.belts = [])).push(belt);
+    }
+
+    /* Where every piece of a belt is `t` seconds into its run. */
+    function placeBelt(b, t) {
+        var half = b.run / 2, k, i, lane, off, f, s, x, z, m;
+        for (k = 0; k < b.lanes.length; k++) {
+            lane = b.lanes[k];
+            off = (t * b.pace) % lane.gap;
+            for (i = 0; i < lane.meshes.length; i++) {
+                f = (i + 0.5) * lane.gap + off;
+                if (f > b.run) f -= b.run;
+                s = Math.min(1, f / BELT_FADE, (b.run - f) / BELT_FADE);
+                s = s * s * (3 - 2 * s);
+                m = lane.meshes[i];
+                f -= half;
+                x = b.cx + b.sx * f;
+                z = b.cz + b.sz * f;
+                m.visible = s > 0.02;
+                m.scale.set(s, 1, s);
+                m.position.set(x, markY(b.pad, x, z) + lane.lift, z);
+            }
         }
+    }
+
+    function stepBelts() {
+        for (var i = 0; i < (R.belts || []).length; i++) placeBelt(R.belts[i], R.clock);
     }
 
     /* A launch pad: a sprung face with a rim round it, drawn the same way the
@@ -5886,6 +5946,7 @@
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
+        R.belts = [];
         R.posts = [];
         R.lamps = [];
 
@@ -8219,6 +8280,7 @@
         if (G3.sandfx) G3.sandfx.step(dt, world);
         stepRipples(dt);
         stepBlackHoles(dt, world);
+        stepBelts();
         if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);

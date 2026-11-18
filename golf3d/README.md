@@ -1865,6 +1865,14 @@ backwards. `theme.machine` is what they are painted, because the marks have to
 be the first thing read from the tee and what colour does that depends on what
 the ground is: cold cyan on the ice, hot pink at the fair.
 
+A belt's mark runs (v1.185.0, `render.js → addBelt`, stepped by `stepBelts`):
+dark seams across it and the chevrons along it slide the way it pushes and
+wrap round at the far end, so it reads as a conveyor before a ball touches it.
+The pace on screen is `beltPace`, not the ball's — a belt's real speed is up
+to thirty units a second and would strobe — and each piece shrinks to nothing
+over the last stretch of the run rather than popping in, which also keeps it
+off a rounded corner.
+
 Three things about them were each wrong once and are worth writing down:
 
 - **A decal has to clear the grass.** A green wears a stack of shells a little
