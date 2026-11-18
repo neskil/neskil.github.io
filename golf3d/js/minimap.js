@@ -202,6 +202,8 @@
         var tf = transform(hole, w, h);
         var scale = tf.scale, ox = tf.ox, oz = tf.oz;
         var baseY = hole.tee && isFinite(hole.tee.y) ? hole.tee.y : 0;
+        // A sculpted hole's strips are the same ground as the rest of it (portals.js → world).
+        var sculpted = (hole.pads || []).some(function (p) { return p.ghost; });
 
         var px, py, i, x, z, surf, col, lit, pond, outside;
         for (py = 0; py < h; py++) {
@@ -220,7 +222,7 @@
                 } else {
                     if (surf.pad.push || surf.pad.spring) {
                         col = pal.machine;
-                    } else if (surf.pad.ghost) {
+                    } else if (surf.pad.ghost || (surf.pad.inlay && surf.pad.kind !== 'green' && sculpted)) {
                         // Sculpted world ground (turtle, ironriver, nave, table).
                         // On The Sugar Gate (`table`), baked objects standing up
                         // off the cloth (sugar cubes, plate, teapot) read as cream.

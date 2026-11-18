@@ -65,6 +65,11 @@
        extent with room round it: off the edge is off the world, and OOB_Y is
        what ends the shot. `bare` keeps the long game's flowers and herons out
        of places that have no business growing them. */
+    /* A sculpted hole's ground (a `ghost` pad carrying a baked `grid`) is
+       one surface from edge to edge: fairway, like the strips laid on it,
+       since v1.183.0. Nothing is painted on the world any more, so a line
+       between fairway and rough would be a change in the roll nobody could
+       see. The green round the cup is still a green underfoot. */
     function world(h) {
         var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, m = 6;
         h.pads.forEach(function (p) {
@@ -163,7 +168,7 @@
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).turtle, field = G ? [{ grid: G }] : [];
             function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
-            var ground = on(pad(-6, -4, 52, 70, 0, 'rough'));
+            var ground = on(pad(-6, -4, 52, 70, 0, 'fairway'));
             ground.ghost = true;
             var sea = A.rect(-30, -30, 100, 120, 0.15);
             sea.ghost = true;
@@ -577,7 +582,7 @@
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).ironriver, field = G ? [{ grid: G }] : [];
             function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
-            var ground = on(pad(-8, -8, 66, 64, 0, 'rough'));
+            var ground = on(pad(-8, -8, 66, 64, 0, 'fairway'));
             ground.ghost = true;
             var lava = A.rect(-30, -30, 120, 120, 0.15);
             lava.ghost = true;
@@ -612,7 +617,7 @@
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).nave, field = G ? [{ grid: G }] : [];
             function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
-            var ground = on(pad(-24, -3, 48, 79, 0, 'rough'));
+            var ground = on(pad(-24, -3, 48, 79, 0, 'fairway'));
             ground.ghost = true;
             return world({
                 name: 'The Nave', par: 4, long: true,

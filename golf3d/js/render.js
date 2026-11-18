@@ -5890,12 +5890,16 @@
            terrain, and only its tee, fairway and green are laid over it. So
            a ghost is built like anything else and put away while the world
            is on screen (stepPlace); without the world it is the ground. */
-        /* …and what is laid over it is a `veil`: a strip of mown fairway
-           or a tee draped on that ground. With the world on screen a veil
-           is put away like the ghost, and the strip is painted into the
-           world's own picture instead (the plate's decals) — a change of
-           colour in that ground, not a sheet on top of it. The green stays
-           drawn: it is the one surface a putt has to be read on. */
+        /* …and what is laid over it is a `veil`: a strip, a tee or the
+           green draped on that ground. With the world on screen every veil
+           is put away like the ghost, and nothing takes its place: the
+           world's own ground is the course, and the hole is the cup and the
+           flag (addCup draws those on their own). Until v1.183.0 the strips
+           were painted into the world's picture and the green was drawn
+           over it, and on a phone they showed as a sheet laid on the world
+           that came and went (the owner: "it overlaps the fairway… but
+           sometimes it shows again… the hole don't have to have a green, it
+           can just be a hole"). */
         R.ghosts = [];
         R.veils = [];
         var n0, sculpted = hole.pads.some(function (p) { return p.ghost; });
@@ -5903,7 +5907,7 @@
             n0 = g.children.length;
             addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
             if (hole.pads[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
-            else if (sculpted && hole.pads[i].inlay && hole.pads[i].kind !== 'green') {
+            else if (sculpted && hole.pads[i].inlay) {
                 while (n0 < g.children.length) R.veils.push(g.children[n0++]);
             }
         }
@@ -6171,28 +6175,23 @@
                a stall or a pillar is far more than that in front, and still
                is. */
             R.placeSoft = [all[0] - 2.5, all[1] - 2.5, all[2] + 2.5, all[3] + 2.5];
-            /* A sculpted hole hands the world three things (backdrop.mjs →
+            /* A sculpted hole hands the world two things (backdrop.mjs →
                sculpt): the ground it was baked to, so the world's own
                terrain is pressed to exactly that shape — a levelled tee is
-               level in the world's picture too; the strips mown into it,
-               which the world clears of trees and stones; and here, the
-               same strips as paint (the plate's decals). The green is the
-               one surface still drawn by this game, lying on ground that
-               now matches it, with a collar of the same paint round it. */
+               level in the world's picture too; and the strips laid on it,
+               which the world clears of trees and stones, because the ball
+               would roll through them. Nothing is painted on the world any
+               more (v1.183.0): the plate's decals are left switched off, and
+               the strips are only where the clearing is. */
             R.placeDecals = null;
             place.grid = null; place.clear = [];
             var gp = (hole.pads || []).filter(function (p) { return p.ghost && p.field && p.field[0] && p.field[0].grid; })[0];
             if (gp) {
-                var th = R.theme || {}, tint = new THREE.Color((th.grass || ['#3fa56a'])[0]);
-                var rects = [];
                 (hole.pads || []).forEach(function (p) {
                     if (p.ghost || !p.inlay || p.w === undefined) return;
                     place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
-                    var g = p.kind === 'green' ? 1.3 : 0, k = p.kind === 'green' ? 1.25 : 1;
-                    rects.push([p.x - g, p.z - g, p.x + p.w + g, p.z + p.d + g, [tint.r * k, tint.g * k, tint.b * k]]);
                 });
                 place.grid = gp.field[0].grid;
-                R.placeDecals = { grid: place.grid, rects: rects.slice(0, 6), dirty: true };
             }
         }
         R.live = false;
@@ -6498,13 +6497,19 @@
                 u.gTint.value.copy(gc.tint.value); u.gLift.value.copy(gc.lift.value);
             }
         }
-        if (live === R.live) return;
-        R.live = live;
+        /* What the world's picture replaces is put away every frame, not
+           only on the frame the world comes on: the hole is rebuilt under a
+           live world now and then (a quality step changes the grass), and a
+           rebuilt ghost or strip used to come back on top of the world and
+           stay there — the sheet the owner saw over the sculpted holes that
+           "sometimes shows again". */
         if (R.plate) R.plate.visible = live;
         if (R.outer) R.outer.visible = !live;
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
-        // …and its tee and fairway, which the world's picture now carries.
-        (R.veils || []).forEach(function (top) { top.visible = !live; });
+        // …and the strips and green laid on it: the world's own ground is the course.
+        for (q = 0; q < (R.veils || []).length; q++) R.veils[q].visible = !live;
+        if (live === R.live) return;
+        R.live = live;
         if (live) govReset(3.5);
         if (live) {
             R.fogKeep = { near: R.fogNear, far: R.fogFar };

@@ -2472,6 +2472,22 @@
         return world;
     }
 
+    /* Does one shot get a ball out of where it lies? Played from `from` on a
+       copy of the world: true if it drops, or comes to rest more than `reach`
+       away on something playable; false if it comes back, stays, or ends in
+       the water or out. The World Tour asks it of a stopped ball over every
+       line and weight in the bag (game.js → the stuck check): a ball no shot
+       moves is in a hazard, whatever the ground there looks like. */
+    function escapes(hole, from, time, yaw, power, loft, bite, reach) {
+        var w = createWorld(hole, from, time);
+        if (!launch(w, yaw, power, loft, bite)) return false;
+        settle(w, 12);
+        if (w.sunk) return true;
+        if (w.splash || w.out) return false;
+        var dx = w.ball.x - from.x, dz = w.ball.z - from.z, r = reach === undefined ? 0.6 : reach;
+        return dx * dx + dz * dz > r * r;
+    }
+
     function simulateShot(hole, from, yaw, power, loft, time, bite) {
         var w = createWorld(hole, from, time);
         if (!launch(w, yaw, power, loft, bite)) return w;
@@ -2558,6 +2574,7 @@
         settle: settle,
         done: done,
         simulateShot: simulateShot,
+        escapes: escapes,
         previewPath: previewPath,
         speedOf: speedOf,
         groundSpeed: groundSpeed,

@@ -5843,6 +5843,27 @@
                     })() && Math.abs(th2.tee.y) < 0.1 && Math.abs(th2.cup.y) < 0.1);
             })();
 
+            /* Stuck (game.js → the stuck check): a lie no shot in the bag
+               gets out of is a hazard. physics.escapes is the one question
+               it asks, a shot at a time. */
+            (function () {
+                var A = G3.authoring, bowl = A.pad(0, 0, 16, 16, 0, 'green');
+                bowl.field = [{ gauss: [8, 8], a: -16, s: 2.4 }];
+                var h = A.build({ name: 'pit', par: 3, bag: ['putter', 'mallet'], pads: [bowl, A.pad(18, 0, 4, 4, 0, 'green')], tee: { x: 20, z: 2 }, cup: { x: 20.5, z: 3 } });
+                var bag = G3.bagFor(h), lie = { x: 8, z: 8, y: P.surfaceTop(h, 8, 8).y + C.BALL_R };
+                var flat = { x: 20, z: 1.2, y: P.surfaceTop(h, 20, 1.2).y + C.BALL_R };
+                function any(from) {
+                    var k, c, i;
+                    for (k = 0; k < 3; k++) for (c = 0; c < bag.length; c++) for (i = 0; i < 16; i++) {
+                        if (P.escapes(h, from, 0, i * Math.PI / 8, bag[c].power * [1, 0.6, 0.3][k], bag[c].loft, bag[c].bite)) return true;
+                    }
+                    return false;
+                }
+                // (Out of the putters: a wedge pitches out of it, as it should.)
+                assert('stuck: a ball at the bottom of a pit sixteen units deep has no putt out of it', !any(lie));
+                assert('…and a ball on level ground has one', any(flat));
+            })();
+
             // A journey.
             function lcg(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
             var shape = true, kinds = true, climbs = true, k, d, seen = {};
