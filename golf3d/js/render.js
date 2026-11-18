@@ -1247,11 +1247,11 @@
     function slabShape(pad) {
         if (pad.lane) return laneShape(pad);
         var shape = new THREE.Shape();
-        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
+        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {}, ch = pad.cham || {};
         // Counter-clockwise in shape space, each corner as [x, y, its world
-        // name, the angle its arc starts at].
-        var corners = [[-hw, -hd, c.nw, Math.PI], [hw, -hd, c.ne, Math.PI * 1.5],
-                       [hw, hd, c.se, 0], [-hw, hd, c.sw, Math.PI / 2]];
+        // name, the angle its arc starts at, and whether it is cut straight].
+        var corners = [[-hw, -hd, c.nw, Math.PI, ch.nw], [hw, -hd, c.ne, Math.PI * 1.5, ch.ne],
+                       [hw, hd, c.se, 0, ch.se], [-hw, hd, c.sw, Math.PI / 2, ch.sw]];
         var i, k, r, ox, oy, a, n, first = true;
         for (i = 0; i < corners.length; i++) {
             r = corners[i][2];
@@ -1263,7 +1263,8 @@
             }
             ox = corners[i][0] - Math.sign(corners[i][0]) * r;
             oy = corners[i][1] - Math.sign(corners[i][1]) * r;
-            n = Math.max(6, Math.ceil(r / 0.12));
+            // A chamfer (pad.cham) is the chord between the arc's two ends.
+            n = corners[i][4] ? 1 : Math.max(6, Math.ceil(r / 0.12));
             for (k = 0; k <= n; k++) {
                 a = corners[i][3] + (Math.PI / 2) * k / n;
                 if (first) shape.moveTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
@@ -1698,10 +1699,20 @@
         // bearing its arc starts at (atan2 of z, x about its centre).
         var corners = [[x0, z0, c.sw || 0, Math.PI], [x1, z0, c.se || 0, Math.PI * 1.5],
                        [x1, z1, c.ne || 0, 0], [x0, z1, c.nw || 0, Math.PI / 2]];
+        var ch = pad.cham || {}, cham = [ch.sw, ch.se, ch.ne, ch.nw];
         for (i = 0; i < 4; i++) {
             var cn = corners[i], nx = corners[(i + 1) % 4];
             r = cn[2];
-            if (r) {
+            if (r && cham[i]) {
+                // Cut at forty-five degrees (pad.cham): the chord between the
+                // arc's two ends, walked at the outline's own step.
+                var sxn = cn[0] === x0 ? 1 : -1, szn = cn[1] === z0 ? 1 : -1;
+                // From the point on the side arriving to the point on the side leaving.
+                var p0 = i % 2 === 0 ? [cn[0], cn[1] + szn * r] : [cn[0] + sxn * r, cn[1]];
+                var p1 = i % 2 === 0 ? [cn[0] + sxn * r, cn[1]] : [cn[0], cn[1] + szn * r];
+                n = Math.max(1, Math.ceil(r * Math.SQRT2 / Math.min(step, 0.3)));
+                for (k = 0; k < n; k++) pts.push([p0[0] + (p1[0] - p0[0]) * k / n, p0[1] + (p1[1] - p0[1]) * k / n]);
+            } else if (r) {
                 var ox = cn[0] + (cn[0] === x0 ? r : -r), oz = cn[1] + (cn[1] === z0 ? r : -r);
                 n = Math.max(4, Math.ceil(r * Math.PI / 2 / Math.min(step, 0.15)));
                 for (k = 0; k < n; k++) {
@@ -1736,6 +1747,13 @@
         var ox = west ? pad.x + r : pad.x + pad.w - r, oz = south ? pad.z + r : pad.z + pad.d - r;
         var dx = x - ox, dz = z - oz;
         if ((west ? dx > 0 : dx < 0) || (south ? dz > 0 : dz < 0)) return out;
+        if (pad.cham && pad.cham[(south ? 's' : 'n') + (west ? 'w' : 'e')]) {
+            // A chamfer: slid square on to the cut, the way the arc pulls radially.
+            var ux = Math.abs(dx), uz = Math.abs(dz), over = (ux + uz - r) / 2;
+            if (over <= 0) return out;
+            out[0] = ox + Math.sign(dx) * (ux - over); out[1] = oz + Math.sign(dz) * (uz - over);
+            return out;
+        }
         var l = Math.hypot(dx, dz);
         if (l <= r) return out;
         out[0] = ox + dx / l * r; out[1] = oz + dz / l * r;
@@ -2303,6 +2321,19 @@
        every cup has clear of its own pad edge. */
     var CUP_PATCH = 0.8;
 
+    // Whether the ground all round a square of half-side h about (x, z) is at y.
+    function levelSquare(pad, x, z, h, y) {
+        var n = 8, i, t;
+        for (i = 0; i <= n; i++) {
+            t = -h + 2 * h * i / n;
+            if (Math.abs(P.padHeight(pad, x + t, z - h) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x + t, z + h) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x - h, z + t) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x + h, z + t) - y) > 0.004) return false;
+        }
+        return true;
+    }
+
     /* How finely to subdivide a piece of ground — asked of the ground rather
        than fixed, because the two things that are made of it are three
        different sizes now.
@@ -2314,7 +2345,7 @@
        the smallest hump actually on the pad, three segments to its radius,
        and it is paid for by every shell over the pad as well as by the ground
        itself, which is why it is floored rather than left to shrink. */
-    var TERRAIN_MIN = 0.45;
+    var TERRAIN_MIN = 0.45, TERRAIN_FINE = 0.2;
 
     function terrainRes(pad) {
         // A function surface has no smallest hump to read a scale off, and its
@@ -2323,7 +2354,10 @@
         /* Or the pad says. A bank three units across is drawn on a unit grid
            by the rule below, and a curve that is the whole point of the hole
            comes out in facets (The Backboard, `res: 0.45`). */
-        if (pad.res) return Math.max(TERRAIN_MIN, pad.res);
+        /* A pad may go finer than the floor if it says so: the mound or dish
+           a cup stands in (endless.js) is a ring a metre across, which the
+           floor's grid draws as an octagon. */
+        if (pad.res) return Math.max(TERRAIN_FINE, pad.res);
         var b = pad.bumps, i, least = Infinity;
         for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
         if (!isFinite(least)) return TERRAIN_RES;
@@ -2453,6 +2487,14 @@
             var room = Math.min(cup.x - pad.x, pad.x + pad.w - cup.x,
                                 cup.z - pad.z, pad.z + pad.d - cup.z) - 0.05;
             cut = { x: cup.x - cx, z: cup.z - cz, h: Math.min(CUP_PATCH, room) };
+            /* …and to the ground that is level with the cup. The patch is
+               flat, so where the ground round the cup is not — a cup on a
+               mound or in a dish whose level part is narrower than the
+               patch (endless.js) — its edge would stand proud of the slope
+               or sink below it as a square step. Shrink it until all of its
+               edge is on the level, and the grid carries the slope. */
+            var cyc = P.padHeight(pad, cup.x, cup.z);
+            while (cut.h > C.HOLE_R + 0.1 && !levelSquare(pad, cup.x, cup.z, cut.h, cyc)) cut.h -= 0.05;
             if (cut.h < C.HOLE_R + 0.1) { cut = null; holed = false; }
         }
 
