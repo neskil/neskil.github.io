@@ -4211,7 +4211,7 @@ is the place.
 | The Marble Run | Marble Run, Falling Dominoes | Three chutes and a tray at the bottom the long way round, or out through the hatch at the first turn and down by the flag. Coming round that turn sets the world's dominoes going. |
 | Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
 | Slack Water | Kelp Cathedral | Two currents across the line, one each way, and a bank of still water between. A current carries a ball sideways for as long as it is in it: stop on the slack, or go through both in one putt round the weed. |
-| Loop and Rink | Carnival on the Frozen River | A loop-the-loop, then a rink where the only thing that stops a ball is the rug the flag is in. |
+| Loop and Rink | Carnival on the Frozen River | A boardwalk to a loop-the-loop, then a hexagonal rink: ice in the middle, a band of green round the boards and a rug round the flag, so a ball stops at the edge or on the rug and never comes back down the lane. |
 | The Fairy Ring | Spore Rain | Eight toadstool bumpers round the flag and one big cap in front that throws the ball over them. |
 | The Orrery | Library with a Brass Orrery | Three arms on one spindle at three speeds. |
 | The Cloud Ladder | The Cloud Armada | Four landings at four heights, 0.7 g, nothing rolls between them. |

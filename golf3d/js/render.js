@@ -1377,7 +1377,7 @@
             }
             var mesh = new THREE.Mesh(geo, set[i]);
             mesh.position.set(cx, cy + (pad.bumps || pad.field ? 0 : height * f) +
-                (pad.r ? INLAY_LIFT : 0), cz);
+                discLift(pad), cz);
             // Lit by the sun and darkened by anything standing on the pad, but
             // casting nothing itself: a cut-out shadow needs a depth material
             // of its own, and six of those per pad would cost more than the
@@ -1413,6 +1413,17 @@
        between the two. */
     function discShape(pad) {
         var shape = new THREE.Shape();
+        // A polygon (physics.padRadius, `sides`): its corners, exactly.
+        if (pad.sides) {
+            var ns = pad.sides, k, a;
+            for (k = 0; k < ns; k++) {
+                a = (pad.turn || 0) - k / ns * Math.PI * 2;
+                if (k) shape.lineTo(Math.cos(a) * pad.r, -Math.sin(a) * pad.r);
+                else shape.moveTo(Math.cos(a) * pad.r, -Math.sin(a) * pad.r);
+            }
+            shape.closePath();
+            return shape;
+        }
         if (!pad.wave) {
             shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
             return shape;
@@ -1504,9 +1515,10 @@
             }
             if (!inside) continue;
             // A cup is either well clear of the cut or, for a green, well
-            // inside it, where the green's own hole stands in for the cup's.
+            // inside it, where the green's own hole stands in for the cup's —
+            // or for ice under a rug (`layer`), where the ice is holed too.
             clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2 ||
-                (grows && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
+                ((grows || q.layer) && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
             for (j = 0; j < out.length && clear; j++) {
                 clear = Math.hypot(out[j].x + out[j].w / 2 - qx, out[j].z + out[j].d / 2 - qz) >
                     out[j].r + q.r + 0.02;
@@ -1609,6 +1621,13 @@
     // two z-fighting over the whole green; it is a third of a millimetre at
     // the scale of the ball and no ball has ever noticed it.
     var INLAY_LIFT = 0.012;
+    /* What a round pad is drawn lifted by. Every disc gets the hair; one
+       laid into another round one (a rug on the ice of a hexagonal rink, on
+       a green hexagon) says which `layer` it is, and gets a hair more for
+       each, or the two coplanar tops flicker against each other. */
+    function discLift(pad) {
+        return pad.r ? INLAY_LIFT * (1 + (pad.layer || 0)) : 0;
+    }
 
     // The outline of a pad, as world-space points, going round once. Used for
     // the skirt below and nowhere else — everything that needs the *inside*
@@ -3059,7 +3078,7 @@
             look = look.map(function (m) { return m === R.surf.side ? m : bare; });
         }
         var mesh = new THREE.Mesh(geo, look);
-        mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
+        mesh.position.set(cx, cy - thick / 2 + discLift(pad), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
@@ -3112,7 +3131,7 @@
 
     function markY(pad, x, z) {
         return P.padHeight(pad, x, z) +
-            (pad.inlay ? INLAY_LIFT : 0) +
+            (pad.inlay ? discLift(pad) || INLAY_LIFT : 0) +
             (SHELL_HEIGHT[pad.kind] || 0) + MARK_LIFT;
     }
 
@@ -5561,7 +5580,7 @@
         for (i = 0; i < hole.pads.length; i++) {
             if (hole.pads[i].inlay && P.padContains(hole.pads[i], cup.x, cup.z) &&
                 Math.abs(P.padHeight(hole.pads[i], cup.x, cup.z) - cup.y) < 0.06) {
-                lift = INLAY_LIFT;
+                lift = Math.max(lift, discLift(hole.pads[i]) || INLAY_LIFT);
             }
         }
 
