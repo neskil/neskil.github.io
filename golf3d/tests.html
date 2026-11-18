@@ -6118,6 +6118,71 @@
             assert('the bot holes nearly every one', sunk >= N - 2, sunk + ' of ' + N);
             assert('…nearly always within two of par', fair >= N - 3, fair + ' of ' + N);
             assert('and the lanes are not all the same lane', Object.keys(kinds).length >= 6, Object.keys(kinds).join(', '));
+
+            /* The ground a cup stands in (v1.187.0, the owner's screenshot: a
+               square of level turf standing out of a mound with its sides
+               showing). A mound or a dish round a cup is level well past the
+               cup's flat patch, climbs or falls over a ramp a putt can ride,
+               and never reaches a joint with the lane before it — where it
+               did, the carpet stepped there by the mound's height. And the
+               corners: rounded, cut at forty-five degrees, left square, or a
+               mix, and physics has the cut where the kerb is. */
+            var lands = 0, level = true, gentle = true, joints = true, styles = {}, cut45 = 0, cutOk = true, whyL = '', steep = 0;
+            for (k = 0; k < 160; k++) {
+                var hh = E.generate(E.mix(77, k), 4 + k % 12, W[(k * 13) % W.length]);
+                styles[hh.endless.corners] = 1;
+                hh.pads.forEach(function (pd) {
+                    // Every joint along this pad's edge is level or a real step, never a mound's lip.
+                    var pts = [], m, sx, sz, cx = pd.x + pd.w / 2, cz = pd.z + pd.d / 2;
+                    for (m = 0; m < 40; m++) {
+                        var tt = m / 40 * 4, side = Math.floor(tt), f = tt - side;
+                        pts.push(side === 0 ? [pd.x + pd.w * f, pd.z] : side === 1 ? [pd.x + pd.w, pd.z + pd.d * f] :
+                            side === 2 ? [pd.x + pd.w * (1 - f), pd.z + pd.d] : [pd.x, pd.z + pd.d * (1 - f)]);
+                    }
+                    pts.forEach(function (q) {
+                        sx = Math.sign(cx - q[0]) * 0.03; sz = Math.sign(cz - q[1]) * 0.03;
+                        if (pd.inlay || !P.padContains(pd, q[0] + sx, q[1] + sz)) return;
+                        var out = P.surfaceTop(hh, q[0] - sx, q[1] - sz);
+                        if (!out || out.pad === pd || out.pad.inlay) return;
+                        // A kerb between two pieces side by side is not a joint.
+                        if (hh.walls.some(function (wl) {
+                            return !wl.move && !wl.spin && !wl.swing && !wl.sails && P.circleBox(q[0], q[1], 0.05, P.wallBox(wl, 0));
+                        })) return;
+                        var dy = Math.abs(P.padHeight(pd, q[0] + sx, q[1] + sz) - out.y);
+                        if (dy > 0.012 && dy < 0.4) { joints = false; whyL = k + ': ' + hh.name + ' steps ' + dy.toFixed(2); }
+                    });
+                    // A chamfered corner: the point 0.3 r in on the diagonal is off the pad, as the kerb has it.
+                    Object.keys(pd.cham || {}).forEach(function (c) {
+                        var r0 = pd.round[c], X = c[1] === 'w' ? pd.x + 0.3 * r0 : pd.x + pd.w - 0.3 * r0,
+                            Z = c[0] === 's' ? pd.z + 0.3 * r0 : pd.z + pd.d - 0.3 * r0,
+                            X2 = c[1] === 'w' ? pd.x + 0.6 * r0 : pd.x + pd.w - 0.6 * r0,
+                            Z2 = c[0] === 's' ? pd.z + 0.6 * r0 : pd.z + pd.d - 0.6 * r0;
+                        cut45++;
+                        if (P.padContains(pd, X, Z) || !P.padContains(pd, X2, Z2)) cutOk = false;
+                    });
+                });
+                // (Off the cup itself, which answers as a pad of its own.)
+                var under = P.surfaceTop(hh, hh.cup.x + 0.6, hh.cup.z);
+                var ring = under && (under.pad.bumps || []).filter(function (b) { return b.ring && b.ring.fill; })[0];
+                if (!ring) continue;
+                lands++;
+                for (var a3 = 0; a3 < 16; a3++) {
+                    var ca = Math.cos(a3 / 16 * Math.PI * 2), sa = Math.sin(a3 / 16 * Math.PI * 2);
+                    if (Math.abs(P.padHeight(under.pad, hh.cup.x + ca * 0.8, hh.cup.z + sa * 0.8) - hh.cup.y) > 0.004) level = false;
+                    for (var d3 = 0.8; d3 < 3.2; d3 += 0.05) {
+                        var xa = hh.cup.x + ca * d3, za = hh.cup.z + sa * d3, xb = xa + ca * 0.05, zb = za + sa * 0.05;
+                        if (!P.padContains(under.pad, xb, zb)) break;
+                        steep = Math.max(steep, Math.abs(P.padHeight(under.pad, xb, zb) - P.padHeight(under.pad, xa, za)) / 0.05);
+                    }
+                }
+            }
+            gentle = steep < 0.45;
+            assert('a cup on a mound or in a dish is level well past its patch (there are ' + lands + ')', lands >= 10 && level, lands + ' cups');
+            assert('…and the mound or dish falls away over a ramp a putt can ride', gentle, 'steepest ' + steep.toFixed(2));
+            assert('…and the carpet meets the lane before it on the level: every joint is flush or a real step', joints, whyL);
+            assert('corners come rounded, at forty-five degrees, square, or a mix', styles.round && styles.cham && styles.square && styles.mix,
+                Object.keys(styles).join(', '));
+            assert('…and a forty-five degree corner is cut where its kerb stands (there are ' + cut45 + ')', cut45 >= 20 && cutOk);
         })();
 
         section('PRO SHOP & BALL COSMETICS');

@@ -4671,7 +4671,7 @@ body.lane-swing .swipe-hint {
 /* Six columns: the two doors across the top, the three showcases (every
    kind, mini golf, the long game) a third each, then the challenge and the
    draw a half each. The long game used to be one deal in four inside a
-   single Showcase button, and easy to never meet (v1.187.0). */
+   single Showcase button, and easy to never meet (v1.188.0). */
 .menu-featured { grid-template-columns: repeat(6, 1fr); }
 .menu-featured .showcase-go { grid-column: span 2; }
 .menu-featured .challenge-go, .menu-featured .surprise-go { grid-column: span 3; }

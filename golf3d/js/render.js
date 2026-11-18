@@ -1247,11 +1247,11 @@
     function slabShape(pad) {
         if (pad.lane) return laneShape(pad);
         var shape = new THREE.Shape();
-        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
+        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {}, ch = pad.cham || {};
         // Counter-clockwise in shape space, each corner as [x, y, its world
-        // name, the angle its arc starts at].
-        var corners = [[-hw, -hd, c.nw, Math.PI], [hw, -hd, c.ne, Math.PI * 1.5],
-                       [hw, hd, c.se, 0], [-hw, hd, c.sw, Math.PI / 2]];
+        // name, the angle its arc starts at, and whether it is cut straight].
+        var corners = [[-hw, -hd, c.nw, Math.PI, ch.nw], [hw, -hd, c.ne, Math.PI * 1.5, ch.ne],
+                       [hw, hd, c.se, 0, ch.se], [-hw, hd, c.sw, Math.PI / 2, ch.sw]];
         var i, k, r, ox, oy, a, n, first = true;
         for (i = 0; i < corners.length; i++) {
             r = corners[i][2];
@@ -1263,7 +1263,8 @@
             }
             ox = corners[i][0] - Math.sign(corners[i][0]) * r;
             oy = corners[i][1] - Math.sign(corners[i][1]) * r;
-            n = Math.max(6, Math.ceil(r / 0.12));
+            // A chamfer (pad.cham) is the chord between the arc's two ends.
+            n = corners[i][4] ? 1 : Math.max(6, Math.ceil(r / 0.12));
             for (k = 0; k <= n; k++) {
                 a = corners[i][3] + (Math.PI / 2) * k / n;
                 if (first) shape.moveTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
@@ -1377,7 +1378,7 @@
             }
             var mesh = new THREE.Mesh(geo, set[i]);
             mesh.position.set(cx, cy + (pad.bumps || pad.field ? 0 : height * f) +
-                (pad.r ? INLAY_LIFT : 0), cz);
+                discLift(pad), cz);
             // Lit by the sun and darkened by anything standing on the pad, but
             // casting nothing itself: a cut-out shadow needs a depth material
             // of its own, and six of those per pad would cost more than the
@@ -1413,6 +1414,17 @@
        between the two. */
     function discShape(pad) {
         var shape = new THREE.Shape();
+        // A polygon (physics.padRadius, `sides`): its corners, exactly.
+        if (pad.sides) {
+            var ns = pad.sides, k, a;
+            for (k = 0; k < ns; k++) {
+                a = (pad.turn || 0) - k / ns * Math.PI * 2;
+                if (k) shape.lineTo(Math.cos(a) * pad.r, -Math.sin(a) * pad.r);
+                else shape.moveTo(Math.cos(a) * pad.r, -Math.sin(a) * pad.r);
+            }
+            shape.closePath();
+            return shape;
+        }
         if (!pad.wave) {
             shape.absarc(0, 0, pad.r, 0, Math.PI * 2, false);
             return shape;
@@ -1504,9 +1516,10 @@
             }
             if (!inside) continue;
             // A cup is either well clear of the cut or, for a green, well
-            // inside it, where the green's own hole stands in for the cup's.
+            // inside it, where the green's own hole stands in for the cup's —
+            // or for ice under a rug (`layer`), where the ice is holed too.
             clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2 ||
-                (grows && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
+                ((grows || q.layer) && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
             for (j = 0; j < out.length && clear; j++) {
                 clear = Math.hypot(out[j].x + out[j].w / 2 - qx, out[j].z + out[j].d / 2 - qz) >
                     out[j].r + q.r + 0.02;
@@ -1609,6 +1622,13 @@
     // two z-fighting over the whole green; it is a third of a millimetre at
     // the scale of the ball and no ball has ever noticed it.
     var INLAY_LIFT = 0.012;
+    /* What a round pad is drawn lifted by. Every disc gets the hair; one
+       laid into another round one (a rug on the ice of a hexagonal rink, on
+       a green hexagon) says which `layer` it is, and gets a hair more for
+       each, or the two coplanar tops flicker against each other. */
+    function discLift(pad) {
+        return pad.r ? INLAY_LIFT * (1 + (pad.layer || 0)) : 0;
+    }
 
     // The outline of a pad, as world-space points, going round once. Used for
     // the skirt below and nowhere else — everything that needs the *inside*
@@ -1679,10 +1699,20 @@
         // bearing its arc starts at (atan2 of z, x about its centre).
         var corners = [[x0, z0, c.sw || 0, Math.PI], [x1, z0, c.se || 0, Math.PI * 1.5],
                        [x1, z1, c.ne || 0, 0], [x0, z1, c.nw || 0, Math.PI / 2]];
+        var ch = pad.cham || {}, cham = [ch.sw, ch.se, ch.ne, ch.nw];
         for (i = 0; i < 4; i++) {
             var cn = corners[i], nx = corners[(i + 1) % 4];
             r = cn[2];
-            if (r) {
+            if (r && cham[i]) {
+                // Cut at forty-five degrees (pad.cham): the chord between the
+                // arc's two ends, walked at the outline's own step.
+                var sxn = cn[0] === x0 ? 1 : -1, szn = cn[1] === z0 ? 1 : -1;
+                // From the point on the side arriving to the point on the side leaving.
+                var p0 = i % 2 === 0 ? [cn[0], cn[1] + szn * r] : [cn[0] + sxn * r, cn[1]];
+                var p1 = i % 2 === 0 ? [cn[0] + sxn * r, cn[1]] : [cn[0], cn[1] + szn * r];
+                n = Math.max(1, Math.ceil(r * Math.SQRT2 / Math.min(step, 0.3)));
+                for (k = 0; k < n; k++) pts.push([p0[0] + (p1[0] - p0[0]) * k / n, p0[1] + (p1[1] - p0[1]) * k / n]);
+            } else if (r) {
                 var ox = cn[0] + (cn[0] === x0 ? r : -r), oz = cn[1] + (cn[1] === z0 ? r : -r);
                 n = Math.max(4, Math.ceil(r * Math.PI / 2 / Math.min(step, 0.15)));
                 for (k = 0; k < n; k++) {
@@ -1717,6 +1747,13 @@
         var ox = west ? pad.x + r : pad.x + pad.w - r, oz = south ? pad.z + r : pad.z + pad.d - r;
         var dx = x - ox, dz = z - oz;
         if ((west ? dx > 0 : dx < 0) || (south ? dz > 0 : dz < 0)) return out;
+        if (pad.cham && pad.cham[(south ? 's' : 'n') + (west ? 'w' : 'e')]) {
+            // A chamfer: slid square on to the cut, the way the arc pulls radially.
+            var ux = Math.abs(dx), uz = Math.abs(dz), over = (ux + uz - r) / 2;
+            if (over <= 0) return out;
+            out[0] = ox + Math.sign(dx) * (ux - over); out[1] = oz + Math.sign(dz) * (uz - over);
+            return out;
+        }
         var l = Math.hypot(dx, dz);
         if (l <= r) return out;
         out[0] = ox + dx / l * r; out[1] = oz + dz / l * r;
@@ -2284,6 +2321,19 @@
        every cup has clear of its own pad edge. */
     var CUP_PATCH = 0.8;
 
+    // Whether the ground all round a square of half-side h about (x, z) is at y.
+    function levelSquare(pad, x, z, h, y) {
+        var n = 8, i, t;
+        for (i = 0; i <= n; i++) {
+            t = -h + 2 * h * i / n;
+            if (Math.abs(P.padHeight(pad, x + t, z - h) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x + t, z + h) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x - h, z + t) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x + h, z + t) - y) > 0.004) return false;
+        }
+        return true;
+    }
+
     /* How finely to subdivide a piece of ground — asked of the ground rather
        than fixed, because the two things that are made of it are three
        different sizes now.
@@ -2295,7 +2345,7 @@
        the smallest hump actually on the pad, three segments to its radius,
        and it is paid for by every shell over the pad as well as by the ground
        itself, which is why it is floored rather than left to shrink. */
-    var TERRAIN_MIN = 0.45;
+    var TERRAIN_MIN = 0.45, TERRAIN_FINE = 0.2;
 
     function terrainRes(pad) {
         // A function surface has no smallest hump to read a scale off, and its
@@ -2304,7 +2354,10 @@
         /* Or the pad says. A bank three units across is drawn on a unit grid
            by the rule below, and a curve that is the whole point of the hole
            comes out in facets (The Backboard, `res: 0.45`). */
-        if (pad.res) return Math.max(TERRAIN_MIN, pad.res);
+        /* A pad may go finer than the floor if it says so: the mound or dish
+           a cup stands in (endless.js) is a ring a metre across, which the
+           floor's grid draws as an octagon. */
+        if (pad.res) return Math.max(TERRAIN_FINE, pad.res);
         var b = pad.bumps, i, least = Infinity;
         for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
         if (!isFinite(least)) return TERRAIN_RES;
@@ -2434,6 +2487,14 @@
             var room = Math.min(cup.x - pad.x, pad.x + pad.w - cup.x,
                                 cup.z - pad.z, pad.z + pad.d - cup.z) - 0.05;
             cut = { x: cup.x - cx, z: cup.z - cz, h: Math.min(CUP_PATCH, room) };
+            /* …and to the ground that is level with the cup. The patch is
+               flat, so where the ground round the cup is not — a cup on a
+               mound or in a dish whose level part is narrower than the
+               patch (endless.js) — its edge would stand proud of the slope
+               or sink below it as a square step. Shrink it until all of its
+               edge is on the level, and the grid carries the slope. */
+            var cyc = P.padHeight(pad, cup.x, cup.z);
+            while (cut.h > C.HOLE_R + 0.1 && !levelSquare(pad, cup.x, cup.z, cut.h, cyc)) cut.h -= 0.05;
             if (cut.h < C.HOLE_R + 0.1) { cut = null; holed = false; }
         }
 
@@ -3059,7 +3120,7 @@
             look = look.map(function (m) { return m === R.surf.side ? m : bare; });
         }
         var mesh = new THREE.Mesh(geo, look);
-        mesh.position.set(cx, cy - thick / 2 + (pad.r ? INLAY_LIFT : 0), cz);
+        mesh.position.set(cx, cy - thick / 2 + discLift(pad), cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
@@ -3112,7 +3173,7 @@
 
     function markY(pad, x, z) {
         return P.padHeight(pad, x, z) +
-            (pad.inlay ? INLAY_LIFT : 0) +
+            (pad.inlay ? discLift(pad) || INLAY_LIFT : 0) +
             (SHELL_HEIGHT[pad.kind] || 0) + MARK_LIFT;
     }
 
@@ -5561,7 +5622,7 @@
         for (i = 0; i < hole.pads.length; i++) {
             if (hole.pads[i].inlay && P.padContains(hole.pads[i], cup.x, cup.z) &&
                 Math.abs(P.padHeight(hole.pads[i], cup.x, cup.z) - cup.y) < 0.06) {
-                lift = INLAY_LIFT;
+                lift = Math.max(lift, discLift(hole.pads[i]) || INLAY_LIFT);
             }
         }
 
@@ -6194,58 +6255,28 @@
        worlds switched off, `stepPlace` does nothing and the hole stands in
        its theme's own sky with worlds.js's simple set piece — a complete
        hole either way. */
-    /* Only the switch in Courses writes this. The two safety nets below — a
-       build that did not finish last visit, a frame rate that would not come
-       up — turn live worlds off for this visit alone (R.liveSession) and try
-       again on the next. They used to write '0' here, which read as the
-       player's own choice from then on: on a phone a tab closed while a world
-       was building looks just like a crash, and one of those turned the
-       worlds off for good (the owner: "should be on by default — why is it
-       not?"). The key is new with that change, so a '0' a safety net wrote
-       under the old one is not carried over. */
-    var LIVE_KEY = 'golf3d.live';
-    /* Whether the last visit left a build unfinished — read once, here, as
-       the page loads. backdrop.mjs (a module, so it runs after this) sets the
-       mark while *this* visit's world builds, and liveWanted used to read it
-       on every call: asked during the first world's build, it found its own
-       visit's mark, called it a crash and turned live worlds off. That was
-       every new phone, whose first world builds while the demo or the
-       picker is up and something is asking. */
-    var crashedLast = (function () {
-        try {
-            if (!localStorage.getItem('golf3d.worldBuilding')) return false;
-            localStorage.removeItem('golf3d.worldBuilding');
-            return true;
-        } catch (e) { return false; }
-    })();
+    /* Live worlds are on at the start of every visit, on every device, and
+       nothing carries an "off" over to the next one (the owner, v1.155.0,
+       v1.167.1 and v1.186.1: "should always be on as default … each start it
+       refreshes to on"). The switch in Settings and the frame-rate net in
+       stepPlace turn them off for this visit alone (R.liveSession); the next
+       page load is on again.
+
+       Two things used to start a visit with them off, and both are gone:
+       a stored '0' under 'golf3d.live', which the switch wrote and which a
+       safety net once wrote too; and a mark backdrop.mjs leaves while a world
+       builds, read at the next load as "the build killed the page" — but on
+       a phone a tab closed while a world was loading leaves exactly that
+       mark, so an ordinary visit turned the next one's worlds off. Both keys
+       are cleared here so no old value lingers. */
+    try { localStorage.removeItem('golf3d.live'); localStorage.removeItem('golf3d.worldBuilding'); } catch (e) { /* ignore */ }
     function liveWanted() {
         if (R.liveOverride !== undefined) return R.liveOverride;
-        /* On by default, everywhere — a phone too. It used to be a
-           desktop's job only, and the owner's phone, which runs the game at
-           sixty frames, was shown the stand-in scenery and wondered where
-           the worlds were. What protects a machine that cannot do it is
-           measured, not guessed: the world's resolution is stepped down
-           while the frame rate is poor and live worlds are switched off if
-           that is not enough (stepPlace), and a build that killed the page
-           last time is not tried again (backdrop.mjs leaves a mark while it
-           builds). */
-        if (crashedLast) {
-            crashedLast = false;
-            R.liveSession = false;
-            setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
-        }
-        if (R.liveSession === false) return false;
-        try {
-            var v = localStorage.getItem(LIVE_KEY);
-            if (v === '0') return false;
-            if (v === '1') return true;
-        } catch (e) { /* ignore */ }
-        return !(navigator.deviceMemory && navigator.deviceMemory <= 2);
+        return R.liveSession !== false;
     }
     function setLive(on) {
-        try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
         R.liveOverride = undefined;
-        R.liveSession = undefined;   // the player's word outranks a safety net
+        R.liveSession = on ? undefined : false;   // this visit only
         if (R.hole) setPlace(R.hole);
         return liveWanted();
     }
@@ -6505,7 +6536,7 @@
         }
         if (live && gov.badWins >= 3 && R.liveOverride === undefined) {
             gov.badWins = 0;
-            // This visit only — see LIVE_KEY.
+            // This visit only — see liveWanted.
             R.liveSession = false;
             setPlace(R.hole);
             window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));

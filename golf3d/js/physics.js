@@ -396,6 +396,15 @@
        always was. */
     function padRadius(pad, ang) {
         var w = pad.wave, i, s, r = pad.r, c, n;
+        /* A round pad may be a regular polygon (`sides`, turned by `turn`):
+           a hexagonal rink. `pad.r` is the corner and `pad.rIn` the middle of
+           a side, so it stays inside its circle like everything else here. */
+        if (pad.sides) {
+            c = Math.PI * 2 / pad.sides;
+            s = ang - (pad.turn || 0);
+            s -= c * Math.floor(s / c) + c / 2;
+            return pad.rIn / Math.cos(s);
+        }
         /* A round pad may be an oval, and a bunker usually is: a circle is
            what a compass draws, and a hollow scraped out of a hillside is
            longer one way than the other. `rx` and `rz` are the semi-axes and
@@ -439,7 +448,7 @@
                paying for in the band between the wave's troughs and its
                crests — which is a tenth of the disc. */
             if (q > pad.r * pad.r) return false;
-            if (!pad.wave || q <= pad.rIn * pad.rIn) return true;
+            if ((!pad.wave && !pad.sides) || q <= pad.rIn * pad.rIn) return true;
             var rr = padRadius(pad, Math.atan2(dz, dx));
             return q <= rr * rr;
         }
@@ -479,6 +488,10 @@
         if (!r) return false;
         var ox = west ? pad.x + r - x : x - (pad.x + pad.w - r);
         var oz = south ? pad.z + r - z : z - (pad.z + pad.d - r);
+        /* A corner named in `pad.cham` is cut off at forty-five degrees
+           instead (endless.js): the line between the same two points the
+           arc would join, so the ground it gives up is the triangle beyond. */
+        if (pad.cham && pad.cham[south ? (west ? 'sw' : 'se') : (west ? 'nw' : 'ne')]) return ox + oz > r;
         return ox > 0 && oz > 0 && ox * ox + oz * oz > r * r;
     }
 

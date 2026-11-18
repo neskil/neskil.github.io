@@ -8042,7 +8042,7 @@
        is filed under mini golf only so the picker has a shelf for it. */
     G3.SHOWCASE_PER_KIND = 2;
 
-    /* Three deals, one button each (the owner, v1.187.0: "the long game is a
+    /* Three deals, one button each (the owner, v1.188.0: "the long game is a
        bit hidden"). The first is the game in eight holes, two of every kind;
        the other two are six holes of one game — mini golf (mini, crazy and
        adventure, the games played with the mini bag) or the long game.

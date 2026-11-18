@@ -4762,7 +4762,7 @@
         syncLive();
         A.tick(0.4);
         toast(R.liveWanted ? 'Live 3D worlds on — each tour hole sits in its world'
-                           : 'Live 3D worlds off — classic sky & backdrop');
+                           : 'Live 3D worlds off for this visit — they are back on next time');
     }
 
     function toggleQualityPad(open) {
@@ -7709,9 +7709,7 @@
         });
         // render.js gave up on the live world for this machine.
         window.addEventListener('g3-live-off', function (e) {
-            toast(e.detail === 'crash'
-                ? 'Live worlds are off for this visit: the last one did not finish loading. Settings switches them back on.'
-                : 'Live worlds are off for this visit: this device was struggling. Settings switches them back on.');
+            toast('Live worlds are off for this visit: this device was struggling. Settings switches them back on.');
             syncLive();
         });
         // Something in the world happened because of the golf (render.js → stepPlace).

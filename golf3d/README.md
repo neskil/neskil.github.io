@@ -4211,7 +4211,7 @@ is the place.
 | The Marble Run | Marble Run, Falling Dominoes | Three chutes and a tray at the bottom the long way round, or out through the hatch at the first turn and down by the flag. Coming round that turn sets the world's dominoes going. |
 | Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
 | Slack Water | Kelp Cathedral | Two currents across the line, one each way, and a bank of still water between. A current carries a ball sideways for as long as it is in it: stop on the slack, or go through both in one putt round the weed. |
-| Loop and Rink | Carnival on the Frozen River | A loop-the-loop, then a rink where the only thing that stops a ball is the rug the flag is in. |
+| Loop and Rink | Carnival on the Frozen River | A boardwalk to a loop-the-loop, then a hexagonal rink: ice in the middle, a band of green round the boards and a rug round the flag, so a ball stops at the edge or on the rug and never comes back down the lane. |
 | The Fairy Ring | Spore Rain | Eight toadstool bumpers round the flag and one big cap in front that throws the ball over them. |
 | The Orrery | Library with a Brass Orrery | Three arms on one spindle at three speeds. |
 | The Cloud Ladder | The Cloud Armada | Four landings at four heights, 0.7 g, nothing rolls between them. |
@@ -4423,18 +4423,18 @@ own, a bot that holes out within two of par, and the deal to its shape;
 renderer and are looked at, not asserted: `?world=<id>&live=1`, and
 `G3.backdrop.debug()` in the console says where the hole landed.
 
-### Live worlds are on by default, on a phone too
+### Live worlds are on at the start of every visit
 
 They were a desktop's default only, and the owner's phone — which runs the
-game at sixty frames — showed the stand-in scenery (v1.155.0). Now
-`render.js → liveWanted` says yes unless the player has said no or the
-device reports 2 GB or less. What protects a weak machine is measured:
-`stepPlace` takes a quarter off the world's resolution each two seconds the
-frame rate is under 26, down to a third of the stage, and switches live
-worlds off (with a toast, `g3-live-off`) if it is still under 16 at the
-bottom. `backdrop.mjs` leaves a mark in localStorage while a world builds; a
-mark still there at the next visit means the build killed the page, and
-live worlds stay off until asked for. `?live=1` overrides all of it.
+game at sixty frames — showed the stand-in scenery (v1.155.0). Since v1.186.1
+every page load starts with them on, whatever the device and whatever was
+chosen last time: `render.js → liveWanted` is yes unless the switch in
+Settings or the frame-rate net has said no *this visit*. What protects a weak
+machine is measured: `stepPlace` steps the world's resolution down while the
+frame rate is poor, and switches live worlds off for the visit (with a toast,
+`g3-live-off`) if that is not enough. Nothing is kept in localStorage for it;
+the old `golf3d.live` and `golf3d.worldBuilding` keys are cleared at load.
+`?live=0|1` overrides all of it.
 
 ### The wait for a world
 
@@ -4558,7 +4558,7 @@ the dive nor the wipe.
 
 One page (v1.153.0). On top, three ways to be dealt a round: **Play the
 World Tour** across the width, **Showcase** and **Challenge** side by side
-under it (since v1.187.0 the showcase is three buttons in a row — every kind,
+under it (since v1.188.0 the showcase is three buttons in a row — every kind,
 mini golf, the long game — and Challenge and Surprise me share the row under). Then one row of tabs that files everything there is: **Worlds**
 first — every tour hole as a small sky over its own ground, playable by
 itself, with its stars or the word *new* — then the four kinds of drawn
@@ -4640,9 +4640,30 @@ running. Every edge that neither leads on nor lies inside its own room gets a
 kerb (segmented along a ramp; where two pieces at different heights sit side
 by side, one kerb from the lower floor to a rail over the higher), and every
 corner with nothing round it — the outside of a turn, the ends of the lane, a
-room's far corners — is rounded off (`pad.round`) with a drawn curve of kerb.
+room's far corners — is cut off the hole's own way (v1.187.0, the owner:
+"90 or 45 or round or a mix. Variation is the key"): rounded (`pad.round`,
+a drawn curve of kerb), at forty-five degrees (`pad.cham` names which of the
+`pad.round` corners are a straight chord instead — `physics.cornerCut`,
+`render.slabShape`/`roundedOutline`/`ontoRound` read it), left square, or
+each corner its own of the three (`hole.endless.corners`). A piece whose
+ground is shaped against its kerbs (a mound, a dish, a camber) has all of
+its kerbs raised and sunk together by the most it rises and falls along its
+edge (`pieceShape`), so a step in a rail falls at a joint between pieces.
 A quarter of holes have timber kerbs. The cup cell is plain, a bowl, a mound,
-guarded or between pot bunkers. Par is two plus one each for length, four
+guarded or between pot bunkers.
+
+**A cup on a mound or in a dish** (`land`, v1.187.0 — the owner's screenshot:
+a square of level turf standing out of the old mound with its sides showing).
+The cup's flat patch is a square (`render.js → addTerrain`, `CUP_PATCH`),
+and the old mound was level only for 0.75 round the cup, so the patch's
+corners stood out of the slope. Now both are a filled ring (`courses.mesa`,
+negative for a dish): level for `CUP_TOP` (0.85) all round the cup, then a
+raised cosine down or up over as much as `CUP_RUN` (1.8) — but never as far
+as the joint the ball came in by, or the carpet steps there by the mound's
+height. The pad is drawn on a 0.2 grid (`pad.res`; `TERRAIN_FINE` is the
+floor for a pad that asks), and the renderer shrinks the patch to whatever
+of it is level (`levelSquare`), so a cup on uneven ground anywhere gets a
+smaller flat square instead of a step. Par is two plus one each for length, four
 turns, two hard things and a hairpin. Built with `portals.world()`, so every
 lane is open, unstaked and hung in the air. `tests.html → ENDLESS` plays
 three dozen with the bot.
@@ -4724,7 +4745,7 @@ its home world, never the playtest), checks that the dice change the deal and
 that every course can come up, and that a showcase record goes to the round
 furthest under par rather than the shortest.
 
-**Three showcases, not one** (v1.187.0; the owner: "the long game is a bit
+**Three showcases, not one** (v1.188.0; the owner: "the long game is a bit
 hidden"). `G3.SHOWCASE_KINDS` lists them and the picker has a button each:
 **Showcase** (the eight above, id `'showcase'`), **Mini golf** (six holes, two
 each of mini, crazy and adventure — `'showcase-mini'`) and **Long game** (six
@@ -4757,7 +4778,7 @@ With no save, or everything played alike, the weights are equal and the pick
 is exactly the even one — `weightedIndex` gives `floor(n × length)` to the
 digit, which is what the older tests holding the dice still check.
 
-**A showcase goes by stars before plays** (v1.187.0, `courses.js →
+**A showcase goes by stars before plays** (v1.188.0, `courses.js →
 dealHoles`). The owner's order: holes with no stars on them first (never
 played, or picked up), then the one-star holes, then the two-star ones, and
 only once every hole in reach has three is it the plain draw by play count.

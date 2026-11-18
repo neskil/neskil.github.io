@@ -54,6 +54,17 @@
         return p;
     }
 
+    /* A regular polygon (physics.padRadius, `sides`) standing on its own or,
+       with `layer`, laid into another: corner radius `r`, the first corner
+       due +x turned by `turn`. */
+    function ngon(cx, cz, r, sides, kind, layer, turn) {
+        var p = pad(cx - r, cz - r, 2 * r, 2 * r, 0, kind || 'green');
+        p.r = r; p.sides = sides; p.turn = turn || 0;
+        p.rIn = r * Math.cos(Math.PI / sides);
+        if (layer) { p.inlay = true; p.layer = layer; }
+        return p;
+    }
+
     // A kerb: a low rail along a segment, for the few edges a world closes.
     function kerb(x0, z0, x1, z1, y, h) {
         var len = Math.hypot(x1 - x0, z1 - z0);
@@ -101,7 +112,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -271,34 +282,52 @@
         })
     });
 
-    /* A fair on a frozen river. The lane is ice, the loop is the ride, and
-       what comes out of the loop comes out on to a rink with one round rug
-       of green in the middle of it and the flag in the rug. Nothing stops on
-       ice: the rug is the only place a ball comes to rest, so the shot is the
-       weight that gets round the loop and no more. A skater goes round. */
-    add({
-        id: 'carnival', title: 'Loop and Rink', world: 'Carnival on the Frozen River', kind: 'city', tier: 2,
-        caption: 'A loop-the-loop on a frozen river, and one rug of green on the rink beyond it.',
-        theme: 'carnival',
-        hole: world({
-            name: 'Loop and Rink', grounded: true, par: 3, bag: ROLL,
-            blurb: 'Round the loop and out on to the rink. Nothing stops on ice except on the rug — and the rug is where the flag is.',
-            pads: [
-                pad(0, 0, 4, 4, 0, 'green'),
-                pad(0, 4, 4, 9, 0, 'ice'),
-                pad(-3, 13, 11, 10, 0, 'ice'),
-                circle(3, 18.5, 1.9, 'green')
-            ],
-            loops: [loop(1.5, 8, 0, 1.1, 1)],
-            extra: [
-                kerb(0, 0, 4, 0), kerb(0, 0, 0, 13), kerb(4, 0, 4, 13),
-                kerb(-3, 13, 0, 13), kerb(4, 13, 8, 13),
-                kerb(-3, 13, -3, 23), kerb(8, 13, 8, 23), kerb(-3, 23, 8, 23),
-                spinner(3, 18.5, 5.4, 0.3, { spin: 0.9 })
-            ],
-            tee: { x: 1.5, z: 2 }, cup: { x: 3, z: 19.4 }
-        })
-    });
+    /* A fair on a frozen river. The loop is the ride, and what comes out of
+       it comes out on to a hexagonal rink: a band of green round the edge,
+       ice inside it, and one round rug of green in the middle with the flag
+       in it. Ice carries a ball; the green round the boards and the rug are
+       what stop it. So the shot is the weight that gets round the loop, and
+       anything too firm is caught by the band before it comes back.
+
+       Until v1.187.1 it was a square rink with ice wall to wall, an ice lane
+       up to the loop and a bar turning over the rug. A ball short of the loop
+       slid all the way back to the tee, and one past the rug went off the
+       back boards and back down the lane: "too hard and a bit frustrating".
+       The lane is green up to the loop now and ice only after it, the boards
+       are lined with green, and the bar is gone. */
+    (function () {
+        var R = 6.2, cx = 2, cz = 13 + R * Math.cos(Math.PI / 6), band = 1, k, a0, a1, out = [];
+        // Round the hexagon, leaving the south side open where the lane comes in.
+        for (k = 0; k < 6; k++) {
+            a0 = k / 6 * TAU; a1 = (k + 1) / 6 * TAU;
+            if (k === 4) continue;
+            out.push(kerb(cx + Math.cos(a0) * R, cz + Math.sin(a0) * R, cx + Math.cos(a1) * R, cz + Math.sin(a1) * R));
+        }
+        out.push(kerb(cx - R / 2, 13, 0, 13), kerb(4, 13, cx + R / 2, 13));
+        out.push(kerb(0, 0, 4, 0), kerb(0, 0, 0, 13), kerb(4, 0, 4, 13));
+        var rug = circle(cx, cz + 0.4, 2.2, 'green');
+        rug.layer = 2;
+        add({
+            id: 'carnival', title: 'Loop and Rink', world: 'Carnival on the Frozen River', kind: 'city', tier: 2,
+            caption: 'A loop-the-loop on a frozen river, and a hexagonal rink beyond it with one rug of green in the middle.',
+            theme: 'carnival',
+            hole: world({
+                name: 'Loop and Rink', grounded: true, par: 3, bag: ROLL,
+                blurb: 'Round the loop and out on to the rink. The ice carries the ball; the green round the boards and the rug in the middle stop it — and the rug is where the flag is.',
+                pads: [
+                    pad(0, 0, 4, 4, 0, 'green'),
+                    pad(0, 4, 4, 4, 0, 'wood'),
+                    pad(0, 8, 4, 5, 0, 'ice'),
+                    ngon(cx, cz, R, 6, 'green'),
+                    ngon(cx, cz, R - band / Math.cos(Math.PI / 6), 6, 'ice', 1),
+                    rug
+                ],
+                loops: [loop(1.5, 8, 0, 1.1, 1)],
+                extra: out,
+                tee: { x: 1.5, z: 2 }, cup: { x: 1.75, z: cz + 0.6 }
+            })
+        });
+    })();
 
     /* A fairy ring. Eight toadstools round the flag with less than a ball
        and a half between any two, so the way in along the floor is a needle —
