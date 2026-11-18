@@ -23,7 +23,7 @@
 (function (G3) {
     'use strict';
 
-    var A = G3.authoring, PW = G3.portals;
+    var A = G3.authoring, PW = G3.portals, C = G3.CONFIG;
     var TAU = Math.PI * 2;
 
     var S = 3.4;          // one cell of lane, square
@@ -110,46 +110,222 @@
 
     /* ── a hole ─────────────────────────────────────────────────────────
 
-       Laid on a grid of cells. The walk from the tee goes north first, and
-       after that north, east or west — never south, so it can never cross
-       itself, and it runs at most two cells sideways before it turns north
-       again: a lane that winds, not a maze. Then each cell is given its
-       height (level, a step down, or a ramp up or down on a straight), and
-       its business (nothing, or one thing from the list below, more often
-       and harder things the further into the round you are). Every edge of a
-       cell that does not lead to the next or the last cell gets a kerb, and
-       every corner a bank across its outside, so the ball is turned round it
-       the way a mini golf lane turns it. */
+       Laid on a grid of 3.4-unit cells, in pieces. A piece is one cell of
+       lane, or a room two cells square: a plaza the lane opens into, or a
+       fork with a divider down it. Each hole is first given a shape — a
+       blueprint saying which pieces in what order (SHAPES below) — and the
+       pieces are then laid one after another from the tee, each entered
+       through one edge and left through another, onto cells nobody has used:
+       so a lane can wind, double back on itself as a hairpin, open into a
+       room or stop at a gap and carry on beyond it through a pipe, and never
+       cross itself. Then each piece is given its height (level, a step down,
+       or a ramp on a straight cell), its business (nothing, or a thing from
+       the lists below, more often and harder the further into the round),
+       a kerb on every edge that does not lead on, and a rounded corner
+       wherever the lane turns or ends with nothing round it. */
 
-    var DIRS = { N: [0, 1], E: [1, 0], W: [-1, 0] };
+    var DIRS = { N: [0, 1], E: [1, 0], S: [0, -1], W: [-1, 0] };
+    function dirOf(v) { return v[1] > 0 ? 'N' : v[1] < 0 ? 'S' : v[0] > 0 ? 'E' : 'W'; }
+    function right(h) { var v = DIRS[h]; return dirOf([v[1], -v[0]]); }
+    function left(h) { var v = DIRS[h]; return dirOf([-v[1], v[0]]); }
+    function key(i, j) { return i + ',' + j; }
+    // One edge of the grid, named the same from either side.
+    function edgeKey(i, j, h) {
+        return h === 'N' ? 'h' + i + ',' + (j + 1) : h === 'S' ? 'h' + i + ',' + j :
+            h === 'E' ? 'v' + (i + 1) + ',' + j : 'v' + i + ',' + j;
+    }
 
-    function walk(r, n, d) {
-        var len = 4 + Math.floor(r() * (2 + d * 3.2));
-        var cells = [{ i: 0, j: 0, din: 'N' }], cur = 'N', run = 0, k;
-        for (k = 1; k < len; k++) {
-            var nd = cur;
-            if (k === 1) nd = 'N';
-            else if (cur === 'N') {
-                if (r() < 0.42 + 0.2 * d) nd = r() < 0.5 ? 'E' : 'W';
-            } else if (run >= 2 || (run >= 1 && r() < 0.55)) nd = 'N';
-            run = nd === 'N' ? 0 : run + (nd === cur ? 1 : 1);
-            if (nd !== cur && nd !== 'N') run = 1;
-            var p = cells[k - 1], v = DIRS[nd];
-            p.dout = nd;
-            cells.push({ i: p.i + v[0], j: p.j + v[1], din: nd });
-            cur = nd;
+    /* The shapes, each `min` far enough into the round (d) before it is dealt
+       and `w` how often after that. The same shape is not dealt twice running
+       (course → add passes the last one). */
+    var SHAPES = [
+        { id: 'lane', min: 0, w: 2.6 },
+        { id: 'plaza', min: 0, w: 2.4 },
+        { id: 'cascade', min: 0.05, w: 1.3 },
+        { id: 'hairpin', min: 0.1, w: 1.7 },
+        { id: 'room', min: 0.12, w: 2 },
+        { id: 'fork', min: 0.2, w: 1.9 },
+        { id: 'pipe', min: 0.25, w: 1.5 }
+    ];
+    function shapeFor(r, d, avoid) {
+        var pool = SHAPES.filter(function (s) { return s.min <= d + 1e-9 && s.id !== avoid; });
+        var total = 0, i;
+        for (i = 0; i < pool.length; i++) total += pool[i].w;
+        var x = r() * total;
+        for (i = 0; i < pool.length; i++) { x -= pool[i].w; if (x <= 0) return pool[i].id; }
+        return pool[pool.length - 1].id;
+    }
+
+    /* A shape as the pieces it is laid from, in order. A cell's `go` says how
+       it may leave: 'auto' winds the way a lane does (north, then a run of at
+       most two cells east or west, then north again), 'straight' goes on,
+       'turn' goes left or right, 'south' turns back towards the tee. */
+    function blueprint(r, d, shape) {
+        var L = [], k, n;
+        function cell(go, o) { var c = o || {}; c.t = 'cell'; c.go = go; L.push(c); return c; }
+        function room(role, exit) { L.push({ t: 'room', role: role, exit: exit }); }
+        cell('straight', { first: true });
+        switch (shape) {
+            case 'plaza':
+                n = 1 + Math.floor(r() * (1.5 + d * 2));
+                for (k = 0; k < n; k++) cell('auto');
+                room('plaza', null);
+                break;
+            case 'room':
+                n = 1 + Math.floor(r() * 2);
+                for (k = 0; k < n; k++) cell('auto');
+                room('room', pick(r, ['ahead', 'across', 'side', 'across']));
+                n = 1 + Math.floor(r() * (1.5 + d));
+                for (k = 0; k < n; k++) cell(k === n - 1 ? 'end' : 'auto');
+                break;
+            case 'fork':
+                if (r() < 0.6) cell('auto');
+                room('fork', r() < 0.7 ? 'ahead' : 'across');
+                n = 1 + Math.floor(r() * (1.5 + d));
+                for (k = 0; k < n; k++) cell(k === n - 1 ? 'end' : 'auto');
+                break;
+            case 'hairpin':
+                // Out, across and back: the two legs side by side with one kerb between them.
+                n = 1 + Math.floor(r() * 2);
+                for (k = 0; k < n; k++) cell('straight');
+                cell('turn');
+                if (r() < 0.35) cell('straight');
+                cell('south');
+                for (k = 0; k < n - 1; k++) cell('straight');
+                cell('end');
+                break;
+            case 'cascade':
+                // Downhill all the way: a step or a ramp down into nearly every cell.
+                n = 3 + Math.floor(r() * (1.5 + d * 2));
+                for (k = 0; k < n; k++) cell(k === n - 1 ? 'end' : 'auto', { fall: true });
+                break;
+            case 'pipe':
+                // Two islands and nothing between them but a pipe.
+                n = Math.floor(r() * 2);
+                for (k = 0; k < n; k++) cell('auto');
+                cell('straight', { mouth: true });
+                cell('straight', { landing: true, gap: true });
+                if (r() < 0.4) room('plaza', null);
+                else {
+                    n = 1 + Math.floor(r() * (1 + d));
+                    for (k = 0; k < n; k++) cell(k === n - 1 ? 'end' : 'auto');
+                }
+                break;
+            default:   // 'lane'
+                n = 3 + Math.floor(r() * (2 + d * 3.2));
+                for (k = 0; k < n; k++) cell(k === n - 1 ? 'end' : 'auto');
         }
-        return cells;
+        return L;
     }
 
-    // Where a cell is: its corner, its middle, and a frame along it.
-    function frameOf(c) {
-        var f = DIRS[c.dout && c.dout === c.din ? c.din : (c.dout || c.din)], x0 = c.i * S, z0 = c.j * S;
-        return { x0: x0, z0: z0, cx: x0 + S / 2, cz: z0 + S / 2, f: f, l: [Math.abs(f[1]), Math.abs(f[0])] };
+    /* Lay a blueprint on the grid. Each piece goes where the last one left
+       off; a cell's way out is chosen among those that lead to a free cell,
+       a room is put on whichever side of its entrance has room for it.
+       Nothing goes south of the tee's row (the seat is behind it) or more
+       than four cells either side. Null when the blueprint will not fit,
+       and the caller deals again. */
+    function lay(r, specs) {
+        var occ = {}, pieces = [], open = {};
+        var ci = 0, cj = 0, h = 'N', run = 0, k;
+        function free(i, j) { return j >= 0 && j <= 11 && Math.abs(i) <= 4 && occ[key(i, j)] === undefined; }
+        for (k = 0; k < specs.length; k++) {
+            var s = specs[k], last = k === specs.length - 1, v;
+            if (s.gap) {
+                // The air between two islands: kept empty so nothing is laid across it.
+                if (!free(ci, cj)) return null;
+                occ[key(ci, cj)] = -1;
+                v = DIRS[h]; ci += v[0]; cj += v[1];
+            }
+            if (!free(ci, cj)) return null;
+            var P = { spec: s, t: s.t, din: h, k: k, cells: [] };
+            if (s.t === 'cell') {
+                P.cells.push({ i: ci, j: cj });
+                if (!last) {
+                    var opts = [];
+                    if (s.go === 'straight') opts = [h];
+                    else if (s.go === 'turn') opts = r() < 0.5 ? [left(h), right(h)] : [right(h), left(h)];
+                    else if (s.go === 'south') opts = [left(h) === 'S' ? left(h) : right(h)];
+                    else {
+                        // A lane's own winding.
+                        if (h === 'S') opts = r() < 0.5 ? ['E', 'W'] : ['W', 'E'];
+                        else if (h === 'N') opts = r() < 0.42 + 0.2 * (s.d || 0) + 0.12 ? (r() < 0.5 ? ['E', 'W', 'N'] : ['W', 'E', 'N']) : ['N', 'E', 'W'];
+                        else if (run >= 2 || (run >= 1 && r() < 0.55)) opts = ['N', h];
+                        else opts = [h, 'N'];
+                    }
+                    if (s.mouth) opts = [h];
+                    var out = null;
+                    for (var o = 0; o < opts.length; o++) {
+                        if (opts[o] === 'S' && s.go !== 'south') continue;
+                        v = DIRS[opts[o]];
+                        var ni = ci + v[0], nj = cj + v[1];
+                        if (s.mouth) { ni += v[0]; nj += v[1]; }
+                        if (free(ni, nj) && !(s.mouth && !free(ci + v[0], cj + v[1]))) { out = opts[o]; break; }
+                    }
+                    if (!out) return null;
+                    P.dout = out;
+                }
+                occ[key(ci, cj)] = pieces.length;
+                if (P.dout) {
+                    if (!s.mouth) open[edgeKey(ci, cj, P.dout)] = true;
+                    v = DIRS[P.dout];
+                    run = P.dout === 'N' ? 0 : (P.dout === h ? run + 1 : 1);
+                    h = P.dout; ci += v[0]; cj += v[1];
+                }
+            } else {
+                // A room: the entrance cell, the one beyond it, and the pair beside them.
+                var fv = DIRS[h], sides = r() < 0.5 ? [left(h), right(h)] : [right(h), left(h)], placed = false;
+                for (var si = 0; si < 2 && !placed; si++) {
+                    var sd = sides[si], sv = DIRS[sd];
+                    var cs = [[ci, cj], [ci + fv[0], cj + fv[1]], [ci + sv[0], cj + sv[1]], [ci + fv[0] + sv[0], cj + fv[1] + sv[1]]];
+                    if (!cs.every(function (c) { return free(c[0], c[1]); })) continue;
+                    var ex = null, exits = [];
+                    if (!last) {
+                        var want = s.exit;
+                        exits = { ahead: [cs[1], h], across: [cs[3], h], side: [cs[3], sd] };
+                        var order = [want, 'across', 'ahead', 'side'];
+                        for (var e = 0; e < order.length && !ex; e++) {
+                            var X = exits[order[e]], xv = DIRS[X[1]];
+                            if (s.role === 'fork' && order[e] === 'side') continue;
+                            if (free(X[0][0] + xv[0], X[0][1] + xv[1])) ex = { cell: X[0], dir: X[1], kind: order[e] };
+                        }
+                        if (!ex) continue;
+                    }
+                    placed = true;
+                    P.side = sd;
+                    cs.forEach(function (c) { P.cells.push({ i: c[0], j: c[1] }); occ[key(c[0], c[1])] = pieces.length; });
+                    if (ex) {
+                        P.exit = ex.kind; P.dout = ex.dir;
+                        open[edgeKey(ex.cell[0], ex.cell[1], ex.dir)] = true;
+                        xv = DIRS[ex.dir];
+                        run = ex.dir === 'N' ? 0 : 1;
+                        h = ex.dir; ci = ex.cell[0] + xv[0]; cj = ex.cell[1] + xv[1];
+                    }
+                }
+                if (!placed) return null;
+            }
+            pieces.push(P);
+        }
+        return { pieces: pieces, occ: occ, open: open };
     }
-    function at(F, a, b) { return [F.cx + F.f[0] * a + F.l[0] * b, F.cz + F.f[1] * a + F.l[1] * b]; }
 
-    // Every wall stood on the cell's carpet, not on golf's zero.
+    /* Where a piece is. `f` is the way along it and `s` the way to its right,
+       both signed, so at(F, a, b) is a units along from its middle and b to
+       the right. A room's middle is the middle of its four cells, and its
+       entrance is at b = -S/2: the side it was put on is +s. */
+    function frameOf(P) {
+        var i0 = Infinity, j0 = Infinity, i1 = -Infinity, j1 = -Infinity;
+        P.cells.forEach(function (c) { i0 = Math.min(i0, c.i); j0 = Math.min(j0, c.j); i1 = Math.max(i1, c.i); j1 = Math.max(j1, c.j); });
+        var h = P.t === 'cell' && P.dout && P.dout !== P.din && P.k === 0 ? P.dout : P.din, f = DIRS[h];
+        var x0 = i0 * S, z0 = j0 * S, w = (i1 - i0 + 1) * S, dd = (j1 - j0 + 1) * S;
+        var sv = P.t === 'room' ? DIRS[P.side] : [f[1], -f[0]];
+        return { x0: x0, z0: z0, w: w, d: dd, cx: x0 + w / 2, cz: z0 + dd / 2, f: f, s: sv, h: h,
+            l: [Math.abs(f[1]), Math.abs(f[0])] };
+    }
+    function at(F, a, b) { return [F.cx + F.f[0] * a + F.s[0] * b, F.cz + F.f[1] * a + F.s[1] * b]; }
+    // The yaw that lays a bank's length along the piece's `f`.
+    function along(F) { return F.f[0] !== 0 ? 0 : Math.PI / 2; }
+
+    // Every wall stood on the piece's carpet, not on golf's zero.
     function lift(ws, y) {
         (Array.isArray(ws) ? ws : [ws]).forEach(function (w) {
             w.base += y;
@@ -158,45 +334,74 @@
         return ws;
     }
 
-    // A kerb along a segment, a hair longer than it so neighbours close the corner.
-    function kerb(x0, z0, x1, z1, y0, y1) {
+    /* A kerb along a segment, a hair longer than it so neighbours close the
+       corner. `y0`/`y1` is the floor it stands on at either end; `lo0`/`lo1`,
+       when two pieces at different heights share it, the lower floor — the
+       kerb reaches down to that one too, or a ball on the low side rolls
+       under it. */
+    function kerb(x0, z0, x1, z1, y0, y1, kind, lo0, lo1) {
         var out = [], len = Math.hypot(x1 - x0, z1 - z0), yaw = -Math.atan2(z1 - z0, x1 - x0);
-        if (Math.abs(y1 - y0) < 0.01) {
-            out.push(A.bank((x0 + x1) / 2, (z0 + z1) / 2, len + 0.3, yaw, { base: y0 - 0.1, h: RAIL + 0.1, t: 0.3 }));
+        if (len < 0.05) return out;
+        if (lo0 === undefined) { lo0 = y0; lo1 = y1; }
+        if (Math.abs(y1 - y0) < 0.01 && Math.abs(lo1 - lo0) < 0.01) {
+            var b0 = Math.min(y0, lo0);
+            out.push(A.bank((x0 + x1) / 2, (z0 + z1) / 2, len + 0.3, yaw, { base: b0 - 0.1, h: y0 - b0 + RAIL + 0.1, t: 0.3, kind: kind }));
             return out;
         }
         // Along a ramp: short lengths, each as tall as the climb across it.
         var n = Math.max(2, Math.ceil(len / 0.85)), i;
         for (i = 0; i < n; i++) {
-            var a = i / n, b = (i + 1) / n, ya = y0 + (y1 - y0) * a, yb = y0 + (y1 - y0) * b, lo = Math.min(ya, yb);
+            var a = i / n, b = (i + 1) / n, ya = y0 + (y1 - y0) * a, yb = y0 + (y1 - y0) * b;
+            var lo = Math.min(ya, yb, lo0 + (lo1 - lo0) * a, lo0 + (lo1 - lo0) * b), hi = Math.max(ya, yb);
             out.push(A.bank(x0 + (x1 - x0) * (a + b) / 2, z0 + (z1 - z0) * (a + b) / 2, len / n + 0.3, yaw,
-                { base: lo - 0.1, h: Math.abs(yb - ya) + RAIL + 0.1, t: 0.3 }));
+                { base: lo - 0.1, h: hi - lo + RAIL + 0.1, t: 0.3, kind: kind }));
         }
         return out;
+    }
+    // A board from p to q, stood on the floor: a divider, a funnel's side.
+    function board(p, q, o) {
+        var dx = q[0] - p[0], dz = q[1] - p[1], len = Math.hypot(dx, dz), t = (o && o.t) || 0.28;
+        return A.bank((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, len + t, -Math.atan2(dz, dx),
+            { t: t, h: (o && o.h) || RAIL + 0.1, kind: o && o.kind });
+    }
+    function slingAt(F, a0, a1, side, inner, rail) {
+        var rb = rail || 1.52, P1 = at(F, a0, side * rb), P2 = at(F, a1, side * rb), P3 = at(F, a1, side * inner);
+        return A.slingshot({ x: P1[0], z: P1[1] }, { x: P3[0], z: P3[1] }, { x: P2[0], z: P2[1] });
     }
 
     /* The things a cell can hold. Each is `min` far enough into the round
        before it is dealt, and `w` how often after that. Every one leaves a
        way through along the floor: a blade turns out of the way, a gate
-       slides, a post has a gap either side wider than two balls. */
+       slides, a post has a gap either side wider than two balls. `names`
+       are what a hole built round one is called, one picked per hole. */
     var THINGS = [
-        { id: 'bumpers', min: 0, w: 2, name: 'Pinball', says: 'bumpers' },
-        { id: 'posts', min: 0, w: 2, name: 'The Posts', says: 'a row of posts' },
-        { id: 'hump', min: 0, w: 2, name: 'The Hump', says: 'a hump' },
-        { id: 'spinner', min: 0.15, w: 3, name: 'The Rotor', says: 'a turning blade' },
-        { id: 'gate', min: 0.2, w: 2, name: 'The Gatehouse', says: 'a sliding gate' },
-        { id: 'chicane', min: 0.25, w: 2, name: 'The Chicane', says: 'a chicane' },
-        { id: 'belt', min: 0.3, w: 2, name: 'The Conveyor', says: 'a moving belt' },
-        { id: 'ice', min: 0.35, w: 1, name: 'The Glaze', says: 'a cell of ice' },
-        { id: 'mill', min: 0.3, w: 2, name: 'The Windmill', says: 'a windmill' },
-        { id: 'plank', min: 0.45, w: 1.5, name: 'The Plank', says: 'a plank with no rails' },
-        { id: 'flipper', min: 0.55, w: 1.5, name: 'The Flipper', says: 'a flipper' }
+        { id: 'bumpers', min: 0, w: 1.6, names: ['Pinball', 'Pop Bumpers', 'The Arcade'], says: 'bumpers' },
+        { id: 'posts', min: 0, w: 1.4, names: ['The Posts', 'Goalmouth', 'The Picket'], says: 'a row of posts' },
+        { id: 'hump', min: 0, w: 1.6, names: ['The Hump', 'Camel Back', 'The Rise'], says: 'a hump' },
+        { id: 'moguls', min: 0, w: 1.4, names: ['Moguls', 'The Washboard', 'Bumpy Ride'], says: 'moguls' },
+        { id: 'slalom', min: 0.05, w: 1.5, names: ['Slalom', 'The Weave', 'Gates of Rubber'], says: 'a slalom' },
+        { id: 'sand', min: 0.08, w: 1.2, names: ['The Bunker', 'Beach Break', 'Sandbox'], says: 'a bunker' },
+        { id: 'spinner', min: 0.15, w: 2.2, names: ['The Rotor', 'Propeller', 'The Turnstile'], says: 'a turning blade' },
+        { id: 'camber', min: 0.15, w: 1.2, names: ['The Camber', 'Side Hill', 'The Lean'], says: 'a banked side' },
+        { id: 'gate', min: 0.2, w: 1.7, names: ['The Gatehouse', 'Portcullis', 'Shutter'], says: 'a sliding gate' },
+        { id: 'funnel', min: 0.2, w: 1.3, names: ['The Funnel', 'Bottleneck', 'The Throat'], says: 'a funnel' },
+        { id: 'chicane', min: 0.25, w: 1.6, names: ['The Chicane', 'Zig Zag', 'Dog Teeth'], says: 'a chicane' },
+        { id: 'sling', min: 0.25, w: 1.3, names: ['Slingshots', 'Kickers', 'Rubber Band'], says: 'slingshots' },
+        { id: 'belt', min: 0.3, w: 1.6, names: ['The Conveyor', 'Travelator', 'Baggage Claim'], says: 'a moving belt' },
+        { id: 'mill', min: 0.3, w: 1.8, names: ['The Windmill', 'Old Dutch', 'Mill Race'], says: 'a windmill' },
+        { id: 'twin', min: 0.35, w: 1.3, names: ['Twin Rotors', 'Egg Beater', 'The Mixer'], says: 'twin blades' },
+        { id: 'ice', min: 0.35, w: 1, names: ['The Glaze', 'Rink', 'Black Ice'], says: 'a cell of ice' },
+        { id: 'plank', min: 0.45, w: 1.4, names: ['The Plank', 'Tightrope', 'Walk the Plank'], says: 'a plank with no rails' },
+        { id: 'flipper', min: 0.55, w: 1.4, names: ['The Flipper', 'Tilt', 'Paddle'], says: 'a flipper' }
     ];
-    function deal(r, d, flat, y) {
+    var THING = {};
+    THINGS.forEach(function (t) { THING[t.id] = t; });
+    var ROLLING = { bumpers: 1, hump: 1, moguls: 1 };   // what may stand on a ramp
+    function deal(r, d, flat, y, not) {
         var pool = THINGS.filter(function (t) {
-            if (t.min > d + 1e-9) return false;
+            if (t.min > d + 1e-9 || t.id === not) return false;
             if (t.id === 'mill') return flat && Math.abs(y) < 1e-9;
-            return flat || t.id === 'bumpers' || t.id === 'hump';
+            return flat || ROLLING[t.id];
         });
         var total = 0, i;
         for (i = 0; i < pool.length; i++) total += pool[i].w;
@@ -205,84 +410,199 @@
         return pool[pool.length - 1];
     }
 
-    function generate(seed, n, entry) {
-        var r = rng(seed), d = Math.min(1, n / 14);
-        var cells = walk(r, n, d), last = cells.length - 1, k;
+    /* What a room holds. A room in the middle of a hole (`room`) has a
+       centrepiece to be got round or through; a plaza has the cup in it and
+       something about the cup. */
+    var ROOMS = {
+        room: [
+            { id: 'island', w: 2, names: ['The Island', 'Roundabout', 'Traffic Circle'], says: 'a block to go round' },
+            { id: 'pinball', w: 2, names: ['Pinball Room', 'The Table', 'Multiball'], says: 'a room of bumpers' },
+            { id: 'bigblade', w: 1.6, min: 0.2, names: ['The Big Wheel', 'Helicopter', 'The Sweeper'], says: 'a long blade turning' },
+            { id: 'moguls', w: 1.4, names: ['Mogul Field', 'Bumpy Square', 'The Paddock'], says: 'a field of humps' },
+            { id: 'baffle', w: 1.6, names: ['The Baffle', 'Switchboard', 'Zag'], says: 'a wall to get round' },
+            { id: 'bunkers', w: 1.2, names: ['Beach Room', 'The Dunes', 'Twin Traps'], says: 'bunkers' }
+        ],
+        plaza: [
+            { id: 'island', w: 2, names: ['Behind the Wall', 'Hide and Seek', 'The Screen'], says: 'a block in front of the cup' },
+            { id: 'corral', w: 1.8, names: ['The Corral', 'Stonehenge', 'The Crown'], says: 'a ring of posts round the cup' },
+            { id: 'mesa', w: 1.6, names: ['The Volcano', 'Table Top', 'The Summit'], says: 'a cup on a mound' },
+            { id: 'bowl', w: 1.6, names: ['The Basin', 'Punchbowl', 'The Saucer'], says: 'a bowl round the cup' },
+            { id: 'pinball', w: 1.6, names: ['Jackpot', 'Bonus Round', 'Tilt Table'], says: 'bumpers before the cup' },
+            { id: 'bunkers', w: 1.3, names: ['Oasis', 'Sand Trap', 'The Beach'], says: 'bunkers round the cup' },
+            { id: 'bigblade', w: 1.2, min: 0.3, names: ['The Carousel', 'Merry Go Round', 'The Wheel'], says: 'a long blade turning over the green' }
+        ]
+    };
+    function dealRoom(r, d, role) {
+        var pool = ROOMS[role].filter(function (t) { return !t.min || t.min <= d + 1e-9; });
+        var total = 0, i;
+        for (i = 0; i < pool.length; i++) total += pool[i].w;
+        var x = r() * total;
+        for (i = 0; i < pool.length; i++) { x -= pool[i].w; if (x <= 0) return pool[i]; }
+        return pool[pool.length - 1];
+    }
 
-        // Heights: a step down between two cells, or a ramp along a straight one.
+    // Small humps scattered over a box of half-sizes (ha, hb) round (a0, b0), clear of its edges.
+    function moguls(r, F, n, ha, hb, keepOff) {
+        var out = [], tries = 0;
+        while (out.length < n && tries++ < 40) {
+            var rr = 0.7 + r() * 0.35, a = (r() * 2 - 1) * (ha - rr), b = (r() * 2 - 1) * (hb - rr), q = at(F, a, b);
+            if (keepOff && Math.hypot(q[0] - keepOff[0], q[1] - keepOff[1]) < rr + keepOff[2]) continue;
+            if (out.some(function (m) { return Math.hypot(m.cx - q[0], m.cz - q[1]) < m.r + rr - 0.3; })) continue;
+            out.push(A.hill(q[0], q[1], rr, 0.12 + r() * 0.1));
+        }
+        return out;
+    }
+
+    function generate(seed, n, entry, avoid) {
+        var r = rng(seed), d = Math.min(1, n / 14);
+        var shape = shapeFor(r, d, avoid), laid = null, tries = 0, specs;
+        while (!laid && tries++ < 12) {
+            specs = blueprint(r, d, shape);
+            specs.forEach(function (s) { s.d = d; });
+            laid = lay(r, specs);
+            if (!laid && tries === 6) shape = 'lane';
+        }
+        if (!laid) { specs = blueprint(rng(seed ^ 0x5bd1e995), 0, 'lane'); laid = lay(r, specs); }
+        var pieces = laid.pieces, occ = laid.occ, open = laid.open, last = pieces.length - 1;
+        var kerbKind = r() < 0.25 ? 'beam' : 'rail';
+
+        // Heights: a step down into a piece, or a ramp along a straight cell.
         var y = 0;
-        cells.forEach(function (c, k) {
-            c.ys = y; c.ye = y; c.ramp = 0; c.step = false;
+        pieces.forEach(function (P, k) {
+            P.ys = y; P.ye = y; P.ramp = 0; P.step = false;
             if (k === 0) return;
-            var straight = c.dout && c.dout === c.din;
-            if (straight && k < last && r() < 0.16 + 0.12 * d) {
-                var up = r() < 0.5, rise = 0.55 + r() * 0.3;
+            var s = P.spec, straight = P.t === 'cell' && P.dout && P.dout === P.din;
+            var rampP = s.fall ? 0.45 : 0.16 + 0.12 * d, stepP = s.fall ? 0.75 : 0.18 + 0.14 * d;
+            if (s.landing) {
+                // Over the gap, the far island is higher or lower than the near one.
+                var dy = (r() < 0.6 ? -1 : 1) * (0.5 + r() * 0.7);
+                y = Math.max(LOW + 0.6, Math.min(HIGH - 0.4, y + dy));
+                P.ys = P.ye = y;
+                return;
+            }
+            if (straight && k < last && !s.mouth && pieces[k + 1].t === 'cell' && r() < rampP) {
+                var up = s.fall ? false : r() < 0.5, rise = 0.55 + r() * 0.3;
                 if (up && y + rise > HIGH) up = false;
                 if (!up && y - rise < LOW) up = true;
                 if (y + (up ? rise : -rise) <= HIGH && y + (up ? rise : -rise) >= LOW) {
-                    c.ramp = up ? 1 : -1; c.ye = y + (up ? rise : -rise);
+                    P.ramp = up ? 1 : -1; P.ye = y + (up ? rise : -rise);
                 }
-            } else if (r() < 0.18 + 0.14 * d && y - 0.5 >= LOW) {
+            } else if (r() < stepP && y - 0.5 >= LOW) {
                 y -= 0.45 + r() * 0.35;
-                c.ys = c.ye = y; c.step = true;
+                P.ys = P.ye = y; P.step = true;
             }
-            y = c.ye;
+            y = P.ye;
         });
+        var cellAt = {};
+        pieces.forEach(function (P) { P.cells.forEach(function (c) { cellAt[key(c.i, c.j)] = P; }); });
+        function heightAt(P, x, z) {
+            if (!P.ramp) return P.ys;
+            var F = P.F, t = P.din === 'N' ? (z - F.z0) / S : P.din === 'S' ? (F.z0 + S - z) / S :
+                P.din === 'E' ? (x - F.x0) / S : (F.x0 + S - x) / S;
+            return P.ys + (P.ye - P.ys) * Math.max(0, Math.min(1, t));
+        }
 
-        var pads = [], extra = [], used = [], keys = {};
-        var tee, cup, cupThing = 'plain';
-        cells.forEach(function (c, k) {
-            var F = frameOf(c), straight = !!c.dout && c.dout === c.din, flat = !c.ramp, kind = 'green';
-            c.F = F;
-            var thing = null;
-            if (k > 0 && k < last && straight && r() < 0.42 + 0.45 * d) thing = deal(r, d, flat, c.ys);
-            if (k > 0 && k < last && !straight && r() < 0.12 * d) thing = THINGS[0];
-            c.thing = thing;
+        var pads = [], extra = [], warps = [], used = [], says = [];
+        var tee, cup, cupThing = 'plain', room = null, lastThing = null;
+        pieces.forEach(function (P, k) {
+            var F = frameOf(P), s = P.spec, kind = 'green';
+            P.F = F;
+            var straight = P.t === 'cell' && !!P.dout && P.dout === P.din, flat = !P.ramp;
+            var w = [], q, b, p, thing = null;
+
+            if (P.t === 'room') {
+                P.thing = thing = dealRoom(r, d, s.role === 'fork' ? 'room' : s.role);
+                if (s.role === 'fork') thing = P.thing = { id: 'fork', names: ['The Fork', 'Two Ways', 'Split Decision'], says: 'a fork' };
+                room = P;
+                p = A.pad(F.x0, F.z0, F.w, F.d, P.ys, 'green');
+                pads.push(p);
+                P.pad = p;
+                buildRoom(P, F, p, w, k === last);
+                lift(w, P.ys);
+                extra = extra.concat(w);
+                used.push(thing);
+                if (k === 0) tee = { x: F.cx, z: F.z0 + 1.0 };
+                return;
+            }
+
+            if (k > 0 && k < last && straight && !s.mouth && !s.landing && r() < 0.42 + 0.45 * d) thing = deal(r, d, flat, P.ys, lastThing && lastThing.id);
+            if (k > 0 && k < last && !straight && !s.landing && r() < 0.12 * d) thing = THING.bumpers;
+            P.thing = thing; lastThing = thing;
             if (thing) used.push(thing);
             // The carpet: tilted along a ramp.
-            var p;
             if (thing && thing.id === 'plank') {
                 p = A.pad(F.x0 + (F.l[0] ? (S - 1.25) / 2 : 0), F.z0 + (F.l[1] ? (S - 1.25) / 2 : 0),
-                    F.l[0] ? 1.25 : S, F.l[1] ? 1.25 : S, c.ys, 'wood');
+                    F.l[0] ? 1.25 : S, F.l[1] ? 1.25 : S, P.ys, 'wood');
             } else if (thing && thing.id === 'belt') {
                 var sp = 1.3 + r() * 0.8, dir = r() < 0.25 * d ? -0.5 : 1;
-                p = A.belt(F.x0, F.z0, S, S, F.f[0] * sp * dir, F.f[1] * sp * dir, { y: c.ys, kind: 'wood' });
+                p = A.belt(F.x0, F.z0, S, S, F.f[0] * sp * dir, F.f[1] * sp * dir, { y: P.ys, kind: 'wood' });
             } else {
                 if (thing && thing.id === 'ice') kind = 'ice';
-                var sx = 0, sz = 0, y0 = c.ys, g = (c.ye - c.ys) / S;
-                if (c.ramp) {
-                    if (c.din === 'N') sz = g;
-                    else if (c.din === 'E') sx = g;
-                    else { sx = -g; y0 = c.ye; }
+                var sx = 0, sz = 0, y0 = P.ys, g = (P.ye - P.ys) / S;
+                if (P.ramp) {
+                    if (P.din === 'N') sz = g;
+                    else if (P.din === 'S') { sz = -g; y0 = P.ye; }
+                    else if (P.din === 'E') sx = g;
+                    else { sx = -g; y0 = P.ye; }
                 }
                 p = A.pad(F.x0, F.z0, S, S, y0, kind, sx, sz);
             }
             pads.push(p);
+            P.pad = p;
 
             // What stands in it.
-            var w = [], q, b;
             if (thing) switch (thing.id) {
                 case 'bumpers':
                     b = r() < 0.5 ? 1 : -1;
                     q = at(F, -0.5, 0.75 * b); w.push(A.bumper(q[0], q[1], 0.5));
                     q = at(F, 0.6, -0.75 * b); w.push(A.bumper(q[0], q[1], 0.5));
-                    if (d > 0.4) { q = at(F, 0.05, 0); w.push(A.bumper(q[0], q[1], 0.45)); }
+                    if (d > 0.4 && straight) { q = at(F, 0.05, 0); w.push(A.bumper(q[0], q[1], 0.45)); }
                     break;
                 case 'posts':
                     [-1.05, 0, 1.05].forEach(function (o) { var q2 = at(F, 0, o); w.push(A.post(q2[0], q2[1], 0.36)); });
+                    break;
+                case 'slalom':
+                    b = r() < 0.5 ? 1 : -1;
+                    [-1.0, 0, 1.0].forEach(function (a, i) { var q2 = at(F, a, (i % 2 ? -1 : 1) * b * 0.62); w.push(A.post(q2[0], q2[1], 0.34)); });
                     break;
                 case 'hump':
                     q = at(F, 0, (r() - 0.5) * 0.8);
                     p.bumps = [A.hill(q[0], q[1], 1.35, 0.32 + 0.2 * r())];
                     break;
+                case 'moguls':
+                    p.bumps = moguls(r, F, 3, S / 2, S / 2);
+                    break;
+                case 'camber':
+                    // The floor banked up against one rail, fading out at either end of the cell.
+                    b = r() < 0.5 ? 1 : -1;
+                    var c0 = at(F, -0.35, b * S / 2), c1 = at(F, 0.35, b * S / 2);
+                    p.bumps = [A.trough(c0[0], c0[1], c1[0], c1[1], 1.4, 0.24 + 0.08 * r())];
+                    break;
+                case 'sand':
+                    var along2 = F.f[1] !== 0, ra = 0.85 + r() * 0.2, rb = 1.05 + r() * 0.25;
+                    q = at(F, 0, (r() - 0.5) * 0.7);
+                    var sp2 = A.circle(q[0], q[1], along2 ? ra : rb, 'sand', P.ys, along2 ? rb : ra);
+                    pads.push(sp2);
+                    break;
                 case 'spinner':
                     w.push(A.spinner(F.cx, F.cz, S * 0.58, 0.3, { spin: (r() < 0.5 ? 1 : -1) * (1.1 + 0.8 * r() + 0.5 * d) }));
                     break;
+                case 'twin':
+                    var sv2 = (r() < 0.5 ? 1 : -1) * (1.2 + 0.6 * r());
+                    q = at(F, 0, -0.85); w.push(A.spinner(q[0], q[1], 1.3, 0.26, { spin: sv2 }));
+                    q = at(F, 0, 0.85); w.push(A.spinner(q[0], q[1], 1.3, 0.26, { spin: -sv2 }));
+                    break;
                 case 'gate':
                     q = at(F, 0, 0);
-                    var gw = S * 0.5, along = F.f[0] !== 0;
-                    w.push(A.slider(q[0] - (along ? 0.15 : gw / 2), q[1] - (along ? gw / 2 : 0.15), along ? 0.3 : gw, along ? gw : 0.3,
-                        { axis: along ? 'z' : 'x', amp: S * 0.27, speed: 1.2 + 0.8 * r(), phase: r() * TAU }));
+                    var gw = S * 0.5, al = F.f[0] !== 0;
+                    w.push(A.slider(q[0] - (al ? 0.15 : gw / 2), q[1] - (al ? gw / 2 : 0.15), al ? 0.3 : gw, al ? gw : 0.3,
+                        { axis: al ? 'z' : 'x', amp: S * 0.27, speed: 1.2 + 0.8 * r(), phase: r() * TAU }));
+                    break;
+                case 'funnel':
+                    // Two boards angled in from the rails to a throat two balls and a bit wide.
+                    var th = 0.42 + 0.1 * r(), fa = (r() - 0.5) * 0.6;
+                    w.push(board(at(F, fa - 1.0, -1.55), at(F, fa + 0.45, -th)));
+                    w.push(board(at(F, fa - 1.0, 1.55), at(F, fa + 0.45, th)));
                     break;
                 case 'chicane':
                     // Two boards from either rail, leaving a slot a ball and a half
@@ -293,13 +613,18 @@
                     q = at(F, 0.7, -0.98 * b);
                     w.push(A.bank(q[0], q[1], S * 0.42, F.f[0] !== 0 ? Math.PI / 2 : 0, { t: 0.3, h: RAIL + 0.1 }));
                     break;
+                case 'sling':
+                    b = r() < 0.5 ? 1 : -1;
+                    w = w.concat(slingAt(F, -1.2, 0.1, b, 0.85), slingAt(F, -0.1, 1.2, -b, 0.85));
+                    break;
                 case 'mill':
                     // Only on a north-running cell at golf's zero: a windmill faces down the lane.
-                    if (c.din === 'N') {
+                    if (P.din === 'N') {
                         w = w.concat(A.mill(F.x0, F.cz + 0.3, S, { gap: 1.3, speed: 0.7 + 0.5 * r(), len: 1.45, deep: 1.0 }));
                     } else {
                         w.push(A.spinner(F.cx, F.cz, S * 0.58, 0.3, { spin: 1.4 }));
-                        c.thing = thing = THINGS[3];
+                        P.thing = thing = THING.spinner;
+                        used[used.length - 1] = thing;
                     }
                     break;
                 case 'flipper':
@@ -308,93 +633,293 @@
                     w.push(A.flipper(q[0], q[1], S * 0.62, { rest: F.f[0] !== 0 ? Math.PI / 2 : 0, arc: 1.1 * b, speed: 1.4 + r(), hinge: 1, phase: r() * TAU }));
                     break;
             }
-            lift(w, c.ys);
-            extra = extra.concat(w);
 
-            // The bank across a corner's outside.
-            if (k > 0 && c.dout && c.dout !== c.din) {
-                var fi = DIRS[c.din], fo = DIRS[c.dout], cut = S * 0.36;
-                // The corner the ball runs into: far along the way in, away from the way out.
-                var kx = F.cx + (fi[0] ? fi[0] : -fo[0]) * S / 2, kz = F.cz + (fi[1] ? fi[1] : -fo[1]) * S / 2;
-                var ax = kx - (fi[0] ? fi[0] : -fo[0]) * cut, az = kz, bx = kx, bz = kz - (fi[1] ? fi[1] : -fo[1]) * cut;
-                extra = extra.concat(kerb(ax, az, bx, bz, c.ys, c.ys));
+            // A pipe: the mouth near the far end of the near island, the far end on the landing.
+            if (s.mouth) {
+                var mr = 0.62 - 0.12 * d, mo = (r() - 0.5) * 1.3;
+                q = at(F, 0.55, mo);
+                P.mouth = { x: q[0], z: q[1], r: mr };
             }
+            if (s.landing) {
+                var M = pieces[k - 1].mouth, lq = at(F, -0.6, 0);
+                warps.push(A.pipe(M.x, M.z, lq[0], lq[1], Math.atan2(F.f[0], F.f[1]), M.r));
+                says.push('a pipe across the gap');
+            }
+            lift(w, P.ys);
+            extra = extra.concat(w);
 
             if (k === 0) tee = { x: F.cx, z: F.z0 + 1.0 };
             if (k === last) {
                 var o = (r() - 0.5) * 1.1, ahead = 0.15 + r() * 0.5;
                 q = at(F, ahead, o);
                 cup = { x: q[0], z: q[1] };
-                cupThing = d < 0.2 ? pick(r, ['plain', 'bowl']) : pick(r, ['plain', 'bowl', 'volcano', 'guard', 'volcano']);
+                cupThing = d < 0.2 ? pick(r, ['plain', 'bowl', 'sand']) : pick(r, ['plain', 'bowl', 'volcano', 'guard', 'volcano', 'sand']);
                 if (cupThing === 'bowl') p.bumps = [A.hill(cup.x, cup.z, 1.5, -0.22)];
                 if (cupThing === 'volcano') p.bumps = [A.mesa(cup.x, cup.z, 0.75, 1.0, 0.32)];
                 if (cupThing === 'guard') {
                     var g1 = at(F, ahead - 0.95, o - 0.5), g2 = at(F, ahead - 0.95, o + 0.5);
-                    extra = extra.concat(lift([A.post(g1[0], g1[1], 0.34), A.post(g2[0], g2[1], 0.34)], c.ys));
+                    extra = extra.concat(lift([A.post(g1[0], g1[1], 0.34), A.post(g2[0], g2[1], 0.34)], P.ys));
+                }
+                if (cupThing === 'sand') {
+                    // A pot bunker either side of the front of the cup.
+                    var s1 = at(F, ahead - 0.7, o - 1.0), s2 = at(F, ahead - 0.7, o + 1.0);
+                    [s1, s2].forEach(function (sq) {
+                        var bb = at(F, 0, 0), lim = S / 2 - 0.5;
+                        var la = (sq[0] - bb[0]) * F.s[0] + (sq[1] - bb[1]) * F.s[1];
+                        if (Math.abs(la) > lim) return;
+                        pads.push(A.circle(sq[0], sq[1], 0.45, 'sand', P.ys));
+                    });
                 }
             }
         });
 
-        // The kerbs: every side of every cell that does not lead on.
-        var occ = {};
-        cells.forEach(function (c, k) { occ[c.i + ',' + c.j] = k; });
-        function rails(c, k) {
-            if (c.thing && c.thing.id === 'plank') return;
-            var x0 = c.F.x0, z0 = c.F.z0, x1 = x0 + S, z1 = z0 + S;
-            var sides = [
-                { n: [0, 1], a: [x0, z1], b: [x1, z1] }, { n: [0, -1], a: [x0, z0], b: [x1, z0] },
-                { n: [1, 0], a: [x1, z0], b: [x1, z1] }, { n: [-1, 0], a: [x0, z0], b: [x0, z1] }
-            ];
-            sides.forEach(function (s) {
-                var key = occ[(c.i + s.n[0]) + ',' + (c.j + s.n[1])];
-                if (key !== undefined && Math.abs(key - k) === 1) return;      // leads on
-                var edge = [Math.min(s.a[0], s.b[0]), Math.min(s.a[1], s.b[1]), Math.max(s.a[0], s.b[0]), Math.max(s.a[1], s.b[1])].join(',');
-                var ya = heightAt(c, s.a[0], s.a[1]), yb = heightAt(c, s.b[0], s.b[1]);
-                if (key !== undefined) {
-                    // Two cells side by side that do not lead into each other: one kerb, tall enough for both.
-                    var o2 = cells[key];
-                    ya = Math.max(ya, heightAt(o2, s.a[0], s.a[1])); yb = Math.max(yb, heightAt(o2, s.b[0], s.b[1]));
-                    if (o2.thing && o2.thing.id === 'plank') key = undefined;
+        /* A room's business. `w` collects its walls in golf's zero (lifted
+           with the rest), `p` is its carpet. A plaza puts the cup somewhere in
+           it, away from the door, and arranges its centrepiece round that. */
+        function buildRoom(P, F, p, w, isLast) {
+            var id = P.thing.id, q, b, i;
+            if (P.spec.role === 'fork') {
+                // A divider down the middle with a way round either end. The
+                // door's own channel is the short way and has something in it;
+                // the other is clear and a bank further.
+                var half = S - 1.45;
+                w.push(board(at(F, -half, 0), at(F, half, 0), { t: 0.3, kind: kerbKind }));
+                var direct = P.exit === 'across' ? 1 : -1, other = -direct;
+                var hard = pick(r, d > 0.4 ? ['gate', 'spinner', 'posts', 'flipper', 'mill'] : ['gate', 'spinner', 'posts', 'bumpers']);
+                if (hard === 'mill' && !(P.din === 'N' && Math.abs(P.ys) < 1e-9)) hard = 'spinner';
+                var cq = at(F, 0.2, direct * S / 2);
+                if (hard === 'gate') {
+                    var al = F.f[0] !== 0, gw = S * 0.5;
+                    w.push(A.slider(cq[0] - (al ? 0.15 : gw / 2), cq[1] - (al ? gw / 2 : 0.15), al ? 0.3 : gw, al ? gw : 0.3,
+                        { axis: al ? 'z' : 'x', amp: S * 0.24, speed: 1.3 + 0.7 * r(), phase: r() * TAU }));
+                } else if (hard === 'spinner') {
+                    w.push(A.spinner(cq[0], cq[1], S * 0.55, 0.3, { spin: (r() < 0.5 ? 1 : -1) * (1.3 + 0.6 * r()) }));
+                } else if (hard === 'flipper') {
+                    w.push(A.flipper(cq[0], cq[1], S * 0.6, { rest: F.f[0] !== 0 ? Math.PI / 2 : 0, arc: (r() < 0.5 ? 1 : -1) * 1.1, speed: 1.4 + r(), hinge: 1, phase: r() * TAU }));
+                } else if (hard === 'mill') {
+                    var mx = F.cx + F.s[0] * direct * S / 2 - S / 2;
+                    w = w.concat(A.mill(mx, F.cz + 0.3, S, { gap: 1.3, speed: 0.7 + 0.5 * r(), len: 1.45, deep: 1.0 }));
+                } else if (hard === 'posts') {
+                    [-0.8, 0, 0.8].forEach(function (o, k2) { var q2 = at(F, 0.2 + (k2 % 2) * 0.5, direct * S / 2 + o); w.push(A.post(q2[0], q2[1], 0.34)); });
+                } else {
+                    q = at(F, -0.2, direct * S / 2 - 0.6); w.push(A.bumper(q[0], q[1], 0.5));
+                    q = at(F, 0.6, direct * S / 2 + 0.6); w.push(A.bumper(q[0], q[1], 0.5));
                 }
-                if (keys[edge]) return;
-                keys[edge] = true;
-                extra = extra.concat(kerb(s.a[0], s.a[1], s.b[0], s.b[1], ya, yb));
+                // The long way may carry you: a belt down it, or a hump in it.
+                if (r() < 0.45) {
+                    var bv = 1.2 + r() * 0.6;
+                    var bx = at(F, 0, other * S / 2);
+                    var lat = S - 0.5, lng = 2 * half, ew = F.l[0] ? lat : lng, ns = F.l[0] ? lng : lat;
+                    var belt = A.belt(bx[0] - ew / 2, bx[1] - ns / 2, ew, ns, F.f[0] * bv, F.f[1] * bv, { y: P.ys + 0.01, kind: 'wood' });
+                    // Laid as a strip over the room's carpet, standing a hair proud of it.
+                    pads.push(belt);
+                    P.longWay = 'belt';
+                } else {
+                    q = at(F, 0, other * S / 2);
+                    p.bumps = [A.hill(q[0], q[1], 1.2, 0.18 + 0.1 * r())];
+                    P.longWay = 'hump';
+                }
+                P.hard = hard;
+                return;
+            }
+
+            // Where the cup goes in a plaza: in the far half, off the door's side.
+            if (isLast) {
+                var ca = 0.5 + r() * 1.1, cb = (r() * 2 - 1) * 1.4;
+                if (id === 'island' || id === 'pinball') { ca = 1.3 + r() * 0.5; cb = (0.3 + r() * 1.0) * (r() < 0.6 ? 1 : -1); }
+                if (id === 'mesa' || id === 'bowl') { ca = 0.3 + r() * 0.9; cb = (r() * 2 - 1) * 1.0; }
+                if (id === 'bigblade') { ca = 1.6 + r() * 0.3; cb = (r() * 2 - 1) * 1.4; }
+                q = at(F, ca, cb);
+                cup = { x: q[0], z: q[1] };
+                P.cupAB = [ca, cb];
+            }
+            switch (id) {
+                case 'island':
+                    // A block turned on its corner: round it on either side.
+                    var bs = 1.25 + r() * 0.3, ia = isLast ? P.cupAB[0] - 1.95 : (r() - 0.5) * 0.6,
+                        ib = isLast ? P.cupAB[1] * 0.5 : (r() - 0.5) * 0.8;
+                    q = at(F, ia, ib);
+                    w.push(A.bank(q[0], q[1], bs, Math.PI / 4, { t: bs, h: RAIL + 0.15, kind: kerbKind }));
+                    if (!isLast && r() < 0.5) {
+                        q = at(F, ia + 1.6, ib - 1.4); w.push(A.post(q[0], q[1], 0.36));
+                        q = at(F, ia + 1.6, ib + 1.4); w.push(A.post(q[0], q[1], 0.36));
+                    }
+                    break;
+                case 'pinball':
+                    var spots = isLast ? [[-0.6, -0.9], [-0.6, 0.9], [0.3, 0], [-1.5, 0]] :
+                        [[-0.9, -1.0], [-0.9, 1.0], [0, 0], [0.9, -1.0], [0.9, 1.0]];
+                    spots.forEach(function (sp) {
+                        var qq = at(F, sp[0] + (r() - 0.5) * 0.3, sp[1] + (r() - 0.5) * 0.3);
+                        if (cup && Math.hypot(qq[0] - cup.x, qq[1] - cup.z) < 1.1) return;
+                        w.push(A.bumper(qq[0], qq[1], 0.5));
+                    });
+                    if (!isLast) {
+                        // Kickers on the side rails, clear of a door in either.
+                        w = w.concat(slingAt(F, -0.9, 0.6, -1, -S + 0.85, S - 0.15));
+                        if (P.exit !== 'side') w = w.concat(slingAt(F, -0.9, 0.6, 1, S - 0.85, S - 0.15));
+                    }
+                    break;
+                case 'bigblade':
+                    q = isLast ? at(F, -0.2, 0) : at(F, 0, 0);
+                    w.push(A.spinner(q[0], q[1], S * 1.0, 0.3, { spin: (r() < 0.5 ? 1 : -1) * (0.9 + 0.5 * r()) }));
+                    break;
+                case 'moguls':
+                    p.bumps = moguls(r, F, 6, S, S);
+                    break;
+                case 'baffle':
+                    // A wall from one side across most of the room, the gap on the side away from the door.
+                    b = P.exit === 'across' || P.exit === 'side' ? 1 : (r() < 0.5 ? 1 : -1);
+                    var gap = 1.5;
+                    w.push(board(at(F, 0, -b * S), at(F, 0, b * (S - gap)), { t: 0.3, kind: kerbKind }));
+                    q = at(F, -1.2, b * (S - 0.9)); w.push(A.post(q[0], q[1], 0.36));
+                    break;
+                case 'bunkers':
+                    var spotsB = isLast ? [[P.cupAB[0] - 1.2, P.cupAB[1] - 0.9], [P.cupAB[0] - 0.5, P.cupAB[1] + 1.3]] :
+                        [[-0.6, -0.9], [0.9, 1.0]];
+                    spotsB.forEach(function (sp) {
+                        var sa = Math.max(-S + 1.4, Math.min(S - 1.6, sp[0])), sb = Math.max(-S + 1.6, Math.min(S - 1.6, sp[1]));
+                        var qq = at(F, sa, sb), rr = 0.6 + r() * 0.25;
+                        if (cup && Math.hypot(qq[0] - cup.x, qq[1] - cup.z) < rr + C.HOLE_R + 0.35) return;
+                        pads.push(A.circle(qq[0], qq[1], rr, 'sand', P.ys, rr * (1.1 + r() * 0.3)));
+                    });
+                    break;
+                case 'corral':
+                    // Eight posts round the cup with two of them missing: find the doorway.
+                    var gapAt = Math.floor(r() * 8), R = 1.15;
+                    for (i = 0; i < 8; i++) {
+                        if (i === gapAt || i === (gapAt + 3 + Math.floor(r() * 3)) % 8) continue;
+                        var ang = i / 8 * TAU;
+                        var pa = P.cupAB[0] + Math.cos(ang) * R, pb = P.cupAB[1] + Math.sin(ang) * R;
+                        if (Math.abs(pa) > S - 0.35 || Math.abs(pb) > S - 0.35 ||
+                            Math.hypot(Math.max(0, Math.abs(pa) - (S - 2)), Math.max(0, Math.abs(pb) - (S - 2))) > 2 - 0.35) continue;
+                        q = at(F, pa, pb);
+                        w.push(A.post(q[0], q[1], 0.34));
+                    }
+                    break;
+                case 'mesa':
+                    p.bumps = [A.mesa(cup.x, cup.z, 0.8, 1.1, 0.3 + 0.08 * r())];
+                    break;
+                case 'bowl':
+                    p.bumps = [A.hill(cup.x, cup.z, 1.8, -0.24)];
+                    q = at(F, P.cupAB[0] - 1.9, P.cupAB[1] + (r() < 0.5 ? 1 : -1) * 0.7);
+                    w.push(A.bumper(q[0], q[1], 0.5));
+                    break;
+            }
+        }
+
+        // The kerbs: every side of every cell that neither leads on nor is inside its own room.
+        var keys = {}, round = {};
+        function empty(i, j) { return occ[key(i, j)] === undefined; }
+        // The corners with nothing round them get rounded off, on any piece flat and plain enough.
+        pieces.forEach(function (P, k) {
+            if (P.ramp || (P.thing && !{ bumpers: 1, hump: 1, moguls: 1, island: 1, pinball: 1, corral: 1, mesa: 1, bowl: 1, bunkers: 1, baffle: 1, bigblade: 1, fork: 1 }[P.thing.id])) return;
+            if (P.t === 'cell' && P.pad && (P.pad.push || P.pad.kind === 'wood')) return;
+            var F = P.F, out = {}, any = false;
+            var cs = [['sw', F.x0, F.z0, -1, -1], ['se', F.x0 + F.w, F.z0, 1, -1], ['nw', F.x0, F.z0 + F.d, -1, 1], ['ne', F.x0 + F.w, F.z0 + F.d, 1, 1]];
+            cs.forEach(function (c) {
+                // The piece's own cell at this corner, and the three round it.
+                var oi = Math.round(c[1] / S) - (c[3] > 0 ? 1 : 0), oj = Math.round(c[2] / S) - (c[4] > 0 ? 1 : 0);
+                if (!empty(oi + c[3], oj) || !empty(oi, oj + c[4]) || !empty(oi + c[3], oj + c[4])) return;
+                var R = P.t === 'room' ? 2.0 : (k === 0 ? 1.1 : k === last ? 1.4 : S / 2);
+                if (P.t === 'cell' && P.mouth) R = 1.1;
+                out[c[0]] = R; any = true;
+                round[c[1] + ',' + c[2]] = { R: R, sx: c[3], sz: c[4], y: P.ys };
+            });
+            if (any) P.pad.round = out;
+        });
+        function rails(P, k) {
+            P.cells.forEach(function (c) {
+                if (P.thing && P.thing.id === 'plank') return;
+                var x0 = c.i * S, z0 = c.j * S, x1 = x0 + S, z1 = z0 + S;
+                [['N', [x0, z1], [x1, z1], [0, 1]], ['S', [x0, z0], [x1, z0], [0, -1]],
+                 ['E', [x1, z0], [x1, z1], [1, 0]], ['W', [x0, z0], [x0, z1], [-1, 0]]].forEach(function (sd) {
+                    var ek = edgeKey(c.i, c.j, sd[0]);
+                    if (open[ek] || keys[ek]) return;
+                    var nb = cellAt[key(c.i + sd[3][0], c.j + sd[3][1])];
+                    if (nb === P) return;                                      // inside its own room
+                    var a = sd[1].slice(), b = sd[2].slice();
+                    var ya = heightAt(P, a[0], a[1]), yb = heightAt(P, b[0], b[1]), la = ya, lb = yb;
+                    if (nb) {
+                        // Two pieces side by side that do not lead into each other: one kerb, from the
+                        // lower floor up to a rail's height over the higher.
+                        var na = heightAt(nb, a[0], a[1]), nb2 = heightAt(nb, b[0], b[1]);
+                        la = Math.min(ya, na); lb = Math.min(yb, nb2);
+                        ya = Math.max(ya, na); yb = Math.max(yb, nb2);
+                    }
+                    keys[ek] = true;
+                    // Stop short of a rounded corner; the curve is its own kerb.
+                    var ra = round[a[0] + ',' + a[1]], rb = round[b[0] + ',' + b[1]];
+                    var ux = (b[0] - a[0]) / S, uz = (b[1] - a[1]) / S;
+                    if (ra) { a[0] += ux * ra.R; a[1] += uz * ra.R; }
+                    if (rb) { b[0] -= ux * rb.R; b[1] -= uz * rb.R; }
+                    extra = extra.concat(kerb(a[0], a[1], b[0], b[1], ya, yb, kerbKind, la, lb));
+                });
             });
         }
-        function heightAt(c, x, z) {
-            if (!c.ramp) return c.ys;
-            var t = c.din === 'N' ? (z - c.F.z0) / S : c.din === 'E' ? (x - c.F.x0) / S : (c.F.x0 + S - x) / S;
-            return c.ys + (c.ye - c.ys) * Math.max(0, Math.min(1, t));
-        }
-        cells.forEach(rails);
+        pieces.forEach(rails);
+        Object.keys(round).forEach(function (kk) {
+            var c = round[kk], xy = kk.split(',').map(Number);
+            var cx = xy[0] - c.sx * c.R, cz = xy[1] - c.sz * c.R;
+            var a0 = c.sx > 0 ? (c.sz > 0 ? 0 : -Math.PI / 2) : (c.sz > 0 ? Math.PI / 2 : Math.PI);
+            extra = extra.concat(A.arc(cx, cz, c.R, a0, a0 + Math.PI / 2, { t: 0.3, h: RAIL + 0.1, base: c.y - 0.1, drawn: kerbKind, kind: kerbKind }));
+        });
 
         // Par: two for the putt that is left, and one for every way the lane makes you work.
-        var turns = cells.filter(function (c) { return c.dout && c.dout !== c.din; }).length;
-        var hard = used.filter(function (t) { return ['mill', 'plank', 'flipper', 'gate'].indexOf(t.id) >= 0; }).length;
-        var par = Math.max(2, Math.min(5, 2 + (cells.length >= 6 ? 1 : 0) + (turns >= 3 ? 1 : 0) + (hard >= 2 ? 1 : 0)));
+        var cellsN = pieces.reduce(function (s, P) { return s + (P.t === 'room' ? 2.5 : 1); }, 0);
+        var turns = pieces.filter(function (P) { return P.t === 'cell' && P.dout && P.dout !== P.din; }).length;
+        // Two turns the same way round, one after the other, double the lane back on itself: a hairpin.
+        var senses = pieces.filter(function (P) { return P.t === 'cell' && P.dout && P.dout !== P.din; })
+            .map(function (P) { return P.dout === left(P.din) ? 'L' : 'R'; });
+        var uturn = senses.some(function (x, i) { return i > 0 && x === senses[i - 1]; });
+        var hard = used.filter(function (t) { return ['mill', 'plank', 'flipper', 'gate', 'twin', 'fork'].indexOf(t.id) >= 0; }).length;
+        var par = Math.max(2, Math.min(5, 2 + (cellsN >= 7 ? 1 : 0) + (turns >= 4 ? 1 : 0) + (hard >= 2 ? 1 : 0) +
+            (uturn ? 1 : 0)));
 
+        // A name: the hole's own shape where that is the point of it, else the thing it is built round.
         var main = used.length ? used[Math.floor(r() * used.length)] : null;
-        var name = main ? main.name : turns >= 3 ? 'The Switchback' : cells.some(function (c) { return c.step; }) ? 'The Cascade' : 'The Lane';
-        if (cupThing === 'volcano' && !main) name = 'The Volcano';
-        var says = [];
-        if (turns) says.push(turns === 1 ? 'one turn' : turns + ' turns');
-        var steps = cells.filter(function (c) { return c.step; }).length, ramps = cells.filter(function (c) { return c.ramp; }).length;
-        if (steps) says.push(steps === 1 ? 'a step down' : steps + ' steps down');
-        if (ramps) says.push(ramps === 1 ? 'a ramp' : ramps + ' ramps');
+        var SHAPE_NAMES = {
+            hairpin: ['The Hairpin', 'Out and Back', 'U-Turn', 'The Paperclip'],
+            cascade: ['The Cascade', 'Staircase', 'Downhill Run', 'The Falls'],
+            pipe: ['The Wormhole', 'Mind the Gap', 'Down the Pipe', 'The Crossing']
+        };
+        var name;
+        if (SHAPE_NAMES[shape] && (r() < 0.65 || !main)) name = pick(r, SHAPE_NAMES[shape]);
+        else if (room && r() < 0.7) name = pick(r, room.thing.names);
+        else if (main) name = pick(r, main.names);
+        else name = turns >= 3 ? 'The Switchback' : pieces.some(function (P) { return P.step; }) ? 'The Cascade' : pick(r, ['The Lane', 'Straight Shot', 'The Runway']);
+        if (cupThing === 'volcano' && !main && !SHAPE_NAMES[shape]) name = 'The Volcano';
+
+        var lead = [];
+        if (shape === 'hairpin') lead.push('out and back round a hairpin');
+        else if (turns) lead.push(turns === 1 ? 'one turn' : turns + ' turns');
+        var steps = pieces.filter(function (P) { return P.step; }).length, ramps = pieces.filter(function (P) { return P.ramp; }).length;
+        if (steps) lead.push(steps === 1 ? 'a step down' : steps + ' steps down');
+        if (ramps) lead.push(ramps === 1 ? 'a ramp' : ramps + ' ramps');
+        lead = lead.concat(says);
         var seen = {};
-        used.forEach(function (t) { if (!seen[t.id]) { seen[t.id] = true; says.push(t.says); } });
-        if (cupThing === 'volcano') says.push('a cup on a mound');
-        if (cupThing === 'bowl') says.push('a bowl round the cup');
-        if (cupThing === 'guard') says.push('two posts guarding the cup');
-        var blurb = (says.length ? cap(list(says)) + '.' : 'A straight lane.') + ' Riding through ' + entry.name +
+        used.forEach(function (t) {
+            if (seen[t.id]) return;
+            seen[t.id] = true;
+            if (t.id === 'fork') {
+                var fk = room;
+                lead.push('a fork: ' + ({ gate: 'a gate', spinner: 'a blade', posts: 'posts', flipper: 'a flipper', mill: 'a windmill', bumpers: 'bumpers' }[fk.hard]) +
+                    ' the short way, ' + (fk.longWay === 'belt' ? 'a belt' : 'a hump') + ' the long way');
+            } else lead.push(t.says);
+        });
+        if (cupThing === 'volcano') lead.push('a cup on a mound');
+        if (cupThing === 'bowl') lead.push('a bowl round the cup');
+        if (cupThing === 'guard') lead.push('two posts guarding the cup');
+        if (cupThing === 'sand') lead.push('pot bunkers by the cup');
+        var blurb = (lead.length ? cap(list(lead)) + '.' : 'A straight lane.') + ' Riding through ' + entry.name +
             (entry.line ? ': ' + entry.line.charAt(0).toLowerCase() + entry.line.slice(1) : '.');
 
         var hole = PW.world({
             name: name, par: par, bag: ['putter', 'mallet'],
-            blurb: blurb, pads: pads, extra: extra, tee: tee, cup: cup
+            blurb: blurb, pads: pads, extra: extra, tee: tee, cup: cup, warps: warps.length ? warps : undefined
         });
         hole.scene = entry.scene; hole.theme = entry.theme; hole.inWorld = entry.name;
-        hole.endless = { seed: seed, n: n, cells: cells.length, turns: turns, things: used.map(function (t) { return t.id; }), cup: cupThing };
+        hole.endless = { seed: seed, n: n, shape: shape, cells: pieces.reduce(function (s, P) { return s + P.cells.length; }, 0),
+            turns: turns, things: used.map(function (t) { return t.id; }), cup: cupThing };
         hole.place = placeFor(entry);
         return hole;
     }
@@ -445,7 +970,8 @@
         };
         c.theme = null;
         function add() {
-            var k = c.holes.length, w = nextWorld(), h = generate(mix(seed, k + 1), k, w);
+            var k = c.holes.length, w = nextWorld(), was = c.holes[k - 1];
+            var h = generate(mix(seed, k + 1), k, w, was && was.endless.shape);
             c.holes.push(h); c.worlds.push(w.id); c.themes.push(w.theme); c.from.push({ id: 'endless', index: k });
             if (k === 0) c.theme = w.theme;
         }
@@ -469,7 +995,7 @@
 
     G3.endless = {
         worlds: worlds, world: worldById, generate: generate, course: course, rng: rng, mix: mix,
-        THINGS: THINGS, S: S
+        THINGS: THINGS, SHAPES: SHAPES, ROOMS: ROOMS, S: S
     };
 
     G3.ENDLESS = null;

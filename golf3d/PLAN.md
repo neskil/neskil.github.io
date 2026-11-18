@@ -751,6 +751,13 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   runs the ride at about one frame a second, so the crossing has only been
   watched in a headless driver with the pace turned up, never at a phone's
   sixty.
+- **Endless holes (v1.184.0): what the shapes pass left.** Loops and launch
+  pads are not in the generator (both want a pace and a landing the bot and a
+  railed lane do not yet guarantee); par is a formula checked only against the
+  perfect bot, which finds a U-turn's two banks hard and a fork's long way
+  easy, so a human-hands pass (`human-check.mjs` over generated holes) would
+  set it better. A fork's belt is a pad laid a hundredth proud of the room's
+  carpet rather than a cut in it.
 - **Level-editor parity (optional / low-priority)** — compatibility with
   `level-editor.html` is not required and must never constrain or slow down new
   map designs or mechanics (`golf3d/CLAUDE.md`). Keeping editor-created holes
