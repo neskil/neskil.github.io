@@ -835,7 +835,7 @@
         /* The corners with nothing round them get cut off, on any piece flat
            and plain enough — and how is the hole's own: all rounded, all at
            forty-five degrees, all left square, or a mix of the three
-           (the owner, v1.185.0: "variation is the key"). */
+           (the owner, v1.186.0: "variation is the key"). */
         var cornerStyle = pick(r, ['round', 'round', 'cham', 'cham', 'square', 'mix', 'mix', 'mix']);
         pieces.forEach(function (P, k) {
             if (P.ramp || (P.thing && !{ bumpers: 1, hump: 1, moguls: 1, island: 1, pinball: 1, corral: 1, mesa: 1, bowl: 1, bunkers: 1, baffle: 1, bigblade: 1, fork: 1 }[P.thing.id])) return;
