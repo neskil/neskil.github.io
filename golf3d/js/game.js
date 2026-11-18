@@ -352,6 +352,16 @@
        same latch the picker keeps (menuTaking), for the same impatient
        thumb. */
     var portalBusy = false, portalRaf = 0;
+    /* No swing lane while the screen is shut or opening (the owner,
+       v1.182.1: "dont show during transition"). `diving` only covered the
+       plunge; the lane came back the moment the swap was done, over the held
+       curtain and the whole of the opening. It is put away from the moment
+       the portal starts closing, and back only once it has opened all the
+       way on the new tee — every way through ends in openWipe. */
+    function portalShut(on) {
+        if (!on && (portalBusy || curtain.up)) return;
+        document.body.classList.toggle('portal-shut', on);
+    }
     function portalSkies(themeName) {
         var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
         return { inCol: sky[1], outCol: sky[0] };
@@ -391,6 +401,7 @@
         }
         if (portalBusy) return;
         portalBusy = true;
+        portalShut(true);
         if (portalRaf) { cancelAnimationFrame(portalRaf); portalRaf = 0; }
         var sk = portalSkies(themeName), useGL = glPortal();
         wipeSkies(el, themeName);
@@ -439,11 +450,15 @@
                 G3.postfx.setPortal({ k: 1 - e, open: 1 });
             }, function () {
                 G3.postfx.setPortal(null);
+                portalShut(false);
             });
             return;
         }
         el.className = 'portal-wipe opening';
-        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 800);
+        setTimeout(function () {
+            if (el.className === 'portal-wipe opening') el.className = 'portal-wipe';
+            portalShut(false);
+        }, 800);
     }
 
     /* The wait for a world.
@@ -533,6 +548,7 @@
             G3.postfx.setPortal({ k: 1, open: 0, inCol: sk.inCol, outCol: sk.outCol });
         }
         curtain.up = true; curtain.t0 = Date.now();
+        portalShut(true);
         if (!/closing/.test(el.className)) el.className = curtainClass();
         curtain.timer = setInterval(function () {
             var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
@@ -1819,7 +1835,7 @@
     }
 
     /* The lane's picture: a guide down from where the thumb went in, a tick
-       at the full swing, the ball under the thumb, and — once the club is
+       at the full swing, and — once the club is
        coming back — a wedge showing how straight is straight enough. */
     function drawSwipe() {
         var lane = $('swipe');
@@ -1830,7 +1846,6 @@
         var fullY = y0 + len * SW.markAt();
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
-        attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
         /* Where to let go for backspin, once there is a pull to measure it on.
            Over the thumb, not over where it went in: the swipe up is read
            from the bottom of the pull (the cone stands there too), and a
