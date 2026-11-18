@@ -3650,6 +3650,21 @@ swing:
   one;
 - while the ball is quick, the camera **drifts back** and the lens opens a few
   degrees, and the ball drags a **tail** behind it;
+- on a big strike the seat **lets go** (v1.185.0, `CONFIG.LAUNCH_CAM`,
+  `render.js → launchLag`): the eye stays nearly where it was and turns to
+  watch the ball leave, then runs after it and catches up over a second and a
+  half. A camera glued to the ball cannot say how fast it went — the ball stays
+  the same size in the middle of the frame — and the ball shrinking away from
+  you is the speed. It scales with the launch speed, so a driver gets all of it
+  and a putt next to none, and only from Follow and Side on;
+- and while that chase is on, **motion blur** (`CONFIG.MOTION_BLUR`,
+  `render.js → motionBlur`, the composite in `postfx.js`). The scene buffer is
+  multisampled and its depth cannot be read back, so each pixel is assumed to
+  be on the level ground under the ball — or far off, above the horizon — and
+  run back through last frame's view-projection: the grass by the lens
+  streaks, the horizon barely moves. The ball and the club bag are kept sharp,
+  nothing blurs across a cut, and a phone the frame-rate tiers have put on the
+  lowest rung does not pay for it;
 - and when it drops, the **pin rattles** — nothing stopped the ball on the way
   past it, so the least the pin can do is admit it happened.
 
@@ -4297,6 +4312,20 @@ is laid on anything now:
 - **The world is always built at `medium`**, whatever the device: a hole is
   baked from that level's ground, and a different level is different
   geometry.
+- **The cup is cut into a depth-only disc** (v1.184.3, `addCup` →
+  `R.cupMask`). Since v1.183.0 no green is drawn either, and the world's
+  ground inside the plan is pushed to the far plane, so nothing hid the
+  shaft: the cup stood on the fairway as a black tube with its floor
+  showing. A disc six units round the lip, laid on the hole's own ground a
+  hair under it and writing depth only, does what the green's slab did. It
+  is wide because from a low seat the floor shows several units short of
+  the lip, and it is shown only while the world is live on a sculpted hole.
+- **A sculpted hole is cut short, as a riding one is** (v1.184.3). The
+  world used to be cut half the way to the ball (the Orrery's card
+  catalogue), and on the turtle that sliced the fairway in front of the
+  ball into a flat edge with the sea and the waterfalls under it (the
+  owner: "clipping issues"). It is cut a fifth of the way now, and the rest
+  is the plate's `pushNear`, the same as Endless (see "The ride").
 
 **What a hole does to a world is undone for the next hole** (v1.158.0,
 `unsculpt`). Two holes share the breakfast table and a world is kept between
@@ -5680,6 +5709,18 @@ code for the skip, because there is nothing for it to do. Anything at all cuts
 it: the listeners are on the window in the capture phase, so a press on a chip,
 a key, a scroll or a finger on the course all end it before they do their own
 job. An intro you have to sit through is a loading screen.
+
+**The end of it is an iris, not a flight.** The path runs green to tee and the
+seat looks tee to green, so its last stretch turns the whole view round over the
+ball. That stretch is not flown: `flyover.js → cutAt` finds where the turn
+starts, the camera glides to a stop on that point over `FLY.IRIS.BRAKE` (the
+path's clock running down on a half cosine), and the adventure-game iris covers
+the jump — in to a brass-edged ring round the ball, a held beat with only the
+ball in the light, shut, a moment of black while the camera goes to the seat,
+and open round the ball from there (v1.184.1; the owner wanted it "more
+LucasArts", later and slower than the first quick circle). A skip gets only
+the quick open (`QUICK_HOLD`, `QUICK_OPEN`), and the swing lane stays away
+until the circle is fully open (`body.iris-up`).
 
 **Four keys, and each is there for a different reason.** Beyond the cup looking
 back at it; the top of the arc over the middle of the hole, looking down the
