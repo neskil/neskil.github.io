@@ -1865,6 +1865,14 @@ backwards. `theme.machine` is what they are painted, because the marks have to
 be the first thing read from the tee and what colour does that depends on what
 the ground is: cold cyan on the ice, hot pink at the fair.
 
+A belt's mark runs (v1.186.0, `render.js → addBelt`, stepped by `stepBelts`):
+dark seams across it and the chevrons along it slide the way it pushes and
+wrap round at the far end, so it reads as a conveyor before a ball touches it.
+The pace on screen is `beltPace`, not the ball's — a belt's real speed is up
+to thirty units a second and would strobe — and each piece shrinks to nothing
+over the last stretch of the run rather than popping in, which also keeps it
+off a rounded corner.
+
 Three things about them were each wrong once and are worth writing down:
 
 - **A decal has to clear the grass.** A green wears a stack of shells a little
@@ -4415,18 +4423,18 @@ own, a bot that holes out within two of par, and the deal to its shape;
 renderer and are looked at, not asserted: `?world=<id>&live=1`, and
 `G3.backdrop.debug()` in the console says where the hole landed.
 
-### Live worlds are on by default, on a phone too
+### Live worlds are on at the start of every visit
 
 They were a desktop's default only, and the owner's phone — which runs the
-game at sixty frames — showed the stand-in scenery (v1.155.0). Now
-`render.js → liveWanted` says yes unless the player has said no or the
-device reports 2 GB or less. What protects a weak machine is measured:
-`stepPlace` takes a quarter off the world's resolution each two seconds the
-frame rate is under 26, down to a third of the stage, and switches live
-worlds off (with a toast, `g3-live-off`) if it is still under 16 at the
-bottom. `backdrop.mjs` leaves a mark in localStorage while a world builds; a
-mark still there at the next visit means the build killed the page, and
-live worlds stay off until asked for. `?live=1` overrides all of it.
+game at sixty frames — showed the stand-in scenery (v1.155.0). Since v1.186.1
+every page load starts with them on, whatever the device and whatever was
+chosen last time: `render.js → liveWanted` is yes unless the switch in
+Settings or the frame-rate net has said no *this visit*. What protects a weak
+machine is measured: `stepPlace` steps the world's resolution down while the
+frame rate is poor, and switches live worlds off for the visit (with a toast,
+`g3-live-off`) if that is not enough. Nothing is kept in localStorage for it;
+the old `golf3d.live` and `golf3d.worldBuilding` keys are cleared at load.
+`?live=0|1` overrides all of it.
 
 ### The wait for a world
 
@@ -4631,7 +4639,7 @@ running. Every edge that neither leads on nor lies inside its own room gets a
 kerb (segmented along a ramp; where two pieces at different heights sit side
 by side, one kerb from the lower floor to a rail over the higher), and every
 corner with nothing round it — the outside of a turn, the ends of the lane, a
-room's far corners — is cut off the hole's own way (v1.186.0, the owner:
+room's far corners — is cut off the hole's own way (v1.187.0, the owner:
 "90 or 45 or round or a mix. Variation is the key"): rounded (`pad.round`,
 a drawn curve of kerb), at forty-five degrees (`pad.cham` names which of the
 `pad.round` corners are a straight chord instead — `physics.cornerCut`,
@@ -4643,7 +4651,7 @@ edge (`pieceShape`), so a step in a rail falls at a joint between pieces.
 A quarter of holes have timber kerbs. The cup cell is plain, a bowl, a mound,
 guarded or between pot bunkers.
 
-**A cup on a mound or in a dish** (`land`, v1.186.0 — the owner's screenshot:
+**A cup on a mound or in a dish** (`land`, v1.187.0 — the owner's screenshot:
 a square of level turf standing out of the old mound with its sides showing).
 The cup's flat patch is a square (`render.js → addTerrain`, `CUP_PATCH`),
 and the old mound was level only for 0.75 round the cup, so the patch's

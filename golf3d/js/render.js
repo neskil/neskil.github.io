@@ -3187,8 +3187,27 @@
         return sh;
     }
 
-    /* A travelator: chevrons along it, spaced by how hard it pushes, so a
-       fast belt is a dense one and the picture carries the number. */
+    /* A travelator: a belt that runs. Seams across it and chevrons along
+       it, all sliding the way the belt carries the ball and wrapping round at
+       the far end, so it reads as a conveyor from the tee before a ball has
+       touched it (the owner, v1.186.0: "some animation of moving line like a
+       conveyor belt"). Still pictures carry the number too: the chevrons are
+       spaced by how hard it pushes, so a fast belt is a dense one.
+
+       The pace on screen is not the ball's. A belt's terminal speed is
+       |push| / -ln(friction) — thirty units a second on The Springboard's —
+       and seams going by at that rate strobe into nothing on a 30fps phone.
+       BELT_PACE gives a slow belt a slow crawl and a hard one a run, in the
+       same order, and never so fast that a seam jumps a gap in one frame.
+
+       Each piece is shrunk to nothing over the last stretch of the run, so
+       nothing pops into being at the near end and nothing hangs over a
+       rounded corner at the far one. Pieces share a material per kind, so
+       fading is done by scale, not opacity. stepBelts moves them. */
+    var BELT_SEAM = 0.55;      // gap between seams, units
+    var BELT_FADE = 0.7;       // the stretch at each end a piece shrinks over
+    function beltPace(mag) { return Math.min(5.5, 1.1 + Math.sqrt(mag) * 0.95); }
+
     function addBelt(group, pad, theme) {
         var ax = pad.push.x, az = pad.push.z;
         var mag = Math.hypot(ax, az);
@@ -3199,20 +3218,61 @@
         var wide = Math.min(0.62, across * 0.34);
         var step = Math.max(0.8, 2.4 - mag * 0.1);
         var n = Math.max(1, Math.floor(run / step));
+        step = run / n;                       // whole chevrons round the loop
+        var seams = Math.max(2, Math.round(run / BELT_SEAM));
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
-        var geo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
-        geo.rotateX(-Math.PI / 2);
-        var mat = markMat(theme.machine || 0xffd34d, 0.95);
-        var i, f, ox, oz, m;
-        for (i = 0; i < n; i++) {
-            f = (i + 0.5) / n - 0.5;
-            ox = Math.sin(yaw) * f * run;
-            oz = Math.cos(yaw) * f * run;
-            m = new THREE.Mesh(geo, mat);
-            m.rotation.y = yaw;
-            m.position.set(cx + ox, markY(pad, cx + ox, cz + oz), cz + oz);
-            group.add(m);
+        var belt = {
+            pad: pad, cx: cx, cz: cz, run: run, sx: Math.sin(yaw), sz: Math.cos(yaw),
+            pace: beltPace(mag), lanes: []
+        };
+
+        var seamGeo = new THREE.PlaneGeometry(across * 0.9, 0.07);
+        seamGeo.rotateX(-Math.PI / 2);
+        var seamMat = markMat(0x120e18, 0.5);
+        var chevGeo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
+        chevGeo.rotateX(-Math.PI / 2);
+        var chevMat = markMat(theme.machine || 0xffd34d, 0.95);
+
+        [[seamGeo, seamMat, seams, run / seams, 0, 1],
+         [chevGeo, chevMat, n, step, 0.006, 2]].forEach(function (l) {
+            var lane = { gap: l[3], lift: l[4], meshes: [] };
+            for (var i = 0; i < l[2]; i++) {
+                var m = new THREE.Mesh(l[0], l[1]);
+                m.rotation.y = yaw;
+                m.renderOrder = l[5];
+                lane.meshes.push(m);
+                group.add(m);
+            }
+            belt.lanes.push(lane);
+        });
+        placeBelt(belt, 0);
+        (R.belts || (R.belts = [])).push(belt);
+    }
+
+    /* Where every piece of a belt is `t` seconds into its run. */
+    function placeBelt(b, t) {
+        var half = b.run / 2, k, i, lane, off, f, s, x, z, m;
+        for (k = 0; k < b.lanes.length; k++) {
+            lane = b.lanes[k];
+            off = (t * b.pace) % lane.gap;
+            for (i = 0; i < lane.meshes.length; i++) {
+                f = (i + 0.5) * lane.gap + off;
+                if (f > b.run) f -= b.run;
+                s = Math.min(1, f / BELT_FADE, (b.run - f) / BELT_FADE);
+                s = s * s * (3 - 2 * s);
+                m = lane.meshes[i];
+                f -= half;
+                x = b.cx + b.sx * f;
+                z = b.cz + b.sz * f;
+                m.visible = s > 0.02;
+                m.scale.set(s, 1, s);
+                m.position.set(x, markY(b.pad, x, z) + lane.lift, z);
+            }
         }
+    }
+
+    function stepBelts() {
+        for (var i = 0; i < (R.belts || []).length; i++) placeBelt(R.belts[i], R.clock);
     }
 
     /* A launch pad: a sprung face with a rim round it, drawn the same way the
@@ -5931,6 +5991,7 @@
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
+        R.belts = [];
         R.posts = [];
         R.lamps = [];
 
@@ -6175,58 +6236,28 @@
        worlds switched off, `stepPlace` does nothing and the hole stands in
        its theme's own sky with worlds.js's simple set piece — a complete
        hole either way. */
-    /* Only the switch in Courses writes this. The two safety nets below — a
-       build that did not finish last visit, a frame rate that would not come
-       up — turn live worlds off for this visit alone (R.liveSession) and try
-       again on the next. They used to write '0' here, which read as the
-       player's own choice from then on: on a phone a tab closed while a world
-       was building looks just like a crash, and one of those turned the
-       worlds off for good (the owner: "should be on by default — why is it
-       not?"). The key is new with that change, so a '0' a safety net wrote
-       under the old one is not carried over. */
-    var LIVE_KEY = 'golf3d.live';
-    /* Whether the last visit left a build unfinished — read once, here, as
-       the page loads. backdrop.mjs (a module, so it runs after this) sets the
-       mark while *this* visit's world builds, and liveWanted used to read it
-       on every call: asked during the first world's build, it found its own
-       visit's mark, called it a crash and turned live worlds off. That was
-       every new phone, whose first world builds while the demo or the
-       picker is up and something is asking. */
-    var crashedLast = (function () {
-        try {
-            if (!localStorage.getItem('golf3d.worldBuilding')) return false;
-            localStorage.removeItem('golf3d.worldBuilding');
-            return true;
-        } catch (e) { return false; }
-    })();
+    /* Live worlds are on at the start of every visit, on every device, and
+       nothing carries an "off" over to the next one (the owner, v1.155.0,
+       v1.167.1 and v1.186.1: "should always be on as default … each start it
+       refreshes to on"). The switch in Settings and the frame-rate net in
+       stepPlace turn them off for this visit alone (R.liveSession); the next
+       page load is on again.
+
+       Two things used to start a visit with them off, and both are gone:
+       a stored '0' under 'golf3d.live', which the switch wrote and which a
+       safety net once wrote too; and a mark backdrop.mjs leaves while a world
+       builds, read at the next load as "the build killed the page" — but on
+       a phone a tab closed while a world was loading leaves exactly that
+       mark, so an ordinary visit turned the next one's worlds off. Both keys
+       are cleared here so no old value lingers. */
+    try { localStorage.removeItem('golf3d.live'); localStorage.removeItem('golf3d.worldBuilding'); } catch (e) { /* ignore */ }
     function liveWanted() {
         if (R.liveOverride !== undefined) return R.liveOverride;
-        /* On by default, everywhere — a phone too. It used to be a
-           desktop's job only, and the owner's phone, which runs the game at
-           sixty frames, was shown the stand-in scenery and wondered where
-           the worlds were. What protects a machine that cannot do it is
-           measured, not guessed: the world's resolution is stepped down
-           while the frame rate is poor and live worlds are switched off if
-           that is not enough (stepPlace), and a build that killed the page
-           last time is not tried again (backdrop.mjs leaves a mark while it
-           builds). */
-        if (crashedLast) {
-            crashedLast = false;
-            R.liveSession = false;
-            setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
-        }
-        if (R.liveSession === false) return false;
-        try {
-            var v = localStorage.getItem(LIVE_KEY);
-            if (v === '0') return false;
-            if (v === '1') return true;
-        } catch (e) { /* ignore */ }
-        return !(navigator.deviceMemory && navigator.deviceMemory <= 2);
+        return R.liveSession !== false;
     }
     function setLive(on) {
-        try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
         R.liveOverride = undefined;
-        R.liveSession = undefined;   // the player's word outranks a safety net
+        R.liveSession = on ? undefined : false;   // this visit only
         if (R.hole) setPlace(R.hole);
         return liveWanted();
     }
@@ -6486,7 +6517,7 @@
         }
         if (live && gov.badWins >= 3 && R.liveOverride === undefined) {
             gov.badWins = 0;
-            // This visit only — see LIVE_KEY.
+            // This visit only — see liveWanted.
             R.liveSession = false;
             setPlace(R.hole);
             window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
@@ -8372,6 +8403,7 @@
         if (G3.sandfx) G3.sandfx.step(dt, world);
         stepRipples(dt);
         stepBlackHoles(dt, world);
+        stepBelts();
         if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);

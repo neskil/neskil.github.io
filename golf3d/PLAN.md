@@ -300,6 +300,123 @@ Done:
 
 ---
 
+## New surfaces and hazards — the owner's ask (v1.186.0)
+
+The owner, the same day the belts started moving: "think of new kinds of
+surfaces we could add … some gravity tiles (so you can play either on the
+wall or upside down on some gravity bending maps) or some new hazards like
+lava or something else you can come up with." None of these is started.
+Ordered by what each costs against what a player gets; every one follows the
+rule the machinery already keeps (README → "Adventure golf"): **one piece of
+data on a pad or a hole, read by `physics.js` alone and drawn from that same
+data by `render.js`**, so a mark can never disagree with what the ground does.
+
+Constraints already in the code that shape all of them:
+
+- **The physics is a height field.** A pad is a footprint with a height and
+  a gradient (`padHeight`), and "down" is always −y. Nothing can stand on a
+  wall or a ceiling in that model, so gravity tiles have to be done by
+  *folding* (below) rather than by turning gravity round.
+- **Gravity belongs to the hole, not to a zone** (`physics.gravityOf`, and
+  the note above it: "gravity you can be half inside is gravity nobody can aim
+  in"). A low-gravity *tile* breaks that on purpose; if one is wanted, it has
+  to be a zone you cannot be half inside (a whole room, entered through a
+  door), not a patch on the floor.
+- **Anything with a motor in it wants flat ground under it**
+  (`courses.machineKeeps`), and anything moving goes in a per-frame list the
+  renderer steps (`R.movers`, `R.belts`) — never a light added or removed
+  (CLAUDE.md → "The number of lights").
+
+### 1. Gravity tiles: walls and ceilings, by folding the hole
+
+The one idea here that changes what a hole can be, and the most work.
+
+- **The trick: physics stays flat, the picture folds.** A gravity hole is
+  authored as a flat *net*, like a cube's unfolded on the table: a floor
+  strip, a wall strip next to it, a ceiling strip past that. `physics.js`
+  plays it exactly as it plays any hole today — one plane, one gravity. A
+  new `hole.faces` list (`{ rect, edge, angle }`: which part of the net,
+  which edge it hinges on, 90° for a wall, 180° for a ceiling) tells
+  `render.js` to draw each strip folded up about its hinge. The ball crossing
+  a hinge is continuous in the physics; on screen it rolls up the wall and
+  over on to the ceiling.
+- **A gravity tile is the hinge**, drawn as a band of `theme.machine` arrows
+  bending round the corner (the belt's mark, folded), so the rule a player
+  learns is "cross the band and *down* changes".
+- **The camera rolls with the face.** `updateCamera` and `seatFor` take an
+  up-vector from the face the ball is on, eased over the hinge — the same
+  hand-off care the flyover's last key needed (CLAUDE.md → "The intro
+  flyover ends *at* the live seat"). Upside down is the one that needs
+  testing on a phone: the aim line and the swing gesture must stay
+  screen-relative, not world-relative, or a ceiling putt aims backwards.
+- **Loft is the hard part.** An airborne ball in an unfolded net flies
+  straight across the fold, which on screen is a ball bending round a
+  corner. First version: a folded face is a putting face (`needs-putt`, the
+  bag offers the putter and the mallet), and a lofted ball that reaches a
+  hinge drops as if off a cliff. Later, an airborne ball could be carried in
+  the frame of the face it left until it lands, the way a pipe ride is a ride
+  (`world.warping`).
+- **Good first holes**: *Up the Wall* — a straight putt that runs out of
+  floor and up a wall to a cup on a shelf; *The Ceiling* — the green is
+  overhead and the tee's whole shot is the pace to carry over two hinges;
+  a **Möbius lane** — floor to wall to ceiling to the far wall and back down
+  beside the tee, a loop the player is walked round rather than flown.
+  An **Apogee Yard 2** (the gravity course) is where they belong.
+
+### 2. Lava — a hazard that is not water
+
+- **Molten lava** (`pad.kind = 'lava'`, or a `hole.lava` list shaped like
+  `hole.water`): played like water — the shot is replayed a stroke down —
+  but drawn as an unlit crust-and-glow shader that crawls (a sibling of the
+  water shader in `shaders.js`, the same `#ifdef PRETTY` split), embers off
+  the ball instead of a splash, and a short sizzle in `audio.js`. Cinder
+  Cone, the forge World Tour hole and Endless's volcanic worlds already want
+  it; The Cone's lava bomb is a rock today.
+- **Cooling crust**, the better idea of the two: a lava pad that crusts over
+  and melts on a cycle (`pad.cycle = { period, open }`), solid ground while
+  it is dark and a hazard while it glows. It is a gate in *time* on the
+  *floor*, which nothing on the course does yet — the timing holes are all
+  walls. The glow has to lead the melt by a beat so a ball struck on the
+  dark is not drowned by a change it could not see coming; the bot's "does
+  this hole need a wait before striking" has to learn it (grep
+  `w.move || w.spin`, CLAUDE.md → "A wall may move four ways").
+
+### 3. Other surfaces worth having
+
+Each is a one-field addition in the belt's mould, most of them a few lines
+in `substep`'s grounded branch:
+
+- **Turntable** (`pad.spin = ω`): a disc floor that turns and carries the
+  ball round with it — a belt bent into a circle, drag-balanced towards the
+  disc's own surface speed ω×r. Unlike The Carousel's blades there is
+  nothing to hit; the ball's line just curves. Drawn as the belt's seams, on
+  a ring.
+- **Mud / bog** (`kind: 'mud'`): far more drag than rough and **no bounce**
+  — a lofted ball that lands in it stops dead where it lands. The opposite
+  of ice, and the first surface that rewards loft over a roll.
+- **Rubber / trampoline floor** (`kind: 'rubber'`): landing restitution well
+  over LAND_GRIP's, so a pitch bounces two or three times before it settles.
+  Pinball-table holes (`parlour`) are the place.
+- **Crumbling tiles** (`pad.crumble`): the ball rolls over and the tile
+  drops out a second later (it becomes `pad.oob`). It changes what the
+  *second* shot is, not the first, and it resets with the hole. A replay or
+  a ghost ball has to keep the tile list, so `replay.js` records it.
+- **Magnet strip** (`pad.magnet = pull`): a well (`hole.wells`) stretched
+  into a line — a pull across the ground towards a rail, so a ball bends
+  towards it and has to be struck past it. The well's code is already there.
+- **Speed and slow tiles** (`pad.boost`): a one-shot kick along the ball's
+  own direction rather than the belt's, a pinball rollover. Different from
+  a belt in the way that matters: the direction is yours, only the pace is
+  the tile's.
+
+**Order, if the owner says yes:** lava and cooling crust first (it is a new
+kind of decision, it is mostly shader work on code that exists, and a course
+— Cinder Cone — is waiting for it); then the turntable and mud; gravity
+folding last and as its own course, because it touches the camera, the aim
+and the airborne step all at once.
+
+---
+
 ## Where it stands (v1.82.0)
 
 - **The long game flies.** The driver is 21° at 28 and the iron 30° at 16:
