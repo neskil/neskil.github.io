@@ -380,9 +380,9 @@
                  frame, and a cut reads as a dropped frame. This is the only
                  thing over the course that is not information. -->
             <div class="fly-fade" id="fly-fade" aria-hidden="true"></div>
-            <!-- And the cut out of it: a circle closing on the ball and
-                 opening on it again from the seat (render.js → iris). -->
-            <div class="fly-iris" id="fly-iris" aria-hidden="true" hidden></div>
+            <!-- And the cut out of it: a wipe from the last frame of the
+                 sweep to the seat (render.js → the wipe, game.js → syncWipe). -->
+            <canvas class="fly-wipe" id="fly-wipe" aria-hidden="true" hidden></canvas>
 
             <div class="fly-hint" id="fly-hint" hidden>Flyover — press anything to skip</div>
             <div class="replay-tag" id="replay-tag" hidden><span class="replay-dot" aria-hidden="true"></span>Replay — press anything to skip</div>

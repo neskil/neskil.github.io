@@ -5372,7 +5372,8 @@
             var flatSeat = seatBehind(flat, flatBall);
             var plan = G3.flyover.plan(flat, flatBall, flatSeat);
 
-            assert('a plan is four keys', plan.keys.length === 4, plan.keys.length + ' keys');
+            assert('a plan is the orbit and the seat', plan.keys.length === F.ORBIT_KEYS + 1 && !plan.line,
+                plan.keys.length + ' keys');
             assert('the run is inside its bounds',
                 plan.dur >= F.MIN_SECONDS - 1e-9 && plan.dur <= F.MAX_SECONDS + 1e-9,
                 plan.dur + 's');
@@ -5409,9 +5410,10 @@
                little — but a sweep that doubles back is a sweep that reads as a
                mistake, so the tolerance here is tight rather than absent. */
             (function () {
+                // Up to the cut: the leg after it is wiped, never seen.
                 var i, s, prev = Infinity, worst = 0, pose;
                 for (i = 0; i <= 80; i++) {
-                    pose = G3.flyover.at(plan, plan.dur * i / 80);
+                    pose = G3.flyover.at(plan, plan.cut * i / 80);
                     s = along(pose.px, pose.pz);
                     if (s - prev > worst) worst = s - prev;
                     prev = s;
@@ -5430,7 +5432,7 @@
                 b = poseAt(plan, 0);
                 for (i = 1; i <= n; i++) {
                     a = b;
-                    b = poseAt(plan, plan.dur * i / n);
+                    b = poseAt(plan, plan.cut * i / n);
                     step = Math.hypot(b.px - a.px, b.py - a.py, b.pz - a.pz);
                     total += step;
                     if (step > longest) longest = step;
@@ -5636,15 +5638,16 @@
                 var off = pts.map(function (p) { return [p[0] + 40, p[1], p[2]]; });
                 var fp = G3.flyover.plan(flat, b, seat, { tour: true, line: { pts: off, u: 0.4 } });
                 assert('a line elsewhere in the world falls back to the tour sweep',
-                    !fp.line && fp.keys.length === 4 && approx(fp.dur, tour.dur, 1e-9));
+                    !fp.line && fp.keys.length === tour.keys.length && approx(fp.dur, tour.dur, 1e-9));
             })();
 
-            /* The cut. The path runs green to tee and the seat looks tee to
-               green, so the end of it turns the whole view round over the
-               ball; render.js closes an iris and jumps to the seat at
-               `plan.cut` instead of flying that (the owner, v1.183.0). So: a
-               cut in the second half, never later than CUT_TAIL from the
-               end, before the spin and not inside it. */
+            /* The cut. The sweep is an orbit round the hole, and it is cut
+               where the orbit ends, while the camera is still travelling, and
+               wiped to the seat (render.js → the wipe; the owner, v1.188.0:
+               "a sweeping grandiose overview of the map and not motion
+               sickness", and the glide to a stop before it read as "stopping
+               weirdly"). So: an overview that never turns quickly, keeps the
+               hole in front of it, and has not stopped when it is cut. */
             (function () {
                 function turnRate(p, t0, t1) {
                     var a = poseAt(p, t0), b = poseAt(p, t1);
@@ -5653,25 +5656,34 @@
                     var c = (ax * bx + ay * by + az * bz) / Math.sqrt((ax * ax + ay * ay + az * az) * (bx * bx + by * by + bz * bz));
                     return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI / (t1 - t0);
                 }
-                [['a straight lane', plan, false], ['the tour sweep', G3.flyover.plan(flat, flatBall, flatSeat, { tour: true }), false],
-                 ['a dog-leg', (function () {
-                     var dog = lab({ pads: [A.pad(0, 0, 30, 12), A.pad(18, 0, 12, 30)], tee: { x: 3, z: 6 }, cup: { x: 24, z: 26 } });
-                     var bb = teeBall(dog);
-                     return G3.flyover.plan(dog, bb, seatBehind(dog, bb));
-                 })(), true]].forEach(function (c) {
-                    var p = c[1], name = c[0], dt = p.dur / 200, i, t, before = 0, after = 0;
-                    assert(name + ': the sweep is cut in its second half',
-                        p.cut > p.dur * 0.5 && p.cut <= p.dur - Math.min(F.CUT_TAIL, p.dur * 0.5) + 1e-9,
-                        p.cut.toFixed(2) + ' of ' + p.dur.toFixed(2) + 's');
-                    for (i = 0; i < 200; i++) {
+                function speed(p, t) {
+                    var a = poseAt(p, t - 0.01), b = poseAt(p, t);
+                    return Math.hypot(b.px - a.px, b.py - a.py, b.pz - a.pz) / 0.01;
+                }
+                var dog = lab({ pads: [A.pad(0, 0, 30, 12), A.pad(18, 0, 12, 30)], tee: { x: 3, z: 6 }, cup: { x: 24, z: 26 } });
+                var dogBall = teeBall(dog);
+                [['a straight lane', plan, flat], ['the tour sweep', G3.flyover.plan(flat, flatBall, flatSeat, { tour: true }), flat],
+                 ['a dog-leg', G3.flyover.plan(dog, dogBall, seatBehind(dog, dogBall)), dog]].forEach(function (c) {
+                    var p = c[1], name = c[0], h = c[2], n = 200, dt = p.cut / n, i, t, fastest = 0, mean = 0, away = 1, q, mx, mz;
+                    assert(name + ': the sweep is cut where the orbit ends, short of the seat',
+                        p.cut > p.dur * 0.6 && p.cut < p.dur - 0.5, p.cut.toFixed(2) + ' of ' + p.dur.toFixed(2) + 's');
+                    mx = (h.bounds.minX + h.bounds.maxX) / 2; mz = (h.bounds.minZ + h.bounds.maxZ) / 2;
+                    for (i = 0; i < n; i++) {
                         t = i * dt;
-                        if (t + dt <= p.cut - F.IRIS.CLOSE) before = Math.max(before, turnRate(p, t, t + dt));
-                        else if (t >= p.cut) after = Math.max(after, turnRate(p, t, t + dt));
+                        fastest = Math.max(fastest, turnRate(p, t, t + dt));
+                        if (i > 0) mean += speed(p, t) / (n - 1);
+                        q = poseAt(p, t);
+                        // How square the middle of the hole is in the view.
+                        var vx = q.tx - q.px, vy = q.ty - q.py, vz = q.tz - q.pz, vl = Math.hypot(vx, vy, vz);
+                        var hx = mx - q.px, hy = -q.py, hz = mz - q.pz, hl = Math.hypot(hx, hy, hz);
+                        away = Math.min(away, (vx * hx + vy * hy + vz * hz) / (vl * hl));
                     }
-                    assert(name + ': the camera never turns faster than CUT_TURN while it is seen',
-                        before <= F.CUT_TURN + 1, before.toFixed(1) + '°/s');
-                    assert(name + ': and the turn it would have made after the cut is the spin over the ball',
-                        after > F.CUT_TURN, after.toFixed(1) + '°/s');
+                    assert(name + ': it never turns faster than 50°/s while it is seen',
+                        fastest < 50, fastest.toFixed(1) + '°/s');
+                    assert(name + ': the middle of the hole is in the picture all the way round',
+                        away > Math.cos(30 * Math.PI / 180), (Math.acos(away) * 180 / Math.PI).toFixed(0) + '° off');
+                    assert(name + ': and it is still travelling when it is cut',
+                        speed(p, p.cut) > mean * 0.6, speed(p, p.cut).toFixed(2) + ' vs a mean of ' + mean.toFixed(2));
                 });
             })();
 

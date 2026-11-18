@@ -851,36 +851,69 @@
         document.body.classList.toggle('flying', on);
     }
 
-    /* The iris over the sweep's cut (render.js → iris), painted from the
-       state the renderer keeps: where the ball is as fractions of the stage
-       and how open the circle is, as shares of two lengths measured here —
-       the distance to the stage's furthest corner from the ball, so an open
-       iris clears every corner on any screen, and the ring it holds round
-       the ball, a share of the stage's shorter side. What is left over is
-       shut. */
-    var irisUp = false, irisEl = null;
+    /* The wipe over the sweep's cut (render.js → the wipe): the picture of
+       the last frame the sweep flew, taken here straight after the frame
+       the renderer asked for it on (`snapWanted`), and painted over the stage
+       ahead of an edge that crosses it — carried on the way it was moving
+       and growing as it goes — while the live shot behind the edge pushes
+       in on to the seat. Both moving: the cut of a serial picture, not a
+       slide. */
+    var wipeUp = false, wipeEl = null, snapCv = null;
 
-    function syncIris() {
-        var i = R.iris ? R.iris() : null;
-        if (!i) {
-            if (irisUp) { irisUp = false; irisEl.hidden = true; document.body.classList.remove('iris-up'); }
+    function takeSnap() {
+        var S = R.state, gl = S && S.renderer && S.renderer.domElement;
+        if (!S || !S.snapWanted) return;
+        S.snapWanted = false;
+        if (!gl || !gl.width) return;
+        if (!snapCv) snapCv = document.createElement('canvas');
+        if (snapCv.width !== gl.width || snapCv.height !== gl.height) { snapCv.width = gl.width; snapCv.height = gl.height; }
+        try { snapCv.getContext('2d').drawImage(gl, 0, 0); S.snapReady = true; } catch (e) { /* no picture: no wipe */ }
+    }
+
+    function syncWipe() {
+        var w = R.wipe ? R.wipe() : null;
+        if (!w || !snapCv) {
+            if (wipeUp) { wipeUp = false; wipeEl.hidden = true; document.body.classList.remove('wipe-up'); }
             return;
         }
-        if (!irisEl) irisEl = $('fly-iris');
-        var w = irisEl.clientWidth || window.innerWidth, h = irisEl.clientHeight || window.innerHeight;
-        if (!irisUp) {
-            irisUp = true; irisEl.hidden = false; w = irisEl.clientWidth || w; h = irisEl.clientHeight || h;
-            // No swing lane in the circle while it opens: the shot starts when the picture is whole.
-            document.body.classList.add('iris-up');
+        if (!wipeEl) wipeEl = $('fly-wipe');
+        var gl = R.state.renderer.domElement;
+        if (!wipeUp) {
+            wipeUp = true;
+            wipeEl.hidden = false;
+            // Over exactly the course's own canvas, at its own resolution.
+            var gr = gl.getBoundingClientRect(), pr = wipeEl.offsetParent ? wipeEl.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+            wipeEl.style.left = (gr.left - pr.left) + 'px';
+            wipeEl.style.top = (gr.top - pr.top) + 'px';
+            wipeEl.style.width = gr.width + 'px';
+            wipeEl.style.height = gr.height + 'px';
+            wipeEl.width = snapCv.width;
+            wipeEl.height = snapCv.height;
+            // No swing lane until the picture is whole.
+            document.body.classList.add('wipe-up');
         }
-        var x = i.x * w, y = i.y * h;
-        var far = Math.sqrt(Math.max(x, w - x) * Math.max(x, w - x) + Math.max(y, h - y) * Math.max(y, h - y));
-        var I = C.FLY.IRIS;
-        var ring = Math.max(I.SMALL_MIN, I.SMALL * Math.min(w, h) / 2);
-        var r = i.far * (far + 4) + i.near * ring - 4 * (1 - i.far - i.near);   // below zero when shut: no pinhole
-        irisEl.style.setProperty('--ix', x.toFixed(1) + 'px');
-        irisEl.style.setProperty('--iy', y.toFixed(1) + 'px');
-        irisEl.style.setProperty('--ir', Math.max(-4, r).toFixed(1) + 'px');
+        var W = C.FLY.WIPE, cw = wipeEl.width, ch = wipeEl.height;
+        var u = Math.min(1, w.t / w.dur), e = u * u * (3 - 2 * u), dir = w.dir > 0 ? 1 : -1;
+        var lean = W.SLANT * ch / 2, pad = lean + 4;
+        // The edge's middle, from just off one side to just off the other.
+        var X = dir > 0 ? -pad + (cw + 2 * pad) * e : cw + pad - (cw + 2 * pad) * e;
+        var tx = X + lean * dir, bx = X - lean * dir, far = dir > 0 ? cw + pad : -pad;
+        var ctx = wipeEl.getContext('2d');
+        ctx.clearRect(0, 0, cw, ch);
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(tx, 0); ctx.lineTo(far, 0); ctx.lineTo(far, ch); ctx.lineTo(bx, ch);
+        ctx.closePath();
+        ctx.clip();
+        var g = 1 + W.GROW * e;
+        ctx.translate(cw / 2 + dir * W.DRIFT * cw * e, ch / 2);
+        ctx.scale(g, g);
+        ctx.drawImage(snapCv, -cw / 2, -ch / 2, cw, ch);
+        ctx.restore();
+        // The edge itself: a brass rule, the clubhouse's one accent.
+        ctx.strokeStyle = 'rgba(201, 163, 82, 0.9)';
+        ctx.lineWidth = Math.max(2, ch / 360);
+        ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(bx, ch); ctx.stroke();
     }
 
     function toggleFlyover() {
@@ -6735,8 +6768,9 @@
         }
 
         // The sweep can end on any frame and nothing else would notice.
+        takeSnap();
         syncFlyHint();
-        syncIris();
+        syncWipe();
 
         // After the frame, so the inspector's outlines are placed from the
         // same clock the course was just drawn on.
