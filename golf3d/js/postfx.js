@@ -83,6 +83,11 @@
         'uniform float lensAspect;',
         'uniform float portalK, portalOpen;',
         'uniform vec3 portalIn, portalOut;',
+        'uniform float blur, blurMax;',
+        'uniform mat4 blurVP;',
+        'uniform mat3 blurRot;',
+        'uniform vec3 blurEye, blurBall;',
+        'uniform vec4 blurLens, blurKeep;',
         'varying vec2 vUv;',
 
         'float bhPortalHash(vec2 p){',
@@ -187,6 +192,42 @@
         '  c.g = texture2D(tScene, uv).g;',
         '  c.b = texture2D(tScene, uv - ab).b;',
 
+        /* Motion blur (render.js `motionBlur`): where this pixel's bit of the
+           course was a frame ago, assuming it is on the level ground under
+           the ball (`blurLens.z`) or, above the horizon, far off. The eye ray
+           is built in view space — z of -1, so `t` is a distance along the
+           view axis — turned into the world by `blurRot`, put down on that
+           plane, and run back through last frame's view-projection. The
+           difference is the smear, scaled to a 60fps shutter (`blurLens.w`),
+           capped at `blurMax` screen heights, and let go of round the ball,
+           which the camera is following and should stay sharp. Eight taps
+           centred on the pixel, so the picture does not shift as it blurs. */
+        '  if (blur > 0.0005 && portalK < 0.001) {',
+        '    vec2 ndc = vUv * 2.0 - 1.0;',
+        '    vec3 ray = blurRot * vec3(ndc.x * blurLens.x * blurLens.y, ndc.y * blurLens.x, -1.0);',
+        '    float t = 400.0;',
+        '    if (ray.y < -1e-4) t = clamp((blurLens.z - blurEye.y) / ray.y, 0.3, 400.0);',
+        '    vec4 pc = blurVP * vec4(blurEye + ray * t, 1.0);',
+        '    if (pc.w > 1e-3) {',
+        '      vec2 mv = (vUv - (pc.xy / pc.w * 0.5 + 0.5)) * blurLens.w;',
+        '      float ml = length(mv * vec2(lensAspect, 1.0));',
+        '      if (ml > blurMax) mv *= blurMax / ml;',
+        '      float keep = smoothstep(blurBall.z, blurBall.z * 2.5, length((vUv - blurBall.xy) * vec2(lensAspect, 1.0)));',
+        // …and off the club bag, which rides with the camera (`blurKeep`
+        // is its box on the screen, from bag.js `screenBox`).
+        '      vec2 q = max(blurKeep.xy - vUv, vUv - blurKeep.zw);',
+        '      keep *= smoothstep(0.0, 0.05, length(max(q, vec2(0.0)) * vec2(lensAspect, 1.0)));',
+        '      mv *= blur * keep;',
+        '      if (dot(mv, mv) > 1e-9) {',
+        '        vec3 acc = c;',
+        '        for (int i = 0; i < 8; i++) {',
+        '          acc += texture2D(tScene, uv + mv * ((float(i) + 0.5) / 8.0 - 0.5)).rgb;',
+        '        }',
+        '        c = acc / 9.0;',
+        '      }',
+        '    }',
+        '  }',
+
         '  if (bloom > 0.0005) {',
         '    vec3 b = texture2D(tBloomA, vUv).rgb * 0.62 + texture2D(tBloomB, vUv).rgb * 0.38;',
         '    c += b * bloom;',
@@ -245,7 +286,8 @@
         forcedTier: null,          // null = auto, 0/1/2 = pinned by quality preset
         acc: 0, accN: 0,           // rolling frame-time average, for the tiers
         last: 0,                   // …measured on our own clock, see tierFor()
-        settle: 2                  // seconds of grace before judging anything
+        settle: 2,                 // seconds of grace before judging anything
+        blurWant: 0                // motion blur asked for this frame; see motion()
     };
 
     function target(w, h, multisample) {
@@ -336,7 +378,14 @@
                 portalK: { value: 0 },
                 portalOpen: { value: 0 },
                 portalIn: { value: new THREE.Color(0xf0a868) },
-                portalOut: { value: new THREE.Color(0x1b2a55) }
+                portalOut: { value: new THREE.Color(0x1b2a55) },
+                blur: { value: 0 }, blurMax: { value: 0.045 },
+                blurVP: { value: new THREE.Matrix4() },
+                blurRot: { value: new THREE.Matrix3() },
+                blurEye: { value: new THREE.Vector3() },
+                blurBall: { value: new THREE.Vector3(-9, -9, 0.07) },
+                blurLens: { value: new THREE.Vector4(0.5, 1, 0, 1) },
+                blurKeep: { value: new THREE.Vector4(-9, -9, -9, -9) }
             };
 
             FX.mBright = material(BRIGHT_FS, FX.uBright);
@@ -524,8 +573,30 @@
         u.rays.value = wantRays;
         u.aberration.value = tier >= 2 ? base.aberration : 0;
         u.grain.value = tier >= 1 ? base.grain : 0;
+        // Eight more reads of the full-size scene a pixel: not on the tier a
+        // struggling phone has been put down to.
+        u.blur.value = tier >= 1 ? FX.blurWant : 0;
         draw(FX.mComp, null);
         return true;
+    }
+
+    /* Motion blur for this frame, from render.js `motionBlur`: { k, vp, rot,
+       eye, tanH, aspect, ground, scale, max, ball: [u, v], sharp, keep },
+       or nothing for none. `keep` is a box to leave sharp, as bag.js
+       `screenBox` gives it (fractions from the top left), or nothing. */
+    function motion(m) {
+        if (!FX.ok) return;
+        var u = FX.uComp;
+        if (!m || !(m.k > 0)) { FX.blurWant = 0; return; }
+        FX.blurWant = m.k;
+        u.blurVP.value.copy(m.vp);
+        u.blurRot.value.copy(m.rot);
+        u.blurEye.value.copy(m.eye);
+        u.blurLens.value.set(m.tanH, m.aspect, m.ground, m.scale);
+        u.blurMax.value = m.max;
+        u.blurBall.value.set(m.ball[0], m.ball[1], m.sharp);
+        if (m.keep) u.blurKeep.value.set(m.keep.left, 1 - m.keep.bottom, m.keep.right, 1 - m.keep.top);
+        else u.blurKeep.value.set(-9, -9, -9, -9);
     }
 
     function backdrop(scene, camera, front) {
@@ -605,6 +676,7 @@
         setQuality: setQuality,
         lens: lens,
         setPortal: setPortal,
+        motion: motion,
         get ok() { return FX.ok; },
         get tier() { return FX.tier; },
         state: FX

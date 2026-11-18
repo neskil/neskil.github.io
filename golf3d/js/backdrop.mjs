@@ -46,13 +46,6 @@ let held = false, slices = 0;   // frames a build aside has been given, for stat
 let clock = 0;
 const ev = { on: false, t: 0 };
 const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-/* A mark left while a world is building and taken away once it has been
-   drawn (or the page is left in the ordinary way). If it is still there at
-   the next visit the build killed the page, and render.js does not try
-   again until asked. */
-const MARK = 'golf3d.worldBuilding';
-const mark = (v) => { try { v ? localStorage.setItem(MARK, v) : localStorage.removeItem(MARK); } catch (e) { /* ignore */ } };
-window.addEventListener('pagehide', () => mark(null));
 const info = { near: 0.1, far: 5000, scale: 1, w: 2, h: 2 };
 let qualityTier = 'auto', depthScale = 0.5, worldBloom = true, shadowEvery = 1, frameTick = 0;
 
@@ -467,12 +460,11 @@ async function want2(id) {
     if (spare && spare.def.id === id) return takeSpare();
     const E = boot();
     const def = defFor(id);
-    mark(id);
     const job = loading = E._load(def, seedOf(id));
     let W = null;
     try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
     if (loading === job) loading = null;
-    if (!W) { mark(null); return false; }
+    if (!W) return false;
     learn(id);
     if (W.ctx) W.ctx.through = true;
     if (W.portal && W.portal.group) W.portal.group.visible = false;
@@ -497,14 +489,12 @@ async function prepare(id) {
     // One world kept aside at a time.
     dropSpare();
     early = true; aside = id;
-    mark(id);
     const was = wanted;
     const job = loading = E._load(def, seedOf(id));
     let W = null;
     try { W = await job; } catch (e) { failed[id] = true; console.warn('backdrop: ' + id + ' did not build', e); }
     if (loading === job) loading = null;
     early = false; aside = null;
-    mark(null);
     if (!W) return false;
     learn(id);
     if (W.ctx) W.ctx.through = true;
@@ -522,7 +512,6 @@ function takeSpare() {
     cur = spare; spare = null;
     cur.anchor = null;
     // Built is not drawn: the first frames are the risky ones as well.
-    mark(cur.def.id);
     return true;
 }
 function dropSpare() {
@@ -739,7 +728,7 @@ function frameOf(W, place, dt, cam, w, h, clear, A, c, crossed) {
         // this machine the world is still shown, behind everything.
         if (!W.flat) { try { drawDepth(W, c, w, h); } catch (e) { W.flat = true; console.warn('backdrop depth', e); } }
     } catch (e) { failed[W.def.id] = true; cur = null; console.warn('backdrop draw', e); return false; }
-    if (!W.shown) { W.shown = (W.shown0 = (W.shown0 || 0) + 1) > 3; if (W.shown) mark(null); }
+    if (!W.shown) { W.shown = (W.shown0 = (W.shown0 || 0) + 1) > 3; }
     info.near = c.near; info.far = c.far; info.scale = A.scale; info.w = w; info.h = h;
     return true;
 }
@@ -822,7 +811,6 @@ function drift(W, place, seat, dt) {
         setTimeout(() => { try { engine._dispose(old); } catch (e) { /* ignore */ } }, 0);
         place.world = B.def.id; place.next = null;
         if (place.hides) place.hide = place.hides[B.def.id] || null;
-        mark(B.def.id);
         crossed = { from, to: B.def.id };
         return driftPose(cur, place, seat, D, 0) || crossed;
     }

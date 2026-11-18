@@ -75,6 +75,9 @@
         snapWanted: false,     // the frame to take the outgoing picture of (game.js)
         snapReady: false,
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
+        launch: null,          // the seat letting go at the strike; see launchLag()
+        wasMoving: false,      // …which is how a strike is noticed
+        blurK: 0, blurPrev: null,   // motion blur's strength and last frame's camera; see motionBlur()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
         clock: 0,
@@ -1246,11 +1249,11 @@
     function slabShape(pad) {
         if (pad.lane) return laneShape(pad);
         var shape = new THREE.Shape();
-        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {};
+        var hw = pad.w / 2, hd = pad.d / 2, c = pad.round || {}, ch = pad.cham || {};
         // Counter-clockwise in shape space, each corner as [x, y, its world
-        // name, the angle its arc starts at].
-        var corners = [[-hw, -hd, c.nw, Math.PI], [hw, -hd, c.ne, Math.PI * 1.5],
-                       [hw, hd, c.se, 0], [-hw, hd, c.sw, Math.PI / 2]];
+        // name, the angle its arc starts at, and whether it is cut straight].
+        var corners = [[-hw, -hd, c.nw, Math.PI, ch.nw], [hw, -hd, c.ne, Math.PI * 1.5, ch.ne],
+                       [hw, hd, c.se, 0, ch.se], [-hw, hd, c.sw, Math.PI / 2, ch.sw]];
         var i, k, r, ox, oy, a, n, first = true;
         for (i = 0; i < corners.length; i++) {
             r = corners[i][2];
@@ -1262,7 +1265,8 @@
             }
             ox = corners[i][0] - Math.sign(corners[i][0]) * r;
             oy = corners[i][1] - Math.sign(corners[i][1]) * r;
-            n = Math.max(6, Math.ceil(r / 0.12));
+            // A chamfer (pad.cham) is the chord between the arc's two ends.
+            n = corners[i][4] ? 1 : Math.max(6, Math.ceil(r / 0.12));
             for (k = 0; k <= n; k++) {
                 a = corners[i][3] + (Math.PI / 2) * k / n;
                 if (first) shape.moveTo(ox + Math.cos(a) * r, oy + Math.sin(a) * r);
@@ -1678,10 +1682,20 @@
         // bearing its arc starts at (atan2 of z, x about its centre).
         var corners = [[x0, z0, c.sw || 0, Math.PI], [x1, z0, c.se || 0, Math.PI * 1.5],
                        [x1, z1, c.ne || 0, 0], [x0, z1, c.nw || 0, Math.PI / 2]];
+        var ch = pad.cham || {}, cham = [ch.sw, ch.se, ch.ne, ch.nw];
         for (i = 0; i < 4; i++) {
             var cn = corners[i], nx = corners[(i + 1) % 4];
             r = cn[2];
-            if (r) {
+            if (r && cham[i]) {
+                // Cut at forty-five degrees (pad.cham): the chord between the
+                // arc's two ends, walked at the outline's own step.
+                var sxn = cn[0] === x0 ? 1 : -1, szn = cn[1] === z0 ? 1 : -1;
+                // From the point on the side arriving to the point on the side leaving.
+                var p0 = i % 2 === 0 ? [cn[0], cn[1] + szn * r] : [cn[0] + sxn * r, cn[1]];
+                var p1 = i % 2 === 0 ? [cn[0] + sxn * r, cn[1]] : [cn[0], cn[1] + szn * r];
+                n = Math.max(1, Math.ceil(r * Math.SQRT2 / Math.min(step, 0.3)));
+                for (k = 0; k < n; k++) pts.push([p0[0] + (p1[0] - p0[0]) * k / n, p0[1] + (p1[1] - p0[1]) * k / n]);
+            } else if (r) {
                 var ox = cn[0] + (cn[0] === x0 ? r : -r), oz = cn[1] + (cn[1] === z0 ? r : -r);
                 n = Math.max(4, Math.ceil(r * Math.PI / 2 / Math.min(step, 0.15)));
                 for (k = 0; k < n; k++) {
@@ -1716,6 +1730,13 @@
         var ox = west ? pad.x + r : pad.x + pad.w - r, oz = south ? pad.z + r : pad.z + pad.d - r;
         var dx = x - ox, dz = z - oz;
         if ((west ? dx > 0 : dx < 0) || (south ? dz > 0 : dz < 0)) return out;
+        if (pad.cham && pad.cham[(south ? 's' : 'n') + (west ? 'w' : 'e')]) {
+            // A chamfer: slid square on to the cut, the way the arc pulls radially.
+            var ux = Math.abs(dx), uz = Math.abs(dz), over = (ux + uz - r) / 2;
+            if (over <= 0) return out;
+            out[0] = ox + Math.sign(dx) * (ux - over); out[1] = oz + Math.sign(dz) * (uz - over);
+            return out;
+        }
         var l = Math.hypot(dx, dz);
         if (l <= r) return out;
         out[0] = ox + dx / l * r; out[1] = oz + dz / l * r;
@@ -2283,6 +2304,19 @@
        every cup has clear of its own pad edge. */
     var CUP_PATCH = 0.8;
 
+    // Whether the ground all round a square of half-side h about (x, z) is at y.
+    function levelSquare(pad, x, z, h, y) {
+        var n = 8, i, t;
+        for (i = 0; i <= n; i++) {
+            t = -h + 2 * h * i / n;
+            if (Math.abs(P.padHeight(pad, x + t, z - h) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x + t, z + h) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x - h, z + t) - y) > 0.004 ||
+                Math.abs(P.padHeight(pad, x + h, z + t) - y) > 0.004) return false;
+        }
+        return true;
+    }
+
     /* How finely to subdivide a piece of ground — asked of the ground rather
        than fixed, because the two things that are made of it are three
        different sizes now.
@@ -2294,7 +2328,7 @@
        the smallest hump actually on the pad, three segments to its radius,
        and it is paid for by every shell over the pad as well as by the ground
        itself, which is why it is floored rather than left to shrink. */
-    var TERRAIN_MIN = 0.45;
+    var TERRAIN_MIN = 0.45, TERRAIN_FINE = 0.2;
 
     function terrainRes(pad) {
         // A function surface has no smallest hump to read a scale off, and its
@@ -2303,7 +2337,10 @@
         /* Or the pad says. A bank three units across is drawn on a unit grid
            by the rule below, and a curve that is the whole point of the hole
            comes out in facets (The Backboard, `res: 0.45`). */
-        if (pad.res) return Math.max(TERRAIN_MIN, pad.res);
+        /* A pad may go finer than the floor if it says so: the mound or dish
+           a cup stands in (endless.js) is a ring a metre across, which the
+           floor's grid draws as an octagon. */
+        if (pad.res) return Math.max(TERRAIN_FINE, pad.res);
         var b = pad.bumps, i, least = Infinity;
         for (i = 0; i < (b || []).length; i++) least = Math.min(least, b[i].r);
         if (!isFinite(least)) return TERRAIN_RES;
@@ -2433,6 +2470,14 @@
             var room = Math.min(cup.x - pad.x, pad.x + pad.w - cup.x,
                                 cup.z - pad.z, pad.z + pad.d - cup.z) - 0.05;
             cut = { x: cup.x - cx, z: cup.z - cz, h: Math.min(CUP_PATCH, room) };
+            /* …and to the ground that is level with the cup. The patch is
+               flat, so where the ground round the cup is not — a cup on a
+               mound or in a dish whose level part is narrower than the
+               patch (endless.js) — its edge would stand proud of the slope
+               or sink below it as a square step. Shrink it until all of its
+               edge is on the level, and the grid carries the slope. */
+            var cyc = P.padHeight(pad, cup.x, cup.z);
+            while (cut.h > C.HOLE_R + 0.1 && !levelSquare(pad, cup.x, cup.z, cut.h, cyc)) cut.h -= 0.05;
             if (cut.h < C.HOLE_R + 0.1) { cut = null; holed = false; }
         }
 
@@ -3144,8 +3189,27 @@
         return sh;
     }
 
-    /* A travelator: chevrons along it, spaced by how hard it pushes, so a
-       fast belt is a dense one and the picture carries the number. */
+    /* A travelator: a belt that runs. Seams across it and chevrons along
+       it, all sliding the way the belt carries the ball and wrapping round at
+       the far end, so it reads as a conveyor from the tee before a ball has
+       touched it (the owner, v1.186.0: "some animation of moving line like a
+       conveyor belt"). Still pictures carry the number too: the chevrons are
+       spaced by how hard it pushes, so a fast belt is a dense one.
+
+       The pace on screen is not the ball's. A belt's terminal speed is
+       |push| / -ln(friction) — thirty units a second on The Springboard's —
+       and seams going by at that rate strobe into nothing on a 30fps phone.
+       BELT_PACE gives a slow belt a slow crawl and a hard one a run, in the
+       same order, and never so fast that a seam jumps a gap in one frame.
+
+       Each piece is shrunk to nothing over the last stretch of the run, so
+       nothing pops into being at the near end and nothing hangs over a
+       rounded corner at the far one. Pieces share a material per kind, so
+       fading is done by scale, not opacity. stepBelts moves them. */
+    var BELT_SEAM = 0.55;      // gap between seams, units
+    var BELT_FADE = 0.7;       // the stretch at each end a piece shrinks over
+    function beltPace(mag) { return Math.min(5.5, 1.1 + Math.sqrt(mag) * 0.95); }
+
     function addBelt(group, pad, theme) {
         var ax = pad.push.x, az = pad.push.z;
         var mag = Math.hypot(ax, az);
@@ -3156,20 +3220,61 @@
         var wide = Math.min(0.62, across * 0.34);
         var step = Math.max(0.8, 2.4 - mag * 0.1);
         var n = Math.max(1, Math.floor(run / step));
+        step = run / n;                       // whole chevrons round the loop
+        var seams = Math.max(2, Math.round(run / BELT_SEAM));
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
-        var geo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
-        geo.rotateX(-Math.PI / 2);
-        var mat = markMat(theme.machine || 0xffd34d, 0.95);
-        var i, f, ox, oz, m;
-        for (i = 0; i < n; i++) {
-            f = (i + 0.5) / n - 0.5;
-            ox = Math.sin(yaw) * f * run;
-            oz = Math.cos(yaw) * f * run;
-            m = new THREE.Mesh(geo, mat);
-            m.rotation.y = yaw;
-            m.position.set(cx + ox, markY(pad, cx + ox, cz + oz), cz + oz);
-            group.add(m);
+        var belt = {
+            pad: pad, cx: cx, cz: cz, run: run, sx: Math.sin(yaw), sz: Math.cos(yaw),
+            pace: beltPace(mag), lanes: []
+        };
+
+        var seamGeo = new THREE.PlaneGeometry(across * 0.9, 0.07);
+        seamGeo.rotateX(-Math.PI / 2);
+        var seamMat = markMat(0x120e18, 0.5);
+        var chevGeo = new THREE.ShapeGeometry(chevronShape(wide, wide * 0.85, wide * 0.42));
+        chevGeo.rotateX(-Math.PI / 2);
+        var chevMat = markMat(theme.machine || 0xffd34d, 0.95);
+
+        [[seamGeo, seamMat, seams, run / seams, 0, 1],
+         [chevGeo, chevMat, n, step, 0.006, 2]].forEach(function (l) {
+            var lane = { gap: l[3], lift: l[4], meshes: [] };
+            for (var i = 0; i < l[2]; i++) {
+                var m = new THREE.Mesh(l[0], l[1]);
+                m.rotation.y = yaw;
+                m.renderOrder = l[5];
+                lane.meshes.push(m);
+                group.add(m);
+            }
+            belt.lanes.push(lane);
+        });
+        placeBelt(belt, 0);
+        (R.belts || (R.belts = [])).push(belt);
+    }
+
+    /* Where every piece of a belt is `t` seconds into its run. */
+    function placeBelt(b, t) {
+        var half = b.run / 2, k, i, lane, off, f, s, x, z, m;
+        for (k = 0; k < b.lanes.length; k++) {
+            lane = b.lanes[k];
+            off = (t * b.pace) % lane.gap;
+            for (i = 0; i < lane.meshes.length; i++) {
+                f = (i + 0.5) * lane.gap + off;
+                if (f > b.run) f -= b.run;
+                s = Math.min(1, f / BELT_FADE, (b.run - f) / BELT_FADE);
+                s = s * s * (3 - 2 * s);
+                m = lane.meshes[i];
+                f -= half;
+                x = b.cx + b.sx * f;
+                z = b.cz + b.sz * f;
+                m.visible = s > 0.02;
+                m.scale.set(s, 1, s);
+                m.position.set(x, markY(b.pad, x, z) + lane.lift, z);
+            }
         }
+    }
+
+    function stepBelts() {
+        for (var i = 0; i < (R.belts || []).length; i++) placeBelt(R.belts[i], R.clock);
     }
 
     /* A launch pad: a sprung face with a rim round it, drawn the same way the
@@ -5511,6 +5616,41 @@
         liner.position.set(cup.x, cup.y + lift - C.CUP_DEPTH / 2, cup.z);
         group.add(liner);
 
+        /* On a sculpted hole with its world on screen there is no green:
+           the ground is the world's picture, and inside the hole's plan the
+           plate pushes that picture to the far plane. So nothing hid the
+           shaft below the rim, and the cup stood on the fairway as a black
+           tube with its floor showing through the turf. This is the ground
+           the shaft is cut into, as depth only: a disc round the hole laid
+           on the hole's own ground, drawn after the plate and before the
+           shaft. stepPlace shows
+           it only while the world is live; without the world the green
+           slab does this itself. */
+        // Wide, because from a low seat the shaft stands up out of the
+        // ground: seen five degrees over the turf a floor 0.42 down shows
+        // nearly five units short of the lip.
+        var ringG = new THREE.RingGeometry(C.HOLE_R - 0.004, C.HOLE_R + 6, 40, 14);
+        ringG.rotateX(-Math.PI / 2);
+        /* Laid on the ground the ball rolls on (which is what the world was
+           pressed to), a hair under it, so a green with a fall to it does
+           not have a flat ring standing out of the slope over a ball. */
+        var rp = ringG.attributes.position, rx, rz, rr, top;
+        for (i = 0; i < rp.count; i++) {
+            rx = rp.getX(i); rz = rp.getZ(i); rr = Math.sqrt(rx * rx + rz * rz) || 1;
+            var out = Math.max(rr, C.HOLE_R + 0.02) / rr;
+            top = P.surfaceTop(hole, cup.x + rx * out, cup.z + rz * out);
+            rp.setY(i, (top ? top.y : cup.y - 1) - cup.y - 0.01);
+        }
+        var mask = new THREE.Mesh(
+            ringG,
+            new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide })
+        );
+        mask.position.set(cup.x, cup.y + lift, cup.z);
+        mask.renderOrder = -1e5;
+        mask.visible = false;
+        group.add(mask);
+        R.cupMask = mask;
+
         var floor = new THREE.Mesh(
             new THREE.CircleGeometry(C.HOLE_R, 28),
             new THREE.MeshLambertMaterial({ color: 0x1d2416 })
@@ -5853,6 +5993,7 @@
         R.shells = [];
         R.canopies = [];
         R.bobbers = [];
+        R.belts = [];
         R.posts = [];
         R.lamps = [];
 
@@ -6018,6 +6159,9 @@
         clearRipples();
         R.cam.kick = 0;
         R.cam.speedPull = 0;
+        R.launch = null;
+        R.blurK = 0;
+        R.blurPrev = null;
         clearTrail();
         // The last hole's furrows and craters were in the last hole's sand.
         if (G3.sandfx) G3.sandfx.clear();
@@ -6094,58 +6238,28 @@
        worlds switched off, `stepPlace` does nothing and the hole stands in
        its theme's own sky with worlds.js's simple set piece — a complete
        hole either way. */
-    /* Only the switch in Courses writes this. The two safety nets below — a
-       build that did not finish last visit, a frame rate that would not come
-       up — turn live worlds off for this visit alone (R.liveSession) and try
-       again on the next. They used to write '0' here, which read as the
-       player's own choice from then on: on a phone a tab closed while a world
-       was building looks just like a crash, and one of those turned the
-       worlds off for good (the owner: "should be on by default — why is it
-       not?"). The key is new with that change, so a '0' a safety net wrote
-       under the old one is not carried over. */
-    var LIVE_KEY = 'golf3d.live';
-    /* Whether the last visit left a build unfinished — read once, here, as
-       the page loads. backdrop.mjs (a module, so it runs after this) sets the
-       mark while *this* visit's world builds, and liveWanted used to read it
-       on every call: asked during the first world's build, it found its own
-       visit's mark, called it a crash and turned live worlds off. That was
-       every new phone, whose first world builds while the demo or the
-       picker is up and something is asking. */
-    var crashedLast = (function () {
-        try {
-            if (!localStorage.getItem('golf3d.worldBuilding')) return false;
-            localStorage.removeItem('golf3d.worldBuilding');
-            return true;
-        } catch (e) { return false; }
-    })();
+    /* Live worlds are on at the start of every visit, on every device, and
+       nothing carries an "off" over to the next one (the owner, v1.155.0,
+       v1.167.1 and v1.186.1: "should always be on as default … each start it
+       refreshes to on"). The switch in Settings and the frame-rate net in
+       stepPlace turn them off for this visit alone (R.liveSession); the next
+       page load is on again.
+
+       Two things used to start a visit with them off, and both are gone:
+       a stored '0' under 'golf3d.live', which the switch wrote and which a
+       safety net once wrote too; and a mark backdrop.mjs leaves while a world
+       builds, read at the next load as "the build killed the page" — but on
+       a phone a tab closed while a world was loading leaves exactly that
+       mark, so an ordinary visit turned the next one's worlds off. Both keys
+       are cleared here so no old value lingers. */
+    try { localStorage.removeItem('golf3d.live'); localStorage.removeItem('golf3d.worldBuilding'); } catch (e) { /* ignore */ }
     function liveWanted() {
         if (R.liveOverride !== undefined) return R.liveOverride;
-        /* On by default, everywhere — a phone too. It used to be a
-           desktop's job only, and the owner's phone, which runs the game at
-           sixty frames, was shown the stand-in scenery and wondered where
-           the worlds were. What protects a machine that cannot do it is
-           measured, not guessed: the world's resolution is stepped down
-           while the frame rate is poor and live worlds are switched off if
-           that is not enough (stepPlace), and a build that killed the page
-           last time is not tried again (backdrop.mjs leaves a mark while it
-           builds). */
-        if (crashedLast) {
-            crashedLast = false;
-            R.liveSession = false;
-            setTimeout(function () { window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'crash' })); }, 3000);
-        }
-        if (R.liveSession === false) return false;
-        try {
-            var v = localStorage.getItem(LIVE_KEY);
-            if (v === '0') return false;
-            if (v === '1') return true;
-        } catch (e) { /* ignore */ }
-        return !(navigator.deviceMemory && navigator.deviceMemory <= 2);
+        return R.liveSession !== false;
     }
     function setLive(on) {
-        try { localStorage.setItem(LIVE_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
         R.liveOverride = undefined;
-        R.liveSession = undefined;   // the player's word outranks a safety net
+        R.liveSession = on ? undefined : false;   // this visit only
         if (R.hole) setPlace(R.hole);
         return liveWanted();
     }
@@ -6405,7 +6519,7 @@
         }
         if (live && gov.badWins >= 3 && R.liveOverride === undefined) {
             gov.badWins = 0;
-            // This visit only — see LIVE_KEY.
+            // This visit only — see liveWanted.
             R.liveSession = false;
             setPlace(R.hole);
             window.dispatchEvent(new CustomEvent('g3-live-off', { detail: 'slow' }));
@@ -6481,8 +6595,13 @@
                plate's (`pushNear`): painted, but behind the hole, so a
                lamp or a branch that comes between is seen without hiding
                the shot. */
+            /* A sculpted hole (the World Turtle's) is the same: its ground
+               is the world's own, so a cut half way to the ball sliced the
+               fairway between the camera and the ball into a flat edge
+               with the sea and the waterfall under it showing (the owner's
+               phone, Across the Shell: "clipping issues"). Same answer. */
             var push = 0;
-            if (R.place.drift) { push = clear; clear *= 0.36; }
+            if (R.place.drift || R.place.grid) { push = clear; clear *= 0.36; }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
@@ -6540,6 +6659,8 @@
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
         // …and the strips and green laid on it: the world's own ground is the course.
         for (q = 0; q < (R.veils || []).length; q++) R.veils[q].visible = !live;
+        // …and with no green drawn, the cup's own (addCup).
+        if (R.cupMask) R.cupMask.visible = live && R.veils && R.veils.length > 0;
         if (live === R.live) return;
         R.live = live;
         if (live) govReset(3.5);
@@ -7900,12 +8021,117 @@
             if (R.cam.instant) R.cam.instant = false;
         } else {
             var k = 1 - Math.pow(0.0016, dt);   // frame-rate independent easing
+            var kt = k;
+            /* At the strike the seat lets go (launchLag): the eye and the look
+               each ease on a slower base, mixed in by rate rather than by
+               base so that half a lag is half as slow. */
+            var lag = (R.cam.mode === 'follow' || R.cam.mode === 'side') && !R.warpCam && !R.loopCam ? launchLag() : 0;
+            if (lag > 0) {
+                var LC = C.LAUNCH_CAM, seatRate = Math.log(0.0016);
+                k = 1 - Math.exp((seatRate + (Math.log(LC.POS) - seatRate) * lag) * dt);
+                kt = 1 - Math.exp((seatRate + (Math.log(LC.LOOK) - seatRate) * lag) * dt);
+            }
             R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
-            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), k);
+            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), kt);
+            /* An eye left behind is not riding the seat, which keeps itself
+               off the ground; a drive over a crest would otherwise drag it
+               through the hill on the way to catching up. */
+            if (lag > 0) {
+                var under = P.surfaceTop(hole, R.smooth.pos.x, R.smooth.pos.z);
+                if (under && R.smooth.pos.y < under.y + C.LAUNCH_CAM.CLEAR) R.smooth.pos.y = under.y + C.LAUNCH_CAM.CLEAR;
+            }
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
         R.camera.updateMatrixWorld();
+    }
+
+    /* The launch (CONFIG.LAUNCH_CAM). A strike is noticed as the ball
+       starting to move from rest — frame() does that, so game.js has nothing
+       to call — and how hard the seat lets go is how fast the ball left.
+       Only from the seats you play from: the overview is not following
+       anything, and the intro, the replay and the demo have cameras of
+       their own. */
+    function startLaunch(ball, speed) {
+        var LC = C.LAUNCH_CAM;
+        var s = Math.max(0, Math.min(1, (speed - LC.FROM) / LC.SPAN));
+        if (Math.abs(ball.vy) < 0.5) s *= LC.ROLL;
+        R.launch = s > 0.02 ? { s: s, t: 0 } : null;
+    }
+
+    // How much of the lag is left: all of it for HOLD, then given back.
+    function launchLag() {
+        var L = R.launch;
+        if (!L) return 0;
+        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / C.LAUNCH_CAM.RELEASE));
+    }
+
+    function stepLaunch(dt, world, speed) {
+        var m = R.cam.mode;
+        if (world.moving && !R.wasMoving && (m === 'follow' || m === 'side') &&
+            !R.fly && !R.dive && !R.replay && !R.lap) startLaunch(world.ball, speed);
+        R.wasMoving = !!world.moving;
+        if (R.launch) {
+            R.launch.t += dt;
+            if (R.launch.t > C.LAUNCH_CAM.HOLD + C.LAUNCH_CAM.RELEASE || R.fly || R.dive || R.replay ||
+                (m !== 'follow' && m !== 'side')) R.launch = null;
+        }
+    }
+
+    /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
+       where each pixel's bit of course was on the screen a frame ago, and
+       for that it needs a depth it does not have — the scene buffer is
+       multisampled and its depth cannot be read back. So it assumes one:
+       the ground is a level plane at the height of the ground under the
+       ball, and anything above the horizon is far away. On a golf hole
+       that is right where it matters (the grass streaming past the lens)
+       and harmlessly wrong elsewhere. It is handed last frame's
+       view-projection and this frame's camera and does the rest per pixel.
+
+       On only while a shot is being watched from a seat that follows it,
+       faded in with the ball's speed — and never across a cut: a camera
+       that moved further in a frame than anything here can travel has been
+       put somewhere, and a smear from the old place would be a smear of a
+       different picture. */
+    var _blurRot = new THREE.Matrix3(), _blurBall = new THREE.Vector3();
+    function motionBlur(dt, world, speed) {
+        if (!R.fx || !G3.postfx.motion) return;
+        var MB = C.MOTION_BLUR, cam = R.camera, m = R.cam.mode;
+        var seat = R.replay || ((m === 'follow' || m === 'side') && !R.fly && !R.dive && !R.lap);
+        var want = world.moving && seat && !world.warping && !world.ride
+            ? Math.max(0, Math.min(1, (speed - MB.FROM) / MB.SPAN)) : 0;
+        // In over a few frames; out much faster, so a ball dropped back on
+        // the tee after a penalty does not take the smear with it.
+        R.blurK += (want - R.blurK) * (1 - Math.pow(want > R.blurK ? 0.02 : 1e-5, dt));
+        if (want === 0 && R.blurK < 0.01) R.blurK = 0;
+        cam.updateMatrixWorld();
+        var prev = R.blurPrev;
+        if (!prev) prev = R.blurPrev = { vp: new THREE.Matrix4(), pos: new THREE.Vector3(), ok: false };
+        var jump = prev.ok ? cam.position.distanceTo(prev.pos) : Infinity;
+        if (R.blurK > 0.01 && jump < 0.5 + 60 * dt) {
+            var ball = world.ball;
+            var under = P.surfaceTop(world.hole, ball.x, ball.z);
+            _blurBall.set(ball.x, ball.y, ball.z).project(cam);
+            G3.postfx.motion({
+                k: R.blurK,
+                vp: prev.vp,
+                rot: _blurRot.setFromMatrix4(cam.matrixWorld),
+                eye: cam.position,
+                tanH: Math.tan(cam.fov * Math.PI / 360),
+                aspect: cam.aspect,
+                ground: under ? under.y : ball.y - 2,
+                scale: MB.SHUTTER * (1 / 60) / Math.max(dt, 1 / 240),
+                max: MB.MAX,
+                ball: _blurBall.z < 1 ? [_blurBall.x * 0.5 + 0.5, _blurBall.y * 0.5 + 0.5] : [-9, -9],
+                sharp: MB.SHARP,
+                keep: G3.bag && G3.bag.screenBox && !R.replay ? G3.bag.screenBox(cam, cam.aspect) : null
+            });
+        } else {
+            G3.postfx.motion(null);
+        }
+        prev.vp.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+        prev.pos.copy(cam.position);
+        prev.ok = true;
     }
 
     /* The camera on a loop (physics.js, "the loop").
@@ -8179,10 +8405,13 @@
         if (G3.sandfx) G3.sandfx.step(dt, world);
         stepRipples(dt);
         stepBlackHoles(dt, world);
+        stepBelts();
         if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);
+        stepLaunch(dt, world, speed);
         updateCamera(world.hole, world.ball, dt);
+        motionBlur(dt, world, speed);
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
 
         // The live world behind the hole, from where the camera now is.

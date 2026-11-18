@@ -479,6 +479,10 @@
         if (!r) return false;
         var ox = west ? pad.x + r - x : x - (pad.x + pad.w - r);
         var oz = south ? pad.z + r - z : z - (pad.z + pad.d - r);
+        /* A corner named in `pad.cham` is cut off at forty-five degrees
+           instead (endless.js): the line between the same two points the
+           arc would join, so the ground it gives up is the triangle beyond. */
+        if (pad.cham && pad.cham[south ? (west ? 'sw' : 'se') : (west ? 'nw' : 'ne')]) return ox + oz > r;
         return ox > 0 && oz > 0 && ox * ox + oz * oz > r * r;
     }
 
