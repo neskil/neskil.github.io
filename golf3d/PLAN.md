@@ -300,7 +300,7 @@ Done:
 
 ---
 
-## New surfaces and hazards — the owner's ask (v1.185.0)
+## New surfaces and hazards — the owner's ask (v1.186.0)
 
 The owner, the same day the belts started moving: "think of new kinds of
 surfaces we could add … some gravity tiles (so you can play either on the
