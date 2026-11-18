@@ -4584,9 +4584,15 @@ each for length, three turns and two hard things. Built with
 
 **The ride** (`backdrop.mjs → drift`). A place with `drift: true` is not
 fitted once: every frame the seat behind the tee is put on the world's flight
-`DRIFT.PACE` of the world's own cruise further along, the lane hanging a
-little over half a seat under the line, and the heading follows the line a
-little behind so a bend swings the world round the hole. The world's clock
+`DRIFT.PACE` of the world's own cruise further along, the lane hanging
+`DRIFT.DROP` (0.15) of a seat under the line — so the line runs about through
+its kerbs, in the room Portals keeps clear (at 0.55 it rode among whatever is
+under the flight: on the water, on the snow) — and the heading follows the
+line a little behind so a bend swings the world round the hole. The world is
+cut only a fifth of the way to the ball, not half (`render.js`, where `clear`
+is worked out): a cut that moved with the ball sliced the ground under the
+lane into a flat edge with nothing behind it. The rest of the half is pushed
+behind the hole by the plate (`pushNear`) instead of cut away. The world's clock
 is the ride's `u`, so whatever Portals animates along the flight animates.
 The scale is the hand-set one for a tour world, and for the rest
 `autoScale`: the room under the flight (downward soundings) and over it
