@@ -5696,6 +5696,18 @@ it: the listeners are on the window in the capture phase, so a press on a chip,
 a key, a scroll or a finger on the course all end it before they do their own
 job. An intro you have to sit through is a loading screen.
 
+**The end of it is an iris, not a flight.** The path runs green to tee and the
+seat looks tee to green, so its last stretch turns the whole view round over the
+ball. That stretch is not flown: `flyover.js → cutAt` finds where the turn
+starts, the camera glides to a stop on that point over `FLY.IRIS.BRAKE` (the
+path's clock running down on a half cosine), and the adventure-game iris covers
+the jump — in to a brass-edged ring round the ball, a held beat with only the
+ball in the light, shut, a moment of black while the camera goes to the seat,
+and open round the ball from there (v1.184.1; the owner wanted it "more
+LucasArts", later and slower than the first quick circle). A skip gets only
+the quick open (`QUICK_HOLD`, `QUICK_OPEN`), and the swing lane stays away
+until the circle is fully open (`body.iris-up`).
+
 **Four keys, and each is there for a different reason.** Beyond the cup looking
 back at it; the top of the arc over the middle of the hole, looking down the
 ground the ball has to cross; coming down, still travelling, looking at the tee;
