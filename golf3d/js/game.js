@@ -853,26 +853,34 @@
 
     /* The iris over the sweep's cut (render.js → iris), painted from the
        state the renderer keeps: where the ball is as fractions of the stage
-       and how shut the circle is. The radius is a share of the distance to
-       the stage's furthest corner from the ball, so a shut iris is shut on
-       any screen and an open one clears every corner. */
+       and how open the circle is, as shares of two lengths measured here —
+       the distance to the stage's furthest corner from the ball, so an open
+       iris clears every corner on any screen, and the ring it holds round
+       the ball, a share of the stage's shorter side. What is left over is
+       shut. */
     var irisUp = false, irisEl = null;
 
     function syncIris() {
         var i = R.iris ? R.iris() : null;
         if (!i) {
-            if (irisUp) { irisUp = false; irisEl.hidden = true; }
+            if (irisUp) { irisUp = false; irisEl.hidden = true; document.body.classList.remove('iris-up'); }
             return;
         }
         if (!irisEl) irisEl = $('fly-iris');
         var w = irisEl.clientWidth || window.innerWidth, h = irisEl.clientHeight || window.innerHeight;
-        if (!irisUp) { irisUp = true; irisEl.hidden = false; w = irisEl.clientWidth || w; h = irisEl.clientHeight || h; }
+        if (!irisUp) {
+            irisUp = true; irisEl.hidden = false; w = irisEl.clientWidth || w; h = irisEl.clientHeight || h;
+            // No swing lane in the circle while it opens: the shot starts when the picture is whole.
+            document.body.classList.add('iris-up');
+        }
         var x = i.x * w, y = i.y * h;
         var far = Math.sqrt(Math.max(x, w - x) * Math.max(x, w - x) + Math.max(y, h - y) * Math.max(y, h - y));
-        var r = (1 - i.k) * (far + 4) - 3;   // below zero when shut: no pinhole
+        var I = C.FLY.IRIS;
+        var ring = Math.max(I.SMALL_MIN, I.SMALL * Math.min(w, h) / 2);
+        var r = i.far * (far + 4) + i.near * ring - 4 * (1 - i.far - i.near);   // below zero when shut: no pinhole
         irisEl.style.setProperty('--ix', x.toFixed(1) + 'px');
         irisEl.style.setProperty('--iy', y.toFixed(1) + 'px');
-        irisEl.style.setProperty('--ir', Math.max(-3, r).toFixed(1) + 'px');
+        irisEl.style.setProperty('--ir', Math.max(-4, r).toFixed(1) + 'px');
     }
 
     function toggleFlyover() {
