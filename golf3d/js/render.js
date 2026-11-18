@@ -73,6 +73,9 @@
         fly: null,             // the intro sweep while one is running; see flyCamera()
         iris: null,            // the circle that covers its cut; see stepIris()
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
+        launch: null,          // the seat letting go at the strike; see launchLag()
+        wasMoving: false,      // …which is how a strike is noticed
+        blurK: 0, blurPrev: null,   // motion blur's strength and last frame's camera; see motionBlur()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
         clock: 0,
@@ -5551,6 +5554,41 @@
         liner.position.set(cup.x, cup.y + lift - C.CUP_DEPTH / 2, cup.z);
         group.add(liner);
 
+        /* On a sculpted hole with its world on screen there is no green:
+           the ground is the world's picture, and inside the hole's plan the
+           plate pushes that picture to the far plane. So nothing hid the
+           shaft below the rim, and the cup stood on the fairway as a black
+           tube with its floor showing through the turf. This is the ground
+           the shaft is cut into, as depth only: a disc round the hole laid
+           on the hole's own ground, drawn after the plate and before the
+           shaft. stepPlace shows
+           it only while the world is live; without the world the green
+           slab does this itself. */
+        // Wide, because from a low seat the shaft stands up out of the
+        // ground: seen five degrees over the turf a floor 0.42 down shows
+        // nearly five units short of the lip.
+        var ringG = new THREE.RingGeometry(C.HOLE_R - 0.004, C.HOLE_R + 6, 40, 14);
+        ringG.rotateX(-Math.PI / 2);
+        /* Laid on the ground the ball rolls on (which is what the world was
+           pressed to), a hair under it, so a green with a fall to it does
+           not have a flat ring standing out of the slope over a ball. */
+        var rp = ringG.attributes.position, rx, rz, rr, top;
+        for (i = 0; i < rp.count; i++) {
+            rx = rp.getX(i); rz = rp.getZ(i); rr = Math.sqrt(rx * rx + rz * rz) || 1;
+            var out = Math.max(rr, C.HOLE_R + 0.02) / rr;
+            top = P.surfaceTop(hole, cup.x + rx * out, cup.z + rz * out);
+            rp.setY(i, (top ? top.y : cup.y - 1) - cup.y - 0.01);
+        }
+        var mask = new THREE.Mesh(
+            ringG,
+            new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide })
+        );
+        mask.position.set(cup.x, cup.y + lift, cup.z);
+        mask.renderOrder = -1e5;
+        mask.visible = false;
+        group.add(mask);
+        R.cupMask = mask;
+
         var floor = new THREE.Mesh(
             new THREE.CircleGeometry(C.HOLE_R, 28),
             new THREE.MeshLambertMaterial({ color: 0x1d2416 })
@@ -6058,6 +6096,9 @@
         clearRipples();
         R.cam.kick = 0;
         R.cam.speedPull = 0;
+        R.launch = null;
+        R.blurK = 0;
+        R.blurPrev = null;
         clearTrail();
         // The last hole's furrows and craters were in the last hole's sand.
         if (G3.sandfx) G3.sandfx.clear();
@@ -6521,8 +6562,13 @@
                plate's (`pushNear`): painted, but behind the hole, so a
                lamp or a branch that comes between is seen without hiding
                the shot. */
+            /* A sculpted hole (the World Turtle's) is the same: its ground
+               is the world's own, so a cut half way to the ball sliced the
+               fairway between the camera and the ball into a flat edge
+               with the sea and the waterfall under it showing (the owner's
+               phone, Across the Shell: "clipping issues"). Same answer. */
             var push = 0;
-            if (R.place.drift) { push = clear; clear *= 0.36; }
+            if (R.place.drift || R.place.grid) { push = clear; clear *= 0.36; }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
@@ -6580,6 +6626,8 @@
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
         // …and the strips and green laid on it: the world's own ground is the course.
         for (q = 0; q < (R.veils || []).length; q++) R.veils[q].visible = !live;
+        // …and with no green drawn, the cup's own (addCup).
+        if (R.cupMask) R.cupMask.visible = live && R.veils && R.veils.length > 0;
         if (live === R.live) return;
         R.live = live;
         if (live) govReset(3.5);
@@ -7405,15 +7453,30 @@
        green, and the map already has the machinery for exactly that. */
     function flyCamera(hole, ball, dt) {
         var f = R.fly;
-        f.t += dt;
-        G3.flyover.retarget(f.plan, _seat);
-        /* The end of it is cut, not flown (flyover.js → cutAt): the iris has
-           closed on the ball by now, and the camera goes to the seat behind
-           it and opens there. */
-        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
-        if (f.t >= cut) { landFlyover(ball); return true; }
         var I = C.FLY.IRIS;
-        if (!R.iris && f.t >= cut - I.CLOSE) R.iris = { mode: 'close', t: Math.max(0, f.t - (cut - I.CLOSE)), k: 0, x: 0.5, y: 0.5 };
+        G3.flyover.retarget(f.plan, _seat);
+        /* The end of it is cut, not flown (flyover.js → cutAt). The camera
+           does not fly into the cut, though: it glides to a stop on it, the
+           path's clock running down from full speed to none over BRAKE on a
+           half cosine (which covers BRAKE / 2 of the path, so the brake
+           starts that far short of the cut and comes to rest on it). Part
+           way into the glide the iris starts in; once it has closed to its
+           ring round the ball, held, and snapped shut, the camera goes to
+           the seat behind it and it opens there (the owner, v1.184.1). */
+        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
+        if (f.brake === undefined && f.t + dt >= cut - I.BRAKE / 2) f.brake = 0;
+        if (f.brake !== undefined) {
+            f.brake += dt;
+            var bu = Math.min(1, f.brake / I.BRAKE);
+            f.t = Math.min(cut, f.t + dt * (1 + Math.cos(Math.PI * bu)) / 2);
+            if (!R.iris && f.brake >= I.LATE) R.iris = { mode: 'close', t: f.brake - I.LATE, far: 1, near: 0, x: 0.5, y: 0.5 };
+            if (R.iris && R.iris.mode === 'close' && R.iris.t >= I.TO_SMALL + I.HOLD_SMALL + I.SHUT) {
+                landFlyover(ball, false);
+                return true;
+            }
+        } else {
+            f.t += dt;
+        }
 
         var pose = G3.flyover.at(f.plan, f.t);
         R.smooth.pos.set(pose.px, pose.py, pose.pz);
@@ -7469,13 +7532,14 @@
        faster. */
     function skipFlyover() {
         if (!R.fly) return false;
-        landFlyover(R.lastBall);
+        landFlyover(R.lastBall, true);
         return true;
     }
 
     /* The camera on the seat, this frame, with nothing to ease: the iris is
-       shut over the jump (HOLD) and opens round the ball from there. */
-    function landFlyover(ball) {
+       shut over the jump (DARK, or QUICK_HOLD for a skip) and opens round
+       the ball from there. */
+    function landFlyover(ball, quick) {
         R.fly = null;
         R.smooth.pos.set(_seat.px, _seat.py, _seat.pz);
         R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
@@ -7484,7 +7548,7 @@
             R.camera.position.copy(R.smooth.pos);
             R.camera.lookAt(R.smooth.target);
         }
-        R.iris = { mode: 'open', t: 0, k: 1, x: 0.5, y: 0.5 };
+        R.iris = { mode: 'open', quick: !!quick, t: 0, far: 0, near: 0, x: 0.5, y: 0.5 };
         if (ball) irisOn(ball);
     }
 
@@ -7492,9 +7556,14 @@
 
        A circle closing on the ball and opening on it again: the oldest cut
        there is, and the one that says "same ball, other side" without a
-       word. render.js keeps its state (how shut, and where on the screen,
-       as fractions of it) and game.js paints it over the stage, the way it
-       paints the fade at the start of the sweep. */
+       word. Closing, it is the adventure-game iris rather than a wipe: in to
+       a ring round the ball, a held beat with only the ball in the light,
+       then shut. render.js keeps its state — where the ball is on the
+       screen, as fractions of it, and the radius as a blend of two lengths
+       game.js measures on the stage: `far` shares of the distance to the
+       furthest corner (all of it is wide open) and `near` shares of the
+       ring's radius, and whatever is left over is shut. game.js paints it
+       over the stage, the way it paints the fade at the start of the sweep. */
     var _iv = new THREE.Vector3();
     function irisOn(ball) {
         if (!R.iris || !R.camera || !ball) return;
@@ -7511,11 +7580,20 @@
         var I = C.FLY.IRIS, u;
         i.t += dt;
         if (i.mode === 'close') {
-            u = Math.min(1, i.t / I.CLOSE);
-            i.k = u * u * (3 - 2 * u);
+            if (i.t < I.TO_SMALL) {
+                // In to the ring, slowing as it gets there.
+                u = i.t / I.TO_SMALL;
+                u = 1 - (1 - u) * (1 - u) * (1 - u);
+                i.far = 1 - u; i.near = u;
+            } else {
+                // The beat, then shut — gathering speed, the way it snaps.
+                u = Math.max(0, Math.min(1, (i.t - I.TO_SMALL - I.HOLD_SMALL) / I.SHUT));
+                i.far = 0; i.near = 1 - u * u;
+            }
         } else {
-            u = Math.max(0, Math.min(1, (i.t - I.HOLD) / I.OPEN));
-            i.k = 1 - u * u * (3 - 2 * u);
+            u = Math.max(0, Math.min(1, (i.t - (i.quick ? I.QUICK_HOLD : I.DARK)) /
+                                        (i.quick ? I.QUICK_OPEN : I.OPEN)));
+            i.far = u * u * (3 - 2 * u); i.near = 0;
             if (u >= 1) R.iris = null;
         }
     }
@@ -7910,12 +7988,117 @@
             if (R.cam.instant) R.cam.instant = false;
         } else {
             var k = 1 - Math.pow(0.0016, dt);   // frame-rate independent easing
+            var kt = k;
+            /* At the strike the seat lets go (launchLag): the eye and the look
+               each ease on a slower base, mixed in by rate rather than by
+               base so that half a lag is half as slow. */
+            var lag = (R.cam.mode === 'follow' || R.cam.mode === 'side') && !R.warpCam && !R.loopCam ? launchLag() : 0;
+            if (lag > 0) {
+                var LC = C.LAUNCH_CAM, seatRate = Math.log(0.0016);
+                k = 1 - Math.exp((seatRate + (Math.log(LC.POS) - seatRate) * lag) * dt);
+                kt = 1 - Math.exp((seatRate + (Math.log(LC.LOOK) - seatRate) * lag) * dt);
+            }
             R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
-            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), k);
+            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), kt);
+            /* An eye left behind is not riding the seat, which keeps itself
+               off the ground; a drive over a crest would otherwise drag it
+               through the hill on the way to catching up. */
+            if (lag > 0) {
+                var under = P.surfaceTop(hole, R.smooth.pos.x, R.smooth.pos.z);
+                if (under && R.smooth.pos.y < under.y + C.LAUNCH_CAM.CLEAR) R.smooth.pos.y = under.y + C.LAUNCH_CAM.CLEAR;
+            }
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
         R.camera.updateMatrixWorld();
+    }
+
+    /* The launch (CONFIG.LAUNCH_CAM). A strike is noticed as the ball
+       starting to move from rest — frame() does that, so game.js has nothing
+       to call — and how hard the seat lets go is how fast the ball left.
+       Only from the seats you play from: the overview is not following
+       anything, and the intro, the replay and the demo have cameras of
+       their own. */
+    function startLaunch(ball, speed) {
+        var LC = C.LAUNCH_CAM;
+        var s = Math.max(0, Math.min(1, (speed - LC.FROM) / LC.SPAN));
+        if (Math.abs(ball.vy) < 0.5) s *= LC.ROLL;
+        R.launch = s > 0.02 ? { s: s, t: 0 } : null;
+    }
+
+    // How much of the lag is left: all of it for HOLD, then given back.
+    function launchLag() {
+        var L = R.launch;
+        if (!L) return 0;
+        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / C.LAUNCH_CAM.RELEASE));
+    }
+
+    function stepLaunch(dt, world, speed) {
+        var m = R.cam.mode;
+        if (world.moving && !R.wasMoving && (m === 'follow' || m === 'side') &&
+            !R.fly && !R.dive && !R.replay && !R.lap) startLaunch(world.ball, speed);
+        R.wasMoving = !!world.moving;
+        if (R.launch) {
+            R.launch.t += dt;
+            if (R.launch.t > C.LAUNCH_CAM.HOLD + C.LAUNCH_CAM.RELEASE || R.fly || R.dive || R.replay ||
+                (m !== 'follow' && m !== 'side')) R.launch = null;
+        }
+    }
+
+    /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
+       where each pixel's bit of course was on the screen a frame ago, and
+       for that it needs a depth it does not have — the scene buffer is
+       multisampled and its depth cannot be read back. So it assumes one:
+       the ground is a level plane at the height of the ground under the
+       ball, and anything above the horizon is far away. On a golf hole
+       that is right where it matters (the grass streaming past the lens)
+       and harmlessly wrong elsewhere. It is handed last frame's
+       view-projection and this frame's camera and does the rest per pixel.
+
+       On only while a shot is being watched from a seat that follows it,
+       faded in with the ball's speed — and never across a cut: a camera
+       that moved further in a frame than anything here can travel has been
+       put somewhere, and a smear from the old place would be a smear of a
+       different picture. */
+    var _blurRot = new THREE.Matrix3(), _blurBall = new THREE.Vector3();
+    function motionBlur(dt, world, speed) {
+        if (!R.fx || !G3.postfx.motion) return;
+        var MB = C.MOTION_BLUR, cam = R.camera, m = R.cam.mode;
+        var seat = R.replay || ((m === 'follow' || m === 'side') && !R.fly && !R.dive && !R.lap);
+        var want = world.moving && seat && !world.warping && !world.ride
+            ? Math.max(0, Math.min(1, (speed - MB.FROM) / MB.SPAN)) : 0;
+        // In over a few frames; out much faster, so a ball dropped back on
+        // the tee after a penalty does not take the smear with it.
+        R.blurK += (want - R.blurK) * (1 - Math.pow(want > R.blurK ? 0.02 : 1e-5, dt));
+        if (want === 0 && R.blurK < 0.01) R.blurK = 0;
+        cam.updateMatrixWorld();
+        var prev = R.blurPrev;
+        if (!prev) prev = R.blurPrev = { vp: new THREE.Matrix4(), pos: new THREE.Vector3(), ok: false };
+        var jump = prev.ok ? cam.position.distanceTo(prev.pos) : Infinity;
+        if (R.blurK > 0.01 && jump < 0.5 + 60 * dt) {
+            var ball = world.ball;
+            var under = P.surfaceTop(world.hole, ball.x, ball.z);
+            _blurBall.set(ball.x, ball.y, ball.z).project(cam);
+            G3.postfx.motion({
+                k: R.blurK,
+                vp: prev.vp,
+                rot: _blurRot.setFromMatrix4(cam.matrixWorld),
+                eye: cam.position,
+                tanH: Math.tan(cam.fov * Math.PI / 360),
+                aspect: cam.aspect,
+                ground: under ? under.y : ball.y - 2,
+                scale: MB.SHUTTER * (1 / 60) / Math.max(dt, 1 / 240),
+                max: MB.MAX,
+                ball: _blurBall.z < 1 ? [_blurBall.x * 0.5 + 0.5, _blurBall.y * 0.5 + 0.5] : [-9, -9],
+                sharp: MB.SHARP,
+                keep: G3.bag && G3.bag.screenBox && !R.replay ? G3.bag.screenBox(cam, cam.aspect) : null
+            });
+        } else {
+            G3.postfx.motion(null);
+        }
+        prev.vp.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+        prev.pos.copy(cam.position);
+        prev.ok = true;
     }
 
     /* The camera on a loop (physics.js, "the loop").
@@ -8192,7 +8375,9 @@
         if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);
+        stepLaunch(dt, world, speed);
         updateCamera(world.hole, world.ball, dt);
+        motionBlur(dt, world, speed);
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
 
         // The live world behind the hole, from where the camera now is.

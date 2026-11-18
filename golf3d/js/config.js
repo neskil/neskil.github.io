@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.184.0';
+G3.VERSION = '1.185.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -843,6 +843,30 @@ G3.CONFIG = {
     KICK: 0.55,           // camera punch on impact, in units of pull-back
     TRAIL: 56,            // ball trail samples
 
+    /* The launch, as the camera tells it (render.js `launchLag`, v1.185.0).
+       A camera that is glued to the ball cannot say how fast it left: the
+       ball stays the same size in the middle of the frame and only the world
+       behind it moves. So at the strike the seat lets go — the eye stays
+       nearly where it was, turns to watch the ball go, and then runs after it
+       — and the ball shrinking away from you is the speed. How hard it lets
+       go is the launch speed, between FROM (a firm putt does next to nothing)
+       and FROM + SPAN (a driver flushed: all of it); a ball going along the
+       ground gets ROLL of that. It is held for HOLD seconds and given back
+       over RELEASE, which is the catch-up you see. POS and LOOK are the
+       per-second easing bases at full lag for the eye and for what it looks
+       at; the seat's own is 0.0016, so 0.4 is an eye about a second behind
+       and 0.02 a look a quarter of a second behind. */
+    LAUNCH_CAM: { FROM: 6, SPAN: 15, ROLL: 0.45, HOLD: 0.35, RELEASE: 1.5, POS: 0.4, LOOK: 0.02, CLEAR: 0.6 },
+
+    /* Motion blur while that chase is on (postfx.js, v1.185.0): the course is
+       smeared along the way it moved across the screen in the last frame,
+       worked out from the camera's move and the ground under the ball, so the
+       grass near the lens streaks and the horizon barely does. SHUTTER is the
+       fraction of a 60fps frame the shutter is open for, MAX caps a smear in
+       screen heights, and the ball's speed between FROM and FROM + SPAN fades
+       it in. The ball itself is kept sharp inside SHARP screen heights. */
+    MOTION_BLUR: { SHUTTER: 1.4, MAX: 0.045, FROM: 8, SPAN: 10, SHARP: 0.07 },
+
     /* The seat behind the ball looks a little over it, which is the right
        answer on ground that is flat and the wrong one on ground that climbs.
        The long game now has holes rising four units in twenty-six, and from
@@ -932,12 +956,27 @@ G3.CONFIG = {
            cutAt): the first moment in its second half that the look turns
            faster than CUT_TURN degrees a second, and never later than
            CUT_TAIL seconds from the end. IRIS is the circle that covers the
-           cut (render.js → iris): seconds to close on the ball, to hold shut
-           over the jump to the seat, and to open on the ball from there. */
+           cut (render.js → iris), in seconds, and it is two cuts:
+
+           the intro running out on its own (the owner, v1.184.1: "a bit too
+           quick and comes a bit too early … more LucasArts"): the camera
+           glides to a stop on the cut over BRAKE; LATE into that the circle
+           starts in, takes TO_SMALL to close to a ring round the ball SMALL
+           of the stage's shorter side across (never under SMALL_MIN px),
+           holds there HOLD_SMALL, snaps shut over SHUT, stays black for
+           DARK while the camera goes to the seat, and opens over OPEN;
+
+           a skip, which is somebody in a hurry: QUICK_HOLD black and
+           QUICK_OPEN to open, nothing else. */
         CUT_TURN: 30,
         CUT_TAIL: 1.2,
         CUT_SAMPLES: 120,
-        IRIS: { CLOSE: 0.42, HOLD: 0.08, OPEN: 0.5 },
+        IRIS: {
+            BRAKE: 1.6, LATE: 0.9,
+            TO_SMALL: 0.95, SMALL: 0.24, SMALL_MIN: 46, HOLD_SMALL: 0.75, SHUT: 0.32,
+            DARK: 0.3, OPEN: 1.0,
+            QUICK_HOLD: 0.08, QUICK_OPEN: 0.5
+        },
         /* The tour's sweep (flyover.js → knobs): laid over the numbers above
            for a hole played in a Portals world, where the world is the thing
            to show off. Slower, further out, higher and wider of the line.
