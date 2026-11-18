@@ -1513,6 +1513,86 @@
                     G3.nextCourseId('seaside') !== 'showcase');
             })();
 
+            /* The other two showcases: six holes of mini golf, or of the long
+               game, and every deal goes for the holes with the fewest stars
+               first (the owner: "six holes I haven't played or have zero stars
+               on … then one star … until you have all stars, and then it's
+               just random based on your play count"). */
+            (function () {
+                function lcg(seed) {
+                    var s = seed >>> 0;
+                    return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+                }
+                var mini = C.MINI_GROUPS, bad = '', k;
+                for (k = 0; k < 60; k++) {
+                    var m = G3.dealShowcase(lcg(k * 613 + 2), null, 'showcase-mini');
+                    var l = G3.dealShowcase(lcg(k * 613 + 2), null, 'showcase-long');
+                    var per = {}, ids = {};
+                    if (m.id !== 'showcase-mini' || m.holes.length !== 6) bad = bad || 'mini deal ' + k + ' has ' + m.holes.length;
+                    m.from.forEach(function (f) {
+                        var g = G3.courseById(f.id).group;
+                        if (mini.indexOf(g) < 0) bad = bad || 'mini deal ' + k + ' took ' + f.id;
+                        per[g] = (per[g] || 0) + 1;
+                    });
+                    if (mini.some(function (g) { return per[g] !== 2; })) bad = bad || 'mini deal ' + k + ' is ' + JSON.stringify(per);
+                    if (l.id !== 'showcase-long' || l.holes.length !== 6) bad = bad || 'long deal ' + k + ' has ' + l.holes.length;
+                    l.from.forEach(function (f, i) {
+                        var home = G3.courseById(f.id);
+                        if (home.group !== 'long') bad = bad || 'long deal ' + k + ' took ' + f.id;
+                        if (ids[f.id]) bad = bad || 'long deal ' + k + ' takes two holes from ' + f.id;
+                        ids[f.id] = 1;
+                        if (home.holes[f.index] !== l.holes[i] || l.themes[i] !== home.theme) bad = bad || 'long deal ' + k + ' hole ' + (i + 1) + ' is not its home hole';
+                    });
+                }
+                assert('a mini showcase is six holes, two each of mini, crazy and adventure; a long one six long holes from six courses',
+                    !bad, bad);
+
+                // Every long hole on three stars but four on none and five on one.
+                var longs = [];
+                G3.coursesInGroup('long').forEach(function (c) {
+                    c.holes.forEach(function (h, i) { longs.push(c.id + ':' + i); });
+                });
+                var save = { courses: {}, holes: {} };
+                longs.forEach(function (key, i) {
+                    save.holes[key] = { plays: 4, stars: i < 4 ? 0 : i < 9 ? 1 : 3 };
+                });
+                var tierBad = '';
+                for (k = 0; k < 40; k++) {
+                    var d = G3.dealShowcase(lcg(k * 37 + 11), save, 'showcase-long');
+                    var keys = d.from.map(function (f) { return f.id + ':' + f.index; });
+                    var zero = keys.filter(function (x) { return longs.indexOf(x) < 4; }).length;
+                    var one = keys.filter(function (x) { var j = longs.indexOf(x); return j >= 4 && j < 9; }).length;
+                    if (zero !== 4 || one !== 2) tierBad = tierBad || 'deal ' + k + ': ' + zero + ' on no stars, ' + one + ' on one';
+                }
+                assert('a deal takes every hole with no stars, then fills from the one-star holes', !tierBad, tierBad);
+
+                // All three stars everywhere: the plain draw, leaning on plays.
+                var done = { courses: {}, holes: {} };
+                longs.forEach(function (key) { done.holes[key] = { plays: 6, stars: 3 }; });
+                var rare = longs[7];
+                done.holes[rare] = { plays: 0, stars: 3 };
+                var got = 0;
+                for (k = 0; k < 100; k++) {
+                    var e = G3.dealShowcase(lcg(k * 53 + 1), done, 'showcase-long');
+                    if (e.holes.length !== 6) { got = -1; break; }
+                    if (e.from.some(function (f) { return f.id + ':' + f.index === rare; })) got++;
+                }
+                assert('with every star won, the deal is by play count and still six holes', got > 80, got + ' of 100');
+
+                var was = G3.SHOWCASE;
+                try {
+                    G3.SHOWCASE = null;
+                    var a = G3.courseById('showcase-long');
+                    var b = G3.courseById('showcase-long');
+                    var c = G3.courseById('showcase');
+                    assert('courseById deals each showcase by its id, and keeps the one in play',
+                        a === b && a.id === 'showcase-long' && a.isShowcase && c.id === 'showcase' && c !== a &&
+                        G3.courseById('showcase-mini').id === 'showcase-mini');
+                } finally {
+                    G3.SHOWCASE = was;
+                }
+            })();
+
             /* The dice lean towards what the save has not played. Equal play is
                the even draw to the digit; a played course or hole is drawn
                less, never not at all. */

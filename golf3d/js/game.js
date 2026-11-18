@@ -230,12 +230,14 @@
         $('players-count').textContent = playerCount;
     }
 
-    // A fresh deal, from its first tee. Play again is newRound('showcase'),
-    // which is the same eight holes.
-    function newShowcase() {
-        // Leaning towards the holes this save has played least.
-        G3.SHOWCASE = G3.dealShowcase(null, state && state.save ? state.save : S.load());
-        newRound('showcase');
+    // A fresh deal, from its first tee. Play again is newRound(its id), which
+    // is the same holes. `id` is one of G3.SHOWCASE_KINDS' — the all-kinds
+    // showcase, mini golf's or the long game's — and the first when left out.
+    function newShowcase(id) {
+        var kind = G3.showcaseKind(id) || G3.SHOWCASE_KINDS[0];
+        // Holes with the fewest stars first, then the ones played least.
+        G3.SHOWCASE = G3.dealShowcase(null, state && state.save ? state.save : S.load(), kind.id);
+        newRound(kind.id);
     }
 
     /* And a fresh Challenge: new ground, new cups (courses.js →
@@ -4999,7 +5001,7 @@
         drawPlans();
         /* With nothing on offer, what is on offer is the round waiting
            behind the list — or the tour. */
-        if (!menuSuggest) focus = showcaseWaiting() ? $('menu-showcase') : $('menu-portals');
+        if (!menuSuggest) focus = showcaseWaiting() ? $(showcaseButton(state.course.id)) : $('menu-portals');
         // How much of all of it is done, across the top.
         var got = 0, max = 0;
         pickables().forEach(function (o) { got += o.got; max += o.max; });
@@ -5621,21 +5623,32 @@
         return 'Drawing from ' + said + ' only.';
     }
 
-    /* The showcase button's second line: what it is, and once you have one
-       on the card, how your best went. */
+    /* The three showcase buttons, one per G3.SHOWCASE_KINDS entry, each
+       with its stars so far across what it deals from and your best against
+       par. The button's id is the kind's own with `menu-` in front. */
+    function showcaseButton(id) { return 'menu-' + id; }
+
     function drawShowcase() {
         var save = state && state.save ? state.save : S.load();
-        var rec = S.courseRecord(save, 'showcase');
-        var all = S.totalStars(save, G3.COURSES.filter(function (c) { return !c.playtest; }));
-        $('menu-showcase-sub').textContent =
-            'Two holes from every kind of golf, eight in all, leaning towards ones you have not played.' +
-            (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.') +
-            (all.got ? ' \u2605 ' + all.got + ' of ' + all.max + ' stars.' : '');
+        G3.SHOWCASE_KINDS.forEach(function (kind) {
+            var btn = $(showcaseButton(kind.id));
+            if (!btn) return;
+            var rec = S.courseRecord(save, kind.id);
+            var stars = S.totalStars(save, G3.COURSES.filter(function (c) {
+                return !c.playtest && (!kind.groups || kind.groups.indexOf(c.group) >= 0);
+            }));
+            btn.querySelector('.sh-sub').textContent = kind.blurb +
+                (stars.got < stars.max ? ' Holes without stars first.' : ' Every star won: the ones you have played least.') +
+                (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + '.');
+            var count = btn.querySelector('.sh-stars');
+            if (count) count.textContent = '\u2605 ' + stars.got + '/' + stars.max;
+        });
     }
 
     // The round behind the list is a showcase nobody has started yet.
-    function showcaseWaiting() {
+    function showcaseWaiting(id) {
         return !!(state && state.course && state.course.isShowcase && state.world &&
+                  (!id || state.course.id === id) &&
                   state.strokes === 0 && !anyPlayed());
     }
 
@@ -5657,12 +5670,12 @@
             (rec.best === null ? '' : ' Your best: ' + S.formatVsPar(rec.bestVsPar) + ' against par.');
     }
 
-    function takeShowcase() {
+    function takeShowcase(id) {
         if (menuTaking) return;
         maybeAutoFullscreen();
-        if (showcaseWaiting()) { closeMenu(); return; }
+        if (showcaseWaiting(id)) { closeMenu(); return; }
         menuTaking = true;
-        newShowcase();
+        newShowcase(id);
     }
 
     /* Draw one and go. Deliberately not a confirmation step: a surprise you
@@ -5852,7 +5865,8 @@
                 : state.course.isPortals
                 ? '\u25CE Six new holes'
                 : state.course.isShowcase
-                ? '\u2726 Deal another showcase'
+                ? G3.showcaseKind(state.course.id).icon + ' Deal another ' +
+                  (state.course.id === 'showcase' ? 'showcase' : G3.showcaseKind(state.course.id).short.toLowerCase() + ' showcase')
                 : state.course.isChallenge
                 ? '\u223F New ground, new cups'
                 : shuffleOn
@@ -6377,7 +6391,7 @@
             return;
         }
         if (state.course.isShowcase) {
-            newShowcase();
+            newShowcase(state.course.id);
             toast('Autoplay — a new showcase');
             return;
         }
@@ -7661,7 +7675,7 @@
                 return;
             }
             if (state.course.isShowcase) {
-                newShowcase();
+                newShowcase(state.course.id);
                 return;
             }
             if (state.course.isChallenge) {
@@ -7702,7 +7716,10 @@
         });
         // Something in the world happened because of the golf (render.js → stepPlace).
         window.addEventListener('g3-world-event', function (e) { toast(e.detail); });
-        $('menu-showcase').addEventListener('click', takeShowcase);
+        G3.SHOWCASE_KINDS.forEach(function (kind) {
+            var btn = $(showcaseButton(kind.id));
+            if (btn) btn.addEventListener('click', function () { takeShowcase(kind.id); });
+        });
         $('menu-challenge').addEventListener('click', takeChallenge);
         /* No toast on this one: it is pressed with the picker open, and the
            toast band is behind the modal. The switch is its own answer. */
