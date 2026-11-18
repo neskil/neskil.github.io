@@ -289,7 +289,7 @@
        what stop it. So the shot is the weight that gets round the loop, and
        anything too firm is caught by the band before it comes back.
 
-       Until v1.186.1 it was a square rink with ice wall to wall, an ice lane
+       Until v1.186.2 it was a square rink with ice wall to wall, an ice lane
        up to the loop and a bar turning over the rug. A ball short of the loop
        slid all the way back to the tee, and one past the rug went off the
        back boards and back down the lane: "too hard and a bit frustrating".
