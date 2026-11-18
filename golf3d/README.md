@@ -5739,17 +5739,21 @@ it: the listeners are on the window in the capture phase, so a press on a chip,
 a key, a scroll or a finger on the course all end it before they do their own
 job. An intro you have to sit through is a loading screen.
 
-**The end of it is an iris, not a flight.** The path runs green to tee and the
-seat looks tee to green, so its last stretch turns the whole view round over the
-ball. That stretch is not flown: `flyover.js → cutAt` finds where the turn
-starts, the camera glides to a stop on that point over `FLY.IRIS.BRAKE` (the
-path's clock running down on a half cosine), and the adventure-game iris covers
-the jump — in to a brass-edged ring round the ball, a held beat with only the
-ball in the light, shut, a moment of black while the camera goes to the seat,
-and open round the ball from there (v1.184.1; the owner wanted it "more
-LucasArts", later and slower than the first quick circle). A skip gets only
-the quick open (`QUICK_HOLD`, `QUICK_OPEN`), and the swing lane stays away
-until the circle is fully open (`body.iris-up`).
+**An orbit, and the end of it is a wipe, not a flight** (v1.188.0; the owner:
+"a sweeping grandiose overview of the map and not motion sickness", after an
+iris and a glide to a stop that read as "stopping weirdly"). Off a world's line
+the sweep is one slow, high orbit round the middle of the hole
+(`flyover.js → orbit`): from beyond the green, looking back at the cup, round
+the side the course is on to high behind the tee, looking at the middle all the
+way, so the picture only turns as fast as the camera goes round — under 50°/s,
+held by `tests.html`. It is cut where the orbit ends, still travelling, and the
+cut is a film wipe: render.js holds that frame for game.js to take a picture of
+(`snapWanted` → `takeSnap`), and from the next frame the camera pushes in on to
+the seat from a little back and up while the picture of the outgoing shot is
+carried off the way it was moving, growing, ahead of a slanted brass edge
+crossing the screen (`FLY.WIPE`, game.js → `syncWipe`). A world's line is cut by
+`cutAt` and wiped the same way; a skip wipes quicker (`WIPE.QUICK`); and the
+swing lane stays away until the wipe is over (`body.wipe-up`).
 
 **Four keys, and each is there for a different reason.** Beyond the cup looking
 back at it; the top of the arc over the middle of the hole, looking down the

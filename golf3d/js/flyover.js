@@ -27,6 +27,88 @@
 
     /* ── the shape of the path ──────────────────────────────────────────── */
 
+    /* The sweep: one slow, high orbit round the hole (the owner, v1.188.0:
+       "a sweeping grandiose overview of the map and not motion sickness").
+
+       It opens beyond the green, looking back at the cup, and swings round
+       the side the course is on — ORBIT_FROM degrees off the line past the
+       cup to ORBIT_TO off it behind the tee — looking at the middle of the
+       hole all the way, so the whole of it stays in the picture and the
+       picture turns only as fast as the camera goes round. It comes down a
+       little and in a little as it goes, and ends high behind the tee,
+       already facing down the hole, which is the way the seat faces.
+
+       It never lands. The orbit takes ORBIT_SHARE of the run and the leg
+       from its end down to the seat is the rest; the cut (`plan.cut`) is
+       where the orbit ends, while the camera is still travelling, and
+       render.js wipes from there to the seat (render.js → the wipe). The
+       seat is still the last key, to the last decimal: the arithmetic of
+       the hand-off, and a skip, are unchanged. */
+    function orbit(hole, ball, seat, F) {
+        var cup = hole.cup;
+        var dx = cup.x - ball.x, dz = cup.z - ball.z;
+        var d = Math.hypot(dx, dz), ux, uz, n;
+        if (d > 0.05) { ux = dx / d; uz = dz / d; } else {
+            ux = seat.tx - seat.px; uz = seat.tz - seat.pz;
+            n = Math.hypot(ux, uz);
+            if (n < 1e-6) { ux = 0; uz = 1; } else { ux /= n; uz /= n; }
+            d = 0;
+        }
+        var b = hole.bounds;
+        var bcx = (b.minX + b.maxX) / 2, bcz = (b.minZ + b.maxZ) / 2;
+        var reach = Math.hypot((b.maxX - b.minX) / 2, (b.maxZ - b.minZ) / 2);
+        // The middle it turns round: the shot's own middle, drawn half way
+        // to the middle of the hole's ground.
+        var mx = (ball.x + cup.x) / 2, mz = (ball.z + cup.z) / 2;
+        mx += (bcx - mx) * 0.5; mz += (bcz - mz) * 0.5;
+        var base = Math.max(ball.y, cup.y);
+        var R = clamp(Math.max(reach, d * 0.5) * F.ORBIT_R + F.ORBIT_ADD, F.ORBIT_MIN, F.ORBIT_MAX);
+        var H = R * F.ORBIT_H;
+        // Round the side the course is on, as the bow always was.
+        var px = uz, pz = -ux, side = ((bcx - mx) * px + (bcz - mz) * pz) < 0 ? -1 : 1;
+        var a0 = F.ORBIT_FROM * Math.PI / 180, a1 = Math.PI - F.ORBIT_TO * Math.PI / 180;
+        var keys = [], k, u, a, r, h, lx, lz, w, N = F.ORBIT_KEYS;
+        // Where it is looking by the end: a third of the way down the hole.
+        var ex = ball.x + ux * d * 0.35, ez = ball.z + uz * d * 0.35;
+        for (k = 0; k < N; k++) {
+            u = k / (N - 1);
+            a = a0 + (a1 - a0) * u;
+            r = R * (1 - (1 - F.ORBIT_IN) * u);
+            h = H * (F.ORBIT_RISE - (F.ORBIT_RISE - F.ORBIT_FALL) * u);
+            var cx = mx + r * (Math.cos(a) * ux + Math.sin(a) * side * px);
+            var cz = mz + r * (Math.cos(a) * uz + Math.sin(a) * side * pz);
+            // The first key looks at the cup; from there the look moves on to
+            // the middle, and over the second half to a third of the way down.
+            if (k === 0) { lx = cup.x; lz = cup.z; }
+            else {
+                w = Math.max(0, u * 2 - 1);
+                w = w * w * (3 - 2 * w);
+                lx = mx + (ex - mx) * w; lz = mz + (ez - mz) * w;
+            }
+            keys.push(key(cx, base + h, cz, lx,
+                k === 0 ? cup.y + 0.4 : groundAt(hole, lx, lz, base) + 0.5, lz));
+        }
+        keys.push(key(seat.px, seat.py, seat.pz, seat.tx, seat.ty, seat.tz));
+        return keys;
+    }
+
+    /* The orbit's clock: its keys evenly through ORBIT_SHARE of the run, the
+       seat at the end. Even, because the keys are evenly round the circle and
+       the circle is the speed. */
+    function spendOrbit(keys, dur, F) {
+        var n = keys.length - 1, i;
+        for (i = 0; i < n; i++) keys[i].t = dur * F.ORBIT_SHARE * i / (n - 1);
+        keys[n].t = dur;
+    }
+
+    // The moment of the run whose eased clock reads `tt`: ease is monotone,
+    // so halving finds it.
+    function unease(tt, dur) {
+        var lo = 0, hi = 1, m, i;
+        for (i = 0; i < 40; i++) { m = (lo + hi) / 2; if (ease(m) * dur < tt) lo = m; else hi = m; }
+        return hi * dur;
+    }
+
     /* Four keys, and each is there for a different reason.
 
          0  the green      beyond the cup, looking back at it: the shot's
@@ -280,14 +362,17 @@
             if (keys) dur = clamp(F.LINE_BASE + pathLength(keys) * F.LINE_PER_UNIT,
                                   F.LINE_MIN, F.LINE_MAX);
         }
-        if (!keys) {
-            keys = keyframes(hole, ball, seat, F);
-            dur = seconds(d, F);
+        if (keys) {
+            spend(keys, dur, F);
+            lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
+            return { keys: keys, dur: dur, out: pose(), line: true, cut: cutAt(keys, dur) };
         }
-        spend(keys, dur, F);
+        keys = orbit(hole, ball, seat, F);
+        dur = seconds(d, F);
+        spendOrbit(keys, dur, F);
         lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
-        return { keys: keys, dur: dur, out: pose(), line: keys.length > 4,
-                 cut: cutAt(keys, dur) };
+        return { keys: keys, dur: dur, out: pose(), line: false,
+                 cut: unease(keys[keys.length - 2].t, dur) };
     }
 
     /* ── the cut ────────────────────────────────────────────────────────
@@ -301,8 +386,9 @@
        "it's focusing a bit much on the ball when it spins over … do a quick
        fade to black (or circle in out thing)".
 
-       So render.js closes an iris on the ball just before this moment, puts
-       the camera on the seat behind the closed iris, and opens it there.
+       So render.js wipes from this moment to the seat instead (render.js →
+       the wipe). This is the cut on a world's line only; the orbit is cut
+       where the orbit ends (`plan`).
        The moment is the first sample in the second half of the run where
        the look turns faster than CUT_TURN degrees a second — read off the
        path rather than set as a share of it, since a straight putting lane
