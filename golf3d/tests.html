@@ -5612,6 +5612,26 @@
                 assert('flying the line home without doubling back', worst < 0.35, worst.toFixed(3));
                 assert('and over the ground rather than through it', low > 1.2, low.toFixed(2));
 
+                /* Holding the ball in the frame all the way in (v1.183.2).
+                   Looking along a line that bends, and swinging on to the
+                   ball near the end, turned the picture one way and back the
+                   other just as it reached the hole. Measured up to the cut,
+                   which is all of it a player sees. */
+                var turned = 0, py = null, yw, dyw;
+                for (i = 0; i <= 160 && lp.dur * i / 160 <= lp.cut; i++) {
+                    pose = G3.flyover.at(lp, lp.dur * i / 160);
+                    yw = Math.atan2(pose.tx - pose.px, pose.tz - pose.pz);
+                    if (py !== null) {
+                        dyw = yw - py;
+                        if (dyw > Math.PI) dyw -= 2 * Math.PI;
+                        if (dyw < -Math.PI) dyw += 2 * Math.PI;
+                        turned += Math.abs(dyw);
+                    }
+                    py = yw;
+                }
+                assert('and the look stays on the hole rather than following the line round',
+                    turned * 180 / Math.PI < 30, (turned * 180 / Math.PI).toFixed(0) + '° of turning');
+
                 // A line that never comes near this hole is not its line.
                 var off = pts.map(function (p) { return [p[0] + 40, p[1], p[2]]; });
                 var fp = G3.flyover.plan(flat, b, seat, { tour: true, line: { pts: off, u: 0.4 } });
