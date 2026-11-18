@@ -21,6 +21,15 @@
    one thing. */
 import * as THREE from 'three';
 import { Engine } from '../vendor/portals/src/core/engine.js';
+/* Portals' own list of its worlds: what each is called and how its camera is
+   to be treated (nearThrough, media…), and how to load it. A world is built
+   from its own entry here, the way Portals builds it. */
+import { WORLDS as REGISTRY } from '../vendor/portals/src/worlds/index.js';
+const REG = {};
+for (const d of REGISTRY) REG[d.id] = d;
+function defFor(id) {
+    return REG[id] ? { ...REG[id] } : { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
+}
 
 const G3 = window.G3;
 const canvas = document.createElement('canvas');
@@ -457,7 +466,7 @@ async function want2(id) {
     if (cur && cur.def.id === id) return true;
     if (spare && spare.def.id === id) return takeSpare();
     const E = boot();
-    const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
+    const def = defFor(id);
     mark(id);
     const job = loading = E._load(def, seedOf(id));
     let W = null;
@@ -484,7 +493,7 @@ async function want2(id) {
 async function prepare(id) {
     if (!id || failed[id] || loading || (cur && cur.def.id === id) || (spare && spare.def.id === id)) return false;
     const E = boot();
-    const def = { id, name: id, load: () => import('../vendor/portals/src/worlds/' + id + '.js') };
+    const def = defFor(id);
     // One world kept aside at a time.
     dropSpare();
     early = true; aside = id;
@@ -647,8 +656,14 @@ function frame(dt, cam, place, seat, w, h, clear) {
     const W = cur;
     if (!W || !engine || engine.lost || !place || W.def.id !== place.world) return false;
     if (w !== size.w || h !== size.h) { size.w = w; size.h = h; engine._resize(); }
-    if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
-    const A = W.anchor, c = engine.camera;
+    let crossed = null;
+    if (place.drift) crossed = drift(W, place, seat, dt);
+    else if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
+    const A = cur.anchor, c = engine.camera;
+    if (crossed) return frameOf(cur, place, dt, cam, w, h, clear, A, c, crossed);
+    return frameOf(W, place, dt, cam, w, h, clear, A, c, null);
+}
+function frameOf(W, place, dt, cam, w, h, clear, A, c, crossed) {
     /* One world can hold two holes (the breakfast table has The Butter
        Knife and The Sugar Gate), and a world is kept between them. So what
        one hole does to the world's ground is undone before the next hole is
@@ -665,6 +680,7 @@ function frame(dt, cam, place, seat, w, h, clear) {
        its flight the camera is, so an event is a run of `u` either side of
        where the hole stands. Held at its start until played. */
     let uNow = A.u;
+    if (crossed) window.dispatchEvent(new CustomEvent('g3-world-cross', { detail: crossed }));
     if (place.event) {
         if (ev.on && ev.t < 1) ev.t = Math.min(1, ev.t + dt / (place.event.secs || 5));
         const k = ev.t * ev.t * (3 - 2 * ev.t);
@@ -716,6 +732,7 @@ function frame(dt, cam, place, seat, w, h, clear) {
         } else {
             sm.autoUpdate = true;
         }
+        if (place.drift) portalFor(W, place, dt, c);
         engine.renderer.setViewport(0, h, w, h);
         engine.post.render(W.scene, c, W.post, clock, 1);
         // The picture is what matters: if the depth pass cannot be drawn on
@@ -727,6 +744,176 @@ function frame(dt, cam, place, seat, w, h, clear) {
     return true;
 }
 
+/* ── the drift: a hole riding the flight ─────────────────────────────────
+
+   Endless mode (endless.js) does not stand a hole at one spot of a world:
+   it hangs the course on the world's own flight and lets it ride, the way
+   Portals flies its camera — the seat behind the tee is on the line, and the
+   line goes on. So the world goes by while the hole is played: the hole is
+   the carpet and the world is the journey under it.
+
+   The ride is the flight's own, slowed (`DRIFT.PACE` of the world's cruise,
+   and the world's own pace along it), and the heading follows the line a
+   little behind, so a bend swings the world round the hole rather than
+   snapping it. And the flight ends where Portals' does, in a portal on the
+   next world. The game says which world that is (`place.next`) and builds
+   it aside (prepare); once it is built the opening shows it, drawn by the
+   engine's own portal pass, and the hole rides through — the world changes
+   under the ball mid-hole, and the game hears `g3-world-cross`. A next
+   world not built yet holds the hole short of the portal, slowing in as
+   the square of the way left, the way Portals' antechamber waits. */
+const DRIFT = { PACE: 0.42, START: 0.02, TURN: 0.7, SCALE: 1.6 };
+const _M = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _ds = new THREE.Vector3(), _f = new THREE.Vector3();
+function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+function headingAt(W, d, seat) {
+    const L = W.path.length, ahead = W.cam.ahead || 12;
+    W.path.posAtDist(Math.min(d, L), _p);
+    W.path.posAtDist(Math.min(d + ahead, L), _q);
+    _t.copy(_q).sub(_p); _t.y = 0;
+    if (_t.lengthSq() < 1e-4) { W.path.tangentAtDist(Math.min(d, L - 0.01), _t); _t.y = 0; }
+    if (_t.lengthSq() < 1e-8) _t.set(0, 0, 1);
+    return Math.atan2(_t.x, _t.z) - seat.yaw;
+}
+function drift(W, place, seat, dt) {
+    const L = W.path.length;
+    let D = place.ride;
+    const scaleTo = scaleFor(W, place, seat);
+    if (!D || D.world !== W.def.id) {
+        if (!D) D = place.ride = { d: L * (place.u === undefined ? DRIFT.START : place.u), turn: null, scale: scaleTo, t: 0, crossed: 0 };
+        D.world = W.def.id;
+    }
+    D.t += dt;
+    const ready = !!(spare && place.next && spare.def.id === place.next);
+    let v = (L / Math.max(5, W.duration)) * DRIFT.PACE * (W.pace ? W.pace(Math.min(1, D.d / L)) : 1) * (place.pace || 1);
+    // Nothing to go through yet: come in to rest a little short of the portal.
+    const stop = L - Math.min(18, L * 0.08);
+    if (!ready) {
+        const room = Math.max(0, stop - D.d), ease = Math.min(1, room / Math.max(6, L * 0.08));
+        v *= ease * ease;
+        if (D.d + v * dt > stop) v = Math.max(0, (stop - D.d) / Math.max(dt, 1e-3));
+    }
+    D.d += v * Math.min(dt, 0.1);
+    let crossed = null;
+    if (ready && D.d >= L) {
+        // Through. The world changes and the hole does not: everything the
+        // camera was carried out by is carried through the opening by the
+        // same matrix the engine crosses with (exit → the next entry).
+        const B = spare, from = W.def.id;
+        _M.multiplyMatrices(B.entry, W.exitInv);
+        _M.decompose(_ds, _dq, _s3);
+        _f.set(0, 0, 1).applyQuaternion(_dq);
+        if (D.turn !== null) D.turn = wrapA(D.turn + Math.atan2(_f.x, _f.z));
+        D.d -= L; D.world = B.def.id; D.crossed++;
+        spare = null;
+        const old = cur;
+        cur = B;
+        cur.anchor = null;
+        if (W.portal && W.portal.group) W.portal.group.visible = false;
+        // Put away after this frame, not in the middle of it.
+        setTimeout(() => { try { engine._dispose(old); } catch (e) { /* ignore */ } }, 0);
+        place.world = B.def.id; place.next = null;
+        if (place.hides) place.hide = place.hides[B.def.id] || null;
+        mark(B.def.id);
+        crossed = { from, to: B.def.id };
+        return driftPose(cur, place, seat, D, 0) || crossed;
+    }
+    driftPose(W, place, seat, D, dt);
+    return null;
+}
+function driftPose(W, place, seat, D, dt) {
+    const L = W.path.length, d = Math.max(0, D.d);
+    const want = headingAt(W, d, seat);
+    if (D.turn === null) D.turn = want;
+    else D.turn = wrapA(D.turn + wrapA(want - D.turn) * (1 - Math.exp(-dt * DRIFT.TURN)));
+    const target = scaleFor(W, place, seat);
+    D.scale += (target - D.scale) * (1 - Math.exp(-dt / DRIFT.SCALE));
+    W.path.posAtDist(Math.min(d, L + 2), _p);
+    const drop = place.drop === undefined ? seat.h * 0.55 : place.drop;
+    const A = W.anchor && W.anchor.key === place ? W.anchor : (W.anchor = { key: place });
+    A.x = _p.x; A.y = _p.y - drop * D.scale; A.z = _p.z; A.py = _p.y;
+    A.turn = D.turn; A.u = Math.min(1, d / L); A.sx = seat.x; A.sy = 0; A.sz = seat.z;
+    A.scale = D.scale; A.ground = null; A.height = null;
+    return null;
+}
+/* How big the lane is in a world nobody has sized it for by hand: as big as
+   the room round the flight allows. The lane hangs a little over half a
+   seat's height under the line and the seat sits the rest over it, so the
+   ground under the line and whatever roof is over it (a library's ceiling,
+   a cave's) bound it — the middle of a handful of soundings along the
+   flight, so one bridge or one chasm does not decide it. A world with
+   nothing under its flight at all (a sky, space) is sized by how fast
+   Portals flies it instead: a walk is a room, forty metres a second a
+   country. */
+const _upRay = new THREE.Raycaster(), _upDir = new THREE.Vector3(0, 1, 0);
+function roofOver(W, x, y, z) {
+    try {
+        _upRay.set(_t.set(x, y, z), _upDir); _upRay.far = 400; _upRay.camera = engine.camera;
+        for (const h of _upRay.intersectObjects(W.scene.children, true)) {
+            const o = h.object, m = Array.isArray(o.material) ? o.material[0] : o.material;
+            if (!o.isMesh || !m || o.isSkinnedMesh || o.isInstancedMesh) continue;
+            if (m.side === THREE.BackSide || (m.transparent && m.depthWrite === false)) continue;
+            if (m.alphaTest > 0 || m.alphaMap || (m.transparent && m.opacity < 0.6)) continue;
+            let v = o, shown = true;
+            while (v) { if (!v.visible) { shown = false; break; } v = v.parent; }
+            if (!shown) continue;
+            return h.point.y - y;
+        }
+    } catch (e) { /* none */ }
+    return null;
+}
+function autoScale(W, seat) {
+    if (W.autoScale) return W.autoScale;
+    const below = [], above = [], h = seat.h || 4.2;
+    W.scene.updateMatrixWorld(true);
+    for (let u = 0.08; u <= 0.92; u += 0.07) {
+        W.path.pointAt(u, _p);
+        const px = _p.x, py = _p.y, pz = _p.z;
+        const g = groundUnder(W, px, py, pz);
+        if (g !== null) below.push(py - g);
+        const r = roofOver(W, px, py + 0.05, pz);
+        if (r !== null) above.push(r);
+    }
+    const mid = (a) => { a.sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+    const speed = W.path.length / Math.max(5, W.duration);
+    let s = Math.min(3, Math.max(0.6, speed / 9));
+    if (below.length >= 4) s = Math.min(s * 1.6, mid(below) / (h * 0.8));
+    if (above.length >= 4) s = Math.min(s, mid(above) / (h * 0.7));
+    W.autoScale = Math.max(0.35, Math.min(3, s));
+    W.autoWhy = { speed: Math.round(speed * 10) / 10, below: below.length ? Math.round(mid(below) * 10) / 10 : null, above: above.length ? Math.round(mid(above) * 10) / 10 : null };
+    return W.autoScale;
+}
+function scaleFor(W, place, seat) {
+    return (place.scales && place.scales[W.def.id]) || autoScale(W, seat);
+}
+
+/* The opening at the end of the flight, with the next world in it: the
+   engine's own portal pass (vendor/portals/src/core/engine.js →
+   _renderPortal), driven here because this engine is never left to run its
+   own frame. Shown once the next world is built and the hole is within the
+   world's own reveal distance of it. */
+function portalFor(W, place, dt, c) {
+    const P = W.portal;
+    if (!P || !P.group) return;
+    const B = spare && place.next && spare.def.id === place.next ? spare : null;
+    const D = place.ride, L = W.path.length, left = D ? L - D.d : L;
+    const reveal = B ? 1 - smoothstep(W.revealDist * 0.6, W.revealDist, left) : 0;
+    P.group.visible = !!B && (reveal > 0.002 || W.feed);
+    if (!P.group.visible) return;
+    try {
+        if (P.setTime) P.setTime(clock);
+        if (P.setReveal) P.setReveal(W.feed ? 1 : reveal);
+        if (P.setNear) P.setNear(1 - smoothstep(4, 30, left));
+        if (P.setGain) {
+            const g = B.post.exposure / Math.max(1e-3, W.post.exposure), lim = (x) => Math.max(0.45, Math.min(2.2, x));
+            P.setGain(lim(g * B.post.tint.r / Math.max(0.05, W.post.tint.r)), lim(g * B.post.tint.g / Math.max(0.05, W.post.tint.g)), lim(g * B.post.tint.b / Math.max(0.05, W.post.tint.b)));
+        }
+        if (P.setDewash && engine.post.bloomTexture) P.setDewash(engine.post.bloomTexture, W.feed ? 0 : 0.85);
+        if (B.ctx) B.ctx.through = true;
+        engine._renderPortal(W, B, dt);
+    } catch (e) { if (!W._perr) { W._perr = 1; console.warn('backdrop portal', e); } P.group.visible = false; }
+}
+function smoothstep(a, b, x) { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+
 /* The world's own flight, in golf units: the line Portals flies its camera
    along, brought back through the same anchor `frame` carries the golf
    camera out by (the inverse of it). Portals keeps that line clear of its
@@ -736,7 +923,7 @@ function frame(dt, cam, place, seat, w, h, clear) {
    it the hole stands. Null without a built world for this place. */
 function line(place, seat, n) {
     const W = cur;
-    if (!W || !engine || !place || !seat || W.def.id !== place.world || !W.path) return null;
+    if (!W || !engine || !place || !seat || W.def.id !== place.world || !W.path || place.drift) return null;
     if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
     const A = W.anchor, N = Math.max(8, n || 240), pts = [];
     _yaw.setFromAxisAngle(_up, -A.turn);
@@ -781,6 +968,8 @@ G3.backdrop = {
     /* Hold a build aside where it is (true) or let it go on (false): see
        `held`. Cheap enough to be said every frame. */
     hold(on) { held = !!on; },
+    // A build aside finished at full speed rather than in slices (a headless driver, the console).
+    hurry() { early = false; },
     get held() { return held && early; },
     // What the world renderer holds, for a driver watching memory over a tour.
     stats() {
@@ -797,7 +986,10 @@ G3.backdrop = {
     line,
     // A place edited by hand (the console, a tuning script): work it out again.
     reanchor() { if (cur) cur.anchor = null; },
+    // How far along its world a riding hole is (endless.js), 0…1, and whether the next world is in the portal.
+    ride(place) { if (!place || !place.ride || !cur || !cur.path) return null; return { u: Math.min(1, place.ride.d / cur.path.length), ready: !!(spare && place.next && spare.def.id === place.next), crossed: place.ride.crossed }; },
+    DRIFT,
     // For placing a hole: what the world is and where the hole ended up in it.
-    debug() { return cur ? { id: cur.def.id, length: cur.path.length, duration: cur.duration, cam: cur.cam, anchor: cur.anchor && { u: cur.anchor.u, x: cur.anchor.x, y: cur.anchor.y, z: cur.anchor.z, ground: cur.anchor.ground, height: cur.anchor.height, step: cur.anchor.step, scale: cur.anchor.scale } } : null; }
+    debug() { return cur ? { auto: cur.autoScale || null, why: cur.autoWhy || null, id: cur.def.id, length: cur.path.length, duration: cur.duration, cam: cur.cam, anchor: cur.anchor && { u: cur.anchor.u, x: cur.anchor.x, y: cur.anchor.y, z: cur.anchor.z, ground: cur.anchor.ground, height: cur.anchor.height, step: cur.anchor.step, scale: cur.anchor.scale } } : null; }
 };
 window.dispatchEvent(new Event('g3-backdrop'));

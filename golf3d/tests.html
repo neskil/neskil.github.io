@@ -28,6 +28,8 @@
     <script src="js/courses.js"></script>
     <script src="js/tour-ground.js"></script>
     <script src="js/portals.js"></script>
+    <script src="js/portal-worlds.js"></script>
+    <script src="js/endless.js"></script>
     <script src="js/custom.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
@@ -5620,7 +5622,7 @@
             /* The cut. The path runs green to tee and the seat looks tee to
                green, so the end of it turns the whole view round over the
                ball; render.js closes an iris and jumps to the seat at
-               `plan.cut` instead of flying that (the owner, v1.177.0). So: a
+               `plan.cut` instead of flying that (the owner, v1.182.0). So: a
                cut in the second half, never later than CUT_TAIL from the
                end, before the spin and not inside it. */
             (function () {
@@ -5940,6 +5942,63 @@
                 typeof C.DEMO_HOLD === 'number' && C.DEMO_HOLD > 0);
         })();
 
+        /* ── endless ───────────────────────────────────────────────────── */
+
+        section('ENDLESS');
+        (function () {
+            var E = G3.endless, W = E.worlds(), ids = {}, dup = false;
+            W.forEach(function (w) { if (ids[w.id]) dup = true; ids[w.id] = true; });
+            assert('endless deals from every vendored Portals world — hundreds, each once', W.length >= 400 && !dup &&
+                W.length === (G3.PORTAL_INDEX || []).length, W.length + ' worlds');
+            assert('…every tour world among them', G3.portals.WORLDS.every(function (w) { return ids[w.place.world]; }));
+            assert('…and every one has a palette and a stand-in set piece to fall back on', W.every(function (w) {
+                return w.name && G3.THEMES[w.theme] && G3.THEMES[w.theme].sky.length === 2 && w.scene;
+            }));
+
+            // A round: the next hole is always there, and the worlds come round as a shuffled bag.
+            var c = E.course(99), k, run = true, firstLap = {};
+            c.ensure(W.length + 3);
+            for (k = 0; k < c.holes.length; k++) {
+                if (k && c.worlds[k] === c.worlds[k - 1]) run = false;
+                if (k < W.length) firstLap[c.worlds[k]] = true;
+            }
+            assert('a round grows: this hole and the next', E.course(5).holes.length === 2 && c.isEndless && c.isPortals);
+            assert('every world comes round before any comes round twice', Object.keys(firstLap).length === W.length);
+            assert('…and never the same world twice running', run);
+            assert('a seed is a round', E.course(7).holes[0].endless.seed === E.course(7).holes[0].endless.seed &&
+                E.course(7).worlds.join() === E.course(7).worlds.join() &&
+                JSON.stringify(E.course(7).holes[1].pads) === JSON.stringify(E.course(7).holes[1].pads));
+            var c2 = E.course(11), was = c2.holes[1].place.world;
+            c2.crossed(0, was);
+            assert('a hole that rides through its portal sends the next hole to another world', c2.holes[1].place.world !== was &&
+                c2.worlds[0] === was && c2.holes[0].place.next === c2.holes[1].place.world);
+            assert('courseById answers to endless', G3.courseById('endless').isEndless);
+
+            // The holes themselves, across the round's climb.
+            var good = true, why = '', sunk = 0, fair = 0, N = 36, kinds = {};
+            for (k = 0; k < N; k++) {
+                var h = E.generate(E.mix(2024, k), k % 18, W[(k * 37) % W.length]);
+                var tee = P.surfaceTop(h, h.tee.x, h.tee.z), cup = P.surfaceTop(h, h.cup.x, h.cup.z);
+                var flat = cup && Math.abs(P.padHeight(cup.pad, h.cup.x + 0.3, h.cup.z) - P.padHeight(cup.pad, h.cup.x - 0.3, h.cup.z)) < 0.02 &&
+                    Math.abs(P.padHeight(cup.pad, h.cup.x, h.cup.z + 0.3) - P.padHeight(cup.pad, h.cup.x, h.cup.z - 0.3)) < 0.03;
+                var clear = h.walls.every(function (wl) {
+                    if (wl.move || wl.spin || wl.swing || wl.sails) return true;
+                    var B = P.wallBox(wl, 0);
+                    return !P.circleBox(h.cup.x, h.cup.z, C.HOLE_R + 0.05, B) || B.base > h.cup.y + 0.5 || B.top < h.cup.y - 0.2;
+                });
+                if (!tee || !cup || !flat || !clear || !h.place.drift || h.portal !== true || P.outOfBounds(h, h.cup.x, h.cup.z) ||
+                    h.par < 2 || h.par > 5 || !G3.THEMES[h.theme]) { good = false; why = k + ': ' + h.name; }
+                h.endless.things.forEach(function (t) { kinds[t] = 1; });
+                var r = G3.bot.play(h, 10, G3.bagFor(h));
+                if (r.sunk) sunk++;
+                if (r.sunk && r.strokes <= h.par + 2) fair++;
+            }
+            assert('every made-up hole has a tee and a level cup on its lane, nothing in the cup, and a world to ride', good, why);
+            assert('the bot holes nearly every one', sunk >= N - 2, sunk + ' of ' + N);
+            assert('…nearly always within two of par', fair >= N - 3, fair + ' of ' + N);
+            assert('and the lanes are not all the same lane', Object.keys(kinds).length >= 6, Object.keys(kinds).join(', '));
+        })();
+
         section('PRO SHOP & BALL COSMETICS');
         (function () {
             var balls = G3.BALLS || [];
@@ -5986,31 +6045,73 @@
                 S.earnedStars(sv, mockCourses, mockWorlds).got === 48 &&
                 S.availableStars(sv, mockCourses, mockWorlds) === 48);
 
-            // Buying a high-tier ball (crystal-glass = 35★) immediately without buying any earlier balls works!
-            var glassCost = G3.ballById('crystal-glass').cost;
+            // Buying a high-tier ball with no achievement on it, before any cheaper one, works.
+            var carbonCost = G3.ballById('carbon-gold').cost;
             var tripleCost = G3.ballById('triple-track').cost;
-            var holeCost = G3.ballById('black-hole').cost;
-            var buyGlass = S.buyBall(sv, 'crystal-glass', opts);
-            assert('expensive ball can be bought first in any order without prerequisites',
-                buyGlass.ok && !buyGlass.alreadyOwned && S.ownsBall(buyGlass.save, 'crystal-glass') &&
-                S.equippedBall(buyGlass.save) === 'crystal-glass');
+            var buyCarbon = S.buyBall(sv, 'carbon-gold', opts);
+            assert('a dear ball can be bought first in any order without prerequisites',
+                buyCarbon.ok && !buyCarbon.alreadyOwned && S.ownsBall(buyCarbon.save, 'carbon-gold') &&
+                S.equippedBall(buyCarbon.save) === 'carbon-gold');
             assert('spending stars reduces available balance without lowering earned stars',
-                S.earnedStars(buyGlass.save, mockCourses, mockWorlds).got === 48 &&
-                S.spentStars(buyGlass.save) === glassCost &&
-                S.availableStars(buyGlass.save, mockCourses, mockWorlds) === 48 - glassCost);
+                S.earnedStars(buyCarbon.save, mockCourses, mockWorlds).got === 48 &&
+                S.spentStars(buyCarbon.save) === carbonCost &&
+                S.availableStars(buyCarbon.save, mockCourses, mockWorlds) === 48 - carbonCost);
 
-            // Buying another affordable ball (triple-track = 5★)
-            var buyTriple = S.buyBall(buyGlass.save, 'triple-track', opts);
-            var afterTriple = 48 - glassCost - tripleCost;
+            var buyTriple = S.buyBall(buyCarbon.save, 'triple-track', opts);
+            var afterTriple = 48 - carbonCost - tripleCost;
             assert('remaining stars can buy any other affordable ball in any order',
                 buyTriple.ok && S.availableStars(buyTriple.save, mockCourses, mockWorlds) === afterTriple &&
                 S.ownsBall(buyTriple.save, 'triple-track'));
 
-            // Cannot buy expensive ball when balance is short
-            var buyHole = S.buyBall(buyTriple.save, 'black-hole', opts);
-            assert('insufficient stars purchase fails cleanly and leaves save untouched',
-                !buyHole.ok && buyHole.reason === 'insufficient' && buyHole.need === holeCost - afterTriple &&
-                !S.ownsBall(buyHole.save, 'black-hole'));
+            /* The top shelf is behind achievements as well as stars: with the
+               stars in hand and the goal unmet the sale is refused, and saying
+               why. mockCourses have no group, so the six holes of c1 are what
+               a "perfect course" can be met on. */
+            var holeCost = G3.ballById('black-hole').cost;
+            var glassCost = G3.ballById('crystal-glass').cost;
+            assert('the dearest balls carry an achievement lock',
+                !!G3.ballById('black-hole').lock && !!G3.ballById('crystal-glass').lock &&
+                !G3.ballById('carbon-gold').lock && !!G3.SHOP_LOCKS[G3.ballById('black-hole').lock]);
+            var richSv = sv;
+            for (hi = 0; hi < 6; hi++) richSv = S.recordHole(richSv, 'c3', hi, 1, 3, { scored: true }).save;
+            for (hi = 0; hi < 6; hi++) richSv = S.recordHole(richSv, 'c1', hi, 2, 3, { scored: true }).save;
+            var glassLocked = S.buyBall(richSv, 'crystal-glass', opts);
+            assert('a locked ball is refused for its achievement even with the stars to pay',
+                S.availableStars(richSv, mockCourses, mockWorlds) >= glassCost &&
+                !glassLocked.ok && glassLocked.reason === 'achievement' &&
+                glassLocked.lock.have === 0 && glassLocked.lock.need === 8 &&
+                !S.ownsBall(glassLocked.save, 'crystal-glass'));
+            var perfect = S.lockStatus(richSv, 'black-hole', opts);
+            assert('lockStatus counts progress from the save (three stars on all six holes of one course)',
+                perfect.met && !perfect.locked && perfect.have === 6);
+            var buyHole = S.buyBall(richSv, 'black-hole', opts);
+            assert('an achievement met and the stars in hand buys a locked ball',
+                buyHole.ok && S.ownsBall(buyHole.save, 'black-hole') &&
+                S.spentStars(buyHole.save) === holeCost);
+            var poor = S.buyBall(buyTriple.save, 'crystal-glass', { courses: mockCourses, worlds: mockWorlds });
+            assert('a locked ball is refused before its price is even asked',
+                !poor.ok && poor.reason === 'achievement');
+            var ten = sv;
+            for (hi = 0; hi < 10; hi++) ten = S.recordRound(ten, 'c1', [2, 2, 2, 2, 2, 2], mockCourses[0].holes).save;
+            assert('rounds, aces and under par are counted from the save',
+                S.lockProgress(ten, 'rounds') === 10 && S.lockProgress(ten, 'under') === 1 &&
+                S.lockProgress(sv, 'under') === 0 && S.lockProgress(sv, 'ace') === 0);
+
+            // Club finishes: the same wallet, kept in the same list, equipped on their own slot.
+            var clubs = G3.CLUB_FINISHES || [];
+            var clubCost = clubs.reduce(function (t, c) { return t + c.cost; }, 0);
+            assert('club finishes exist, ship with the stock bag free, and balls + clubs fit inside earnable stars',
+                clubs.length >= 6 && clubs[0].id === 'club-stock' && clubs[0].cost === 0 &&
+                clubs.every(function (c) { return c.kind === 'club'; }) &&
+                totalCost + clubCost <= maxStars, (totalCost + clubCost) + ' / ' + maxStars);
+            var buyBrass = S.buyBall(buyTriple.save, 'club-brass', opts);
+            assert('a club finish is bought with stars and equipped without touching the ball',
+                buyBrass.ok && S.equippedClub(buyBrass.save) === 'club-brass' &&
+                S.equippedBall(buyBrass.save) === 'triple-track' &&
+                S.spentStars(buyBrass.save) === carbonCost + tripleCost + G3.clubFinishById('club-brass').cost);
+            assert('a fresh save has the stock clubs, and a club cannot be equipped unowned',
+                S.equippedClub(S.emptySave()) === 'club-stock' &&
+                !S.equipBall(S.emptySave(), 'club-glacier').ok);
 
             // Switching back to an owned ball works; switching to a locked ball fails cleanly
             var eqWhite = S.equipBall(buyTriple.save, 'tour-white');
@@ -6023,9 +6124,12 @@
             S.save(buyTriple.save);
             var reloaded = S.load();
             assert('save and load round-trip unlocked balls and equipped selection',
-                S.ownsBall(reloaded, 'crystal-glass') && S.ownsBall(reloaded, 'triple-track') &&
+                S.ownsBall(reloaded, 'carbon-gold') && S.ownsBall(reloaded, 'triple-track') &&
                 S.equippedBall(reloaded) === 'triple-track' &&
-                S.spentStars(reloaded) === glassCost + tripleCost);
+                S.spentStars(reloaded) === carbonCost + tripleCost);
+            S.save(buyBrass.save);
+            assert('save and load round-trip the club finish',
+                S.equippedClub(S.load()) === 'club-brass');
 
             // Dev-mode free unlocks & reset do not inflate spentStars
             var devOne = S.unlockBallFree(sv, 'black-hole').save;
@@ -6035,7 +6139,7 @@
             var devAll = S.unlockAllBallsFree(buyTriple.save).save;
             assert('dev unlockAll unlocks every catalog ball without adding star debt',
                 balls.every(function (b) { return S.ownsBall(devAll, b.id); }) &&
-                S.spentStars(devAll) === glassCost + tripleCost);
+                S.spentStars(devAll) === carbonCost + tripleCost);
             var devReset = S.resetFreeBalls(devOne).save;
             assert('resetFreeBalls removes dev-only unlocks and falls back to tour-white if unowned',
                 !S.ownsBall(devReset, 'black-hole') && S.equippedBall(devReset) === 'tour-white');

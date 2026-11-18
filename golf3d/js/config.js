@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.177.0';
+G3.VERSION = '1.182.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1038,13 +1038,15 @@ G3.CONFIG = {
        cup's black hole; the full-screen black hole portal closes around the
        picture as it enters the rim. */
     DIVE: {
-        DUR: 3.0,           // lap to deep inside the cup
-        OVER_AT: 0.62,      // share of DUR when radius closes to 0 (directly over the cup)
-        PEAK_AT: 0.46,      // share of DUR when height crests before plunging straight down
+        DUR: 3.3,           // lap to deep inside the cup
+        OVER_AT: 0.56,      // share of DUR when radius closes to 0 (directly over the cup)
+        PEAK_AT: 0.40,      // share of DUR when height crests before plunging straight down
         RISE: 3.2,          // how high above max(y0, top + 3.5) the arc crests
-        INTO: 1.35,         // how far below the cup rim (top) the camera plunges into the hole
+        RIM_AT: 0.80,       // share of DUR when the plunge reaches the rim…
+        RIM_Y: 0.35,        // …this far above the cup's top, where the black hole fills the view
+        INTO: 2.2,          // then on to this far below the rim (top), easing to rest inside the hole
         SWEEP: 0.85,        // gentle turn into the approach line (radians)
-        PORTAL_AT: 0.64,    // share of DUR when the black hole portal begins closing round the view
+        PORTAL_AT: 0.80,    // share of DUR when the black hole portal begins closing round the view: at the rim, not before
         PIN_LIFT: 30,       // the flag launches this far straight up…
         PIN_BY: 0.36,       // …in this share of the dive, then is gone
         PREPARE_AFTER: 1.2, // the next world starts building this long after the sink, if it has not already…

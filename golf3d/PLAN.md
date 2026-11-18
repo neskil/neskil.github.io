@@ -739,6 +739,18 @@ card shapes are already there to hang a third off (`CARDS` in `bag.js`).
   and play"). Open: names a player can type, and a record per player.
 - ~~**1-click level editor sharing**~~ (done, v1.102.0 — README → "The hole
   editor", Share 🔗): the hole travels in the link's fragment.
+- **Endless (v1.181.0): what was not done in the first pass.** The 454
+  worlds without a tour hole are sized by `autoScale` and dressed in the
+  nearest tour world's palette (`STAND_IN`); neither has been looked at world
+  by world. Worth doing: a contact-sheet tool that rides each world for a few
+  seconds and photographs it (as `tools/world-shot.mjs` does one tour hole),
+  then hand-set `SCALE` entries where the lane is buried or a speck; a palette
+  made from the registry's `tone` rather than borrowed; a world that fails to
+  build in this engine's frozen mode noted somewhere rather than dealt round
+  each time; and a record worth keeping (longest run under par?). SwiftShader
+  runs the ride at about one frame a second, so the crossing has only been
+  watched in a headless driver with the pace turned up, never at a phone's
+  sixty.
 - **Level-editor parity (optional / low-priority)** — compatibility with
   `level-editor.html` is not required and must never constrain or slow down new
   map designs or mechanics (`golf3d/CLAUDE.md`). Keeping editor-created holes

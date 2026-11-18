@@ -446,8 +446,9 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
 | **Needle** | pull down, as the touch swing | tap while a sweeping needle is central | `needle…` | `NEEDLE` |
 
 - **Touch swing.** A light grey lane up the middle of the stage, from about
-  where the ball sits down to the controls; a mouse drag is the same gesture,
-  so it plays on a desktop too. Press and pull straight down — the meter fills
+  where the ball sits down to the controls — narrower and a little shorter on
+  a phone (`laneSmall`, v1.180.0), so more of the course is left for aiming;
+  a mouse drag is the same gesture, so it plays on a desktop too. Press and pull straight down — the meter fills
   with the pull (`swipeLoad`), the full swing ticked at the same white line —
   then swipe up through where you started; crossing that line is the strike,
   and letting go before it is no shot. Three things are read off the
@@ -3590,7 +3591,9 @@ press is the one that plays it. It is
 disabled while there is nothing loaded and while the ball is still rolling, so
 it says what the game will accept rather than swallowing the press. The `‹` and
 `›` buttons beside it nudge the aim by a hair, which is the part a drag is too
-coarse for on a short putt.
+coarse for on a short putt. Under the touch swing — which is to say, in the game
+as it ships — the meter, its distance line and both nudges are hidden (v1.180.0):
+the lane is the meter, and ← → still nudge from a keyboard.
 
 This replaced a slingshot — press, pull away, let go. It read well with a mouse,
 but it fused aim and power into one throw you could not correct: every
@@ -4501,11 +4504,14 @@ down into it (`render.js → startDive`, `diveCamera`, `C.DIVE`), each part ease
 so it leaves at the speed the lap was going and is falling fastest as it goes
 in. It looks just past the cup's axis on the far side, so the last look is
 never exactly straight down and the picture turns with the spiral instead of
-flicking round. It stops just over the lip where the cup fills the picture — the height
-worked out from the field of view, so a phone held either way ends on the
-inside of the hole and the ball lying in it, never on the ball's dimples.
-The wipe on to the next sky starts closing while it falls (`throughPortal`'s
-`dive`), so it opens out of the cup. The pose holds at the lip until the
+flicking round. The plunge reaches the rim (`RIM_AT`, `RIM_Y` over it) with the
+cup's black hole filling the picture, and only then does the wipe on to the
+next sky start closing (`PORTAL_AT`, `throughPortal`'s `dive`): the camera
+goes on `INTO` the hole at the speed it arrived with, easing to rest, with the
+black-hole disc kept just below it so the view is never the underside of the
+green, and the next sky opens out of that dark (v1.176.1 — before, the wipe
+began while the camera was still metres up, and the owner wanted it "further
+down into the hole before the transition starts"). The pose holds until the
 next hole is built (`buildHole` clears `R.dive`). It runs whenever the hole
 is over (`phase === 'holed'`, a picked-up ball included — then with no lap
 to carry on from, so it starts from standing); reduced motion gets neither
@@ -4541,6 +4547,69 @@ featured button beside Showcase and Challenge, and what it draws from is
 behind a link under the grid, not a tab. The tabs are one row of named chips
 that scrolls sideways on a phone. A bar under the title is every star there
 is; *Keep playing* is pinned to the bottom.
+
+## Endless: mini golf through every world
+
+The owner's ask (v1.181.0): the tour's worlds have a flight path, so let a
+mini golf course float along it — through every world Portals has, at
+random, for ever, with holes made up as they are needed. The button is
+under the World Tour's door in the picker; `?course=endless&seed=<n>&from=<world id>`
+is a reproducible round.
+
+**Every world.** `vendor/portals/` is the whole of Portals' release s8f now,
+all 471 worlds (its README says what is and is not copied).
+`js/portal-worlds.js` is Portals' own registry as plain data
+(`tools/portal-index.mjs` writes it), and `endless.js → worlds()` deals from
+it: a shuffled bag, refilled when empty, so every world comes round before
+any comes round twice and none twice running. The seventeen tour worlds
+lend their palette, stand-in set piece, hand-set scale and `hide` list; the
+rest take the tour world nearest them in kind (`STAND_IN`, by media then
+shelf). `backdrop.mjs` builds each world from its registry entry, as Portals
+does, so a world's `nearThrough` and media come with it.
+
+**The holes** (`endless.js → generate`, a function of seed and hole number).
+A walk of four to eight 3.4-unit cells from the tee: north first, then north,
+east or west, never south — so it cannot cross itself — and never more than
+two cells sideways. Each cell is level, a step down, or (on a straight) a
+ramp up or down; heights stay between -2.4 and +2. Straight cells may hold
+one thing from `THINGS` — bumpers, posts, a hump, a blade, a sliding gate,
+a chicane, a belt, ice, a windmill, an unrailed plank, a flipper — dealt
+more often, and the harder ones only, the further into the round
+(`d = n / 14`). Every edge that does not lead on gets a kerb (segmented and
+as tall as the climb along a ramp), every corner a bank across its outside,
+and the cup cell is plain, a bowl, a mound or guarded. Par is two plus one
+each for length, three turns and two hard things. Built with
+`portals.world()`, so every lane is open, unstaked and hung in the air.
+`tests.html → ENDLESS` plays three dozen with the bot.
+
+**The ride** (`backdrop.mjs → drift`). A place with `drift: true` is not
+fitted once: every frame the seat behind the tee is put on the world's flight
+`DRIFT.PACE` of the world's own cruise further along, the lane hanging a
+little over half a seat under the line, and the heading follows the line a
+little behind so a bend swings the world round the hole. The world's clock
+is the ride's `u`, so whatever Portals animates along the flight animates.
+The scale is the hand-set one for a tour world, and for the rest
+`autoScale`: the room under the flight (downward soundings) and over it
+(upward ones, for a ceiling), the middle of a dozen along it, or, with
+nothing under it at all, how fast Portals flies it.
+
+**Two ways into the next world**, as in Portals:
+
+- *Too slow:* the flight ends in a portal. `game.js` puts the next hole's
+  world on `place.next` and builds it aside (`prepareAhead`); once built the
+  world's own portal shows it (the engine's `_renderPortal`, driven by
+  `backdrop.mjs → portalFor`), and the lane rides through, ball and all.
+  Everything is carried over by the engine's crossing matrix (exit → next
+  entry), the old world is disposed, and the game hears `g3-world-cross`
+  (`endless.crossed` deals the next hole again, elsewhere). With the next
+  world not built yet the ride slows and stops short of the portal.
+- *Holed:* the dive into the cup, like a tour hole, into the next hole
+  in the next world.
+
+Nothing is recorded but `golf3d.endless` (holes played, worlds seen), which
+the picker's line reads. A world that fails to build is dealt round. The
+intro flyover does not use the world's line for a riding hole (`line()`
+returns null), since the line moves.
 
 ## The showcase: the game in eight holes
 
@@ -6005,6 +6074,37 @@ you liked it chosen; and `loftLinks.shuffleSkip`, the kinds of golf left out of
 the draw, stored as the ones excluded so that an empty value is every kind and
 a new group of courses arrives ticked rather than hidden. All these writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
+
+## The Pro Shop: balls, club finishes and what they cost
+
+Two shelves behind one wallet (`B`, the menu's brass plate, or the plate on a
+finished round's card). `js/balls.js` is the catalog — `BALLS`, `CLUB_FINISHES`,
+and `LOCKS` — and `js/scoring.js` owns the rules: `availableStars` is stars
+earned minus stars spent, both kinds of purchase live in `save.balls`, and the
+equipped club finish is `save.club`.
+
+- **The economy.** 330 stars exist (270 on the courses, 60 on the World Tour).
+  Balls cost 220 and club finishes 88, so a completionist can own everything
+  with stars to spare. `tests.html` holds the sum under the cap; add an item
+  and re-price rather than loosen it.
+- **Achievement locks.** A top-shelf item with `lock` also needs that
+  achievement met — counted from the save alone by `scoring.lockProgress`
+  (rounds, aces, a round under par, every kind of course, eight courses, six
+  World Tour holes, a perfect course). `buyBall` refuses with reason
+  `'achievement'`. Owning an item already is never undone by a lock.
+- **Club finishes recolour, never rebuild.** `bag.js` keeps every material set
+  `mats()` hands out and `setFinish` repaints paint, head steel and grips in
+  place. The extreme finishes (`glow: 'fire' | 'ice'`) breathe an emissive
+  intensity in `glowTick`; no light is added, so nothing recompiles.
+- **The dimples** (`shaders.js → GB_DIMPLE_FN`) are a frequency-7 geodesic
+  grid, 492 of them, found per pixel: fold to the positive octant, pick one of
+  four icosahedron faces, then the nearest of three grid corners. Every face
+  must be wound the same way — the central one was once backwards, its
+  barycentric sum went negative and eight faces drew smooth. Each dimple's
+  radius is just under half the distance to its nearest neighbour (a table of
+  eight, keyed by how far its flat grid point stood from the centre), and
+  `fwidth` softens the rim and fades the relief once a pixel covers half a
+  dimple, skipping the search entirely on a small ball.
 
 ## Sound
 
