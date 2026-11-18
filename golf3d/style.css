@@ -1781,29 +1781,21 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     .fly-fade.run { animation-duration: 0.2s; }
 }
 
-/* The cut at the end of a sweep (render.js → iris): a circle closed on the
-   ball, the camera put on the seat behind it, and the circle opened again.
-   game.js sets where the ball is on the stage and how wide the hole is, on
-   every frame it is up; the rest of the time it is not drawn at all. */
-.fly-iris {
+/* The cut at the end of a sweep (render.js → the wipe): the last frame the
+   sweep flew, carried off ahead of an edge crossing the stage while the live
+   shot comes in behind it. game.js places it over the course's canvas and
+   paints it on every frame it is up; the rest of the time it is not drawn. */
+.fly-wipe {
     position: absolute;
-    inset: 0;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
     z-index: 5;
     pointer-events: none;
-    --ix: 50%;
-    --iy: 50%;
-    --ir: 0px;
-    /* A brass hairline on the edge, the clubhouse's one accent: drawn ink
-       on a stage curtain rather than a hole punched in the picture. Shut,
-       every stop is at or below nought and the line goes with the light. */
-    background: radial-gradient(circle at var(--ix) var(--iy),
-        transparent 0, transparent var(--ir),
-        rgba(201, 163, 82, 0.7) calc(var(--ir) + 0.5px),
-        rgba(201, 163, 82, 0.7) calc(var(--ir) + 2px),
-        #06080b calc(var(--ir) + 3px));
 }
 
-.fly-iris[hidden] { display: none; }
+.fly-wipe[hidden] { display: none; }
 
 @keyframes fly-hint-in {
     from { opacity: 0; transform: translate(-50%, 6px); }
@@ -3928,8 +3920,8 @@ body.compact-ui .picker { padding-top: 52px; }
    club you are still choosing (see `.stage.picker-open .controls`). Nor
    down the cup (`body.diving`, game.js → throughPortal): the hole is over.
    Nor while the portal is shut or opening on the next one
-   (`body.portal-shut`, game.js → portalShut), nor while the flyover's iris
-   is up (`body.iris-up`, game.js → syncIris). */
+   (`body.portal-shut`, game.js → portalShut), nor while the flyover's wipe
+   is up (`body.wipe-up`, game.js → syncWipe). */
 .stage.picker-open .swipe,
 .stage.picker-open .arc,
 .stage.picker-open .needle,
@@ -3948,9 +3940,9 @@ body.diving .needle,
 body.portal-shut .swipe,
 body.portal-shut .arc,
 body.portal-shut .needle,
-body.iris-up .swipe,
-body.iris-up .arc,
-body.iris-up .needle { display: none; }
+body.wipe-up .swipe,
+body.wipe-up .arc,
+body.wipe-up .needle { display: none; }
 
 /* While a lane style (the touch swing, the needle) is in charge, the meter is
    a readout and Swing gives its place to a line saying what to do instead.
@@ -4671,7 +4663,7 @@ body.lane-swing .swipe-hint {
 /* Six columns: the two doors across the top, the three showcases (every
    kind, mini golf, the long game) a third each, then the challenge and the
    draw a half each. The long game used to be one deal in four inside a
-   single Showcase button, and easy to never meet (v1.188.0). */
+   single Showcase button, and easy to never meet (v1.189.0). */
 .menu-featured { grid-template-columns: repeat(6, 1fr); }
 .menu-featured .showcase-go { grid-column: span 2; }
 .menu-featured .challenge-go, .menu-featured .surprise-go { grid-column: span 3; }

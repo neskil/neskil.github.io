@@ -71,7 +71,9 @@
         marks: null,           // the overview's ball ring and the two at the cup
         lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
         fly: null,             // the intro sweep while one is running; see flyCamera()
-        iris: null,            // the circle that covers its cut; see stepIris()
+        wipe: null,            // the wipe that covers its cut; see stepWipe()
+        snapWanted: false,     // the frame to take the outgoing picture of (game.js)
+        snapReady: false,
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
         launch: null,          // the seat letting go at the strike; see launchLag()
         wasMoving: false,      // …which is how a strike is noticed
@@ -6168,7 +6170,7 @@
         // Whatever was being flown over is no longer the course. game.js starts
         // the next one, if the player wants one at all.
         R.fly = null;
-        R.iris = null;
+        R.wipe = null;
         // A new hole is a new world; nothing the last one's preview was
         // computed from can be assumed to mean the same thing.
         clearPathCache();
@@ -7247,7 +7249,7 @@
         if (c.mode === 'flight') return false;
         c.preFlightMode = VIEWS.indexOf(c.mode) >= 0 ? c.mode : 'follow';
         R.fly = null;
-        R.iris = null;
+        R.wipe = null;
         R.lap = null;
         var pos, tgt;
         if (!R.smooth.started && R.hole && R.hole.tee) {
@@ -7503,29 +7505,28 @@
        green, and the map already has the machinery for exactly that. */
     function flyCamera(hole, ball, dt) {
         var f = R.fly;
-        var I = C.FLY.IRIS;
         G3.flyover.retarget(f.plan, _seat);
-        /* The end of it is cut, not flown (flyover.js → cutAt). The camera
-           does not fly into the cut, though: it glides to a stop on it, the
-           path's clock running down from full speed to none over BRAKE on a
-           half cosine (which covers BRAKE / 2 of the path, so the brake
-           starts that far short of the cut and comes to rest on it). Part
-           way into the glide the iris starts in; once it has closed to its
-           ring round the ball, held, and snapped shut, the camera goes to
-           the seat behind it and it opens there (the owner, v1.184.1). */
-        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
-        if (f.brake === undefined && f.t + dt >= cut - I.BRAKE / 2) f.brake = 0;
-        if (f.brake !== undefined) {
-            f.brake += dt;
-            var bu = Math.min(1, f.brake / I.BRAKE);
-            f.t = Math.min(cut, f.t + dt * (1 + Math.cos(Math.PI * bu)) / 2);
-            if (!R.iris && f.brake >= I.LATE) R.iris = { mode: 'close', t: f.brake - I.LATE, far: 1, near: 0, x: 0.5, y: 0.5 };
-            if (R.iris && R.iris.mode === 'close' && R.iris.t >= I.TO_SMALL + I.HOLD_SMALL + I.SHUT) {
-                landFlyover(ball, false);
-                return true;
-            }
+        /* The end of it is wiped, not flown (the owner, v1.188.0: the cut
+           should be "two renders going away at the same time"). At the cut
+           — the end of the orbit, or flyover.js → cutAt on a world's line —
+           the camera is still travelling; that frame is held for game.js to
+           take a picture of (`snapWanted`), and from the next the camera is
+           the incoming shot: a short push in on to the seat, while the
+           picture of the outgoing one slides away behind a moving edge
+           (game.js → syncWipe). A skip goes the same way, quicker. */
+        if (f.arrive) return arriveCamera(f, dt);
+        if (f.snap) {
+            // The picture is taken after the frame that asked for it; a page
+            // with nobody to take it (the tools) waits a few frames at most.
+            if (R.snapReady || ++f.snap > 3) { startArrival(f); return arriveCamera(f, 0); }
         } else {
             f.t += dt;
+            var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
+            if (f.skip || f.t >= cut) {
+                f.snap = 1;
+                R.snapWanted = true;
+                R.snapReady = false;
+            }
         }
 
         var pose = G3.flyover.at(f.plan, f.t);
@@ -7534,7 +7535,14 @@
         R.smooth.started = true;
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
-        if (R.iris) irisOn(ball);
+        // Which way the picture is moving across the screen, for the wipe to
+        // carry the outgoing shot on that way: off the ball, frame to frame.
+        R.camera.updateMatrixWorld();
+        _iv.set(ball.x, ball.y, ball.z).project(R.camera);
+        if (_iv.z < 1) {
+            if (f.bx !== undefined && Math.abs(_iv.x - f.bx) > 1e-4) f.drift = _iv.x > f.bx ? 1 : -1;
+            f.bx = _iv.x;
+        }
 
         var over = pose.py - flyGround(hole, pose.px, pose.pz, ball.y);
         f.lift = Math.max(0, Math.min(C.FLY.AIR_MAX,
@@ -7573,23 +7581,48 @@
         return true;
     }
 
-    // Cutting it short is a deletion and nothing more; the frame after this one
-    // eases from wherever the camera stands back to the seat, on the lerp it
-    // would have been using anyway.
-    /* Skipped, it lands the same way it does at the end: on the seat, under
-       a shut iris that opens. Easing back from wherever the sweep had got to
-       was the same spin over the ball the cut is there to avoid, only
-       faster. */
+    /* Skipped, it ends the way it ends on its own — the wipe on to the
+       seat — only quicker (WIPE.QUICK), from wherever it had got to. A skip
+       in the middle of the wipe finishes it. */
     function skipFlyover() {
-        if (!R.fly) return false;
-        landFlyover(R.lastBall, true);
+        var f = R.fly;
+        if (!f) return false;
+        if (f.arrive) { landFlyover(); return true; }
+        if (!f.snap) { f.skip = true; f.quick = true; }
         return true;
     }
 
-    /* The camera on the seat, this frame, with nothing to ease: the iris is
-       shut over the jump (DARK, or QUICK_HOLD for a skip) and opens round
-       the ball from there. */
-    function landFlyover(ball, quick) {
+    /* The incoming shot: from the seat pulled back along its own line by
+       WIPE.PULL and lifted by WIPE.LIFT, pushing in on to it over the wipe
+       and slowing to rest exactly there — so when the wipe is gone there is
+       nothing left to ease. */
+    function startArrival(f) {
+        var W = C.FLY.WIPE;
+        var dx = _seat.px - _seat.tx, dy = _seat.py - _seat.ty, dz = _seat.pz - _seat.tz;
+        var dist = Math.hypot(dx, dy, dz) || 1;
+        f.arrive = { t: 0, dur: f.quick ? W.QUICK : W.TIME,
+                     ox: dx * W.PULL, oy: dy * W.PULL + dist * W.LIFT, oz: dz * W.PULL };
+        R.wipe = { t: 0, dur: f.arrive.dur, dir: f.drift || -1 };
+        R.snapWanted = false;
+        R.snapReady = false;
+    }
+
+    function arriveCamera(f, dt) {
+        var a = f.arrive;
+        a.t += dt;
+        var u = Math.min(1, a.t / a.dur), k = (1 - u) * (1 - u);   // slowing all the way in
+        R.smooth.pos.set(_seat.px + a.ox * k, _seat.py + a.oy * k, _seat.pz + a.oz * k);
+        R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
+        R.smooth.started = true;
+        R.camera.position.copy(R.smooth.pos);
+        R.camera.lookAt(R.smooth.target);
+        f.lift = 0;
+        if (u >= 1) R.fly = null;
+        return true;
+    }
+
+    // The camera on the seat, now, and the sweep over: a skip in the wipe.
+    function landFlyover() {
         R.fly = null;
         R.smooth.pos.set(_seat.px, _seat.py, _seat.pz);
         R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
@@ -7598,57 +7631,26 @@
             R.camera.position.copy(R.smooth.pos);
             R.camera.lookAt(R.smooth.target);
         }
-        R.iris = { mode: 'open', quick: !!quick, t: 0, far: 0, near: 0, x: 0.5, y: 0.5 };
-        if (ball) irisOn(ball);
+        R.wipe = null;
+        R.snapWanted = R.snapReady = false;
     }
 
-    /* ── the iris ────────────────────────────────────────────────────────
+    /* ── the wipe ────────────────────────────────────────────────────────
 
-       A circle closing on the ball and opening on it again: the oldest cut
-       there is, and the one that says "same ball, other side" without a
-       word. Closing, it is the adventure-game iris rather than a wipe: in to
-       a ring round the ball, a held beat with only the ball in the light,
-       then shut. render.js keeps its state — where the ball is on the
-       screen, as fractions of it, and the radius as a blend of two lengths
-       game.js measures on the stage: `far` shares of the distance to the
-       furthest corner (all of it is wide open) and `near` shares of the
-       ring's radius, and whatever is left over is shut. game.js paints it
-       over the stage, the way it paints the fade at the start of the sweep. */
+       The film cut where the next scene comes in behind an edge crossing the
+       screen and the last one goes out ahead of it, both moving: the
+       renderer keeps how far through it is and which way it goes (`dir`,
+       the way the outgoing picture was already moving across the screen);
+       game.js keeps the picture of the outgoing shot and paints it. */
     var _iv = new THREE.Vector3();
-    function irisOn(ball) {
-        if (!R.iris || !R.camera || !ball) return;
-        R.camera.updateMatrixWorld();
-        _iv.set(ball.x, ball.y, ball.z).project(R.camera);
-        if (_iv.z > 1) return;                      // behind the lens: keep the last
-        R.iris.x = Math.max(0, Math.min(1, (_iv.x + 1) / 2));
-        R.iris.y = Math.max(0, Math.min(1, (1 - _iv.y) / 2));
+    function stepWipe(dt) {
+        var w = R.wipe;
+        if (!w) return;
+        w.t += dt;
+        if (w.t >= w.dur) R.wipe = null;
     }
 
-    function stepIris(dt) {
-        var i = R.iris;
-        if (!i) return;
-        var I = C.FLY.IRIS, u;
-        i.t += dt;
-        if (i.mode === 'close') {
-            if (i.t < I.TO_SMALL) {
-                // In to the ring, slowing as it gets there.
-                u = i.t / I.TO_SMALL;
-                u = 1 - (1 - u) * (1 - u) * (1 - u);
-                i.far = 1 - u; i.near = u;
-            } else {
-                // The beat, then shut — gathering speed, the way it snaps.
-                u = Math.max(0, Math.min(1, (i.t - I.TO_SMALL - I.HOLD_SMALL) / I.SHUT));
-                i.far = 0; i.near = 1 - u * u;
-            }
-        } else {
-            u = Math.max(0, Math.min(1, (i.t - (i.quick ? I.QUICK_HOLD : I.DARK)) /
-                                        (i.quick ? I.QUICK_OPEN : I.OPEN)));
-            i.far = u * u * (3 - 2 * u); i.near = 0;
-            if (u >= 1) R.iris = null;
-        }
-    }
-
-    function iris() { return R.iris; }
+    function wipe() { return R.wipe; }
 
     function flying() { return !!R.fly; }
 
@@ -8007,7 +8009,7 @@
         // that stopped with it would say so.
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
-        stepIris(dt);
+        stepWipe(dt);
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
@@ -8786,7 +8788,7 @@
         diving: diving,
         startFlyover: startFlyover,
         skipFlyover: skipFlyover,
-        iris: iris,
+        wipe: wipe,
         flying: flying,
         startReplay: startReplay,
         cutReplay: cutReplay,

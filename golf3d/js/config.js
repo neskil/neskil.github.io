@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.188.0';
+G3.VERSION = '1.189.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -926,10 +926,29 @@ G3.CONFIG = {
            Half a second more run and a camera a third further out both cut how
            far the picture moves between two frames, without changing anything
            about the path — which was never the problem. */
-        BASE_SECONDS: 3.4,
-        PER_UNIT: 0.055,
-        MIN_SECONDS: 3.8,
-        MAX_SECONDS: 8.0,
+        BASE_SECONDS: 4.4,
+        PER_UNIT: 0.03,
+        MIN_SECONDS: 5.2,
+        MAX_SECONDS: 9.0,
+        /* The orbit (flyover.js → orbit): ORBIT_R times the hole's reach plus
+           ORBIT_ADD out from its middle, clamped; ORBIT_H of that up, from
+           ORBIT_RISE of it at the start to ORBIT_FALL at the end, and coming
+           in to ORBIT_IN of the radius; round from ORBIT_FROM degrees off the
+           line past the cup to ORBIT_TO off it behind the tee, through
+           ORBIT_KEYS keys in ORBIT_SHARE of the run — the rest is the leg to
+           the seat, which is wiped rather than flown. */
+        ORBIT_R: 1.05,
+        ORBIT_ADD: 5,
+        ORBIT_MIN: 12,
+        ORBIT_MAX: 110,
+        ORBIT_H: 0.62,
+        ORBIT_RISE: 1.15,
+        ORBIT_FALL: 0.85,
+        ORBIT_IN: 0.88,
+        ORBIT_FROM: 35,
+        ORBIT_TO: 25,
+        ORBIT_KEYS: 7,
+        ORBIT_SHARE: 0.86,
         PACE: 0.6,          // how far the time follows the chord lengths
         LIFT: 0.66,         // apex, as a fraction of the hole's length…
         LIFT_MIN: 9,        // …with a floor and a ceiling in world units
@@ -952,31 +971,23 @@ G3.CONFIG = {
         AIR_FROM: 6,
         AIR_SPAN: 18,
         AIR_MAX: 0.85,
-        /* Where the sweep is cut rather than flown to the end (flyover.js →
-           cutAt): the first moment in its second half that the look turns
+        /* Where a world's line is cut rather than flown to the end (flyover.js
+           → cutAt): the first moment in its second half that the look turns
            faster than CUT_TURN degrees a second, and never later than
-           CUT_TAIL seconds from the end. IRIS is the circle that covers the
-           cut (render.js → iris), in seconds, and it is two cuts:
+           CUT_TAIL seconds from the end. (The orbit is cut where it ends.)
 
-           the intro running out on its own (the owner, v1.184.1: "a bit too
-           quick and comes a bit too early … more LucasArts"): the camera
-           glides to a stop on the cut over BRAKE; LATE into that the circle
-           starts in, takes TO_SMALL to close to a ring round the ball SMALL
-           of the stage's shorter side across (never under SMALL_MIN px),
-           holds there HOLD_SMALL, snaps shut over SHUT, stays black for
-           DARK while the camera goes to the seat, and opens over OPEN;
-
-           a skip, which is somebody in a hurry: QUICK_HOLD black and
-           QUICK_OPEN to open, nothing else. */
+           WIPE is the cut itself (render.js → the wipe, game.js → syncWipe;
+           the owner, v1.188.0: "two renders going away at the same time"):
+           TIME seconds for the edge to cross the screen, QUICK for a skip;
+           SLANT how far off upright the edge leans; the outgoing picture
+           carried on DRIFT of the screen's width the way it was moving and
+           grown by GROW as it goes; and the incoming shot pushing in on to
+           the seat from PULL of the seat's distance further back and LIFT
+           of it higher. */
         CUT_TURN: 30,
         CUT_TAIL: 1.2,
         CUT_SAMPLES: 120,
-        IRIS: {
-            BRAKE: 1.6, LATE: 0.9,
-            TO_SMALL: 0.95, SMALL: 0.24, SMALL_MIN: 46, HOLD_SMALL: 0.75, SHUT: 0.32,
-            DARK: 0.3, OPEN: 1.0,
-            QUICK_HOLD: 0.08, QUICK_OPEN: 0.5
-        },
+        WIPE: { TIME: 0.95, QUICK: 0.55, SLANT: 0.22, DRIFT: 0.18, GROW: 0.06, PULL: 0.45, LIFT: 0.12 },
         /* The tour's sweep (flyover.js → knobs): laid over the numbers above
            for a hole played in a Portals world, where the world is the thing
            to show off. Slower, further out, higher and wider of the line.
@@ -991,10 +1002,13 @@ G3.CONFIG = {
            line at all. Its length is LINE_BASE + LINE_PER_UNIT a unit flown,
            clamped. */
         TOUR: {
-            BASE_SECONDS: 5.2,
-            PER_UNIT: 0.09,
-            MIN_SECONDS: 6.5,
+            BASE_SECONDS: 6.2,
+            PER_UNIT: 0.05,
+            MIN_SECONDS: 7.0,
             MAX_SECONDS: 11,
+            ORBIT_R: 1.25,
+            ORBIT_ADD: 9,
+            ORBIT_H: 0.7,
             LIFT: 0.95,
             LIFT_MIN: 14,
             LIFT_MAX: 40,
@@ -1007,8 +1021,6 @@ G3.CONFIG = {
             LINE_STOP: 0.45,
             LINE_NEAR: 9,
             KEY_STEP: 9,
-            LOOK_AHEAD: 16,
-            LOOK_DROP: 1.5,
             LINE_BASE: 3.5,
             LINE_PER_UNIT: 0.075,
             LINE_MIN: 7,

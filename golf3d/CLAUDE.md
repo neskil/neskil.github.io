@@ -283,11 +283,10 @@ really have the game play feeling"). What that has meant in practice:
 - **The intro flyover ends *at* the live seat, not near it.** `flyover.js` is
   handed the pose `render.js`'s `seatFor` has just worked out and makes it the
   last key of the path, re-read every frame; that exactness is the whole
-  hand-off. Since v1.183.0 the last turn over the ball is not flown: an iris
-  closes at `plan.cut` (`flyover.js → cutAt`) and `render.js → landFlyover`
-  puts the camera on that same seat behind it; a skip lands the same way.
-  Since v1.184.1 the camera glides to a stop on the cut and the iris shuts in
-  two beats (README → "The end of it is an iris"). Anything that adds a second copy of the seat arithmetic, or that
+  hand-off. The last leg to it is not flown, though: since v1.188.0 the sweep
+  is an orbit cut at `plan.cut` while still travelling, and a wipe carries
+  the picture of that frame off while the camera pushes in on to the seat
+  (README → "An orbit, and the end of it is a wipe"); a skip goes the same way. Anything that adds a second copy of the seat arithmetic, or that
   rounds the last key, breaks a named assertion in `tests.html` rather than
   merely looking slightly wrong.
 - **A landform's skirt lands in whatever row it falls in, and the row has
