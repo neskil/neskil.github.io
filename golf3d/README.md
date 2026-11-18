@@ -3650,6 +3650,21 @@ swing:
   one;
 - while the ball is quick, the camera **drifts back** and the lens opens a few
   degrees, and the ball drags a **tail** behind it;
+- on a big strike the seat **lets go** (v1.185.0, `CONFIG.LAUNCH_CAM`,
+  `render.js → launchLag`): the eye stays nearly where it was and turns to
+  watch the ball leave, then runs after it and catches up over a second and a
+  half. A camera glued to the ball cannot say how fast it went — the ball stays
+  the same size in the middle of the frame — and the ball shrinking away from
+  you is the speed. It scales with the launch speed, so a driver gets all of it
+  and a putt next to none, and only from Follow and Side on;
+- and while that chase is on, **motion blur** (`CONFIG.MOTION_BLUR`,
+  `render.js → motionBlur`, the composite in `postfx.js`). The scene buffer is
+  multisampled and its depth cannot be read back, so each pixel is assumed to
+  be on the level ground under the ball — or far off, above the horizon — and
+  run back through last frame's view-projection: the grass by the lens
+  streaks, the horizon barely moves. The ball and the club bag are kept sharp,
+  nothing blurs across a cut, and a phone the frame-rate tiers have put on the
+  lowest rung does not pay for it;
 - and when it drops, the **pin rattles** — nothing stopped the ball on the way
   past it, so the least the pin can do is admit it happened.
 
