@@ -4535,7 +4535,8 @@ the dive nor the wipe.
 
 One page (v1.153.0). On top, three ways to be dealt a round: **Play the
 World Tour** across the width, **Showcase** and **Challenge** side by side
-under it. Then one row of tabs that files everything there is: **Worlds**
+under it (since v1.185.0 the showcase is three buttons in a row — every kind,
+mini golf, the long game — and Challenge and Surprise me share the row under). Then one row of tabs that files everything there is: **Worlds**
 first — every tour hole as a small sky over its own ground, playable by
 itself, with its stars or the word *new* — then the four kinds of drawn
 course and the draw (`game.js → drawMenu`, `drawHome`, `WORLDS_GROUP`). It
@@ -4700,6 +4701,16 @@ its home world, never the playtest), checks that the dice change the deal and
 that every course can come up, and that a showcase record goes to the round
 furthest under par rather than the shortest.
 
+**Three showcases, not one** (v1.185.0; the owner: "the long game is a bit
+hidden"). `G3.SHOWCASE_KINDS` lists them and the picker has a button each:
+**Showcase** (the eight above, id `'showcase'`), **Mini golf** (six holes, two
+each of mini, crazy and adventure — `'showcase-mini'`) and **Long game** (six
+long holes, one a course — `'showcase-long'`). Each id keeps its own best
+against par; `courseById(id)` deals whichever is asked for and keeps it while
+it is the one in play (`G3.SHOWCASE`), and `?course=showcase-long` works as
+anywhere else. `dealShowcase(rng, save, id)` deals all three the same way —
+next section.
+
 ### Stars, and the dice leaning towards what you have not played
 
 Every hole gives up to **three stars**, the same as the 2D game next door:
@@ -4717,12 +4728,21 @@ course's total, and the showcase button the total over every course.
 `plays` is what the dice read. A hole weighs `1 / (1 + plays)²` — never played
 is four times as likely as once, nine times as likely as twice, and never zero
 — and a course weighs its holes' average, with a save from before hole counts
-falling back to its rounds. `dealShowcase(rng, save)` picks each course by
-that and then the hole inside it; `randomCourseId` (every shuffle mode, the
+falling back to its rounds. `randomCourseId` (every shuffle mode, the
 end of a shuffled round, `?course=random`) picks out of the mode's draw by it.
 With no save, or everything played alike, the weights are equal and the pick
 is exactly the even one — `weightedIndex` gives `floor(n × length)` to the
 digit, which is what the older tests holding the dice still check.
+
+**A showcase goes by stars before plays** (v1.185.0, `courses.js →
+dealHoles`). The owner's order: holes with no stars on them first (never
+played, or picked up), then the one-star holes, then the two-star ones, and
+only once every hole in reach has three is it the plain draw by play count.
+Each pick takes the lowest star tier left; inside it, a kind with fewer holes
+in the deal yet, then a course not in it yet, then `holeWeight`. So the tier
+outranks the spread: with four unstarred holes on one long course, a long
+showcase deals all four of them. The button's line says which it is doing
+and carries the stars won over what it deals from.
 
 ## Challenge mode: maths in a grid world
 

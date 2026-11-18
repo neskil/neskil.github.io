@@ -4668,12 +4668,23 @@ body.lane-swing .swipe-hint {
 .mp-bar { flex: 1; height: 4px; background: #3a352a; border-radius: 2px; overflow: hidden; }
 .mp-bar i { display: block; height: 100%; width: 0; background: var(--gold); }
 
-.menu-featured { grid-template-columns: 1fr 1fr 1fr; }
+/* Six columns: the two doors across the top, the three showcases (every
+   kind, mini golf, the long game) a third each, then the challenge and the
+   draw a half each. The long game used to be one deal in four inside a
+   single Showcase button, and easy to never meet (v1.185.0). */
+.menu-featured { grid-template-columns: repeat(6, 1fr); }
+.menu-featured .showcase-go { grid-column: span 2; }
+.menu-featured .challenge-go, .menu-featured .surprise-go { grid-column: span 3; }
 .surprise-go { --cg-tint: #c4b5fd; }
+.showcase-mini { --cg-tint: #7dd3fc; }
+.showcase-long { --cg-tint: #86efac; }
+.sh-stars { font-size: 0.7rem; line-height: 1.2; color: var(--gold); font-variant-numeric: tabular-nums; }
+.sh-stars:empty { display: none; }
 @media (max-width: 30rem) {
     .menu-featured { gap: 0.35rem; }
     .menu-featured .sh-go { flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 0.2rem; min-height: 60px; text-align: center; }
     .menu-featured .sh-go b { font-size: 0.86rem; }
+    .menu-featured .challenge-go, .menu-featured .surprise-go { flex-direction: row; justify-content: center; min-height: 48px; gap: 0.45rem; }
 }
 
 /* The tabs are one row of named chips; on a phone the row scrolls sideways

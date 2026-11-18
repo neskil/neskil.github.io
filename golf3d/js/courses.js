@@ -8042,35 +8042,120 @@
        is filed under mini golf only so the picker has a shelf for it. */
     G3.SHOWCASE_PER_KIND = 2;
 
-    /* `save` leans the deal towards holes you have played least (see the
-       weights above the shuffle's dice): the course by how much of it you
-       have seen, then the hole within it by its own count. Left out, the
-       deal is the even one. */
-    G3.dealShowcase = function (rng, save) {
-        var rnd = rng || Math.random;
-        var holes = [], from = [], themes = [];
-        G3.COURSE_GROUPS.forEach(function (group) {
-            var pool = G3.coursesInGroup(group.id).filter(function (c) { return !c.playtest; });
-            for (var k = 0; k < G3.SHOWCASE_PER_KIND && pool.length; k++) {
-                var c = weightedIndex(pool.map(function (p) { return G3.courseWeight(save, p); }), rnd());
-                var course = pool.splice(c, 1)[0];
-                var i = weightedIndex(course.holes.map(function (h, j) {
-                    return G3.holeWeight(save, course.id, j);
-                }), rnd());
-                holes.push(course.holes[i]);
-                from.push({ id: course.id, index: i });
-                themes.push(course.theme);
+    /* Three deals, one button each (the owner, v1.185.0: "the long game is a
+       bit hidden"). The first is the game in eight holes, two of every kind;
+       the other two are six holes of one game — mini golf (mini, crazy and
+       adventure, the games played with the mini bag) or the long game.
+       `per` is how many holes each kind in `groups` gets; `count` is a deal
+       that is only filled to a total, with the kinds kept as even as the
+       stars allow. Each is its own course id, so each keeps its own best. */
+    G3.SHOWCASE_KINDS = [
+        {
+            id: 'showcase', name: 'Showcase', short: 'All kinds', icon: '\u2726',
+            groups: null, per: G3.SHOWCASE_PER_KIND,
+            blurb: 'Two holes from every kind of golf, eight in all.'
+        },
+        {
+            id: 'showcase-mini', name: 'Mini golf showcase', short: 'Mini golf', icon: '\u2691',
+            groups: C.MINI_GROUPS, count: 6,
+            blurb: 'Six holes of mini, crazy and adventure golf.'
+        },
+        {
+            id: 'showcase-long', name: 'Long game showcase', short: 'Long game', icon: '\u27FF',
+            groups: ['long'], count: 6,
+            blurb: 'Six full-size holes from the long game.'
+        }
+    ];
+
+    G3.showcaseKind = function (id) {
+        for (var i = 0; i < G3.SHOWCASE_KINDS.length; i++) {
+            if (G3.SHOWCASE_KINDS[i].id === id) return G3.SHOWCASE_KINDS[i];
+        }
+        return null;
+    };
+
+    /* The stars a save holds on one hole, read the way scoring.js keeps them
+       ("course:index"). Read here rather than through G3.scoring because
+       courses.js loads first. */
+    function holeStars(save, id, index) {
+        var h = save && save.holes ? save.holes[id + ':' + index] : null;
+        return h && typeof h.stars === 'number' && h.stars > 0 ? h.stars : 0;
+    }
+    G3.holeStars = holeStars;
+
+    /* `n` holes out of a list of courses, the order the owner asked for:
+       holes with no stars on them first (never played, or picked up), then
+       the one-star holes, then the two-star ones, and only once every hole
+       in reach has all three is it the plain draw by play count. Inside a
+       tier the deal still spreads itself — a kind with fewer holes in the
+       deal first, then a course not in it yet — and the dice lean towards
+       the holes you have played least (holeWeight). With no save every hole
+       is in the bottom tier and the deal is the even spread it always was. */
+    function dealHoles(courses, n, rnd, save) {
+        var all = [];
+        courses.forEach(function (c) {
+            for (var j = 0; j < c.holes.length; j++) {
+                all.push({ course: c, index: j, stars: holeStars(save, c.id, j) });
             }
         });
+        var picked = [], usedCourse = {}, usedKind = {};
+        while (picked.length < n && all.length) {
+            var low = Infinity, i;
+            for (i = 0; i < all.length; i++) low = Math.min(low, all[i].stars);
+            var pool = all.filter(function (o) { return o.stars === low; });
+            var fewest = Infinity;
+            pool.forEach(function (o) { fewest = Math.min(fewest, usedKind[o.course.group] || 0); });
+            pool = pool.filter(function (o) { return (usedKind[o.course.group] || 0) === fewest; });
+            var fresh = pool.filter(function (o) { return !usedCourse[o.course.id]; });
+            if (fresh.length) pool = fresh;
+            var pick = pool[weightedIndex(pool.map(function (o) {
+                return G3.holeWeight(save, o.course.id, o.index);
+            }), rnd())];
+            all.splice(all.indexOf(pick), 1);
+            usedCourse[pick.course.id] = true;
+            usedKind[pick.course.group] = (usedKind[pick.course.group] || 0) + 1;
+            picked.push(pick);
+        }
+        return picked;
+    }
+    G3.dealHoles = dealHoles;
+
+    /* `kindId` is one of SHOWCASE_KINDS' ids, and the first when left out.
+       `save` leans the deal towards holes with the fewest stars and then the
+       fewest plays (dealHoles). Left out, the deal is the even one. The holes
+       come out mini golf first and the long game last, in the order the
+       kinds are filed. */
+    G3.dealShowcase = function (rng, save, kindId) {
+        var rnd = rng || Math.random;
+        var kind = G3.showcaseKind(kindId) || G3.SHOWCASE_KINDS[0];
+        var groups = G3.COURSE_GROUPS.filter(function (g) {
+            return !kind.groups || kind.groups.indexOf(g.id) >= 0;
+        });
+        function playable(g) {
+            return G3.coursesInGroup(g.id).filter(function (c) { return !c.playtest; });
+        }
+        var picks = [];
+        if (kind.per) {
+            groups.forEach(function (g) { picks = picks.concat(dealHoles(playable(g), kind.per, rnd, save)); });
+        } else {
+            var pool = [];
+            groups.forEach(function (g) { pool = pool.concat(playable(g)); });
+            picks = dealHoles(pool, kind.count, rnd, save);
+        }
+        var order = groups.map(function (g) { return g.id; });
+        picks = picks.map(function (p, k) { return { p: p, k: k }; }).sort(function (a, b) {
+            return (order.indexOf(a.p.course.group) - order.indexOf(b.p.course.group)) || (a.k - b.k);
+        }).map(function (o) { return o.p; });
+        var themes = picks.map(function (p) { return p.course.theme; });
         return {
-            id: 'showcase',
+            id: kind.id,
             group: 'showcase',
-            name: 'Showcase',
-            blurb: 'Two holes from every kind of golf, each out of a different course. A new deal every round.',
+            name: kind.name,
+            blurb: kind.blurb + ' Holes without stars first, a new deal every round.',
             theme: themes[0],
             themes: themes,
-            from: from,
-            holes: holes,
+            from: picks.map(function (p) { return { id: p.course.id, index: p.index }; }),
+            holes: picks.map(function (p) { return p.course.holes[p.index]; }),
             isShowcase: true
         };
     };
@@ -8389,7 +8474,10 @@
 
     G3.courseById = function (id) {
         if (id === 'range') return G3.RANGE_COURSE;
-        if (id === 'showcase') return G3.SHOWCASE || (G3.SHOWCASE = G3.dealShowcase());
+        if (G3.showcaseKind(id)) {
+            return G3.SHOWCASE && G3.SHOWCASE.id === id ? G3.SHOWCASE
+                : (G3.SHOWCASE = G3.dealShowcase(null, null, id));
+        }
         if (id === 'challenge-library') {
             return G3.CHALLENGE_LIBRARY || (G3.CHALLENGE_LIBRARY = G3.challengeLibrary());
         }
