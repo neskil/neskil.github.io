@@ -6467,6 +6467,20 @@
                     clear *= fk * fk;
                 }
             }
+            /* A riding hole (Endless) is not cut, or hardly. Its lane is on
+               the world's own flight, which Portals keeps clear, but the
+               world goes by under and round it: a cut that moved with the
+               ball sliced the sea, the snow and the street under the lane
+               into a flat edge with nothing behind it, and showed and hid
+               the world's things as the camera followed the ball (the
+               owner: "the occlusion sometimes is weird"). So the cut is a
+               fifth of the way to the ball, which nothing under the lane
+               is ever inside, and the rest of the way to the half is the
+               plate's (`pushNear`): painted, but behind the hole, so a
+               lamp or a branch that comes between is seen without hiding
+               the shot. */
+            var push = 0;
+            if (R.place.drift) { push = clear; clear *= 0.36; }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
@@ -6477,6 +6491,7 @@
             var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
             u.size.value.set(I.w, I.h);
             u.wNear.value = I.near; u.wFar.value = I.far; u.scale.value = I.scale;
+            u.pushNear.value = push;
             u.pA.value = P[10]; u.pB.value = P[14];
             u.invProj.value.copy(R.camera.projectionMatrixInverse);
             u.camWorld.value.copy(R.camera.matrixWorld);
@@ -6561,7 +6576,7 @@
                 pA: { value: -1 }, pB: { value: -0.2 },
                 invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
                 keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
-                soft: { value: new THREE.Vector4() }, softY: { value: -1e9 },
+                soft: { value: new THREE.Vector4() }, softY: { value: -1e9 }, pushNear: { value: 0 },
                 decalOn: { value: 0 },
                 decal: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
                 decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector3(); }) },
@@ -6582,7 +6597,7 @@
             ].join('\n'),
             fragmentShader: [
                 'uniform sampler2D map; uniform vec2 size;',
-                'uniform float wNear, wFar, scale, pA, pB, softY;',
+                'uniform float wNear, wFar, scale, pA, pB, softY, pushNear;',
                 'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
                 'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
                 'uniform float decalOn; uniform vec4 decal[6]; uniform vec3 decalTint[6];',
@@ -6627,7 +6642,9 @@
                 // camera and the ball; on non-sculpted holes, ground scatter just
                 // beyond c.near (such as Spore Rain's leaves around the tee) still
                 // pokes above the tee pad unless pushed behind the course here.
-                '        if (decalOn < 0.5 && z < 6.2) ours = true;',
+                // A riding hole pushes further: everything short of half the
+                // way to the ball (`pushNear`, set where the cut is).
+                '        if (decalOn < 0.5 && z < max(6.2, pushNear)) ours = true;',
                 /* The mown ground of a sculpted hole is not a sheet laid on
                    the world: it is paint on the world's own picture. This
                    pixel of the world is at `at` in the hole's own
