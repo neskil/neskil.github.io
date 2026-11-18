@@ -5683,8 +5683,11 @@ stands on it, and the hole runs the way it runs (`backdrop.mjs → fitAt`).
 `backdrop.line` hands it over in golf units, through the inverse of the
 anchor the world camera is carried out by; `flyover.js → worldLine` starts
 `LINE_PAST` units down it beyond the cup, flies back along it a key every
-`KEY_STEP` units looking the way it goes, and leaves it part way down the hole
-for the ordinary approach and seat. A line that does not pass near both the
+`KEY_STEP` units looking at the ball, and leaves it part way down the hole
+for the ordinary approach and seat. It used to look the way it went and swing
+on to the ball near the end, and a line that bent near the hole turned the
+picture a hundred and twenty degrees one way and back the other just as it
+arrived (v1.183.2); held on the ball, the world goes past behind the hole. A line that does not pass near both the
 cup and the tee (`LINE_NEAR`) is not that hole's line — a world whose hole
 was placed by hand need not have one — and the tour sweep is flown instead.
 While it is on the line the world is drawn with no near cut (`stepPlace`'s

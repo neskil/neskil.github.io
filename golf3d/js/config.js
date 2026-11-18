@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.183.1';
+G3.VERSION = '1.183.2';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -945,9 +945,8 @@ G3.CONFIG = {
            And where the live world is up, its own flight line instead
            (flyover.js → worldLine): the intro starts LINE_PAST units down the
            world's line beyond the cup and flies back along it, a key every
-           KEY_STEP units, looking LOOK_AHEAD along the way it goes and
-           LOOK_DROP below that, until it is LINE_STOP of the way back down
-           the hole, then lands on the seat as above. LINE_NEAR is how close
+           KEY_STEP units, looking at the ball, until it is LINE_STOP of the
+           way back down the hole, then lands on the seat as above. LINE_NEAR is how close
            the line must pass to both the cup and the tee to be this hole's
            line at all. Its length is LINE_BASE + LINE_PER_UNIT a unit flown,
            clamped. */
@@ -968,8 +967,6 @@ G3.CONFIG = {
             LINE_STOP: 0.45,
             LINE_NEAR: 9,
             KEY_STEP: 9,
-            LOOK_AHEAD: 16,
-            LOOK_DROP: 1.5,
             LINE_BASE: 3.5,
             LINE_PER_UNIT: 0.075,
             LINE_MIN: 7,
