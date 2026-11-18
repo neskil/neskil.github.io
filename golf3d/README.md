@@ -4386,18 +4386,18 @@ own, a bot that holes out within two of par, and the deal to its shape;
 renderer and are looked at, not asserted: `?world=<id>&live=1`, and
 `G3.backdrop.debug()` in the console says where the hole landed.
 
-### Live worlds are on by default, on a phone too
+### Live worlds are on at the start of every visit
 
 They were a desktop's default only, and the owner's phone — which runs the
-game at sixty frames — showed the stand-in scenery (v1.155.0). Now
-`render.js → liveWanted` says yes unless the player has said no or the
-device reports 2 GB or less. What protects a weak machine is measured:
-`stepPlace` takes a quarter off the world's resolution each two seconds the
-frame rate is under 26, down to a third of the stage, and switches live
-worlds off (with a toast, `g3-live-off`) if it is still under 16 at the
-bottom. `backdrop.mjs` leaves a mark in localStorage while a world builds; a
-mark still there at the next visit means the build killed the page, and
-live worlds stay off until asked for. `?live=1` overrides all of it.
+game at sixty frames — showed the stand-in scenery (v1.155.0). Since v1.184.4
+every page load starts with them on, whatever the device and whatever was
+chosen last time: `render.js → liveWanted` is yes unless the switch in
+Settings or the frame-rate net has said no *this visit*. What protects a weak
+machine is measured: `stepPlace` steps the world's resolution down while the
+frame rate is poor, and switches live worlds off for the visit (with a toast,
+`g3-live-off`) if that is not enough. Nothing is kept in localStorage for it;
+the old `golf3d.live` and `golf3d.worldBuilding` keys are cleared at load.
+`?live=0|1` overrides all of it.
 
 ### The wait for a world
 
