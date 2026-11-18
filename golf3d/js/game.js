@@ -2200,8 +2200,7 @@
             toast(w.splash ? 'Water — one stroke penalty'
                 : w.swallowed ? 'Swallowed by the well — one stroke penalty'
                 : 'Out of play — one stroke penalty', 'bad');
-            state.world = P.createWorld(w.hole, w.origin, w.time);
-            R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
+            dropBack(w);
         }
         /* Five over par and still out: the hole is picked up. It scores
            par + PICKUP whatever the penalties made of the count, and the
@@ -2222,7 +2221,60 @@
         } else {
             syncLie();
             nextClub();
+            startStuckCheck();
         }
+        syncHud();
+    }
+
+    // The ball back where the last stroke was played from, as after water.
+    function dropBack(w) {
+        state.world = P.createWorld(w.hole, w.origin, w.time);
+        R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
+    }
+
+    /* Stuck. A tour hole is played on a world's own ground, and a world's
+       ground has folds, pits and corners nobody designed a way out of (the
+       owner: "we need to have some recourse if you get stuck"). So once the
+       ball stops, the caddie plays every line and weight in the bag from
+       where it lies, on copies of the world (physics.escapes), a few
+       milliseconds a frame while the player lines up. One shot that gets out
+       ends the check. If none does, the lie is a hazard: a stroke, and the
+       ball back where the last one was played from, as from water. A stroke
+       played before the check is done ends it. */
+    var stuckJob = null;
+    var STUCK_SLICE_MS = 4;
+    function startStuckCheck() {
+        stuckJob = null;
+        var w = state.world, hole = w.hole;
+        if (!hole.portal || state.course.isRange || w.sunk) return;
+        var b = w.ball, toCup = Math.atan2(hole.cup.x - b.x, hole.cup.z - b.z), shots = [], i;
+        [1, 0.6, 0.3].forEach(function (k) {
+            bag().forEach(function (c) {
+                for (i = 0; i < 16; i++) shots.push([toCup + i * Math.PI / 8, c, k]);
+            });
+        });
+        stuckJob = { world: w, from: { x: b.x, y: b.y, z: b.z }, shots: shots, i: 0 };
+    }
+    function tickStuckCheck() {
+        var J = stuckJob;
+        if (!J) return;
+        if (state.world !== J.world || state.phase !== 'aim') { stuckJob = null; return; }
+        var t0 = performance.now(), s;
+        while (J.i < J.shots.length && performance.now() - t0 < STUCK_SLICE_MS) {
+            s = J.shots[J.i++];
+            if (P.escapes(J.world.hole, J.from, J.world.time, s[0], s[1].power * s[2], s[1].loft, s[1].bite)) {
+                stuckJob = null;
+                return;
+            }
+        }
+        if (J.i < J.shots.length) return;
+        stuckJob = null;
+        state.strokes += C.WATER_PENALTY;
+        toast('Stuck — one stroke penalty, dropped where you played from', 'bad');
+        dropBack(J.world);
+        if (state.strokes >= state.course.holes[state.holeIndex].par + C.PICKUP) { holeComplete(true); return; }
+        turnToCup();
+        syncLie();
         syncHud();
     }
 
@@ -6576,6 +6628,7 @@
         else tickIdle(now);
         tickHoleEnd(Math.min(0.25, raw));
         if (sim) tickSim(Math.min(0.25, raw));
+        if (stuckJob) tickStuckCheck();
 
         if (state.phase === 'rolling') {
             /* Under the bot, the same step it planned on. Its shot was chosen
