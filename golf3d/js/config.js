@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.184.0';
+G3.VERSION = '1.184.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -932,12 +932,27 @@ G3.CONFIG = {
            cutAt): the first moment in its second half that the look turns
            faster than CUT_TURN degrees a second, and never later than
            CUT_TAIL seconds from the end. IRIS is the circle that covers the
-           cut (render.js → iris): seconds to close on the ball, to hold shut
-           over the jump to the seat, and to open on the ball from there. */
+           cut (render.js → iris), in seconds, and it is two cuts:
+
+           the intro running out on its own (the owner, v1.184.1: "a bit too
+           quick and comes a bit too early … more LucasArts"): the camera
+           glides to a stop on the cut over BRAKE; LATE into that the circle
+           starts in, takes TO_SMALL to close to a ring round the ball SMALL
+           of the stage's shorter side across (never under SMALL_MIN px),
+           holds there HOLD_SMALL, snaps shut over SHUT, stays black for
+           DARK while the camera goes to the seat, and opens over OPEN;
+
+           a skip, which is somebody in a hurry: QUICK_HOLD black and
+           QUICK_OPEN to open, nothing else. */
         CUT_TURN: 30,
         CUT_TAIL: 1.2,
         CUT_SAMPLES: 120,
-        IRIS: { CLOSE: 0.42, HOLD: 0.08, OPEN: 0.5 },
+        IRIS: {
+            BRAKE: 1.6, LATE: 0.9,
+            TO_SMALL: 0.95, SMALL: 0.24, SMALL_MIN: 46, HOLD_SMALL: 0.75, SHUT: 0.32,
+            DARK: 0.3, OPEN: 1.0,
+            QUICK_HOLD: 0.08, QUICK_OPEN: 0.5
+        },
         /* The tour's sweep (flyover.js → knobs): laid over the numbers above
            for a hole played in a Portals world, where the world is the thing
            to show off. Slower, further out, higher and wider of the line.

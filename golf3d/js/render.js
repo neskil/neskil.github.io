@@ -7363,15 +7363,30 @@
        green, and the map already has the machinery for exactly that. */
     function flyCamera(hole, ball, dt) {
         var f = R.fly;
-        f.t += dt;
-        G3.flyover.retarget(f.plan, _seat);
-        /* The end of it is cut, not flown (flyover.js → cutAt): the iris has
-           closed on the ball by now, and the camera goes to the seat behind
-           it and opens there. */
-        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
-        if (f.t >= cut) { landFlyover(ball); return true; }
         var I = C.FLY.IRIS;
-        if (!R.iris && f.t >= cut - I.CLOSE) R.iris = { mode: 'close', t: Math.max(0, f.t - (cut - I.CLOSE)), k: 0, x: 0.5, y: 0.5 };
+        G3.flyover.retarget(f.plan, _seat);
+        /* The end of it is cut, not flown (flyover.js → cutAt). The camera
+           does not fly into the cut, though: it glides to a stop on it, the
+           path's clock running down from full speed to none over BRAKE on a
+           half cosine (which covers BRAKE / 2 of the path, so the brake
+           starts that far short of the cut and comes to rest on it). Part
+           way into the glide the iris starts in; once it has closed to its
+           ring round the ball, held, and snapped shut, the camera goes to
+           the seat behind it and it opens there (the owner, v1.184.1). */
+        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
+        if (f.brake === undefined && f.t + dt >= cut - I.BRAKE / 2) f.brake = 0;
+        if (f.brake !== undefined) {
+            f.brake += dt;
+            var bu = Math.min(1, f.brake / I.BRAKE);
+            f.t = Math.min(cut, f.t + dt * (1 + Math.cos(Math.PI * bu)) / 2);
+            if (!R.iris && f.brake >= I.LATE) R.iris = { mode: 'close', t: f.brake - I.LATE, far: 1, near: 0, x: 0.5, y: 0.5 };
+            if (R.iris && R.iris.mode === 'close' && R.iris.t >= I.TO_SMALL + I.HOLD_SMALL + I.SHUT) {
+                landFlyover(ball, false);
+                return true;
+            }
+        } else {
+            f.t += dt;
+        }
 
         var pose = G3.flyover.at(f.plan, f.t);
         R.smooth.pos.set(pose.px, pose.py, pose.pz);
@@ -7427,13 +7442,14 @@
        faster. */
     function skipFlyover() {
         if (!R.fly) return false;
-        landFlyover(R.lastBall);
+        landFlyover(R.lastBall, true);
         return true;
     }
 
     /* The camera on the seat, this frame, with nothing to ease: the iris is
-       shut over the jump (HOLD) and opens round the ball from there. */
-    function landFlyover(ball) {
+       shut over the jump (DARK, or QUICK_HOLD for a skip) and opens round
+       the ball from there. */
+    function landFlyover(ball, quick) {
         R.fly = null;
         R.smooth.pos.set(_seat.px, _seat.py, _seat.pz);
         R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
@@ -7442,7 +7458,7 @@
             R.camera.position.copy(R.smooth.pos);
             R.camera.lookAt(R.smooth.target);
         }
-        R.iris = { mode: 'open', t: 0, k: 1, x: 0.5, y: 0.5 };
+        R.iris = { mode: 'open', quick: !!quick, t: 0, far: 0, near: 0, x: 0.5, y: 0.5 };
         if (ball) irisOn(ball);
     }
 
@@ -7450,9 +7466,14 @@
 
        A circle closing on the ball and opening on it again: the oldest cut
        there is, and the one that says "same ball, other side" without a
-       word. render.js keeps its state (how shut, and where on the screen,
-       as fractions of it) and game.js paints it over the stage, the way it
-       paints the fade at the start of the sweep. */
+       word. Closing, it is the adventure-game iris rather than a wipe: in to
+       a ring round the ball, a held beat with only the ball in the light,
+       then shut. render.js keeps its state — where the ball is on the
+       screen, as fractions of it, and the radius as a blend of two lengths
+       game.js measures on the stage: `far` shares of the distance to the
+       furthest corner (all of it is wide open) and `near` shares of the
+       ring's radius, and whatever is left over is shut. game.js paints it
+       over the stage, the way it paints the fade at the start of the sweep. */
     var _iv = new THREE.Vector3();
     function irisOn(ball) {
         if (!R.iris || !R.camera || !ball) return;
@@ -7469,11 +7490,20 @@
         var I = C.FLY.IRIS, u;
         i.t += dt;
         if (i.mode === 'close') {
-            u = Math.min(1, i.t / I.CLOSE);
-            i.k = u * u * (3 - 2 * u);
+            if (i.t < I.TO_SMALL) {
+                // In to the ring, slowing as it gets there.
+                u = i.t / I.TO_SMALL;
+                u = 1 - (1 - u) * (1 - u) * (1 - u);
+                i.far = 1 - u; i.near = u;
+            } else {
+                // The beat, then shut — gathering speed, the way it snaps.
+                u = Math.max(0, Math.min(1, (i.t - I.TO_SMALL - I.HOLD_SMALL) / I.SHUT));
+                i.far = 0; i.near = 1 - u * u;
+            }
         } else {
-            u = Math.max(0, Math.min(1, (i.t - I.HOLD) / I.OPEN));
-            i.k = 1 - u * u * (3 - 2 * u);
+            u = Math.max(0, Math.min(1, (i.t - (i.quick ? I.QUICK_HOLD : I.DARK)) /
+                                        (i.quick ? I.QUICK_OPEN : I.OPEN)));
+            i.far = u * u * (3 - 2 * u); i.near = 0;
             if (u >= 1) R.iris = null;
         }
     }

@@ -1793,8 +1793,14 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     --ix: 50%;
     --iy: 50%;
     --ir: 0px;
+    /* A brass hairline on the edge, the clubhouse's one accent: drawn ink
+       on a stage curtain rather than a hole punched in the picture. Shut,
+       every stop is at or below nought and the line goes with the light. */
     background: radial-gradient(circle at var(--ix) var(--iy),
-        transparent 0, transparent var(--ir), #06080b calc(var(--ir) + 2px));
+        transparent 0, transparent var(--ir),
+        rgba(201, 163, 82, 0.7) calc(var(--ir) + 0.5px),
+        rgba(201, 163, 82, 0.7) calc(var(--ir) + 2px),
+        #06080b calc(var(--ir) + 3px));
 }
 
 .fly-iris[hidden] { display: none; }
@@ -3922,7 +3928,8 @@ body.compact-ui .picker { padding-top: 52px; }
    club you are still choosing (see `.stage.picker-open .controls`). Nor
    down the cup (`body.diving`, game.js → throughPortal): the hole is over.
    Nor while the portal is shut or opening on the next one
-   (`body.portal-shut`, game.js → portalShut). */
+   (`body.portal-shut`, game.js → portalShut), nor while the flyover's iris
+   is up (`body.iris-up`, game.js → syncIris). */
 .stage.picker-open .swipe,
 .stage.picker-open .arc,
 .stage.picker-open .needle,
@@ -3940,7 +3947,10 @@ body.diving .arc,
 body.diving .needle,
 body.portal-shut .swipe,
 body.portal-shut .arc,
-body.portal-shut .needle { display: none; }
+body.portal-shut .needle,
+body.iris-up .swipe,
+body.iris-up .arc,
+body.iris-up .needle { display: none; }
 
 /* While a lane style (the touch swing, the needle) is in charge, the meter is
    a readout and Swing gives its place to a line saying what to do instead.
