@@ -761,8 +761,17 @@ function frameOf(W, place, dt, cam, w, h, clear, A, c, crossed) {
    engine's own portal pass, and the hole rides through — the world changes
    under the ball mid-hole, and the game hears `g3-world-cross`. A next
    world not built yet holds the hole short of the portal, slowing in as
-   the square of the way left, the way Portals' antechamber waits. */
-const DRIFT = { PACE: 0.42, START: 0.02, TURN: 0.7, SCALE: 1.6 };
+   the square of the way left, the way Portals' antechamber waits.
+
+   `DROP` is how far under the line the lane hangs, as a share of the seat's
+   height. It was 0.55 — the line half way between the lane and the seat —
+   and that put the lane down among whatever the world has under its flight:
+   on the water in the sea of ice, on the snow behind the eagle (the owner:
+   "situated a bit low on the flight path"). Portals keeps the room round
+   its line clear of its things, so that is where the lane belongs: the line
+   runs a little over the lane's floor, about through its kerbs, and the
+   seat is the rest of its height over it. */
+const DRIFT = { PACE: 0.42, START: 0.02, TURN: 0.7, SCALE: 1.6, DROP: 0.15 };
 const _M = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _ds = new THREE.Vector3(), _f = new THREE.Vector3();
 function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
 function headingAt(W, d, seat) {
@@ -828,7 +837,7 @@ function driftPose(W, place, seat, D, dt) {
     const target = scaleFor(W, place, seat);
     D.scale += (target - D.scale) * (1 - Math.exp(-dt / DRIFT.SCALE));
     W.path.posAtDist(Math.min(d, L + 2), _p);
-    const drop = place.drop === undefined ? seat.h * 0.55 : place.drop;
+    const drop = place.drop === undefined ? seat.h * DRIFT.DROP : place.drop;
     const A = W.anchor && W.anchor.key === place ? W.anchor : (W.anchor = { key: place });
     A.x = _p.x; A.y = _p.y - drop * D.scale; A.z = _p.z; A.py = _p.y;
     A.turn = D.turn; A.u = Math.min(1, d / L); A.sx = seat.x; A.sy = 0; A.sz = seat.z;
@@ -836,11 +845,12 @@ function driftPose(W, place, seat, D, dt) {
     return null;
 }
 /* How big the lane is in a world nobody has sized it for by hand: as big as
-   the room round the flight allows. The lane hangs a little over half a
-   seat's height under the line and the seat sits the rest over it, so the
-   ground under the line and whatever roof is over it (a library's ceiling,
-   a cave's) bound it — the middle of a handful of soundings along the
-   flight, so one bridge or one chasm does not decide it. A world with
+   the room round the flight allows. The lane hangs `DRIFT.DROP` of a seat
+   under the line and the seat sits the rest over it, so the ground under
+   the line and whatever roof is over it (a library's ceiling, a cave's)
+   bound it, the roof with a unit to spare over the seat: the middle of a
+   handful of soundings along the flight, so one bridge or one chasm does
+   not decide it. A world with
    nothing under its flight at all (a sky, space) is sized by how fast
    Portals flies it instead: a walk is a room, forty metres a second a
    country. */
@@ -877,7 +887,7 @@ function autoScale(W, seat) {
     const speed = W.path.length / Math.max(5, W.duration);
     let s = Math.min(3, Math.max(0.6, speed / 9));
     if (below.length >= 4) s = Math.min(s * 1.6, mid(below) / (h * 0.8));
-    if (above.length >= 4) s = Math.min(s, mid(above) / (h * 0.7));
+    if (above.length >= 4) s = Math.min(s, mid(above) / (h * (1 - DRIFT.DROP) + 1));
     W.autoScale = Math.max(0.35, Math.min(3, s));
     W.autoWhy = { speed: Math.round(speed * 10) / 10, below: below.length ? Math.round(mid(below) * 10) / 10 : null, above: above.length ? Math.round(mid(above) * 10) / 10 : null };
     return W.autoScale;
@@ -945,6 +955,12 @@ G3.backdrop = {
         if (engine && engine.post && engine.post.bloom) engine.post.bloom.enabled = on && engine.rtType === THREE.HalfFloatType;
     },
     get quality() { return qualityTier; },
+    /* The world renderer made, and nothing built in it: its context, its
+       targets and its first resize, which are one long synchronous step a
+       phone feels. game.js asks for it under the loading screen, since the
+       demo's tour warm-up (game.js → warmTour) would otherwise make it a
+       second after the loader lifts, in front of the demo. */
+    warm() { boot(); },
     failed(id) { return !!failed[id]; },
     play() { ev.on = true; },
     rewind() { ev.on = false; ev.t = 0; },

@@ -4568,25 +4568,58 @@ shelf). `backdrop.mjs` builds each world from its registry entry, as Portals
 does, so a world's `nearThrough` and media come with it.
 
 **The holes** (`endless.js → generate`, a function of seed and hole number).
-A walk of four to eight 3.4-unit cells from the tee: north first, then north,
-east or west, never south — so it cannot cross itself — and never more than
-two cells sideways. Each cell is level, a step down, or (on a straight) a
-ramp up or down; heights stay between -2.4 and +2. Straight cells may hold
-one thing from `THINGS` — bumpers, posts, a hump, a blade, a sliding gate,
-a chicane, a belt, ice, a windmill, an unrailed plank, a flipper — dealt
-more often, and the harder ones only, the further into the round
-(`d = n / 14`). Every edge that does not lead on gets a kerb (segmented and
-as tall as the climb along a ramp), every corner a bank across its outside,
-and the cup cell is plain, a bowl, a mound or guarded. Par is two plus one
-each for length, three turns and two hard things. Built with
-`portals.world()`, so every lane is open, unstaked and hung in the air.
-`tests.html → ENDLESS` plays three dozen with the bot.
+The owner's ask (v1.184.0): "more varied and quality maps". A hole is laid
+on a grid of 3.4-unit cells in *pieces* — one cell of lane, or a room two
+cells square — and starts from a **shape** (`SHAPES`), never the same shape
+twice running (`course → add` passes the last one):
+
+- *lane* — four to eight cells that wind: north, then a run of at most two
+  east or west, then north again (two turns the same way is a hairpin, and
+  par knows it);
+- *plaza* — a short lane opening into a room with the cup in it and
+  something about the cup (`ROOMS.plaza`: a block in front of it, a ring of
+  posts with two missing, a mound, a bowl, bumpers, bunkers, a long blade);
+- *room* — a room half-way, with a centrepiece to get round (`ROOMS.room`:
+  a block on its corner, a pinball table with kickers, a long blade, a
+  field of humps, a baffle, bunkers), left ahead, across or out of the side;
+- *fork* — a room with a divider down it: the door's own channel is the
+  short way with something in it (gate, blade, posts, flipper, windmill),
+  the other a bank further, with a belt or a hump in it;
+- *hairpin* — out, across and back, the two legs sharing one kerb;
+- *cascade* — a step or ramp down into nearly every cell;
+- *pipe* — two islands with a cell of air between and a pipe from the
+  first to the second, which stands higher or lower.
+
+Pieces are laid where the last one left off, only on free cells, never
+south of the tee's row (the seat is behind it) or more than four cells
+either side; a blueprint that will not fit is dealt again. Each piece is
+level, a step down, or (a straight cell) a ramp. Straight cells may hold one
+thing from `THINGS` — eighteen of them, from bumpers, posts, a slalom, moguls
+and a bunker to blades, gates, a funnel, slingshots, a camber, a windmill, an
+unrailed plank and a flipper — dealt more often, and the harder ones only,
+the further into the round (`d = n / 14`), and never the same one two cells
+running. Every edge that neither leads on nor lies inside its own room gets a
+kerb (segmented along a ramp; where two pieces at different heights sit side
+by side, one kerb from the lower floor to a rail over the higher), and every
+corner with nothing round it — the outside of a turn, the ends of the lane, a
+room's far corners — is rounded off (`pad.round`) with a drawn curve of kerb.
+A quarter of holes have timber kerbs. The cup cell is plain, a bowl, a mound,
+guarded or between pot bunkers. Par is two plus one each for length, four
+turns, two hard things and a hairpin. Built with `portals.world()`, so every
+lane is open, unstaked and hung in the air. `tests.html → ENDLESS` plays
+three dozen with the bot.
 
 **The ride** (`backdrop.mjs → drift`). A place with `drift: true` is not
 fitted once: every frame the seat behind the tee is put on the world's flight
-`DRIFT.PACE` of the world's own cruise further along, the lane hanging a
-little over half a seat under the line, and the heading follows the line a
-little behind so a bend swings the world round the hole. The world's clock
+`DRIFT.PACE` of the world's own cruise further along, the lane hanging
+`DRIFT.DROP` (0.15) of a seat under the line — so the line runs about through
+its kerbs, in the room Portals keeps clear (at 0.55 it rode among whatever is
+under the flight: on the water, on the snow) — and the heading follows the
+line a little behind so a bend swings the world round the hole. The world is
+cut only a fifth of the way to the ball, not half (`render.js`, where `clear`
+is worked out): a cut that moved with the ball sliced the ground under the
+lane into a flat edge with nothing behind it. The rest of the half is pushed
+behind the hole by the plate (`pushNear`) instead of cut away. The world's clock
 is the ride's `u`, so whatever Portals animates along the flight animates.
 The scale is the hand-set one for a tour world, and for the rest
 `autoScale`: the room under the flight (downward soundings) and over it
@@ -5683,8 +5716,11 @@ stands on it, and the hole runs the way it runs (`backdrop.mjs → fitAt`).
 `backdrop.line` hands it over in golf units, through the inverse of the
 anchor the world camera is carried out by; `flyover.js → worldLine` starts
 `LINE_PAST` units down it beyond the cup, flies back along it a key every
-`KEY_STEP` units looking the way it goes, and leaves it part way down the hole
-for the ordinary approach and seat. A line that does not pass near both the
+`KEY_STEP` units looking at the ball, and leaves it part way down the hole
+for the ordinary approach and seat. It used to look the way it went and swing
+on to the ball near the end, and a line that bent near the hole turned the
+picture a hundred and twenty degrees one way and back the other just as it
+arrived (v1.183.2); held on the ball, the world goes past behind the hole. A line that does not pass near both the
 cup and the tee (`LINE_NEAR`) is not that hole's line — a world whose hole
 was placed by hand need not have one — and the tour sweep is flown instead.
 While it is on the line the world is drawn with no near cut (`stepPlace`'s

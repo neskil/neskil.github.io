@@ -286,7 +286,53 @@
         }
         spend(keys, dur, F);
         lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
-        return { keys: keys, dur: dur, out: pose(), line: keys.length > 4 };
+        return { keys: keys, dur: dur, out: pose(), line: keys.length > 4,
+                 cut: cutAt(keys, dur) };
+    }
+
+    /* ── the cut ────────────────────────────────────────────────────────
+
+       Where the sweep stops being flown and is cut instead. The path runs
+       green to tee and the seat looks tee to green, so the end of it has to
+       pass over the ball and turn the whole view round to face the other
+       way — and since the look is pinned to the ball by then, that turn is
+       a camera spinning on the spot above it: up to fifty degrees a second
+       on a tour hole, for the last three seconds of the run. The owner:
+       "it's focusing a bit much on the ball when it spins over … do a quick
+       fade to black (or circle in out thing)".
+
+       So render.js closes an iris on the ball just before this moment, puts
+       the camera on the seat behind the closed iris, and opens it there.
+       The moment is the first sample in the second half of the run where
+       the look turns faster than CUT_TURN degrees a second — read off the
+       path rather than set as a share of it, since a straight putting lane
+       and a tour hole with a dog-leg turn at very different points — and
+       never later than CUT_TAIL from the end, where all that is left is
+       the ease settling onto the seat. Pure, like the rest of this file:
+       tests.html can hold it to that with no canvas. */
+    function cutAt(keys, dur) {
+        var F = C.FLY, n = F.CUT_SAMPLES, i, t, dt = dur / n;
+        var a = pose(), b = pose(), turn;
+        var latest = Math.max(dur * 0.5, dur - F.CUT_TAIL);
+        sample(keys, dur, dur * 0.5 - dt, a);
+        for (i = Math.ceil(n * 0.5); i <= n; i++) {
+            t = i * dt;
+            if (t >= latest) break;
+            sample(keys, dur, t, b);
+            turn = lookTurn(a, b) / dt;
+            if (turn > F.CUT_TURN) return t;
+            var s = a; a = b; b = s;
+        }
+        return latest;
+    }
+
+    // The angle between two poses' lines of sight, in degrees.
+    function lookTurn(a, b) {
+        var ax = a.tx - a.px, ay = a.ty - a.py, az = a.tz - a.pz;
+        var bx = b.tx - b.px, by = b.ty - b.py, bz = b.tz - b.pz;
+        var d = (ax * bx + ay * by + az * bz) /
+                (Math.sqrt(ax * ax + ay * ay + az * az) * Math.sqrt(bx * bx + by * by + bz * bz) || 1);
+        return Math.acos(clamp(d, -1, 1)) * 180 / Math.PI;
     }
 
     /* The tour's own numbers: FLY with FLY.TOUR laid over it. A world is the
@@ -334,9 +380,14 @@
        hand rather than on its line need not do; then this returns null and
        the tour gets the ordinary sweep on its own numbers.
 
-       Each key looks LOOK_AHEAD units further along the way it is flying and
-       a little down, which is what the world's own camera does; over the
-       last of the line the look swings on to the ball. */
+       Every key looks at the ball, all the way in. It used to look along
+       the line the way the world's own camera does and swing on to the ball
+       over the last of it — and a line that bends near the hole turned the
+       picture a hundred and twenty degrees one way and then back the other
+       just as it reached the ball (the owner, v1.183.2: "when you get close
+       to the ball still rotates a bit weird"). With the ball held in the
+       frame, the world goes past behind the hole instead, and the turn left
+       is only what the camera's own path round the hole makes. */
     function worldLine(hole, ball, seat, line, F) {
         var pts = line.pts, n = pts ? pts.length : 0;
         if (n < 4) return null;
@@ -366,17 +417,10 @@
         }
         if (chosen.length < 2) return null;
 
-        var keys = [], k, a, b, look = F.LOOK_AHEAD, w, lx, ly, lz, q;
-        var bx = ball.x, by = ball.y, bz = ball.z;
+        var keys = [], k, a;
         for (k = 0; k < chosen.length; k++) {
             a = pts[chosen[k]];
-            q = ahead(pts, chosen[k], -step, look);
-            lx = q[0]; ly = q[1] - F.LOOK_DROP; lz = q[2];
-            // The last third of the line turns the look on to the ball.
-            w = clamp((k - chosen.length * 0.6) / (chosen.length * 0.4), 0, 1);
-            w = w * w * (3 - 2 * w);
-            keys.push(key(a[0], a[1], a[2],
-                lx + (bx - lx) * w, ly + (by + 0.8 - ly) * w, lz + (bz - lz) * w));
+            keys.push(key(a[0], a[1], a[2], ball.x, ball.y + 0.8, ball.z));
         }
 
         // The approach and the seat, exactly as the ordinary sweep has them.
@@ -395,15 +439,6 @@
             if (dd < best) { best = dd; bi = i; }
         }
         return bi;
-    }
-    // The point `dist` units further along the line from `i`, going `dir`.
-    function ahead(pts, i, dir, dist) {
-        var run = 0, j = i;
-        while (j + dir >= 0 && j + dir < pts.length && run < dist) {
-            run += seg(pts[j], pts[j + dir]);
-            j += dir;
-        }
-        return pts[j];
     }
 
     /* The seat can move under a sweep that is still running — the player has

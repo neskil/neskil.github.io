@@ -71,6 +71,7 @@
         marks: null,           // the overview's ball ring and the two at the cup
         lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
         fly: null,             // the intro sweep while one is running; see flyCamera()
+        iris: null,            // the circle that covers its cut; see stepIris()
         replay: null,          // the ace replay's camera while one plays; see replayCamera()
         overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
@@ -2144,18 +2145,31 @@
        crag steps back where a bed is softer. Never outside the outline (a
        chord of a convex outline lies inside it, and the result is clamped
        to it anyway), and never at the rim. */
-    function facetRadius(pad, a, wy, seed, rOut) {
+    /* `memo` is the wall's: a knot's angle and the outline's radius there,
+       by knot, which every vertex of the face asked for again — four
+       outline walks a vertex, and most of a crag hole's build on a phone.
+       Same numbers, worked out once a knot. */
+    function facetRadius(pad, a, wy, seed, rOut, memo) {
         var n = 6 + Math.floor(treeHash(seed, 3.1) * 3), step = Math.PI * 2 / n;
         var u = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / step, i = Math.floor(u);
-        function knotAngle(k) { return (k + (treeHash(seed + k * 1.7, 9.1) - 0.5) * 0.5) * step; }
+        memo = memo || {};
+        function knot(k) {
+            var m = memo[k];
+            if (!m) {
+                var ka = (k + (treeHash(seed + k * 1.7, 9.1) - 0.5) * 0.5) * step;
+                m = memo[k] = { a: ka, r: P.padRadius(pad, ka) };
+            }
+            return m;
+        }
         function chord(band) {
-            var a0 = knotAngle(i), a1 = knotAngle(i + 1);
+            var k0 = knot(i), k1 = knot(i + 1);
             // the jitter can move a knot past `a`; step back or on one knot.
-            if (a < a0 - 1e-9 && u - i < 0.5) { a1 = a0; a0 = knotAngle(i - 1); }
-            else if (a > a1) { a0 = a1; a1 = knotAngle(i + 2); }
+            if (a < k0.a - 1e-9 && u - i < 0.5) { k1 = k0; k0 = knot(i - 1); }
+            else if (a > k1.a) { k0 = k1; k1 = knot(i + 2); }
+            var a0 = k0.a, a1 = k1.a;
             var c0 = 0.03 + 0.3 * treeHash(seed + (((i % n) + n) % n) * 7.3, band * 3.7 + 1.3);
             var c1 = 0.03 + 0.3 * treeHash(seed + ((((i + 1) % n) + n) % n) * 7.3, band * 3.7 + 1.3);
-            var r0 = P.padRadius(pad, a0) * (1 - c0), r1 = P.padRadius(pad, a1) * (1 - c1);
+            var r0 = k0.r * (1 - c0), r1 = k1.r * (1 - c1);
             var ax = Math.cos(a0) * r0, az = Math.sin(a0) * r0, bx = Math.cos(a1) * r1, bz = Math.sin(a1) * r1;
             var ex = bx - ax, ez = bz - az, dx = Math.cos(a), dz = Math.sin(a);
             var den = dx * ez - dz * ex;
@@ -2169,7 +2183,7 @@
 
     function weatherWall(geo, pad, thick, cy) {
         var pos = geo.attributes.position, gs = geo.groups, k, i, end;
-        var seed = pad.x * 0.37 + pad.z * 0.61;
+        var seed = pad.x * 0.37 + pad.z * 0.61, memo = {};
         for (k = 0; k < gs.length; k++) {
             if (gs[k].materialIndex !== 1) continue;
             for (i = gs[k].start, end = gs[k].start + gs[k].count; i < end; i++) {
@@ -2178,7 +2192,7 @@
                 if (r < 1e-6 || below < 1e-4) continue;
                 var a = Math.atan2(z, x), wy = cy - thick / 2 + y, cut;
                 if (pad.facets) {
-                    cut = (r - facetRadius(pad, a, wy, seed, r)) * Math.min(1, below / 0.7);
+                    cut = (r - facetRadius(pad, a, wy, seed, r, memo)) * Math.min(1, below / 0.7);
                 } else {
                     var m1 = Math.max(3, Math.round(r * 1.6)), m2 = Math.max(5, Math.round(r * 3.1));
                     var f = 0.5 + 0.32 * Math.sin(a * m1 + seed + wy * 0.35) +
@@ -5890,12 +5904,16 @@
            terrain, and only its tee, fairway and green are laid over it. So
            a ghost is built like anything else and put away while the world
            is on screen (stepPlace); without the world it is the ground. */
-        /* …and what is laid over it is a `veil`: a strip of mown fairway
-           or a tee draped on that ground. With the world on screen a veil
-           is put away like the ghost, and the strip is painted into the
-           world's own picture instead (the plate's decals) — a change of
-           colour in that ground, not a sheet on top of it. The green stays
-           drawn: it is the one surface a putt has to be read on. */
+        /* …and what is laid over it is a `veil`: a strip, a tee or the
+           green draped on that ground. With the world on screen every veil
+           is put away like the ghost, and nothing takes its place: the
+           world's own ground is the course, and the hole is the cup and the
+           flag (addCup draws those on their own). Until v1.183.0 the strips
+           were painted into the world's picture and the green was drawn
+           over it, and on a phone they showed as a sheet laid on the world
+           that came and went (the owner: "it overlaps the fairway… but
+           sometimes it shows again… the hole don't have to have a green, it
+           can just be a hole"). */
         R.ghosts = [];
         R.veils = [];
         var n0, sculpted = hole.pads.some(function (p) { return p.ghost; });
@@ -5903,7 +5921,7 @@
             n0 = g.children.length;
             addPad(g, hole.pads[i], theme, hole.cup, hole.pads);
             if (hole.pads[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
-            else if (sculpted && hole.pads[i].inlay && hole.pads[i].kind !== 'green') {
+            else if (sculpted && hole.pads[i].inlay) {
                 while (n0 < g.children.length) R.veils.push(g.children[n0++]);
             }
         }
@@ -5990,6 +6008,7 @@
         // Whatever was being flown over is no longer the course. game.js starts
         // the next one, if the player wants one at all.
         R.fly = null;
+        R.iris = null;
         // A new hole is a new world; nothing the last one's preview was
         // computed from can be assumed to mean the same thing.
         clearPathCache();
@@ -6171,28 +6190,23 @@
                a stall or a pillar is far more than that in front, and still
                is. */
             R.placeSoft = [all[0] - 2.5, all[1] - 2.5, all[2] + 2.5, all[3] + 2.5];
-            /* A sculpted hole hands the world three things (backdrop.mjs →
+            /* A sculpted hole hands the world two things (backdrop.mjs →
                sculpt): the ground it was baked to, so the world's own
                terrain is pressed to exactly that shape — a levelled tee is
-               level in the world's picture too; the strips mown into it,
-               which the world clears of trees and stones; and here, the
-               same strips as paint (the plate's decals). The green is the
-               one surface still drawn by this game, lying on ground that
-               now matches it, with a collar of the same paint round it. */
+               level in the world's picture too; and the strips laid on it,
+               which the world clears of trees and stones, because the ball
+               would roll through them. Nothing is painted on the world any
+               more (v1.183.0): the plate's decals are left switched off, and
+               the strips are only where the clearing is. */
             R.placeDecals = null;
             place.grid = null; place.clear = [];
             var gp = (hole.pads || []).filter(function (p) { return p.ghost && p.field && p.field[0] && p.field[0].grid; })[0];
             if (gp) {
-                var th = R.theme || {}, tint = new THREE.Color((th.grass || ['#3fa56a'])[0]);
-                var rects = [];
                 (hole.pads || []).forEach(function (p) {
                     if (p.ghost || !p.inlay || p.w === undefined) return;
                     place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
-                    var g = p.kind === 'green' ? 1.3 : 0, k = p.kind === 'green' ? 1.25 : 1;
-                    rects.push([p.x - g, p.z - g, p.x + p.w + g, p.z + p.d + g, [tint.r * k, tint.g * k, tint.b * k]]);
                 });
                 place.grid = gp.field[0].grid;
-                R.placeDecals = { grid: place.grid, rects: rects.slice(0, 6), dirty: true };
             }
         }
         R.live = false;
@@ -6453,6 +6467,20 @@
                     clear *= fk * fk;
                 }
             }
+            /* A riding hole (Endless) is not cut, or hardly. Its lane is on
+               the world's own flight, which Portals keeps clear, but the
+               world goes by under and round it: a cut that moved with the
+               ball sliced the sea, the snow and the street under the lane
+               into a flat edge with nothing behind it, and showed and hid
+               the world's things as the camera followed the ball (the
+               owner: "the occlusion sometimes is weird"). So the cut is a
+               fifth of the way to the ball, which nothing under the lane
+               is ever inside, and the rest of the way to the half is the
+               plate's (`pushNear`): painted, but behind the hole, so a
+               lamp or a branch that comes between is seen without hiding
+               the shot. */
+            var push = 0;
+            if (R.place.drift) { push = clear; clear *= 0.36; }
             live = B.frame(dt, R.camera, R.place, R.placeSeat,
                 Math.max(2, Math.round(cv.width * k)), Math.max(2, Math.round(cv.height * k)), clear);
         }
@@ -6463,6 +6491,7 @@
             var u = R.plate.material.uniforms, I = B.info, P = R.camera.projectionMatrix.elements;
             u.size.value.set(I.w, I.h);
             u.wNear.value = I.near; u.wFar.value = I.far; u.scale.value = I.scale;
+            u.pushNear.value = push;
             u.pA.value = P[10]; u.pB.value = P[14];
             u.invProj.value.copy(R.camera.projectionMatrixInverse);
             u.camWorld.value.copy(R.camera.matrixWorld);
@@ -6498,13 +6527,19 @@
                 u.gTint.value.copy(gc.tint.value); u.gLift.value.copy(gc.lift.value);
             }
         }
-        if (live === R.live) return;
-        R.live = live;
+        /* What the world's picture replaces is put away every frame, not
+           only on the frame the world comes on: the hole is rebuilt under a
+           live world now and then (a quality step changes the grass), and a
+           rebuilt ghost or strip used to come back on top of the world and
+           stay there — the sheet the owner saw over the sculpted holes that
+           "sometimes shows again". */
         if (R.plate) R.plate.visible = live;
         if (R.outer) R.outer.visible = !live;
         for (var q = 0; q < (R.ghosts || []).length; q++) R.ghosts[q].visible = !live;
-        // …and its tee and fairway, which the world's picture now carries.
-        (R.veils || []).forEach(function (top) { top.visible = !live; });
+        // …and the strips and green laid on it: the world's own ground is the course.
+        for (q = 0; q < (R.veils || []).length; q++) R.veils[q].visible = !live;
+        if (live === R.live) return;
+        R.live = live;
         if (live) govReset(3.5);
         if (live) {
             R.fogKeep = { near: R.fogNear, far: R.fogFar };
@@ -6541,7 +6576,7 @@
                 pA: { value: -1 }, pB: { value: -0.2 },
                 invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() },
                 keep: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.Vector4(); }) },
-                soft: { value: new THREE.Vector4() }, softY: { value: -1e9 },
+                soft: { value: new THREE.Vector4() }, softY: { value: -1e9 }, pushNear: { value: 0 },
                 decalOn: { value: 0 },
                 decal: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
                 decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector3(); }) },
@@ -6562,7 +6597,7 @@
             ].join('\n'),
             fragmentShader: [
                 'uniform sampler2D map; uniform vec2 size;',
-                'uniform float wNear, wFar, scale, pA, pB, softY;',
+                'uniform float wNear, wFar, scale, pA, pB, softY, pushNear;',
                 'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
                 'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
                 'uniform float decalOn; uniform vec4 decal[6]; uniform vec3 decalTint[6];',
@@ -6607,7 +6642,9 @@
                 // camera and the ball; on non-sculpted holes, ground scatter just
                 // beyond c.near (such as Spore Rain's leaves around the tee) still
                 // pokes above the tee pad unless pushed behind the course here.
-                '        if (decalOn < 0.5 && z < 6.2) ours = true;',
+                // A riding hole pushes further: everything short of half the
+                // way to the ball (`pushNear`, set where the cut is).
+                '        if (decalOn < 0.5 && z < max(6.2, pushNear)) ours = true;',
                 /* The mown ground of a sculpted hole is not a sheet laid on
                    the world: it is paint on the world's own picture. This
                    pixel of the world is at `at` in the hole's own
@@ -7070,6 +7107,7 @@
         if (c.mode === 'flight') return false;
         c.preFlightMode = VIEWS.indexOf(c.mode) >= 0 ? c.mode : 'follow';
         R.fly = null;
+        R.iris = null;
         R.lap = null;
         var pos, tgt;
         if (!R.smooth.started && R.hole && R.hole.tee) {
@@ -7327,7 +7365,13 @@
         var f = R.fly;
         f.t += dt;
         G3.flyover.retarget(f.plan, _seat);
-        if (f.t >= f.plan.dur) { R.fly = null; return false; }
+        /* The end of it is cut, not flown (flyover.js → cutAt): the iris has
+           closed on the ball by now, and the camera goes to the seat behind
+           it and opens there. */
+        var cut = f.plan.cut === undefined ? f.plan.dur : f.plan.cut;
+        if (f.t >= cut) { landFlyover(ball); return true; }
+        var I = C.FLY.IRIS;
+        if (!R.iris && f.t >= cut - I.CLOSE) R.iris = { mode: 'close', t: Math.max(0, f.t - (cut - I.CLOSE)), k: 0, x: 0.5, y: 0.5 };
 
         var pose = G3.flyover.at(f.plan, f.t);
         R.smooth.pos.set(pose.px, pose.py, pose.pz);
@@ -7335,6 +7379,7 @@
         R.smooth.started = true;
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+        if (R.iris) irisOn(ball);
 
         var over = pose.py - flyGround(hole, pose.px, pose.pz, ball.y);
         f.lift = Math.max(0, Math.min(C.FLY.AIR_MAX,
@@ -7376,11 +7421,64 @@
     // Cutting it short is a deletion and nothing more; the frame after this one
     // eases from wherever the camera stands back to the seat, on the lerp it
     // would have been using anyway.
+    /* Skipped, it lands the same way it does at the end: on the seat, under
+       a shut iris that opens. Easing back from wherever the sweep had got to
+       was the same spin over the ball the cut is there to avoid, only
+       faster. */
     function skipFlyover() {
         if (!R.fly) return false;
-        R.fly = null;
+        landFlyover(R.lastBall);
         return true;
     }
+
+    /* The camera on the seat, this frame, with nothing to ease: the iris is
+       shut over the jump (HOLD) and opens round the ball from there. */
+    function landFlyover(ball) {
+        R.fly = null;
+        R.smooth.pos.set(_seat.px, _seat.py, _seat.pz);
+        R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
+        R.smooth.started = true;
+        if (R.camera) {
+            R.camera.position.copy(R.smooth.pos);
+            R.camera.lookAt(R.smooth.target);
+        }
+        R.iris = { mode: 'open', t: 0, k: 1, x: 0.5, y: 0.5 };
+        if (ball) irisOn(ball);
+    }
+
+    /* ── the iris ────────────────────────────────────────────────────────
+
+       A circle closing on the ball and opening on it again: the oldest cut
+       there is, and the one that says "same ball, other side" without a
+       word. render.js keeps its state (how shut, and where on the screen,
+       as fractions of it) and game.js paints it over the stage, the way it
+       paints the fade at the start of the sweep. */
+    var _iv = new THREE.Vector3();
+    function irisOn(ball) {
+        if (!R.iris || !R.camera || !ball) return;
+        R.camera.updateMatrixWorld();
+        _iv.set(ball.x, ball.y, ball.z).project(R.camera);
+        if (_iv.z > 1) return;                      // behind the lens: keep the last
+        R.iris.x = Math.max(0, Math.min(1, (_iv.x + 1) / 2));
+        R.iris.y = Math.max(0, Math.min(1, (1 - _iv.y) / 2));
+    }
+
+    function stepIris(dt) {
+        var i = R.iris;
+        if (!i) return;
+        var I = C.FLY.IRIS, u;
+        i.t += dt;
+        if (i.mode === 'close') {
+            u = Math.min(1, i.t / I.CLOSE);
+            i.k = u * u * (3 - 2 * u);
+        } else {
+            u = Math.max(0, Math.min(1, (i.t - I.HOLD) / I.OPEN));
+            i.k = 1 - u * u * (3 - 2 * u);
+            if (u >= 1) R.iris = null;
+        }
+    }
+
+    function iris() { return R.iris; }
 
     function flying() { return !!R.fly; }
 
@@ -7739,6 +7837,7 @@
         // that stopped with it would say so.
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
+        stepIris(dt);
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
@@ -8409,6 +8508,7 @@
         diving: diving,
         startFlyover: startFlyover,
         skipFlyover: skipFlyover,
+        iris: iris,
         flying: flying,
         startReplay: startReplay,
         cutReplay: cutReplay,

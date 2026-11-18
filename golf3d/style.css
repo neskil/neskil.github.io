@@ -1781,6 +1781,24 @@ body.compact-ui .stage.view-collapsed .toast { top: 134px; }
     .fly-fade.run { animation-duration: 0.2s; }
 }
 
+/* The cut at the end of a sweep (render.js → iris): a circle closed on the
+   ball, the camera put on the seat behind it, and the circle opened again.
+   game.js sets where the ball is on the stage and how wide the hole is, on
+   every frame it is up; the rest of the time it is not drawn at all. */
+.fly-iris {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    --ix: 50%;
+    --iy: 50%;
+    --ir: 0px;
+    background: radial-gradient(circle at var(--ix) var(--iy),
+        transparent 0, transparent var(--ir), #06080b calc(var(--ir) + 2px));
+}
+
+.fly-iris[hidden] { display: none; }
+
 @keyframes fly-hint-in {
     from { opacity: 0; transform: translate(-50%, 6px); }
     to   { opacity: 1; transform: translate(-50%, 0); }
@@ -3885,12 +3903,6 @@ body.compact-ui .picker { padding-top: 52px; }
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-.sw-ball {
-    fill: rgba(255, 255, 255, 0.18);
-    stroke: rgba(255, 255, 255, 0.85);
-    stroke-width: 2;
-}
-.swipe.held .sw-ball { fill: rgba(255, 255, 255, 0.9); }
 .swipe-cue {
     position: absolute;
     left: 0;
@@ -3908,7 +3920,9 @@ body.compact-ui .picker { padding-top: 52px; }
    which is where the row comes out, and it is drawn over the canvas — so it
    sat across the clubs and took the taps meant for them. You cannot swing a
    club you are still choosing (see `.stage.picker-open .controls`). Nor
-   down the cup (`body.diving`, game.js → throughPortal): the hole is over. */
+   down the cup (`body.diving`, game.js → throughPortal): the hole is over.
+   Nor while the portal is shut or opening on the next one
+   (`body.portal-shut`, game.js → portalShut). */
 .stage.picker-open .swipe,
 .stage.picker-open .arc,
 .stage.picker-open .needle,
@@ -3923,7 +3937,10 @@ body.flight-mode .arc,
 body.flight-mode .needle,
 body.diving .swipe,
 body.diving .arc,
-body.diving .needle { display: none; }
+body.diving .needle,
+body.portal-shut .swipe,
+body.portal-shut .arc,
+body.portal-shut .needle { display: none; }
 
 /* While a lane style (the touch swing, the needle) is in charge, the meter is
    a readout and Swing gives its place to a line saying what to do instead.
@@ -4564,13 +4581,14 @@ body.lane-swing .swipe-hint {
     display: grid;
     place-items: center;
 }
-.endless-eye b {
-    font-size: 1.7rem;
-    line-height: 1;
+.endless-eye svg {
+    width: 1.9rem;
+    height: 0.95rem;
+    overflow: visible;
     color: #f4ecd8;
     animation: door-turn 9s linear infinite reverse;
 }
-@media (prefers-reduced-motion: reduce) { .endless-eye b { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .endless-eye svg { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
 
 .world-grid {

@@ -352,6 +352,16 @@
        same latch the picker keeps (menuTaking), for the same impatient
        thumb. */
     var portalBusy = false, portalRaf = 0;
+    /* No swing lane while the screen is shut or opening (the owner,
+       v1.182.1: "dont show during transition"). `diving` only covered the
+       plunge; the lane came back the moment the swap was done, over the held
+       curtain and the whole of the opening. It is put away from the moment
+       the portal starts closing, and back only once it has opened all the
+       way on the new tee — every way through ends in openWipe. */
+    function portalShut(on) {
+        if (!on && (portalBusy || curtain.up)) return;
+        document.body.classList.toggle('portal-shut', on);
+    }
     function portalSkies(themeName) {
         var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
         return { inCol: sky[1], outCol: sky[0] };
@@ -391,6 +401,7 @@
         }
         if (portalBusy) return;
         portalBusy = true;
+        portalShut(true);
         if (portalRaf) { cancelAnimationFrame(portalRaf); portalRaf = 0; }
         var sk = portalSkies(themeName), useGL = glPortal();
         wipeSkies(el, themeName);
@@ -439,11 +450,15 @@
                 G3.postfx.setPortal({ k: 1 - e, open: 1 });
             }, function () {
                 G3.postfx.setPortal(null);
+                portalShut(false);
             });
             return;
         }
         el.className = 'portal-wipe opening';
-        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 800);
+        setTimeout(function () {
+            if (el.className === 'portal-wipe opening') el.className = 'portal-wipe';
+            portalShut(false);
+        }, 800);
     }
 
     /* The wait for a world.
@@ -533,6 +548,7 @@
             G3.postfx.setPortal({ k: 1, open: 0, inCol: sk.inCol, outCol: sk.outCol });
         }
         curtain.up = true; curtain.t0 = Date.now();
+        portalShut(true);
         if (!/closing/.test(el.className)) el.className = curtainClass();
         curtain.timer = setInterval(function () {
             var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
@@ -578,7 +594,15 @@
         heldAt = performance.now();
     }
     function buildHeld(now) {
-        if (!state || demo) return false;
+        if (!state) return false;
+        /* The demo has nobody's finger on it, but it does have the two
+           moments a dropped frame shows worst: the intro sweep and a ball
+           in the air. The tour's first world is built aside behind the demo
+           (warmTour), and its shaders compile in one piece that cannot be
+           sliced (vendor/portals → _warmDraw); held over those two, it lands
+           while the caddie stands at the ball or the hole is held after the
+           sink, which is most of a demo hole. */
+        if (demo) return R.flying() || state.phase === 'rolling';
         if (heldDown > 0 && now - heldAt < 4000) return true;
         if (gate || arc || needle) return true;
         return state.phase === 'rolling';
@@ -683,8 +707,13 @@
         if (G3.bag && G3.bag.setBag) {
             G3.bag.setBag(state.bag);
             G3.bag.setSelected(state.club.id);
-            // …and each of them stood up for the ball, while nothing is watching.
-            if (G3.bag.addressWarm) G3.bag.addressWarm(state.bag);
+            /* …and each of them stood up for the ball, while nothing is
+               watching. Not under the demo: the demo's camera never shows
+               the club at the ball, and its holes are built in front of the
+               player rather than behind a loading screen — the clubs were
+               a third of the stall between two demo rounds. A club the
+               player takes is still built on first use (bag.js addressTake). */
+            if (G3.bag.addressWarm && !demo) G3.bag.addressWarm(state.bag);
         }
         state.phase = 'aim';
         state.aim.power = 0;
@@ -820,6 +849,30 @@
         // `picker-open` are told from the body.
         $('stage').classList.toggle('flying', on);
         document.body.classList.toggle('flying', on);
+    }
+
+    /* The iris over the sweep's cut (render.js → iris), painted from the
+       state the renderer keeps: where the ball is as fractions of the stage
+       and how shut the circle is. The radius is a share of the distance to
+       the stage's furthest corner from the ball, so a shut iris is shut on
+       any screen and an open one clears every corner. */
+    var irisUp = false, irisEl = null;
+
+    function syncIris() {
+        var i = R.iris ? R.iris() : null;
+        if (!i) {
+            if (irisUp) { irisUp = false; irisEl.hidden = true; }
+            return;
+        }
+        if (!irisEl) irisEl = $('fly-iris');
+        var w = irisEl.clientWidth || window.innerWidth, h = irisEl.clientHeight || window.innerHeight;
+        if (!irisUp) { irisUp = true; irisEl.hidden = false; w = irisEl.clientWidth || w; h = irisEl.clientHeight || h; }
+        var x = i.x * w, y = i.y * h;
+        var far = Math.sqrt(Math.max(x, w - x) * Math.max(x, w - x) + Math.max(y, h - y) * Math.max(y, h - y));
+        var r = (1 - i.k) * (far + 4) - 3;   // below zero when shut: no pinhole
+        irisEl.style.setProperty('--ix', x.toFixed(1) + 'px');
+        irisEl.style.setProperty('--iy', y.toFixed(1) + 'px');
+        irisEl.style.setProperty('--ir', Math.max(-3, r).toFixed(1) + 'px');
     }
 
     function toggleFlyover() {
@@ -1819,7 +1872,7 @@
     }
 
     /* The lane's picture: a guide down from where the thumb went in, a tick
-       at the full swing, the ball under the thumb, and — once the club is
+       at the full swing, and — once the club is
        coming back — a wedge showing how straight is straight enough. */
     function drawSwipe() {
         var lane = $('swipe');
@@ -1830,7 +1883,6 @@
         var fullY = y0 + len * SW.markAt();
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
-        attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
         /* Where to let go for backspin, once there is a pull to measure it on.
            Over the thumb, not over where it went in: the swipe up is read
            from the bottom of the pull (the cone stands there too), and a
@@ -2148,8 +2200,7 @@
             toast(w.splash ? 'Water — one stroke penalty'
                 : w.swallowed ? 'Swallowed by the well — one stroke penalty'
                 : 'Out of play — one stroke penalty', 'bad');
-            state.world = P.createWorld(w.hole, w.origin, w.time);
-            R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
+            dropBack(w);
         }
         /* Five over par and still out: the hole is picked up. It scores
            par + PICKUP whatever the penalties made of the count, and the
@@ -2170,7 +2221,60 @@
         } else {
             syncLie();
             nextClub();
+            startStuckCheck();
         }
+        syncHud();
+    }
+
+    // The ball back where the last stroke was played from, as after water.
+    function dropBack(w) {
+        state.world = P.createWorld(w.hole, w.origin, w.time);
+        R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
+    }
+
+    /* Stuck. A tour hole is played on a world's own ground, and a world's
+       ground has folds, pits and corners nobody designed a way out of (the
+       owner: "we need to have some recourse if you get stuck"). So once the
+       ball stops, the caddie plays every line and weight in the bag from
+       where it lies, on copies of the world (physics.escapes), a few
+       milliseconds a frame while the player lines up. One shot that gets out
+       ends the check. If none does, the lie is a hazard: a stroke, and the
+       ball back where the last one was played from, as from water. A stroke
+       played before the check is done ends it. */
+    var stuckJob = null;
+    var STUCK_SLICE_MS = 4;
+    function startStuckCheck() {
+        stuckJob = null;
+        var w = state.world, hole = w.hole;
+        if (!hole.portal || state.course.isRange || w.sunk) return;
+        var b = w.ball, toCup = Math.atan2(hole.cup.x - b.x, hole.cup.z - b.z), shots = [], i;
+        [1, 0.6, 0.3].forEach(function (k) {
+            bag().forEach(function (c) {
+                for (i = 0; i < 16; i++) shots.push([toCup + i * Math.PI / 8, c, k]);
+            });
+        });
+        stuckJob = { world: w, from: { x: b.x, y: b.y, z: b.z }, shots: shots, i: 0 };
+    }
+    function tickStuckCheck() {
+        var J = stuckJob;
+        if (!J) return;
+        if (state.world !== J.world || state.phase !== 'aim') { stuckJob = null; return; }
+        var t0 = performance.now(), s;
+        while (J.i < J.shots.length && performance.now() - t0 < STUCK_SLICE_MS) {
+            s = J.shots[J.i++];
+            if (P.escapes(J.world.hole, J.from, J.world.time, s[0], s[1].power * s[2], s[1].loft, s[1].bite)) {
+                stuckJob = null;
+                return;
+            }
+        }
+        if (J.i < J.shots.length) return;
+        stuckJob = null;
+        state.strokes += C.WATER_PENALTY;
+        toast('Stuck — one stroke penalty, dropped where you played from', 'bad');
+        dropBack(J.world);
+        if (state.strokes >= state.course.holes[state.holeIndex].par + C.PICKUP) { holeComplete(true); return; }
+        turnToCup();
+        syncLie();
         syncHud();
     }
 
@@ -6385,20 +6489,37 @@
         } catch (e) { return []; }
     }
 
-    function demoRound() {
+    /* `wipe` is from one demo round to the next, which happens in front of
+       whoever is watching: the new hole is built while the portal wipe has
+       the screen shut, as a tour's hole-to-hole is, instead of the picture
+       freezing on the last green for the length of the build (the owner:
+       "a bit stutter on the first load during the demo"). The first round
+       is built under the loading screen and needs none. */
+    function demoRound(wipe) {
         var last = state && state.course && !state.course.isShowcase ?
             G3.demoKey(state.course.id, state.holeIndex) : null;
         var d = G3.demoDraw(demoSeen(), { last: last });
         try { localStorage.setItem(C.DEMO_SEEN_KEY, JSON.stringify(d.seen)); } catch (e) { /* ignore */ }
+        var go = function () {
+            if (!demo) return;              // left while the wipe was shut
+            demo.playing = false;
+            demo.wait = 0;
+            newRound(d.id, d.hole);
+            syncDemo();
+        };
+        var course = wipe && !portalBusy && G3.courseById(d.id);
+        if (!course) { go(); return; }
+        // Held, not walked, while the screen is shut: the walk would see the
+        // last hole still holed and start its hold over again.
         demo.playing = false;
-        demo.wait = 0;
-        newRound(d.id, d.hole);
-        syncDemo();
+        demo.wait = 1e9;
+        var at = Math.max(0, Math.min(course.holes.length - 1, d.hole || 0));
+        throughPortal(course.themes ? course.themes[at] : course.theme, go);
     }
 
     function demoNext() {
         stopSim(null);
-        demoRound();
+        demoRound(true);
     }
 
     function syncDemo() {
@@ -6507,6 +6628,7 @@
         else tickIdle(now);
         tickHoleEnd(Math.min(0.25, raw));
         if (sim) tickSim(Math.min(0.25, raw));
+        if (stuckJob) tickStuckCheck();
 
         if (state.phase === 'rolling') {
             /* Under the bot, the same step it planned on. Its shot was chosen
@@ -6593,10 +6715,20 @@
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
-        if (!loaderGone) hideLoader();
+        if (!loaderGone) {
+            /* The world renderer, made while the loader still covers the
+               page (backdrop.mjs → warm): it would be made a moment later
+               anyway, by the first world built, and that moment was in
+               front of the demo. Only where worlds are wanted at all. */
+            if (R.liveWanted && G3.backdrop && G3.backdrop.warm) {
+                try { G3.backdrop.warm(); } catch (e) { /* the world's own build will say */ }
+            }
+            hideLoader();
+        }
 
         // The sweep can end on any frame and nothing else would notice.
         syncFlyHint();
+        syncIris();
 
         // After the frame, so the inspector's outlines are placed from the
         // same clock the course was just drawn on.
