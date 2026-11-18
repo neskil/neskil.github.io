@@ -4581,13 +4581,14 @@ body.lane-swing .swipe-hint {
     display: grid;
     place-items: center;
 }
-.endless-eye b {
-    font-size: 1.7rem;
-    line-height: 1;
+.endless-eye svg {
+    width: 1.9rem;
+    height: 0.95rem;
+    overflow: visible;
     color: #f4ecd8;
     animation: door-turn 9s linear infinite reverse;
 }
-@media (prefers-reduced-motion: reduce) { .endless-eye b { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .endless-eye svg { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
 
 .world-grid {
