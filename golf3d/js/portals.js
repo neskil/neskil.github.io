@@ -1134,6 +1134,8 @@
             return null;
         },
         deal: dealJourney,
+        // How a world hole is made open, unrailed and hung in the air — endless.js builds its lanes with it.
+        world: world,
         // Every world as one course: the turntable, the suite and the lab.
         library: function () {
             return G3.PORTAL_LIBRARY ||

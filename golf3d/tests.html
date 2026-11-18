@@ -28,6 +28,8 @@
     <script src="js/courses.js"></script>
     <script src="js/tour-ground.js"></script>
     <script src="js/portals.js"></script>
+    <script src="js/portal-worlds.js"></script>
+    <script src="js/endless.js"></script>
     <script src="js/custom.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
@@ -5923,6 +5925,63 @@
             assert('bot and demo settle wait after a tour curtain is positive',
                 typeof C.BOT_SETTLE === 'number' && C.BOT_SETTLE > 0 &&
                 typeof C.DEMO_HOLD === 'number' && C.DEMO_HOLD > 0);
+        })();
+
+        /* ── endless ───────────────────────────────────────────────────── */
+
+        section('ENDLESS');
+        (function () {
+            var E = G3.endless, W = E.worlds(), ids = {}, dup = false;
+            W.forEach(function (w) { if (ids[w.id]) dup = true; ids[w.id] = true; });
+            assert('endless deals from every vendored Portals world — hundreds, each once', W.length >= 400 && !dup &&
+                W.length === (G3.PORTAL_INDEX || []).length, W.length + ' worlds');
+            assert('…every tour world among them', G3.portals.WORLDS.every(function (w) { return ids[w.place.world]; }));
+            assert('…and every one has a palette and a stand-in set piece to fall back on', W.every(function (w) {
+                return w.name && G3.THEMES[w.theme] && G3.THEMES[w.theme].sky.length === 2 && w.scene;
+            }));
+
+            // A round: the next hole is always there, and the worlds come round as a shuffled bag.
+            var c = E.course(99), k, run = true, firstLap = {};
+            c.ensure(W.length + 3);
+            for (k = 0; k < c.holes.length; k++) {
+                if (k && c.worlds[k] === c.worlds[k - 1]) run = false;
+                if (k < W.length) firstLap[c.worlds[k]] = true;
+            }
+            assert('a round grows: this hole and the next', E.course(5).holes.length === 2 && c.isEndless && c.isPortals);
+            assert('every world comes round before any comes round twice', Object.keys(firstLap).length === W.length);
+            assert('…and never the same world twice running', run);
+            assert('a seed is a round', E.course(7).holes[0].endless.seed === E.course(7).holes[0].endless.seed &&
+                E.course(7).worlds.join() === E.course(7).worlds.join() &&
+                JSON.stringify(E.course(7).holes[1].pads) === JSON.stringify(E.course(7).holes[1].pads));
+            var c2 = E.course(11), was = c2.holes[1].place.world;
+            c2.crossed(0, was);
+            assert('a hole that rides through its portal sends the next hole to another world', c2.holes[1].place.world !== was &&
+                c2.worlds[0] === was && c2.holes[0].place.next === c2.holes[1].place.world);
+            assert('courseById answers to endless', G3.courseById('endless').isEndless);
+
+            // The holes themselves, across the round's climb.
+            var good = true, why = '', sunk = 0, fair = 0, N = 36, kinds = {};
+            for (k = 0; k < N; k++) {
+                var h = E.generate(E.mix(2024, k), k % 18, W[(k * 37) % W.length]);
+                var tee = P.surfaceTop(h, h.tee.x, h.tee.z), cup = P.surfaceTop(h, h.cup.x, h.cup.z);
+                var flat = cup && Math.abs(P.padHeight(cup.pad, h.cup.x + 0.3, h.cup.z) - P.padHeight(cup.pad, h.cup.x - 0.3, h.cup.z)) < 0.02 &&
+                    Math.abs(P.padHeight(cup.pad, h.cup.x, h.cup.z + 0.3) - P.padHeight(cup.pad, h.cup.x, h.cup.z - 0.3)) < 0.03;
+                var clear = h.walls.every(function (wl) {
+                    if (wl.move || wl.spin || wl.swing || wl.sails) return true;
+                    var B = P.wallBox(wl, 0);
+                    return !P.circleBox(h.cup.x, h.cup.z, C.HOLE_R + 0.05, B) || B.base > h.cup.y + 0.5 || B.top < h.cup.y - 0.2;
+                });
+                if (!tee || !cup || !flat || !clear || !h.place.drift || h.portal !== true || P.outOfBounds(h, h.cup.x, h.cup.z) ||
+                    h.par < 2 || h.par > 5 || !G3.THEMES[h.theme]) { good = false; why = k + ': ' + h.name; }
+                h.endless.things.forEach(function (t) { kinds[t] = 1; });
+                var r = G3.bot.play(h, 10, G3.bagFor(h));
+                if (r.sunk) sunk++;
+                if (r.sunk && r.strokes <= h.par + 2) fair++;
+            }
+            assert('every made-up hole has a tee and a level cup on its lane, nothing in the cup, and a world to ride', good, why);
+            assert('the bot holes nearly every one', sunk >= N - 2, sunk + ' of ' + N);
+            assert('…nearly always within two of par', fair >= N - 3, fair + ' of ' + N);
+            assert('and the lanes are not all the same lane', Object.keys(kinds).length >= 6, Object.keys(kinds).join(', '));
         })();
 
         section('PRO SHOP & BALL COSMETICS');

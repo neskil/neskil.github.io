@@ -3829,6 +3829,12 @@ body.compact-ui .picker { padding-top: 52px; }
     -webkit-user-select: none;
 }
 .swipe[hidden] { display: none; }
+/* Smaller on a phone (the owner, v1.180.0): the lane is the middle of the
+   screen, and every pixel of it is a pixel of course a drag cannot aim on.
+   The same numbers as game.js `laneNatural`, which sizes it round the bag. */
+@media (max-width: 640px), (pointer: coarse) {
+    .swipe { width: min(42%, 240px); }
+}
 .swipe.held { cursor: grabbing; background: rgba(18, 20, 14, 0.14); border-color: rgba(201, 163, 82, 0.45); }
 .swipe-svg {
     position: absolute;
@@ -3879,12 +3885,6 @@ body.compact-ui .picker { padding-top: 52px; }
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-.sw-ball {
-    fill: rgba(255, 255, 255, 0.18);
-    stroke: rgba(255, 255, 255, 0.85);
-    stroke-width: 2;
-}
-.swipe.held .sw-ball { fill: rgba(255, 255, 255, 0.9); }
 .swipe-cue {
     position: absolute;
     left: 0;
@@ -3902,7 +3902,9 @@ body.compact-ui .picker { padding-top: 52px; }
    which is where the row comes out, and it is drawn over the canvas — so it
    sat across the clubs and took the taps meant for them. You cannot swing a
    club you are still choosing (see `.stage.picker-open .controls`). Nor
-   down the cup (`body.diving`, game.js → throughPortal): the hole is over. */
+   down the cup (`body.diving`, game.js → throughPortal): the hole is over.
+   Nor while the portal is shut or opening on the next one
+   (`body.portal-shut`, game.js → portalShut). */
 .stage.picker-open .swipe,
 .stage.picker-open .arc,
 .stage.picker-open .needle,
@@ -3917,7 +3919,10 @@ body.flight-mode .arc,
 body.flight-mode .needle,
 body.diving .swipe,
 body.diving .arc,
-body.diving .needle { display: none; }
+body.diving .needle,
+body.portal-shut .swipe,
+body.portal-shut .arc,
+body.portal-shut .needle { display: none; }
 
 /* While a lane style (the touch swing, the needle) is in charge, the meter is
    a readout and Swing gives its place to a line saying what to do instead.
@@ -3939,10 +3944,31 @@ body.lane-swing .power-word,
 body.lane-swing #power-val,
 body.lane-swing .power-of { display: none; }
 body.lane-swing .power-dist { margin-left: 0; font-size: 0.85rem; font-weight: 600; color: var(--ink); }
-/* The slot Swing leaves stays, empty, so the two nudges still stand either
-   side of where the ball is aimed. It used to say "Pull down · swipe up" —
-   but the lane right above it says that in the same words, and two copies of
-   one instruction is one too many for the eye to reconcile on a phone. */
+/* …and so does everything else on the row (the owner, v1.180.0: "the bottom
+   arrows and the meter with number doesn't make sense there"). The ‹ › nudges
+   were the meter's partners — aim by a hair, then load — and with the lane in
+   charge the aim is a drag on the course and the load is the pull, so they
+   were two buttons for a job nothing else on screen was asking you to do. The
+   "full 190–260 m" line was the meter's last reading, left standing on its
+   own under nothing. Both are hidden rather than removed so the row keeps its
+   height: the lane, the arc and the club picker all measure off its top.
+   ← and → still nudge the aim from a keyboard. */
+body.lane-swing .aim-nudge,
+body.lane-swing .power-dist { visibility: hidden; }
+/* With the row empty, the bottom strip is free, and the two things that
+   were floating about the stage move into it (the owner, v1.182.0): the frame
+   rate down into the bottom-right corner rather than standing on top of an
+   empty row, and on a phone the fullscreen offer centred at the bottom rather
+   than hung off the right edge under the club chip, over the course. */
+body.lane-swing .fps { position: absolute; right: 0; bottom: 0; margin-right: max(0px, calc((100% - 980px) / 2)); }
+body.compact-ui.lane-swing .fs-prompt {
+    top: auto;
+    right: auto;
+    bottom: 14px;
+    left: 50%;
+    transform: translate(-50%, 10px);
+}
+body.compact-ui.lane-swing .fs-prompt.show { transform: translate(-50%, 0); }
 body.lane-swing .swipe-hint {
     display: block;
     visibility: hidden;
@@ -4527,6 +4553,23 @@ body.lane-swing .swipe-hint {
     animation: door-turn 9s linear infinite;
 }
 @keyframes door-turn { to { transform: rotate(360deg); } }
+/* Endless: the same door in verdigris, its eye a slow turn of the brass
+   accent with the sign for for ever on it, held still while the ring turns. */
+.endless-door { --cg-tint: #8fc9b0; }
+.endless-eye {
+    --eye-a: #12302a;
+    --eye-b: #8fc9b0;
+    position: relative;
+    display: grid;
+    place-items: center;
+}
+.endless-eye b {
+    font-size: 1.7rem;
+    line-height: 1;
+    color: #f4ecd8;
+    animation: door-turn 9s linear infinite reverse;
+}
+@media (prefers-reduced-motion: reduce) { .endless-eye b { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
 
 .world-grid {

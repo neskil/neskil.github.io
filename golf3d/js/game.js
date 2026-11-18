@@ -297,6 +297,48 @@
         }, 1500);
     }
 
+    /* Endless (endless.js): mini golf made up a hole at a time, each hole
+       riding the flight of a world from Portals — every one of them, in a
+       shuffled order — through its portal into the next if it is not holed
+       first, and down the cup into the next world if it is. A fresh seed
+       each time; the round never ends, so nothing is recorded but the count
+       of holes played (ENDLESS_KEY). */
+    var ENDLESS_KEY = 'golf3d.endless';
+    function newEndless() {
+        G3.ENDLESS = G3.endless.course();
+        newRound('endless');
+    }
+    function endlessStats() {
+        try { return JSON.parse(localStorage.getItem(ENDLESS_KEY) || 'null') || { holes: 0, worlds: {} }; } catch (e) { return { holes: 0, worlds: {} }; }
+    }
+    function noteEndless(world) {
+        var st = endlessStats();
+        st.holes = (st.holes || 0) + 1;
+        st.worlds = st.worlds || {};
+        if (world) st.worlds[world] = 1;
+        try { localStorage.setItem(ENDLESS_KEY, JSON.stringify(st)); } catch (e) { /* ignore */ }
+    }
+    function endlessWorldName(id) {
+        var w = G3.endless && G3.endless.world(id);
+        return w ? w.name : id;
+    }
+    /* The hole rode through its portal into another world (backdrop.mjs →
+       drift). The ball has not moved; the world under it has. The next hole
+       was going to be in this world, so it is dealt again, in the one after,
+       and that world is built aside for the next portal. */
+    window.addEventListener('g3-world-cross', function (e) {
+        if (!state || !state.course || !state.course.isEndless || demo) return;
+        var to = e.detail && e.detail.to;
+        state.course.crossed(state.holeIndex, to);
+        var st = endlessStats();
+        st.worlds = st.worlds || {}; st.worlds[to] = 1; st.portals = (st.portals || 0) + 1;
+        try { localStorage.setItem(ENDLESS_KEY, JSON.stringify(st)); } catch (e2) { /* ignore */ }
+        if (A.warpOpen) A.warpOpen();
+        toast('Through the portal \u2014 ' + endlessWorldName(to), 'good', 3200);
+        syncHud();
+        prepareAhead();
+    });
+
     /* One world on its own, out of the gallery: a round of one hole. */
     function visitWorld(id) { newRound('world-' + id); }
 
@@ -310,6 +352,16 @@
        same latch the picker keeps (menuTaking), for the same impatient
        thumb. */
     var portalBusy = false, portalRaf = 0;
+    /* No swing lane while the screen is shut or opening (the owner,
+       v1.182.1: "dont show during transition"). `diving` only covered the
+       plunge; the lane came back the moment the swap was done, over the held
+       curtain and the whole of the opening. It is put away from the moment
+       the portal starts closing, and back only once it has opened all the
+       way on the new tee — every way through ends in openWipe. */
+    function portalShut(on) {
+        if (!on && (portalBusy || curtain.up)) return;
+        document.body.classList.toggle('portal-shut', on);
+    }
     function portalSkies(themeName) {
         var th = G3.THEMES[themeName] || {}, sky = th.sky || [0x1b2a55, 0xf0a868];
         return { inCol: sky[1], outCol: sky[0] };
@@ -349,6 +401,7 @@
         }
         if (portalBusy) return;
         portalBusy = true;
+        portalShut(true);
         if (portalRaf) { cancelAnimationFrame(portalRaf); portalRaf = 0; }
         var sk = portalSkies(themeName), useGL = glPortal();
         wipeSkies(el, themeName);
@@ -397,11 +450,15 @@
                 G3.postfx.setPortal({ k: 1 - e, open: 1 });
             }, function () {
                 G3.postfx.setPortal(null);
+                portalShut(false);
             });
             return;
         }
         el.className = 'portal-wipe opening';
-        setTimeout(function () { if (el.className === 'portal-wipe opening') el.className = 'portal-wipe'; }, 800);
+        setTimeout(function () {
+            if (el.className === 'portal-wipe opening') el.className = 'portal-wipe';
+            portalShut(false);
+        }, 800);
     }
 
     /* The wait for a world.
@@ -479,9 +536,10 @@
         }
         curtain.built = built;
         var w = G3.portals.byWorld(hole.place.world);
-        $('pw-kicker').textContent = state.course.single ? 'World Tour' : 'Hole ' + (i + 1) + ' of ' + state.course.holes.length;
+        $('pw-kicker').textContent = state.course.isEndless ? 'Endless \u00B7 hole ' + (i + 1)
+            : state.course.single ? 'World Tour' : 'Hole ' + (i + 1) + ' of ' + state.course.holes.length;
         $('pw-title').textContent = hole.name || (w ? w.title : '');
-        $('pw-world').textContent = w ? 'in ' + w.world : '';
+        $('pw-world').textContent = state.course.isEndless ? 'in ' + endlessWorldName(hole.place.world) : w ? 'in ' + w.world : '';
         curtain.shown = 0;
         curtainBar(hole.place.world);
         wipeSkies(el, themeAt(i));
@@ -490,6 +548,7 @@
             G3.postfx.setPortal({ k: 1, open: 0, inCol: sk.inCol, outCol: sk.outCol });
         }
         curtain.up = true; curtain.t0 = Date.now();
+        portalShut(true);
         if (!/closing/.test(el.className)) el.className = curtainClass();
         curtain.timer = setInterval(function () {
             var waited = Date.now() - curtain.t0, B2 = G3.backdrop;
@@ -551,6 +610,15 @@
         aheadTimer = setInterval(function () {
             var B = G3.backdrop;
             if (!state || state.course !== course || state.holeIndex !== at || demo) { clearInterval(aheadTimer); return; }
+            if (B && B.failed(id) && course.isEndless) {
+                // A world that will not build here: deal the next hole again, elsewhere.
+                clearInterval(aheadTimer);
+                course.holes.length = course.worlds.length = course.themes.length = course.from.length = at + 1;
+                course.ensure(at);
+                course.holes[at].place.next = course.holes[at + 1].place.world;
+                prepareAhead();
+                return;
+            }
             if (!B || B.failed(id) || B.ahead === id || B.current === id) { clearInterval(aheadTimer); return; }
             if (Date.now() - since < C.DIVE.PREPARE_AHEAD * 1000 || curtain.up || R.flying() ||
                 state.phase !== 'aim' || B.building || !B.shown) return;
@@ -591,6 +659,12 @@
         if (demo) { demo.playing = false; demo.wait = 0; }
         // The plan drawn under the dot is this hole's; a new one invalidates it.
         toggleMiniMap(false);
+        /* An endless round is grown as it is walked: this hole and the next
+           are always there, and this one's portal leads to the next one's world. */
+        if (state.course.isEndless) {
+            state.course.ensure(i);
+            state.course.holes[i].place.next = state.course.holes[i + 1].place.world;
+        }
         var hole = state.course.holes[i];
         state.holeIndex = i;
         state.strokes = 0;
@@ -1416,10 +1490,30 @@
         var ctl = document.querySelector('.controls .ctl-row').getBoundingClientRect();
         var top = Math.round(stage.height * 0.46);
         var bottom = Math.round(ctl.top - stage.top - 34);
+        /* On a phone it stops short of the controls (the owner, v1.180.0: "a
+           bit smaller on mobile"). The pull is measured off the lane's height
+           (`swipeLength`), so this is a slightly shorter pull for a full
+           swing as well as a smaller box — the line is an angle and does not
+           care. Never under 120px, the floor it always had. */
+        var height = Math.max(120, bottom - top);
+        if (laneSmall()) height = Math.max(120, Math.round(height * LANE_SHORT));
         lane.style.top = top + 'px';
-        lane.style.height = Math.max(120, bottom - top) + 'px';
-        lane.style.width = laneWidth(stage, top, Math.max(120, bottom - top)) || '';
+        lane.style.height = height + 'px';
+        lane.style.width = laneWidth(stage, top, height) || '';
         if (!swipe) drawSwipe();
+    }
+
+    /* A phone, or anything held in the hand: the same test the view row
+       folds on (`viewCtlOpenByDefault`), and the same one style.css narrows
+       `.swipe` under. */
+    var LANE_SHORT = 0.82;
+    function laneSmall() {
+        return !!(window.matchMedia && window.matchMedia('(max-width: 640px), (pointer: coarse)').matches);
+    }
+
+    // The lane's width before the bag has its say; style.css's `.swipe`.
+    function laneNatural(stage) {
+        return laneSmall() ? Math.min(stage.width * 0.42, 240) : Math.min(stage.width * 0.72, 300);
     }
 
     /* On a phone held upright the lane's lower corner stood over the bag:
@@ -1431,18 +1525,21 @@
        that did not swing. So where the two would meet the lane narrows,
        evenly, until it clears the bag (bag.js `screenBox`) by a small gap —
        never below LANE_MIN, still a comfortable thumb's width either side of
-       the ball. Returns a CSS width, or nothing to leave the stylesheet's. */
+       the ball. Returns a CSS width, or nothing to leave the stylesheet's.
+       On a phone the lane is narrow enough already that it mostly clears the
+       bag by itself, and the floor there is most of the lane's own width
+       rather than a number wider than the lane. */
     var LANE_MIN = 200, LANE_GAP = 10;
     function laneWidth(stage, top, height) {
         var bag = G3.bag && G3.bag.screenBox && R.state.camera
             ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
         if (!bag) return null;
-        var natural = Math.min(stage.width * 0.72, 300);
+        var natural = laneNatural(stage);
         var bagTop = bag.top * stage.height, bagRight = bag.right * stage.width;
         if (bagTop >= top + height) return null;               // the bag is below the lane
         var left = (stage.width - natural) / 2;
         if (bagRight + LANE_GAP <= left) return null;           // already clear
-        return Math.round(Math.max(LANE_MIN, stage.width - 2 * (bagRight + LANE_GAP))) + 'px';
+        return Math.round(Math.max(Math.min(LANE_MIN, Math.round(natural * 0.85)), stage.width - 2 * (bagRight + LANE_GAP))) + 'px';
     }
 
     // How far a pull may go: the whole meter is the lane plus the run down
@@ -1738,7 +1835,7 @@
     }
 
     /* The lane's picture: a guide down from where the thumb went in, a tick
-       at the full swing, the ball under the thumb, and — once the club is
+       at the full swing, and — once the club is
        coming back — a wedge showing how straight is straight enough. */
     function drawSwipe() {
         var lane = $('swipe');
@@ -1749,7 +1846,6 @@
         var fullY = y0 + len * SW.markAt();
         attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
-        attrs('sw-ball', { cx: s ? s.low.x - r.left : x0, cy: s ? s.low.y - r.top : y0 });
         /* Where to let go for backspin, once there is a pull to measure it on.
            Over the thumb, not over where it went in: the swipe up is read
            from the bottom of the pull (the cone stands there too), and a
@@ -2309,6 +2405,7 @@
         }
         if (pickedUp) state.strokes = hole.par + C.PICKUP;
         state.scores[state.holeIndex] = state.strokes;
+        if (state.course.isEndless && !demo && !autoUsed) noteEndless(hole.place && hole.place.world);
         state.phase = 'holed';
         syncSwing();
         /* The victory lap: the camera leaves the seat and goes round the cup
@@ -2574,7 +2671,7 @@
     function noteHole(hole) {
         if (demo || autoUsed) return null;
         var ref = holeRef(state.holeIndex), home = G3.courseById(ref.id);
-        if (!home || home.playtest || home.isChallenge || home.isShowcase || home.isRange) return null;
+        if (!home || home.playtest || home.isChallenge || home.isShowcase || home.isRange || home.isEndless) return null;
         // Pass and play: one play per hole, however many balls went round it.
         var counted = multi() && state.players.some(function (p, j) {
             return j !== state.turn && typeof p.scores[state.holeIndex] === 'number';
@@ -2634,7 +2731,7 @@
             $('shud-blurb').textContent = hole.blurb;
             syncTurn(null);
         } else {
-            $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + state.course.holes.length;
+            $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + (state.course.isEndless ? '\u221E' : state.course.holes.length);
             $('hole-par').textContent = hole.par;
             $('total-strokes').textContent = t.strokes;
 
@@ -2650,7 +2747,7 @@
                 : state.course.isShowcase || state.course.isChallenge || state.course.isPortals ? S.formatVsPar(rec.bestVsPar)
                 : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
 
-            $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
+            $('shud-hole').textContent = (state.holeIndex + 1) + '/' + (state.course.isEndless ? '\u221E' : state.course.holes.length);
             $('shud-par').textContent = 'Par ' + hole.par;
             $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
             $('shud-name').textContent = hole.name;
@@ -2680,6 +2777,11 @@
        course's, and that course is where you would go to play the rest. */
     function courseLabel() {
         var c = state.course;
+        // Endless says which world the hole is riding through now.
+        if (c.isEndless) {
+            var hp = c.holes[state.holeIndex].place;
+            return 'Endless \u00B7 ' + endlessWorldName(hp && hp.world);
+        }
         // A journey says how far through it you are, in worlds.
         if (c.isPortals) {
             return c.single ? 'World Tour \u00B7 one hole'
@@ -4845,6 +4947,7 @@
         drawHome();
         drawShowcase();
         drawChallenge();
+        drawEndless();
         drawShuffle();
         drawTabs();
         var focus = drawCourses();
@@ -4869,7 +4972,7 @@
 
     // A journey nobody has started is behind the list: that one is on offer.
     function journeyWaiting() {
-        return !!(state && state.course && state.course.isPortals && !state.course.single &&
+        return !!(state && state.course && state.course.isPortals && !state.course.single && !state.course.isEndless &&
                   state.world && state.strokes === 0 && !anyPlayed());
     }
 
@@ -4891,7 +4994,7 @@
 
         var rec = S.courseRecord(save, 'portals');
         var waiting = journeyWaiting();
-        var mid = state && state.course && state.course.isPortals && !state.course.single &&
+        var mid = state && state.course && state.course.isPortals && !state.course.single && !state.course.isEndless &&
             state.phase !== 'finished' && !waiting;
         $('menu-portals-title').textContent = mid ? 'Start a new World Tour' : 'Play the World Tour';
         $('menu-portals-sub').textContent =
@@ -5079,6 +5182,21 @@
             el.setAttribute('aria-pressed', on ? 'true' : 'false');
         }
         syncQuality();
+    }
+
+    function takeEndless() {
+        if (menuTaking) return;
+        maybeAutoFullscreen();
+        menuTaking = true;
+        newEndless();
+    }
+    // Endless's line in the picker, with how far this save has ridden.
+    function drawEndless() {
+        var el = $('menu-endless-sub');
+        if (!el) return;
+        var n = G3.PORTAL_INDEX ? G3.PORTAL_INDEX.length : 0, st = endlessStats(), seen = st.worlds ? Object.keys(st.worlds).length : 0;
+        el.textContent = 'Made-up mini golf riding through all ' + n + ' Portals worlds, for ever.' +
+            (st.holes ? ' ' + st.holes + (st.holes === 1 ? ' hole' : ' holes') + ' played, ' + seen + ' of ' + n + ' worlds seen.' : '');
     }
 
     function takeJourney() {
@@ -5684,7 +5802,9 @@
                the card before the press. */
             /* And a showcase offers another one. It is a draw already, so it
                outranks the shuffle switch: the deal is the surprise. */
-            next.textContent = state.course.isPortals
+            next.textContent = state.course.isEndless
+                ? '\u221E A new endless round'
+                : state.course.isPortals
                 ? '\u25CE Six new holes'
                 : state.course.isShowcase
                 ? '\u2726 Deal another showcase'
@@ -7458,9 +7578,10 @@
         window.addEventListener('resize', onPageResize);
         $('card-close').addEventListener('click', closeCard);
         if ($('card-shop')) $('card-shop').addEventListener('click', function () { openShop(); });
-        $('card-again').addEventListener('click', function () { newRound(state.course.id); });
+        $('card-again').addEventListener('click', function () { if (state.course.isEndless) newEndless(); else newRound(state.course.id); });
         $('card-next').addEventListener('click', function () {
             $('scorecard').className = 'modal';
+            if (state.course.isEndless) { newEndless(); return; }
             if (state.course.isPortals) {
                 // Six worlds this tour did not have, leaning (as every deal
                 // does) to the ones this save has played least.
@@ -7493,6 +7614,7 @@
             drawShuffle(); drawTabs(); drawCourses(); drawPlans();
         });
         $('menu-portals').addEventListener('click', takeJourney);
+        $('menu-endless').addEventListener('click', takeEndless);
         // The live worlds behind the tour's holes, on or off (render.js → setLive).
         // It lives in ⚙ Settings; the tiny link under the World Tour grid it
         // used to be was too small to find or hit on a phone.
@@ -7568,6 +7690,8 @@
         // ?world=<id>: one portal world by itself (portals.js).
         if (q.world && G3.portals.byId(q.world)) q.course = 'world-' + q.world;
         if (q.course === 'random') q.course = G3.randomCourseId(shuffleOpts());
+        // ?course=endless&seed=<n>&from=<portals world id>: a reproducible endless round.
+        if (q.course === 'endless' && G3.endless) G3.ENDLESS = G3.endless.course(q.seed ? parseInt(q.seed, 10) : undefined, q.from || null);
         if (q.course) {
             var course = G3.courseById(q.course);
             var at = q.hole
