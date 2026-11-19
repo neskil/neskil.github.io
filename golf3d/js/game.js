@@ -999,6 +999,11 @@
            a full swing is allowed to check back. */
         var ask = g && g.read && g.read.spin ? g.read.spin.ask : 0;
         if (ask) shot.bite = SW.spinBite(shot.bite, ask, state.club.loft, frac);
+        // A lefty's shot is the right-hander's in a mirror about the aim.
+        if (g && g.lefty) {
+            shot.yaw = asked.yaw - (shot.yaw - asked.yaw);
+            shot.spin = -(shot.spin || 0);
+        }
         // Last, so nothing above can put back what a bunker takes away
         // (physics.fromLie): out of sand a long club has a lower ceiling.
         shot.power = P.fromLie(shot.power, state.club, lie && lie.pad.kind);
@@ -1373,6 +1378,8 @@
        back to CONFIG.SWIPE.DEFAULT. */
     var TUNE_ROWS = [
         { key: 'assist', label: 'Easy strike', opts: [['off', 'Off'], ['on', 'On']] },
+        { key: 'hand', label: 'Golfer', opts: [['right', 'Righty'], ['left', 'Lefty']] },
+        { key: 'pad', label: 'Swing pad', opts: [['left', 'Left'], ['centre', 'Centre'], ['right', 'Right']] },
         { key: 'where', label: 'Courses', opts: [['all', 'Every course'], ['long', 'Long game']] },
         { key: 'feel', label: 'Line', opts: [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']] },
         { key: 'timing', label: 'Timing', opts: [['off', 'Off'], ['rhythm', 'Rhythm'], ['snap', 'Snap']] },
@@ -1381,6 +1388,11 @@
     var TUNE_SAYS = {
         assist: { off: 'Full rules. A miss costs more past 100% and on the green.',
                   on: 'Easy rules. Misses cost less. No extra cost past 100%.' },
+        hand: { right: 'A right-handed golfer: a push goes right, a draw curves left.',
+                left: 'A left-handed golfer: a push goes left, a draw curves right. The ball still goes the way your thumb goes.' },
+        pad: { left: 'The swing pad on the left of the screen.',
+               centre: 'The swing pad in the middle, over the ball.',
+               right: 'The swing pad on the right of the screen.' },
         where: { all: 'Use this swing on all courses.',
                  long: 'Use this swing on the long game and the range only.' },
         feel: { easy: 'You can lean about 8°. It is still straight.',
@@ -1407,9 +1419,30 @@
         tune[key] = value;
         SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
+        if (key === 'hand' && G3.bag && G3.bag.address) G3.bag.address.setHand(value === 'left');
         syncStyle();
         A.tick(0.4);
-        $('tune-says').textContent = TUNE_SAYS[key][value];
+        $('tune-says').textContent = key === 'shapes' ? sides(TUNE_SAYS[key][value]) : TUNE_SAYS[key][value];
+    }
+
+    /* ── a lefty ──
+
+       Everything the touch swing reads and says is a right-hander's: early
+       is a pull and goes left, a bow to the right is a draw. A lefty is that
+       game in a mirror, held at the two edges: the swipe is mirrored about
+       where the thumb went in before swing.js reads it (`swipeStrike`), and
+       the shot it makes is mirrored about the aim before it is launched
+       (`strike`, `g.lefty`). The ball still goes the way the thumb went —
+       drift left and it goes left — but for a lefty that is a push, and the
+       swipe bowed left that starts it left and brings it back is a draw. In
+       between nothing knows: so every word that names a side on screen is
+       swapped on the way out (`sides`), and push, pull, draw and fade are
+       left alone because they are already the golfer's. */
+    function lefty() { return tune.hand === 'left'; }
+    var SIDE_SWAP = { left: 'right', right: 'left', Left: 'Right', Right: 'Left', LEFT: 'RIGHT', RIGHT: 'LEFT' };
+    function sides(text) {
+        if (!lefty() || !text) return text;
+        return String(text).replace(/\b(left|right|Left|Right|LEFT|RIGHT)\b/g, function (w) { return SIDE_SWAP[w]; });
     }
 
     function buildTune() {
@@ -1577,9 +1610,31 @@
            care. Never under 120px, the floor it always had. */
         var height = Math.max(120, bottom - top);
         if (laneSmall()) height = Math.max(120, Math.round(height * LANE_SHORT));
+        var pad = tune.pad;
+        if (pad === 'left' || pad === 'right') {
+            /* To one side (the Swing pad setting): its natural width, a small
+               margin off the edge, and on a wide screen no further out than
+               a thumb would reach for. On the left it stops short of the bag
+               rather than narrowing — the bag *is* the left corner. */
+            var w = laneNatural(stage), M = 14, reach = 360;
+            var cx = pad === 'right'
+                ? Math.min(stage.width - M - w / 2, stage.width / 2 + reach)
+                : Math.max(M + w / 2, stage.width / 2 - reach);
+            if (pad === 'left') {
+                var bag = G3.bag && G3.bag.screenBox && R.state.camera
+                    ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
+                if (bag && bag.right * stage.width + LANE_GAP > cx - w / 2 && bag.top * stage.height < top + height) {
+                    height = Math.max(120, Math.round(bag.top * stage.height - LANE_GAP - top));
+                }
+            }
+            lane.style.left = Math.round(cx) + 'px';
+            lane.style.width = Math.round(w) + 'px';
+        } else {
+            lane.style.left = '';
+            lane.style.width = laneWidth(stage, top, height) || '';
+        }
         lane.style.top = top + 'px';
         lane.style.height = height + 'px';
-        lane.style.width = laneWidth(stage, top, height) || '';
         if (!swipe) drawSwipe();
     }
 
@@ -1781,9 +1836,14 @@
         // A shape picked on the ball wins; otherwise a bowed swipe may draw
         // one, if the club can bend and the setting is on.
         var bendable = (state.club.shapes || []).filter(function (n) { return n === 'draw' || n === 'fade'; });
+        // A lefty's swipe, read as the right-hander's it mirrors (`sides`).
+        var flip = lefty();
+        function mx(x) { return flip ? 2 * sw.x0 - x : x; }
+        function mp(p) { var q = p.slice(); q[0] = mx(p[0]); return q; }
+        function mo(o) { return { x: mx(o.x), y: o.y, t: o.t }; }
         var read = SW.swipeRead({
-            pts: sw.pts, x0: sw.x0, y0: sw.y0, low: sw.low, cross: cross, upTo: upTo,
-            through: sw.up.concat([[cross.x, cross.y]])
+            pts: sw.pts.map(mp), x0: sw.x0, y0: sw.y0, low: mo(sw.low), cross: mo(cross), upTo: upTo,
+            through: sw.up.concat([[cross.x, cross.y]]).map(mp)
         }, {
             over: over, feel: tune.feel, timing: tune.timing,
             rawOver: P.overdraw(state.aim.power, state.club.power),
@@ -1792,6 +1852,7 @@
             deck: offDeck()
         });
         var g = SW.swipeGate(read);
+        g.lefty = flip;
         g.shape = picked || (read.shape && read.shape.name) || null;
         var frac = state.aim.power / state.club.power;
         var drawn = sw.pts.map(function (p) { return [p[0], p[1]]; }).concat([[cross.x, cross.y]]);
@@ -1819,7 +1880,7 @@
         var card = $('swing-card');
         fillSwingRows(read, frac);
         var gr = SW.grade(SW.swipeGate(read));
-        $('sc2-grade').textContent = gr.word;
+        $('sc2-grade').textContent = sides(gr.word);
         $('sc2-grade').className = 'sc2-grade ' + gr.tier;
         drawCardSwipe(drawn, sw, cross, read);
         clearTimeout(cardFade);
@@ -1835,7 +1896,7 @@
             // A bar for every reading; a line that is not one (the lie) has none.
             var bar = r.score === null || r.score === undefined ? '<i class="sc2-bar none"></i>'
                 : '<i class="sc2-bar"><i style="width:' + Math.round(Math.max(0.04, r.score) * 100) + '%"></i></i>';
-            return '<li class="' + r.tier + '"><b>' + r.what + '</b>' + bar + '<span>' + r.says + '</span></li>';
+            return '<li class="' + r.tier + '"><b>' + r.what + '</b>' + bar + '<span>' + sides(r.says) + '</span></li>';
         }).join('');
         placeSwingCard();
     }
@@ -2100,6 +2161,9 @@
         attrs('sb-mid', { x1: cx, y1: y0 - 6, x2: cx, y2: y0 + 6 });
         attrs('sb-left', { x: cx - hm - 4, y: y0 + 3.5 });
         attrs('sb-right', { x: cx + hm + 4, y: y0 + 3.5 });
+        // A lefty's pull goes right (`sides`).
+        $('sb-left').textContent = lefty() ? 'push' : 'pull';
+        $('sb-right').textContent = lefty() ? 'pull' : 'push';
         var words = cx - hm > 34 && r.width - (cx + hm) > 34;
         $('sb-left').setAttribute('visibility', words ? 'visible' : 'hidden');
         $('sb-right').setAttribute('visibility', words ? 'visible' : 'hidden');
@@ -2323,7 +2387,7 @@
         var gr = SW.grade(g);
         if (!gr) return;
         var el = $('grade');
-        el.textContent = gr.word;
+        el.textContent = g.lefty ? sides(gr.word) : gr.word;
         el.className = 'grade ' + gr.tier;
         void el.offsetWidth;
         el.classList.add('show');
@@ -7653,6 +7717,7 @@
         buildStylePad();
         buildTune();
         SW.setAssist(tune.assist === 'on');
+        if (G3.bag && G3.bag.address && G3.bag.address.setHand) G3.bag.address.setHand(lefty());
         $('btn-style').addEventListener('click', function () { toggleStylePad(); });
         $('style-close').addEventListener('click', function () { toggleStylePad(false); });
         if ($('btn-quality')) $('btn-quality').addEventListener('click', function () { toggleQualityPad(); });
