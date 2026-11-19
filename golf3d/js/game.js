@@ -2090,7 +2090,7 @@
             return 'Put your thumb in the swing pad and pull straight down. The further you pull, the further it goes — the ticks say how far.';
         }
         if (tutor === 2) return 'Tap the bag for another club, or swipe across it to step through them.';
-        return 'That is all. 🏌 Swing in ☰ sets your hand, where the pad sits and how strict the swing is — and can show this again.';
+        return 'That is all. Swing in ☰ sets your hand, where the pad sits and how strict the swing is — and can show this again.';
     }
 
     function syncTutor() {
@@ -8049,7 +8049,7 @@
         SW.setAssist(tune.assist === 'on');
         if (G3.bag && G3.bag.address && G3.bag.address.setHand) G3.bag.address.setHand(clubRight());
         $('coach-next').addEventListener('click', function () { tutorNext(); });
-        $('coach-skip').addEventListener('click', function () { tutorSet('done'); toast('Tutorial off. 🏌 Swing in ☰ can show it again.'); });
+        $('coach-skip').addEventListener('click', function () { tutorSet('done'); toast('Tutorial off. Swing in ☰ can show it again.'); });
         $('tutor-replay').addEventListener('click', function () {
             tutorSet(0);
             toggleStylePad(false);
