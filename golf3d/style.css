@@ -3901,6 +3901,80 @@ body.compact-ui .picker { padding-top: 52px; }
     stroke-linecap: round;
     stroke-linejoin: round;
 }
+/* The scale down the pull and the line's band at the start (game.js
+   `drawScale`). Faint while the lane waits, like the lane itself, and read
+   properly once a thumb is on it. The three colours are the palette's own —
+   moss for clean, brass for close, rust for a miss — and muted, so they are a
+   hint on the turf rather than a traffic light over it. */
+.sw-scale { opacity: 0.55; transition: opacity 0.15s; }
+.swipe.held .sw-scale { opacity: 1; }
+.sw-over {
+    stroke: var(--over);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0.55;
+}
+.sw-tick { stroke: rgba(232, 225, 203, 0.75); stroke-width: 2; stroke-linecap: round; }
+.sw-tick.full { stroke: var(--ink); }
+.sw-tick.over { stroke: var(--over); }
+.sw-tick-label {
+    fill: var(--ink);
+    paint-order: stroke;
+    stroke: rgba(18, 20, 14, 0.75);
+    stroke-width: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+}
+.sw-tick-label.over { fill: var(--over); }
+.sw-tick-label.near { opacity: 0.5; }
+.sw-flag-pole { stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; }
+.sw-flag-cloth { fill: var(--gold); stroke: rgba(18, 20, 14, 0.6); stroke-width: 1; }
+.sw-band rect { stroke: rgba(18, 20, 14, 0.35); stroke-width: 1; }
+.sb-miss { fill: var(--over); opacity: 0.55; }
+.sb-near { fill: var(--accent); opacity: 0.75; }
+.sb-clean { fill: var(--under); }
+.sb-mid { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.sb-word {
+    fill: var(--ink-dim);
+    paint-order: stroke;
+    stroke: rgba(18, 20, 14, 0.7);
+    stroke-width: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+/* The swipe up, coloured as it goes by the band it is heading for. */
+.sw-trail-up {
+    fill: none;
+    stroke: var(--under);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.sw-trail-up.near { stroke: var(--accent); }
+.sw-trail-up.miss { stroke: var(--over); }
+/* What the pull has loaded, beside the thumb: the same rounded metres the
+   ticks read in. */
+.swipe-read {
+    position: absolute;
+    transform: translateY(-50%);
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.swipe-read.over { color: var(--over); border-color: rgba(212, 132, 108, 0.5); }
+.swipe-read.flag { border-color: var(--gold); }
+.swipe-read[hidden] { display: none; }
 .swipe-cue {
     position: absolute;
     left: 0;
