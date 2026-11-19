@@ -3570,7 +3570,7 @@ body.compact-ui .topbar-menu .chip {
 
 /* Phones: the panel takes the screen's width (up to a hand's span) and as
    much of its height as it needs, rather than a 260px strip off the ☰. The
-   owner (v1.192.0): "menu perhaps a bit bigger on mobile. Can expand and use
+   owner (v1.193.0): "menu perhaps a bit bigger on mobile. Can expand and use
    screen as its toggle." The three primary actions are the big ones; the
    rest are tiles and folds. */
 body.compact-ui .topbar-menu {
@@ -3590,7 +3590,7 @@ body.compact-ui .topbar-menu .tm-primary .chip {
 }
 body.compact-ui #btn-courses { grid-column: 1 / -1; background: var(--accent); color: #16180f; border-color: transparent; }
 /* The tiles are icon over word, app-grid style ("a bit more fun with icons
-   and stuff", v1.192.0); Courses is icon beside word with a line under it. */
+   and stuff", v1.193.0); Courses is icon beside word with a line under it. */
 body.compact-ui .topbar-menu #btn-courses { display: flex; align-items: center; gap: 0.8rem; text-align: left; }
 body.compact-ui #btn-courses .tm-ico { font-size: 2rem; }
 body.compact-ui .tm-primary > .chip:not(#btn-courses),
