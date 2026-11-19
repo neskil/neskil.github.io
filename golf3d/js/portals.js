@@ -294,7 +294,15 @@
        slid all the way back to the tee, and one past the rug went off the
        back boards and back down the lane: "too hard and a bit frustrating".
        The lane is green up to the loop now and ice only after it, the boards
-       are lined with green, and the bar is gone. */
+       are lined with green, and the bar is gone.
+
+       v1.192.0 put a bar back, the gentle way (the owner: "some kind of
+       spinning thing … not too hard, it's about timing, so the loop should
+       get you on line to sink"). The cup is on the loop's exit line now, so
+       any weight that gets round drops straight out of it — and the bar
+       turning slowly beside that line is the timing. Its hub is off the
+       line, so it closes it for a moment each half turn rather than always;
+       about six strokes in ten that make the loop find it open. */
     (function () {
         var R = 6.2, cx = 2, cz = 13 + R * Math.cos(Math.PI / 6), band = 1, k, a0, a1, out = [];
         // Round the hexagon, leaving the south side open where the lane comes in.
@@ -305,15 +313,22 @@
         }
         out.push(kerb(cx - R / 2, 13, 0, 13), kerb(4, 13, cx + R / 2, 13));
         out.push(kerb(0, 0, 4, 0), kerb(0, 0, 0, 13), kerb(4, 0, 4, 13));
-        var rug = circle(cx, cz + 0.4, 2.2, 'green');
+        // The loop puts a straight ball out at x = 2.5 (its foot plus `shift`),
+        // and the rug and the cup are on that line.
+        var line = 2.5;
+        var rug = circle(line, cz + 0.4, 2.2, 'green');
         rug.layer = 2;
+        // The bar on the ice, hung off to the right of that line so only its
+        // tip crosses it: shut for about two fifths of each half turn, open
+        // for the rest. A hub on the line would shut it every time round.
+        out.push(spinner(4, 15.1, 3.8, 0.3, { spin: 0.8 }));
         add({
             id: 'carnival', title: 'Loop and Rink', world: 'Carnival on the Frozen River', kind: 'city', tier: 2,
-            caption: 'A loop-the-loop on a frozen river, and a hexagonal rink beyond it with one rug of green in the middle.',
+            caption: 'A loop-the-loop on a frozen river that puts the ball on line for the flag, and a slow bar turning across the line on the rink.',
             theme: 'carnival',
             hole: world({
                 name: 'Loop and Rink', grounded: true, par: 3, bag: ROLL,
-                blurb: 'Round the loop and out on to the rink. The ice carries the ball; the green round the boards and the rug in the middle stop it — and the rug is where the flag is.',
+                blurb: 'Hit it straight and the loop puts the ball on line for the flag. The bar on the ice swings across that line — time it, and the ice carries the ball to the cup.',
                 pads: [
                     pad(0, 0, 4, 4, 0, 'green'),
                     pad(0, 4, 4, 4, 0, 'wood'),
@@ -324,7 +339,7 @@
                 ],
                 loops: [loop(1.5, 8, 0, 1.1, 1)],
                 extra: out,
-                tee: { x: 1.5, z: 2 }, cup: { x: 1.75, z: cz + 0.6 }
+                tee: { x: 1.5, z: 2 }, cup: { x: line, z: cz + 0.6 }
             })
         });
     })();
