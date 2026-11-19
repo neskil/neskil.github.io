@@ -4968,7 +4968,7 @@
        remembered separately. */
     function syncSound() {
         var m = A.isMuted(), j = A.hasMusic();
-        $('mute-icon').textContent = m ? '🔇' : '🔊';
+        $('mute-icon').innerHTML = '<svg class="ico"><use href="#i-' + (m ? 'mute' : 'sound') + '"/></svg>';
         $('btn-mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
         $('btn-mute').classList.toggle('on', !m);
         $('btn-music').classList.toggle('on', j && !m);
@@ -5002,7 +5002,6 @@
     function syncWater() {
         var on = R.prettyWater;
         $('btn-water').classList.toggle('on', on);
-        $('water-icon').textContent = on ? '≈' : '~';
         $('btn-water').setAttribute('aria-label',
             on ? 'Turn the fancy water off' : 'Turn the fancy water on');
         syncQuality();
