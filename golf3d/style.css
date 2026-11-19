@@ -889,6 +889,22 @@ button,
 
 .hud-sky:hover { color: var(--ink); background: var(--ov-hot); }
 
+/* The gravity tag beside the weather chip: the same pill, but a label rather
+   than a button, in the accent so it reads as a rule of the hole. */
+.hud-grav {
+    display: inline-block;
+    margin: 0.4rem 0 0 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.2rem 0.6rem;
+    white-space: nowrap;
+}
+
+.hud-grav[hidden] { display: none; }
+
 /* Fullscreen is taken on the viewport, so the topbar, the overlay and the
    modals come with it: the same immersive layout the phone gets, on any
    screen. The two spellings are separate rules on purpose — a pseudo-class a
@@ -1729,6 +1745,51 @@ body.compact-ui .toast { top: 166px; }
 body.compact-ui .stage.view-collapsed .toast { top: 134px; }
 .toast.bad { border-color: rgba(208, 106, 85, 0.5); color: var(--over); }
 .toast.good { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* The gravity warning (game.js → gravityWarn). It flashes in large and light
+   red where the toasts land, pulsing twice, then settles into a small dim line
+   at the top-left of the stage for the rest of the hole. */
+.grav-warn {
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    top: 76px;
+    transform: translate(-50%, 0) scale(1);
+    transform-origin: left top;
+    pointer-events: none;
+    white-space: nowrap;
+    font-weight: 700;
+    line-height: 1.25;   /* the stage sets 0 */
+    border-radius: 6px;
+    transition: left 0.5s ease, top 0.5s ease, transform 0.5s ease,
+                font-size 0.5s ease, padding 0.5s ease, background-color 0.5s, color 0.5s, border-color 0.5s;
+}
+.grav-warn[hidden] { display: none; }
+.grav-warn.flash {
+    font-size: 1.15rem;
+    padding: 0.45rem 0.9rem;
+    color: #ffd6d0;
+    background: rgba(200, 60, 50, 0.55);
+    border: 1px solid rgba(255, 150, 140, 0.8);
+    animation: grav-pulse 0.8s ease-in-out 3;
+}
+.grav-warn.settled {
+    left: 12px;
+    transform: none;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.12rem 0.45rem;
+    color: rgba(255, 190, 180, 0.8);
+    background: rgba(24, 27, 19, 0.45);
+    border: 1px solid rgba(255, 150, 140, 0.25);
+}
+@keyframes grav-pulse {
+    0%, 100% { background-color: rgba(200, 60, 50, 0.55); }
+    50%      { background-color: rgba(240, 100, 90, 0.85); }
+}
+body.compact-ui .grav-warn { top: 166px; }
+body.compact-ui .stage.view-collapsed .grav-warn { top: 134px; }
+@media (prefers-reduced-motion: reduce) { .grav-warn.flash { animation: none; } }
 
 /* ── the flyover's one line ────────────────────────────────────────────── */
 
