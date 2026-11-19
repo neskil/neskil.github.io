@@ -5714,6 +5714,26 @@
                 assert('and the look stays on the hole rather than following the line round',
                     turned * 180 / Math.PI < 30, (turned * 180 / Math.PI).toFixed(0) + '° of turning');
 
+                /* Cut on the line's last key, settling rather than at full
+                   tilt (v1.192.0: "it starts too early … not smooth and
+                   deliberate"). It used to be cut at the first sharp turn of
+                   the look, which came at full speed as the pass over the
+                   ball began to spin the view. */
+                var hold = lp.keys.hold, top = 0, sp;
+                assert('a line is cut on its last key, short of the approach',
+                    hold === lp.keys.length - 3 &&
+                    Math.hypot(G3.flyover.at(lp, lp.cut).px - lp.keys[hold].p.x,
+                               G3.flyover.at(lp, lp.cut).pz - lp.keys[hold].p.z) < 0.05,
+                    'hold ' + hold + ' of ' + lp.keys.length);
+                for (i = 1; i <= 100; i++) {
+                    var q0 = poseAt(lp, lp.cut * (i - 1) / 100), q1 = poseAt(lp, lp.cut * i / 100);
+                    sp = Math.hypot(q1.px - q0.px, q1.py - q0.py, q1.pz - q0.pz);
+                    top = Math.max(top, sp);
+                }
+                assert('late in the run, and slowing but not stopped when it is cut',
+                    lp.cut > lp.dur * 0.75 && sp > top * 0.25 && sp < top * 0.7,
+                    (lp.cut / lp.dur).toFixed(2) + ' of the run, ' + (sp / top).toFixed(2) + ' of its top speed');
+
                 // A line that never comes near this hole is not its line.
                 var off = pts.map(function (p) { return [p[0] + 40, p[1], p[2]]; });
                 var fp = G3.flyover.plan(flat, b, seat, { tour: true, line: { pts: off, u: 0.4 } });
@@ -5727,7 +5747,10 @@
                "a sweeping grandiose overview of the map and not motion
                sickness", and the glide to a stop before it read as "stopping
                weirdly"). So: an overview that never turns quickly, keeps the
-               hole in front of it, and has not stopped when it is cut. */
+               hole in front of it, and has not stopped when it is cut — but
+               is settling, late in the run, rather than flung away at full
+               speed (v1.192.0: "it starts too early … not smooth and
+               deliberate"). */
             (function () {
                 function turnRate(p, t0, t1) {
                     var a = poseAt(p, t0), b = poseAt(p, t1);
@@ -5744,14 +5767,14 @@
                 var dogBall = teeBall(dog);
                 [['a straight lane', plan, flat], ['the tour sweep', G3.flyover.plan(flat, flatBall, flatSeat, { tour: true }), flat],
                  ['a dog-leg', G3.flyover.plan(dog, dogBall, seatBehind(dog, dogBall)), dog]].forEach(function (c) {
-                    var p = c[1], name = c[0], h = c[2], n = 200, dt = p.cut / n, i, t, fastest = 0, mean = 0, away = 1, q, mx, mz;
-                    assert(name + ': the sweep is cut where the orbit ends, short of the seat',
-                        p.cut > p.dur * 0.6 && p.cut < p.dur - 0.5, p.cut.toFixed(2) + ' of ' + p.dur.toFixed(2) + 's');
+                    var p = c[1], name = c[0], h = c[2], n = 200, dt = p.cut / n, i, t, fastest = 0, mean = 0, top = 0, away = 1, q, mx, mz;
+                    assert(name + ': the sweep is cut where the orbit ends, late but short of the seat',
+                        p.cut > p.dur * 0.75 && p.cut < p.dur - 0.5, p.cut.toFixed(2) + ' of ' + p.dur.toFixed(2) + 's');
                     mx = (h.bounds.minX + h.bounds.maxX) / 2; mz = (h.bounds.minZ + h.bounds.maxZ) / 2;
                     for (i = 0; i < n; i++) {
                         t = i * dt;
                         fastest = Math.max(fastest, turnRate(p, t, t + dt));
-                        if (i > 0) mean += speed(p, t) / (n - 1);
+                        if (i > 0) { mean += speed(p, t) / (n - 1); top = Math.max(top, speed(p, t)); }
                         q = poseAt(p, t);
                         // How square the middle of the hole is in the view.
                         var vx = q.tx - q.px, vy = q.ty - q.py, vz = q.tz - q.pz, vl = Math.hypot(vx, vy, vz);
@@ -5764,6 +5787,8 @@
                         away > Math.cos(30 * Math.PI / 180), (Math.acos(away) * 180 / Math.PI).toFixed(0) + '° off');
                     assert(name + ': and it is still travelling when it is cut',
                         speed(p, p.cut) > mean * 0.6, speed(p, p.cut).toFixed(2) + ' vs a mean of ' + mean.toFixed(2));
+                    assert(name + ': but slowing, well under its top speed',
+                        speed(p, p.cut) < top * 0.6, speed(p, p.cut).toFixed(2) + ' vs a top of ' + top.toFixed(2));
                 });
             })();
 

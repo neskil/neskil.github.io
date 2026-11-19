@@ -5803,14 +5803,24 @@ the sweep is one slow, high orbit round the middle of the hole
 (`flyover.js → orbit`): from beyond the green, looking back at the cup, round
 the side the course is on to high behind the tee, looking at the middle all the
 way, so the picture only turns as fast as the camera goes round — under 50°/s,
-held by `tests.html`. It is cut where the orbit ends, still travelling, and the
-cut is a film wipe: render.js holds that frame for game.js to take a picture of
+held by `tests.html`. It is cut where the orbit ends, and the cut is a film wipe: render.js holds that frame for game.js to take a picture of
 (`snapWanted` → `takeSnap`), and from the next frame the camera pushes in on to
 the seat from a little back and up while the picture of the outgoing shot is
 carried off the way it was moving, growing, ahead of a slanted brass edge
-crossing the screen (`FLY.WIPE`, game.js → `syncWipe`). A world's line is cut by
-`cutAt` and wiped the same way; a skip wipes quicker (`WIPE.QUICK`); and the
+crossing the screen (`FLY.WIPE`, game.js → `syncWipe`). A world's line is cut on
+its last key and wiped the same way; a skip wipes quicker (`WIPE.QUICK`); and the
 swing lane stays away until the wipe is over (`body.wipe-up`).
+
+When the cut comes (v1.192.0; the owner: "the effect is cool, but it starts too
+early … not smooth and deliberate"). Everything up to the last key a player sees
+(`keys.hold`) gets `SWEEP_SHARE` of the run's eased clock (`flyover.js → held`),
+so the cut lands about four fifths of the way through, with the camera settling
+at under half its top speed — not stopped, not at full tilt. That key's tangent
+looks back only, so the curve arrives along the sweep instead of bending off
+towards the seat. On a world's line the cut used to fire when the look first
+turned faster than 30°/s — at about 65% of the run, at full speed, as the pass
+over the ball began to spin the view; the approach and the seat after the line
+are wiped now, never flown.
 
 **Four keys, and each is there for a different reason.** Beyond the cup looking
 back at it; the top of the arc over the middle of the hole, looking down the
