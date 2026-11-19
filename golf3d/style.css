@@ -164,9 +164,10 @@ body::before {
    drops the wrapper out of the layout and its chips sit in the topbar row
    exactly as they used to. The compact rules further down put the wrapper
    back and turn it into a panel. */
-.topbar-menu, .tm-primary, .tm-quick, .tm-group { display: contents; }
-.tm-fold { display: none; }
-.chip-menu { display: none; }
+/* No longer: since v1.198.0 every layout keeps them behind ☰ (the owner did
+   not like the desktop bar's two rows of chips), so the panel rules below
+   apply everywhere and only the bar around them differs. */
+.chip-menu { display: inline-block; }
 
 /* Chips are icons in the row and words in the panel — a lone "?" reads fine
    next to five siblings and reads like nothing in a list of five items. */
@@ -329,10 +330,14 @@ body.compact-ui button.chip:hover, body.compact-ui a.chip:hover { background: va
 canvas {
     display: block;
     width: 100%;
-    /* Tall enough to be the thing you are looking at. The floor keeps it
+    /* Tall enough to be the thing you are looking at, and the whole game
+       inside the window (owner, v1.198.0: "the full game should be within the
+       viewport"): 196px is the page padding, the one-row bar (title, ⛶, ☰)
+       and the scoreboard above it, plus a 12px foot. If the bar grows a
+       second row again this number is what goes wrong. The floor keeps it
        playable on a short laptop, the ceiling stops it turning into a
        letterbox on a big desktop monitor. */
-    height: clamp(380px, calc(100dvh - 210px), 820px);
+    height: clamp(380px, calc(100dvh - 196px), 820px);
     touch-action: none;
     cursor: grab;
 }
@@ -3599,7 +3604,7 @@ body.compact-ui .chip-text { display: inline; }
     body.compact-ui #btn-full .chip-text { display: none; }
 }
 
-body.compact-ui .topbar-menu {
+.topbar-menu {
     display: grid;
     position: absolute;
     top: calc(100% + 8px);
@@ -3618,53 +3623,103 @@ body.compact-ui .topbar-menu {
     transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-body.compact-ui .topbar-menu.open {
+.topbar-menu.open {
     opacity: 1;
     transform: none;
     pointer-events: auto;
 }
 
-body.compact-ui .topbar-menu .chip {
+.topbar-menu .chip {
     text-align: left;
     background: rgba(255, 255, 255, 0.04);
 }
 
-/* Phones: bigger targets, but sized to the bar rather than to the screen.
-   The three primary actions are the big ones; the rest are tiles and folds. */
-body.compact-ui .topbar-menu {
-    width: min(260px, calc(100vw - 24px));
-    max-height: calc(100vh - 90px);
-    max-height: calc(100dvh - 90px);
+/* Phones: the panel takes the screen's width (up to a hand's span) and as
+   much of its height as it needs, rather than a 260px strip off the ☰. The
+   owner (v1.198.0): "menu perhaps a bit bigger on mobile. Can expand and use
+   screen as its toggle." The three primary actions are the big ones; the
+   rest are tiles and folds. */
+.topbar-menu {
+    width: min(440px, calc(100vw - 18px));
+    max-height: calc(100vh - 70px);
+    max-height: calc(100dvh - 70px);
     overflow-y: auto;
     overscroll-behavior: contain;
+    gap: 0.45rem;
+    padding: 0.55rem;
 }
-body.compact-ui .tm-primary { display: grid; gap: 0.35rem; }
-body.compact-ui .topbar-menu .tm-primary .chip {
-    font-size: 1.15rem;
-    padding: 0.85rem 0.9rem;
+.tm-primary { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.topbar-menu .tm-primary .chip {
+    font-size: 1.3rem;
+    padding: 1rem 1rem;
     font-weight: 700;
 }
-body.compact-ui #btn-courses { background: var(--accent); color: #16180f; border-color: transparent; }
-body.compact-ui .tm-primary > .chip:not(#btn-courses) { display: block; }
-body.compact-ui .tm-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
-body.compact-ui .topbar-menu .tm-quick .chip { font-size: 1rem; padding: 0.6rem 0.5rem; text-align: center; }
-body.compact-ui .topbar-menu button.chip.tm-fold {
+#btn-courses { grid-column: 1 / -1; background: var(--accent); color: #16180f; border-color: transparent; }
+/* The tiles are icon over word, app-grid style ("a bit more fun with icons
+   and stuff", v1.198.0); Courses is icon beside word with a line under it. */
+.topbar-menu #btn-courses { display: flex; align-items: center; gap: 0.8rem; text-align: left; }
+#btn-courses .tm-ico { font-size: 2rem; }
+.tm-primary > .chip:not(#btn-courses),
+.tm-quick > .chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    text-align: center;
+}
+.tm-primary > .chip:not(#btn-courses) .tm-ico { font-size: 1.8rem; line-height: 1; }
+.tm-quick .tm-ico { font-size: 1.9rem; line-height: 1; }
+.tm-lbl { display: block; }
+.tm-sub {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+#btn-courses .tm-sub { font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.8; }
+.tm-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
+.topbar-menu .tm-quick .chip { font-size: 1.1rem; font-weight: 700; padding: 0.8rem 0.3rem 0.7rem; white-space: nowrap; }
+.tm-fico { display: inline-block; width: 1.6rem; margin-right: 0.35rem; text-align: center; }
+.topbar-menu button.chip.tm-fold {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 1.15rem;
-    padding: 0.85rem 0.9rem;
+    font-size: 1.25rem;
+    padding: 0.95rem 1rem;
     font-weight: 700;
 }
-body.compact-ui .tm-fold[aria-expanded="true"] .tm-caret { transform: rotate(180deg); }
-body.compact-ui .tm-caret { display: inline-block; transition: transform 0.15s ease; }
-body.compact-ui .tm-group { display: none; gap: 0.3rem; padding-left: 0.5rem; border-left: 2px solid var(--ov-border); }
-body.compact-ui .tm-group.open { display: grid; }
-body.compact-ui .topbar-menu .tm-group .chip { font-size: 1.05rem; padding: 0.7rem 0.9rem; }
-body.compact-ui .tm-about { margin: 0; padding: 0.3rem 0.4rem; font-size: 0.85rem; line-height: 1.5; color: var(--ink-dim); }
-body.compact-ui .tm-about a { color: inherit; }
-.tm-about { display: none; }
-body.compact-ui .tm-about { display: block; }
+.tm-fold[aria-expanded="true"] .tm-caret { transform: rotate(180deg); }
+.tm-caret { display: inline-block; transition: transform 0.15s ease; }
+.tm-group { display: none; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding-left: 0.5rem; border-left: 2px solid var(--ov-border); }
+.tm-group.open { display: grid; }
+.topbar-menu .tm-group .chip { font-size: 1.05rem; padding: 0.85rem 0.8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-about { grid-column: 1 / -1; margin: 0; padding: 0.3rem 0.4rem; font-size: 0.95rem; line-height: 1.5; color: var(--ink-dim); }
+
+/* Open, the menu is the top of the page: the bar is lifted over the stroke
+   card, the club bag and the rest of the HUD (all z-index 4–9, and the stroke
+   card, later in the document at the bar's own 6, used to paint across the
+   panel), and the course behind it is dimmed by a scrim that is the menu's
+   other toggle. The scrim takes the press, so a tap meant to close the menu
+   does not also turn the camera or start a swing; game.js's capture listener
+   shuts the menu on it. Below the portal wipe (40) and the modals (50) that
+   the menu itself opens. */
+body.tm-open .topbar { z-index: 30; }
+body.tm-open:not(.compact-ui) .topbar { position: relative; }
+body.tm-open .topbar::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(10, 12, 8, 0.55);
+    pointer-events: auto;
+    animation: tmScrimIn 0.16s ease-out;
+}
+@keyframes tmScrimIn { from { opacity: 0; } }
+.tm-about a { color: inherit; }
 
 /* …but only the chips that are *off*, and this is where that is said.
 
@@ -3680,7 +3735,32 @@ body.compact-ui .tm-about { display: block; }
    Both class hooks, and after both of them, so it wins on order as well as on
    specificity. Anything else that repaints a chip in this layout has to be
    answered here too; `ui-tests.html` lights every chip and measures. */
-body.compact-ui button.chip.on, body.compact-ui a.chip.on {
+/* In the panel a chip says its word on every layout; the bar only hides
+   them for the icon-only chips that stay in it. */
+.topbar-menu .chip-text { display: inline; }
+.topbar-menu .tm-lbl { display: block; }
+
+/* The menu's icons (the sprite at the top of index.html): brass line work on
+   the dark tiles, the tile's own dark ink on a lit one. */
+.ico {
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.25em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+}
+.topbar-menu .chip .ico { color: var(--accent); margin-right: 0.35em; }
+.topbar-menu .tm-ico .ico, .topbar-menu .tm-fico .ico { width: 1em; height: 1em; margin: 0; vertical-align: middle; }
+.topbar-menu .tm-ico .ico { stroke-width: 1.5; }
+.topbar-menu .chip.on .ico, .topbar-menu #btn-courses .ico { color: inherit; }
+.tm-fico { font-size: 1.5rem; line-height: 1; vertical-align: middle; }
+
+body.compact-ui button.chip.on, body.compact-ui a.chip.on,
+.topbar-menu button.chip.on, .topbar-menu a.chip.on {
     background: var(--accent);
     color: #16180f;
     border-color: transparent;

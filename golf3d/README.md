@@ -3781,9 +3781,13 @@ permanently on screen. A phone is 400 points wide and the course is the point.
 - **The topbar** is one row and never more than one: back, the hole's figures,
   fullscreen, ☰. Courses, restart, the card, the rules, sound, the music, the
   frame rate and the water fold behind the menu — a real one, which shuts on a
-  press outside it, on `Escape`, and on picking anything out of it. Wide enough
-  for all of them and the wrapper drops out of the layout entirely
-  (`display: contents`) and the chips sit in the row as before.
+  press outside it, on `Escape`, and on picking anything out of it. Open, it is
+  the top of the page: the bar lifts over the stroke card and the HUD, and a
+  scrim dims the course and is the other way to shut it, taking the press so
+  it does not also swing. Its tiles are icon over word in one golf line set
+  (the `<svg>` sprite at the top of `index.html`, drawn in brass by `.ico`).
+  Since v1.198.0 the desktop bar is the same: title, ⛶ and ☰, one row, so the
+  canvas's height (`calc(100dvh - 196px)`) keeps the whole game in the window.
 - **The wordmark is not in the bar while you play.** On a phone the top-left was
   a line of branding over a line of figures — two rows of chrome saying one
   useful thing between them — so the figures took the bar and the name went. It
