@@ -567,7 +567,7 @@
                 if (w.kind !== 'rail') o.push("kind: '" + w.kind + "'");
                 if (w.move) {
                     o.push("move: { axis: '" + w.move.axis + "', amp: " + n(w.move.amp) +
-                        ', speed: ' + n(w.move.speed) + ', phase: ' + n(w.move.phase) + ' }');
+                        ', speed: ' + n(w.move.speed) + ', phase: ' + n(w.move.phase) + (w.move.run ? ', run: true' : '') + ' }');
                 }
                 return 'wall(' + [n(w.x), n(w.z), n(w.w), n(w.d), n(w.h)].join(', ') +
                     (o.length ? ', { ' + o.join(', ') + ' }' : '') + ')';

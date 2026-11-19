@@ -1960,7 +1960,7 @@
                         var period = wl.spin ? (2 * Math.PI / Math.abs(wl.spin))
                             : wl.swing ? (2 * Math.PI / wl.swing.speed)
                             : wl.sails ? (Math.PI / 2 / wl.sails.speed)
-                            : (2 * Math.PI / wl.move.speed);
+                            : P.movePeriod(wl.move);
                         var open = 0, widest = 0, k, t, g;
                         for (k = 0; k < 24; k++) {
                             t = period * k / 24;
