@@ -37,6 +37,7 @@
     <script src="../vendor/three.min.js"></script>
     <script src="js/config.js"></script>
     <script src="js/balls.js"></script>
+    <script src="js/celebrate.js"></script>
     <script src="js/themes.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
@@ -721,6 +722,31 @@
                     m1 === m2 && m2 === m3, [m1, m2, m3].join(', ') + ' calls');
                 assert('the switch is left on for anything else that draws the scene',
                     renderer.shadowMap.autoUpdate === true);
+
+                /* The hole-in celebrations (render.js celebrate) go off in the
+                   middle of a hole, so each is warmed with it: every one of the
+                   Pro Shop's shelf played to its end over the cup costs no
+                   program and no light. */
+                // (Last in the section: it plays ten seconds of the hole's clock, and the
+                // draw-call counts above want the scene where they left it.)
+                var celeBefore = wCount(), celeLights = 0;
+                R.state.scene.traverseVisible(function (o) { if (o.isLight) celeLights++; });
+                var celeDrawn = 0;
+                (G3.CELEBRATIONS || []).forEach(function (c) {
+                    R.celebrate(wh.cup.x, wh.cup.y, wh.cup.z, c.id);
+                    for (var cf = 0; cf < 24; cf++) {
+                        R.frame(0.05, wWorld, wAim);
+                        var cg = R.state.cele.light.geometry.drawRange.count + R.state.cele.matter.geometry.drawRange.count;
+                        celeDrawn = Math.max(celeDrawn, cg);
+                    }
+                });
+                var celeAfter = 0;
+                R.state.scene.traverseVisible(function (o) { if (o.isLight) celeAfter++; });
+                assert('every hole-in celebration plays over the cup without compiling a program or adding a light (' +
+                    (G3.CELEBRATIONS || []).length + ' of them)',
+                    (G3.CELEBRATIONS || []).length >= 6 && celeDrawn > 40 && wCount() === celeBefore && celeAfter === celeLights,
+                    wCount() + ' programs (was ' + celeBefore + '), ' + celeDrawn + ' points at most, lights ' + celeLights + ' → ' + celeAfter);
+                R.stopCelebration();
             }
 
             /* Auto follows the frame rate (render.js → stepGovernor). v1.169's

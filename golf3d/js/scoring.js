@@ -55,7 +55,7 @@
     }
 
     function emptySave() {
-        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white', club: 'club-stock' };
+        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white', club: 'club-stock', cele: 'cele-classic' };
     }
 
     /* ── stars, and the holes behind them ──────────────────────────────
@@ -158,7 +158,8 @@
             balls: normIdList(prev.balls, 'tour-white'),
             freeBalls: normIdList(prev.freeBalls, null),
             ball: typeof prev.ball === 'string' && prev.ball ? prev.ball : 'tour-white',
-            club: typeof prev.club === 'string' && prev.club ? prev.club : 'club-stock'
+            club: typeof prev.club === 'string' && prev.club ? prev.club : 'club-stock',
+            cele: typeof prev.cele === 'string' && prev.cele ? prev.cele : 'cele-classic'
         }, id;
         for (id in prev.courses) {
             if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
@@ -168,6 +169,7 @@
         }
         if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
         if (!ownsBall(next, next.club)) next.club = 'club-stock';
+        if (!ownsBall(next, next.cele)) next.cele = 'cele-classic';
         return next;
     }
 
@@ -183,6 +185,7 @@
             s.freeBalls = normIdList(d.freeBalls, null);
             if (typeof d.ball === 'string' && ownsBall(s, d.ball)) s.ball = d.ball;
             if (typeof d.club === 'string' && ownsBall(s, d.club)) s.club = d.club;
+            if (typeof d.cele === 'string' && ownsBall(s, d.cele)) s.cele = d.cele;
             if (d.courses && typeof d.courses === 'object') {
                 for (var id in d.courses) {
                     if (!Object.prototype.hasOwnProperty.call(d.courses, id)) continue;
@@ -285,15 +288,21 @@
         return { got: got, max: max };
     }
 
-    // The catalog is everything the wallet buys: balls and club finishes.
+    // The catalog is everything the wallet buys: balls, club finishes and celebrations.
     function findBall(catalog, id) {
         var list = catalog || G3.SHOP_ITEMS || G3.BALLS || [];
         for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
         return null;
     }
 
+    // The three free items, one per shelf, that every save owns.
+    function isFree(id) { return id === 'tour-white' || id === 'club-stock' || id === 'cele-classic'; }
+
+    // Which slot of the save an item is equipped on.
+    function slotOf(b) { return b && b.kind === 'club' ? 'club' : b && b.kind === 'cele' ? 'cele' : 'ball'; }
+
     function ownsBall(saveData, ballId) {
-        if (ballId === 'tour-white' || ballId === 'club-stock') return true;
+        if (isFree(ballId)) return true;
         var list = saveData && saveData.balls;
         var free = saveData && saveData.freeBalls;
         return (Array.isArray(list) && list.indexOf(ballId) !== -1) ||
@@ -311,7 +320,7 @@
         var seen = {}, total = 0, i, b;
         for (i = 0; i < list.length; i++) {
             var id = list[i];
-            if (seen[id] || id === 'tour-white' || id === 'club-stock') continue;
+            if (seen[id] || isFree(id)) continue;
             seen[id] = true;
             b = findBall(catalog, id);
             if (b && b.cost > 0) total += b.cost;
@@ -402,7 +411,7 @@
         }
         var next = copySave(prev);
         if (next.balls.indexOf(ballId) === -1) next.balls.push(ballId);
-        if (b.kind === 'club') next.club = ballId; else next.ball = ballId;
+        next[slotOf(b)] = ballId;
         return { ok: true, alreadyOwned: false, save: next, spent: b.cost };
     }
 
@@ -411,7 +420,7 @@
             return { ok: false, reason: 'locked', save: prev };
         }
         var next = copySave(prev);
-        if (findBall(catalog, ballId).kind === 'club') next.club = ballId; else next.ball = ballId;
+        next[slotOf(findBall(catalog, ballId))] = ballId;
         return { ok: true, save: next };
     }
 
@@ -422,6 +431,13 @@
         return id;
     }
 
+    function equippedCele(saveData) {
+        var id = saveData && typeof saveData.cele === 'string' ? saveData.cele : 'cele-classic';
+        var f = findBall(null, id);
+        if (!ownsBall(saveData, id) || !f || f.kind !== 'cele') return 'cele-classic';
+        return id;
+    }
+
     /* Dev-mode unlocks sit in `freeBalls` rather than `balls`, so unlocking
        cosmetics to test shaders never adds phantom star debt to `spentStars`. */
     function unlockBallFree(prev, ballId, catalog) {
@@ -429,7 +445,7 @@
         if (!b) return { ok: false, reason: 'missing', save: prev };
         var next = copySave(prev);
         if (!ownsBall(next, ballId)) next.freeBalls.push(ballId);
-        if (b.kind === 'club') next.club = ballId; else next.ball = ballId;
+        next[slotOf(b)] = ballId;
         return { ok: true, save: next };
     }
 
@@ -448,6 +464,7 @@
         next.freeBalls = [];
         if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
         if (!ownsBall(next, next.club)) next.club = 'club-stock';
+        if (!ownsBall(next, next.cele)) next.cele = 'cele-classic';
         return { ok: true, save: next };
     }
 
@@ -476,6 +493,7 @@
         buyBall: buyBall,
         equipBall: equipBall,
         equippedClub: equippedClub,
+        equippedCele: equippedCele,
         lockProgress: lockProgress,
         lockStatus: lockStatus,
         unlockBallFree: unlockBallFree,

@@ -20,12 +20,13 @@ window.G3 = window.G3 || {};
     ];
 
     /* The economy: 330 stars in the game (270 on the fifteen courses, 60 on
-       the World Tour). The twenty-five balls cost 242 and the nine club
-       finishes 88, so 330 buys exactly everything; early favourites unlock in
-       a hole or two and anything can be bought in any order. The eight
-       other-sports balls (category 'novelty') are priced at two and three
-       stars because that is all the room there was: a new item past them
-       means re-pricing, not loosening the test.
+       the World Tour). The twenty-five balls cost 217, the nine club finishes
+       79 and the eight hole-in celebrations 30, so 326 buys everything with
+       a little to spare; early favourites unlock in a hole or two and
+       anything can be bought in any order. The eight other-sports balls
+       (category 'novelty') are priced at two and three stars, and the
+       celebrations went in by taking a star or a few off the dearer balls and
+       clubs: a new item past them means re-pricing, not loosening the test.
 
        Stars are not the only price at the top. A ball with a `lock` also needs
        the achievement of that name met (LOCKS below, judged by
@@ -217,7 +218,7 @@ window.G3 = window.G3 || {};
         {
             id: 'truvis-club',
             name: 'Checkered Classic',
-            cost: 8,
+            cost: 7,
             category: 'pattern',
             badge: 'Pattern',
             inspired: 'Soccer-Pentagon Tour Print',
@@ -229,7 +230,7 @@ window.G3 = window.G3 || {};
         {
             id: 'splatter-drip',
             name: 'Clubhouse Drip',
-            cost: 10,
+            cost: 9,
             category: 'pattern',
             badge: 'Custom',
             inspired: 'Paint-Splatter Tour Drip',
@@ -241,7 +242,7 @@ window.G3 = window.G3 || {};
         {
             id: 'woodland-camo',
             name: 'Woodland Camo',
-            cost: 11,
+            cost: 10,
             category: 'pattern',
             badge: 'Camo',
             inspired: 'Tactical Peat & Moss',
@@ -253,7 +254,7 @@ window.G3 = window.G3 || {};
         {
             id: 'carbon-gold',
             name: 'Forged Carbon',
-            cost: 13,
+            cost: 12,
             category: 'pattern',
             badge: 'Crafted',
             inspired: 'Woven Twill & Brass',
@@ -265,7 +266,7 @@ window.G3 = window.G3 || {};
         {
             id: 'rainbow-tie',
             name: 'Chroma Swirl',
-            cost: 15,
+            cost: 13,
             lock: 'kinds',
             category: 'shader',
             badge: 'Animated',
@@ -279,7 +280,7 @@ window.G3 = window.G3 || {};
         {
             id: 'holo-prism',
             name: 'Prismatic Holo',
-            cost: 17,
+            cost: 15,
             lock: 'ace',
             category: 'shader',
             badge: 'Shader FX',
@@ -293,7 +294,7 @@ window.G3 = window.G3 || {};
         {
             id: 'magma-core',
             name: 'Molten Ember',
-            cost: 19,
+            cost: 16,
             lock: 'tour',
             category: 'shader',
             badge: 'Emissive',
@@ -307,7 +308,7 @@ window.G3 = window.G3 || {};
         {
             id: 'cyber-wire',
             name: 'Neon Grid',
-            cost: 21,
+            cost: 18,
             lock: 'rounds',
             category: 'shader',
             badge: 'Shader FX',
@@ -321,7 +322,7 @@ window.G3 = window.G3 || {};
         {
             id: 'aurora',
             name: 'Northern Lights',
-            cost: 23,
+            cost: 20,
             lock: 'under',
             category: 'shader',
             badge: 'Animated',
@@ -335,7 +336,7 @@ window.G3 = window.G3 || {};
         {
             id: 'crystal-glass',
             name: 'Crystal Glass',
-            cost: 26,
+            cost: 22,
             lock: 'courses',
             category: 'glass',
             badge: 'Glass Shader',
@@ -350,7 +351,7 @@ window.G3 = window.G3 || {};
         {
             id: 'black-hole',
             name: 'Singularity',
-            cost: 30,
+            cost: 26,
             lock: 'perfect',
             category: 'glass',
             badge: 'Void Shader',
@@ -429,22 +430,70 @@ window.G3 = window.G3 || {};
             colors: ['#e39a8f', '#d9a48c', '#f1e9dd']
         },
         {
-            id: 'club-tour-gold', kind: 'club', name: 'Tour Gold', cost: 14, badge: 'Trophy', lock: 'under',
+            id: 'club-tour-gold', kind: 'club', name: 'Tour Gold', cost: 12, badge: 'Trophy', lock: 'under',
             blurb: 'Gold-plated heads and black fills: the set they hand you with the trophy.',
             paint: 0x16181c, head: 0xe0b44a, grip: 0x16181c,
             colors: ['#e0b44a', '#16181c', '#f5d37a']
         },
         {
-            id: 'club-frostbite', kind: 'club', name: 'Frostbite', cost: 18, badge: 'Extreme', lock: 'tour',
+            id: 'club-frostbite', kind: 'club', name: 'Frostbite', cost: 15, badge: 'Extreme', lock: 'tour',
             blurb: 'Heads frosted in hoarfrost, fills glowing glacier-cyan and breathing slowly, grips white as a snowfield.',
             paint: 0x9ff3ff, head: 0x9fd8f5, grip: 0xf4f9fc, glow: 'ice', emissive: 0x3cc8f0, headGlow: 0x1f6e94,
             colors: ['#9ff3ff', '#d8f1ff', '#2fb8e8']
         },
         {
-            id: 'club-inferno', kind: 'club', name: 'Inferno', cost: 20, badge: 'Extreme', lock: 'perfect',
+            id: 'club-inferno', kind: 'club', name: 'Inferno', cost: 16, badge: 'Extreme', lock: 'perfect',
             blurb: 'Charred black heads split by ember-orange fills that flicker like a forge, on scorched leather grips.',
             paint: 0xff6a1a, head: 0x2a1f1b, grip: 0x3a1a10, glow: 'fire', emissive: 0xff4a0a, headGlow: 0x8a2a06,
             colors: ['#ff6a1a', '#2a1f1b', '#ffd15c']
+        }
+    ];
+
+    /* Hole-in celebrations: the third shelf. What goes off over the cup when
+       the ball drops — the equipped one, on every hole you finish, and again
+       in an ace's replay. How each one moves is js/celebrate.js; this is what
+       they are called and what they cost. Kept in `save.balls` like the
+       rest, equipped on `save.cele`. */
+    var CELEBRATIONS = [
+        {
+            id: 'cele-classic', kind: 'cele', name: 'Cup Sparkle', cost: 0, badge: 'Classic',
+            blurb: 'A pop of gold sparks off the lip and a ring across the green. Quiet, tidy, the clubhouse way.',
+            colors: ['#ffd36a', '#fff8e8']
+        },
+        {
+            id: 'cele-confetti', kind: 'cele', name: 'Confetti Cannon', cost: 1, badge: 'Party',
+            blurb: 'Three cannon shots of paper out of the cup, fluttering down on the green round the flag.',
+            colors: ['#ff4d6d', '#ffd23f', '#3ec1ff', '#7be067']
+        },
+        {
+            id: 'cele-geyser', kind: 'cele', name: 'Geyser', cost: 2, badge: 'Nature',
+            blurb: 'The cup blows: a column of spray five units high, a splash ring and the drops raining back.',
+            colors: ['#4fb6ff', '#9fe2ff', '#ffffff']
+        },
+        {
+            id: 'cele-shockwave', kind: 'cele', name: 'Shockwave', cost: 3, badge: 'Impact',
+            blurb: 'A flash, three rings racing out across the green and a skirt of sparks and dust thrown off it.',
+            colors: ['#ffcf6a', '#c9a352', '#ff7a2a']
+        },
+        {
+            id: 'cele-fireworks', kind: 'cele', name: 'Fireworks', cost: 4, badge: 'Show',
+            blurb: 'Three rockets out of the cup on fizzing trails, each bursting in its own colour over the flag.',
+            colors: ['#ff4d5e', '#45d0ff', '#ffd447', '#7dff8a']
+        },
+        {
+            id: 'cele-ember', kind: 'cele', name: 'Ember Spiral', cost: 5, badge: 'Elemental',
+            blurb: 'A fire twister winds up out of the cup in a column of light and bursts into embers at the top.',
+            colors: ['#ffa53a', '#c4200a', '#fff0a0']
+        },
+        {
+            id: 'cele-supernova', kind: 'cele', name: 'Supernova', cost: 7, badge: 'Extreme', lock: 'rounds',
+            blurb: 'A white flash, a pillar of light ten units tall and a shell of ice-blue and gold blown out in every direction.',
+            colors: ['#9fe9ff', '#ffd36a', '#ffffff']
+        },
+        {
+            id: 'cele-singularity', kind: 'cele', name: 'Singularity', cost: 8, badge: 'Extreme', lock: 'ace',
+            blurb: 'Everything is dragged spiralling into a point over the cup — and then it lets go.',
+            colors: ['#b27bff', '#5fa8ff', '#ffc44d']
         }
     ];
 
@@ -461,13 +510,21 @@ window.G3 = window.G3 || {};
         return (id && CLUB_BY_ID[id]) ? CLUB_BY_ID[id] : CLUB_FINISHES[0];
     }
 
+    var CELE_BY_ID = {};
+    for (i = 0; i < CELEBRATIONS.length; i++) CELE_BY_ID[CELEBRATIONS[i].id] = CELEBRATIONS[i];
+    function celebrationById(id) {
+        return (id && CELE_BY_ID[id]) ? CELE_BY_ID[id] : CELEBRATIONS[0];
+    }
+
     G3.BALL_CATEGORIES = CATEGORIES;
     G3.BALLS = BALLS;
     G3.ballById = ballById;
     G3.CLUB_FINISHES = CLUB_FINISHES;
     G3.clubFinishById = clubFinishById;
     // Everything the one wallet buys: what scoring's spentStars counts.
-    G3.SHOP_ITEMS = BALLS.concat(CLUB_FINISHES);
+    G3.CELEBRATIONS = CELEBRATIONS;
+    G3.celebrationById = celebrationById;
+    G3.SHOP_ITEMS = BALLS.concat(CLUB_FINISHES, CELEBRATIONS);
     G3.SHOP_LOCKS = LOCKS;
     G3.SHOP_LOCK_ORDER = LOCK_ORDER;
 

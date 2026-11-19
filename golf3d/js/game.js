@@ -7224,6 +7224,7 @@
     var shopFromCard = false;
     var shopTab = 'balls';
     var shopInspectClub = null;
+    var shopInspectCele = null;
 
     function applyEquippedBall(overrideId) {
         if (!R.setBallStyle) return;
@@ -7235,6 +7236,133 @@
         if (G3.bag && G3.bag.setFinish && S.equippedClub && G3.clubFinishById) {
             G3.bag.setFinish(G3.clubFinishById(S.equippedClub(save)));
         }
+        if (R.setCelebration && S.equippedCele) R.setCelebration(S.equippedCele(save));
+    }
+
+    /* A celebration, drawn flat (celebrate.js moves it): a strip of green
+       seen from just above, the cup and its flag, and the effect over them in
+       the same units the course uses. The shop's live preview and every card
+       on its shelf are this one picture. */
+    function drawCeleFrame(canvas, fx) {
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        var w = canvas.width, h = canvas.height;
+        var k = h / 8.5, cx = w * 0.5, gy = h * 0.84;
+        var sky = ctx.createLinearGradient(0, 0, 0, gy);
+        sky.addColorStop(0, '#10140d');
+        sky.addColorStop(1, '#2a3122');
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, h);
+        var turf = ctx.createLinearGradient(0, gy - h * 0.06, 0, h);
+        turf.addColorStop(0, '#3d5a2c');
+        turf.addColorStop(1, '#1f2e17');
+        ctx.fillStyle = turf;
+        ctx.beginPath();
+        ctx.ellipse(cx, gy + h * 0.05, w * 0.62, h * 0.14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(0, gy + h * 0.05, w, h);
+        // The cup and the flag.
+        ctx.fillStyle = '#0b0d08';
+        ctx.beginPath();
+        ctx.ellipse(cx, gy, k * 0.42, k * 0.13, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#d9d3c0';
+        ctx.lineWidth = Math.max(1, k * 0.07);
+        ctx.beginPath(); ctx.moveTo(cx + k * 0.05, gy); ctx.lineTo(cx + k * 0.05, gy - k * 3.2); ctx.stroke();
+        ctx.fillStyle = '#c9a352';
+        ctx.beginPath();
+        ctx.moveTo(cx + k * 0.08, gy - k * 3.2);
+        ctx.lineTo(cx + k * 1.1, gy - k * 2.9);
+        ctx.lineTo(cx + k * 0.08, gy - k * 2.6);
+        ctx.closePath();
+        ctx.fill();
+        if (!fx) return;
+        function sx(x, z) { return cx + (x + z * 0.18) * k; }
+        function sy(y, z) { return gy - y * k + z * k * 0.28; }
+        ctx.globalCompositeOperation = 'lighter';
+        fx.beams.forEach(function (b) {
+            if (b.oa <= 0) return;
+            var top = gy - b.oh * k, bw = b.or * k;
+            var gr = ctx.createLinearGradient(0, gy, 0, top);
+            var col = 'rgba(' + Math.round(b.c[0] * 255) + ',' + Math.round(b.c[1] * 255) + ',' + Math.round(b.c[2] * 255) + ',';
+            gr.addColorStop(0, col + b.oa + ')');
+            gr.addColorStop(0.35, col + (b.oa * 0.55) + ')');
+            gr.addColorStop(1, col + '0)');
+            ctx.fillStyle = gr;
+            ctx.fillRect(cx - bw, top, bw * 2, gy - top);
+        });
+        fx.rings.forEach(function (r) {
+            if (r.oa <= 0) return;
+            ctx.strokeStyle = 'rgb(' + Math.round(r.c[0] * 255) + ',' + Math.round(r.c[1] * 255) + ',' + Math.round(r.c[2] * 255) + ')';
+            ctx.globalAlpha = Math.min(1, r.oa);
+            ctx.lineWidth = Math.max(1.5, r.or * k * 0.09);
+            ctx.beginPath();
+            ctx.ellipse(cx, gy, r.or * k, r.or * k * 0.28, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+        var i, p, px, py, r;
+        ctx.globalCompositeOperation = 'source-over';
+        for (i = 0; i < fx.parts.length; i++) {
+            p = fx.parts[i];
+            if (p.add || p.oa <= 0) continue;
+            ctx.globalAlpha = Math.min(1, p.oa);
+            ctx.fillStyle = 'rgb(' + Math.round(p.or * 255) + ',' + Math.round(p.og * 255) + ',' + Math.round(p.ob * 255) + ')';
+            r = p.os * k;
+            ctx.fillRect(sx(p.ox, p.oz) - r * 0.5, sy(p.oy, p.oz) - r * 0.22, r, r * 0.44);
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        for (i = 0; i < fx.parts.length; i++) {
+            p = fx.parts[i];
+            if (!p.add || p.oa <= 0) continue;
+            px = sx(p.ox, p.oz); py = sy(p.oy, p.oz); r = Math.max(0.8, p.os * k * 0.5);
+            var rgb = Math.round(p.or * 255) + ',' + Math.round(p.og * 255) + ',' + Math.round(p.ob * 255);
+            if (p.os > 0.8) {
+                // A flash is a glow, not a ball.
+                var fl = ctx.createRadialGradient(px, py, 0, px, py, r);
+                fl.addColorStop(0, 'rgba(' + rgb + ',' + (Math.min(1, p.oa) * 0.8) + ')');
+                fl.addColorStop(1, 'rgba(' + rgb + ',0)');
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = fl;
+                ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+                continue;
+            }
+            ctx.globalAlpha = Math.min(1, p.oa) * 0.45;
+            ctx.fillStyle = 'rgb(' + rgb + ')';
+            ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = Math.min(1, p.oa);
+            ctx.fillStyle = 'rgb(' + Math.round(128 + p.or * 127) + ',' + Math.round(128 + p.og * 127) + ',' + Math.round(128 + p.ob * 127) + ')';
+            ctx.beginPath(); ctx.arc(px, py, r * 0.45, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // The shop's preview plays the inspected celebration on a loop while its shelf is open.
+    var celeLoop = null;
+    function playCelePreview(id) {
+        var cv = $('shop-cele-preview');
+        if (!cv || !G3.celebrate) return;
+        if (celeLoop && celeLoop.id === id) return;
+        stopCelePreview();
+        var me = celeLoop = { id: id, fx: G3.celebrate.start(id), last: 0, rest: 0 };
+        function tick(now) {
+            if (celeLoop !== me) return;
+            var dt = me.last ? Math.min(0.05, (now - me.last) / 1000) : 1 / 60;
+            me.last = now;
+            if (me.fx.done) {
+                me.rest += dt;
+                if (me.rest > 0.5) { me.fx = G3.celebrate.start(id); me.rest = 0; }
+            } else G3.celebrate.step(me.fx, dt);
+            drawCeleFrame(cv, me.fx.done ? null : me.fx);
+            me.raf = requestAnimationFrame(tick);
+        }
+        me.raf = requestAnimationFrame(tick);
+    }
+    function stopCelePreview() {
+        if (celeLoop && celeLoop.raf) cancelAnimationFrame(celeLoop.raf);
+        celeLoop = null;
     }
 
     function hexCss(n) { return '#' + ('000000' + (n >>> 0).toString(16)).slice(-6); }
@@ -7544,6 +7672,7 @@
     function closeShop() {
         if (!$('ball-shop') || !$('ball-shop').classList.contains('show')) return;
         $('ball-shop').className = 'modal';
+        stopCelePreview();
         if (shopFromMenu) {
             shopFromMenu = false;
             openMenu();
@@ -7559,14 +7688,17 @@
         var save = state && state.save ? state.save : S.load();
         var earned = S.earnedStars ? S.earnedStars(save).got : 0;
         var avail = S.availableStars ? S.availableStars(save) : earned;
-        var clubs = shopTab === 'clubs' && G3.CLUB_FINISHES;
-        var items = clubs ? G3.CLUB_FINISHES : (G3.BALLS || []);
-        var byId = clubs ? G3.clubFinishById : G3.ballById;
-        var equipped = clubs ? S.equippedClub(save) : (S.equippedBall ? S.equippedBall(save) : 'tour-white');
-        if (clubs) {
+        var cele = shopTab === 'cele' && !!G3.CELEBRATIONS;
+        var clubs = !cele && shopTab === 'clubs' && G3.CLUB_FINISHES;
+        var items = cele ? G3.CELEBRATIONS : clubs ? G3.CLUB_FINISHES : (G3.BALLS || []);
+        var byId = cele ? G3.celebrationById : clubs ? G3.clubFinishById : G3.ballById;
+        var equipped = cele ? S.equippedCele(save) : clubs ? S.equippedClub(save) : (S.equippedBall ? S.equippedBall(save) : 'tour-white');
+        if (cele) {
+            if (!shopInspectCele) shopInspectCele = equipped;
+        } else if (clubs) {
             if (!shopInspectClub) shopInspectClub = equipped;
         } else if (!shopInspect || !G3.ballById) shopInspect = equipped;
-        var inspect = clubs ? shopInspectClub : shopInspect;
+        var inspect = cele ? shopInspectCele : clubs ? shopInspectClub : shopInspect;
 
         $('shop-avail').textContent = '★ ' + avail;
         $('shop-earned').textContent = earned + ' earned total';
@@ -7574,13 +7706,15 @@
         // Balls | Clubs
         if ($('shop-tabs')) {
             Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button[data-tab]'), function (btn) {
-                var on = btn.getAttribute('data-tab') === (clubs ? 'clubs' : 'balls');
+                var on = btn.getAttribute('data-tab') === (cele ? 'cele' : clubs ? 'clubs' : 'balls');
                 btn.classList.toggle('on', on);
                 btn.setAttribute('aria-selected', on ? 'true' : 'false');
             });
         }
-        $('shop-preview-wrap').hidden = !!clubs;
+        $('shop-preview-wrap').hidden = !!clubs || cele;
         if ($('shop-club-wrap')) $('shop-club-wrap').hidden = !clubs;
+        if ($('shop-cele-wrap')) $('shop-cele-wrap').hidden = !cele;
+        if (!cele) stopCelePreview();
 
         if ($('shop-dev-bar')) {
             $('shop-dev-bar').hidden = !dev;
@@ -7599,8 +7733,8 @@
         // Category filter pills (balls only: the clubs are one shelf)
         var catsEl = $('shop-cats');
         catsEl.innerHTML = '';
-        catsEl.hidden = !!clubs;
-        if (!clubs) {
+        catsEl.hidden = !!clubs || cele;
+        if (!clubs && !cele) {
             (G3.BALL_CATEGORIES || []).forEach(function (c) {
                 var btn = document.createElement('button');
                 btn.type = 'button';
@@ -7618,7 +7752,8 @@
 
         // Inspected detail + preview
         var cur = byId(inspect);
-        if (clubs) {
+        if (cele) playCelePreview(cur.id);
+        else if (clubs) {
             if ($('shop-club-preview')) drawClubSwatch($('shop-club-preview'), cur);
         } else if (shopPreview) shopPreview.setStyle(cur.id);
         var ownedCur = S.ownsBall(save, cur.id);
@@ -7640,7 +7775,7 @@
         }
 
         var act = $('shop-d-action');
-        var noun = clubs ? 'Finish' : 'Ball';
+        var noun = cele ? 'Celebration' : clubs ? 'Finish' : 'Ball';
         act.className = 'shop-action';
         if (isEqCur) {
             act.textContent = '✓ Equipped';
@@ -7669,7 +7804,7 @@
         var grid = $('shop-grid');
         grid.innerHTML = '';
         items.forEach(function (b) {
-            if (!clubs && shopCat !== 'all' && b.category !== shopCat) return;
+            if (!clubs && !cele && shopCat !== 'all' && b.category !== shopCat) return;
             var owned = S.ownsBall(save, b.id);
             var eq = equipped === b.id;
             var lk = S.lockStatus ? S.lockStatus(save, b.id) : { locked: false };
@@ -7693,7 +7828,12 @@
             sw.className = 'bc-swatch';
             sw.width = 116;
             sw.height = 116;
-            if (clubs) drawClubSwatch(sw, b);
+            if (cele) {
+                sw.width = 140;
+                sw.height = 116;
+                if (G3.celebrate) drawCeleFrame(sw, G3.celebrate.peek(b.id));
+                sw.classList.add('bc-cele');
+            } else if (clubs) drawClubSwatch(sw, b);
             else if (shopThumbs[b.id]) sw.getContext('2d').drawImage(shopThumbs[b.id], 0, 0);
             else { drawBallSwatch(sw, b); queueShopThumb(b.id, sw); }
             card.appendChild(sw);
@@ -7715,7 +7855,7 @@
                     onShopAction();
                     return;
                 }
-                if (clubs) shopInspectClub = b.id; else shopInspect = b.id;
+                if (cele) shopInspectCele = b.id; else if (clubs) shopInspectClub = b.id; else shopInspect = b.id;
                 drawShop();
             });
             grid.appendChild(card);
@@ -7724,10 +7864,11 @@
 
     function onShopAction() {
         var save = state && state.save ? state.save : S.load();
-        var id = shopTab === 'clubs' ? shopInspectClub : shopInspect;
+        var id = shopTab === 'cele' ? shopInspectCele : shopTab === 'clubs' ? shopInspectClub : shopInspect;
         if (!id) return;
         var owned = S.ownsBall(save, id);
-        var b = shopTab === 'clubs' ? G3.clubFinishById(id) : (G3.ballById ? G3.ballById(id) : null);
+        var b = shopTab === 'cele' ? G3.celebrationById(id)
+            : shopTab === 'clubs' ? G3.clubFinishById(id) : (G3.ballById ? G3.ballById(id) : null);
         var avail = S.availableStars ? S.availableStars(save) : 0;
         var res;
         if (owned) res = S.equipBall(save, id);
@@ -7831,14 +7972,15 @@
                 lab.textContent = 'Unlocks';
                 un.appendChild(lab);
                 r.items.forEach(function (b) {
-                    var club = b.kind === 'club';
+                    var club = b.kind === 'club', cele = b.kind === 'cele';
                     var owned = S.ownsBall && S.ownsBall(save, b.id);
                     var it = document.createElement('button');
                     it.type = 'button';
                     it.className = 'ach-item' + (owned ? ' owned' : '');
                     var cv = document.createElement('canvas');
                     cv.width = cv.height = 116;
-                    if (club) drawClubSwatch(cv, b);
+                    if (cele) { if (G3.celebrate) drawCeleFrame(cv, G3.celebrate.peek(b.id)); }
+                    else if (club) drawClubSwatch(cv, b);
                     else if (shopThumbs[b.id]) cv.getContext('2d').drawImage(shopThumbs[b.id], 0, 0);
                     else { drawBallSwatch(cv, b); queueShopThumb(b.id, cv); }
                     it.appendChild(cv);
@@ -7857,7 +7999,8 @@
                     it.addEventListener('click', function () {
                         var back = achFromMenu;
                         closeAchievements(true);
-                        if (club) { shopTab = 'clubs'; shopInspectClub = b.id; openShop(); }
+                        if (cele) { shopTab = 'cele'; shopInspectCele = b.id; openShop(); }
+                        else if (club) { shopTab = 'clubs'; shopInspectClub = b.id; openShop(); }
                         else { shopTab = 'balls'; openShop(b.id); }
                         if (back) shopFromMenu = true;
                     });
@@ -7886,6 +8029,15 @@
             if (e.target === this) closeShop();
         });
         $('shop-d-action').addEventListener('click', onShopAction);
+        // A tap on the preview plays the celebration again from the top.
+        if ($('shop-cele-wrap')) {
+            $('shop-cele-wrap').addEventListener('click', function () {
+                if (!celeLoop) return;
+                var id = celeLoop.id;
+                stopCelePreview();
+                playCelePreview(id);
+            });
+        }
         if ($('shop-tabs')) {
             Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button[data-tab]'), function (btn) {
                 btn.addEventListener('click', function () {

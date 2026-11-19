@@ -5465,7 +5465,7 @@ body.flight-mode .controls { display: none; }
 .shop-tabs {
     flex: none;
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
     border: 1px solid var(--panel-border);
     border-radius: 6px;
@@ -5486,6 +5486,7 @@ body.flight-mode .controls { display: none; }
 .shop-tab.on { background: var(--accent); color: #16180f; }
 .shop-cats[hidden], .shop-preview-wrap[hidden] { display: none; }
 .shop-club-wrap { cursor: default; }
+.shop-cele-wrap { cursor: pointer; }
 
 .shop-cats {
     display: flex;
@@ -5566,6 +5567,14 @@ body.flight-mode .controls { display: none; }
     width: 58px;
     height: 58px;
     display: block;
+}
+/* A celebration's card is a picture of it going off, not a ball: wider, and framed. */
+.bc-swatch.bc-cele {
+    width: 100%;
+    max-width: 120px;
+    height: auto;
+    aspect-ratio: 140 / 116;
+    border-radius: 4px;
 }
 .bc-name {
     font-size: 0.88rem;
@@ -5754,7 +5763,11 @@ body.flight-mode .controls { display: none; }
     font-size: 1.05rem;
 }
 .shop-tab-ach { color: var(--gold); white-space: nowrap; }
-@media (max-width: 440px) { .shop-tab { font-size: 0.82rem; } }
+@media (max-width: 440px) {
+    .shop-tab { font-size: 0.82rem; }
+    /* Four tabs on a phone: the trophy says it on its own. */
+    .shop-tab-word { display: none; }
+}
 #achievements .modal-inner {
     width: min(640px, 100%);
     max-width: 100%;
