@@ -520,6 +520,23 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   ball (the default), or at its natural width against the left or right edge,
   no further than `reach` from the middle on a wide screen; on the left it
   is shortened to stop above the bag rather than narrowed round it.
+  *Club side* (v1.192.0) picks which way the club at the ball leans on its
+  own — Golfer (the default: left for a righty, right for a lefty), Left or
+  Right — because the owner read the righty's club as the wrong way round.
+  It only turns the model (`clubRight` → `setHand`); the shot is the
+  Golfer's.
+
+  **The tutorial** (v1.192.0, game.js "the tutorial", `TUTOR_KEY`). A first
+  game is met by a coach — a matte plate with a brass edge, stood over the
+  swing pad (or over the bag for the bag) — in four steps, each moving on
+  when the player does the thing: aim (the line turns), swing (a strike;
+  while the thumb is pulled back it says to swipe up through the band),
+  the bag (a club changed while that step is up — not the game's own swap
+  after a drive), and where the settings are. "Got it" moves on, "Skip
+  tutorial" ends it, and "Show the tutorial again" in the Swing panel starts
+  it over on the next shot. It shows only while the lane does, so not over
+  the flyover, the wipe, the picker or the demo. A device with a saved round
+  counts as somebody who has played and is not shown it unasked.
 
   After the shot a card under the topbar and the View row (`showSwingCard`,
   `placeSwingCard`) draws the swipe small against a straight line and the lean

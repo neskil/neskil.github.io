@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.195.0';
+G3.VERSION = '1.196.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -334,7 +334,7 @@ G3.CONFIG = {
        the thumb has to come back up before the backswing counts as over, so a
        wobble at the bottom is not a swing. */
     SWIPE: {
-        DEFAULT: { assist: 'off', hand: 'right', pad: 'centre', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
+        DEFAULT: { assist: 'off', hand: 'right', club: 'auto', pad: 'centre', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
             easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
             normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },
@@ -1161,6 +1161,9 @@ G3.CONFIG = {
     SWIPE_KEY: 'loftLinks.touchSwing',
     // The swing panel's settings (feel, timing, shapes, where), as JSON.
     TUNE_KEY: 'loftLinks.swingTune',
+    /* The first-time coach (game.js "the tutorial"): the step reached, or
+       'done'. The Swing panel's "Show the tutorial again" clears it. */
+    TUTOR_KEY: 'loftLinks.tutorial',
     /* Dev mode ('1' or absent), switched with ?dev=1 and ?dev=0 and kept.
        It shows the swing styles other than the touch swing (game.js "swing
        styles"); a round struck with one of them is not recorded. */
