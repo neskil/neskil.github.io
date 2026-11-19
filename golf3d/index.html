@@ -975,15 +975,27 @@
                     </span>
                 </button>
                 <!-- …and the draw: a course picked for you, straight away.
-                     What it may pick from is behind the link under the row
+                     What it may pick from is behind the cog on its tile
                      (#shuffle). courses.js → shuffleDraw. -->
-                <button type="button" class="sh-go surprise-go" id="menu-surprise">
-                    <span class="sh-die" aria-hidden="true">&#x1F3B2;</span>
-                    <span class="sh-go-text">
-                        <b>Surprise me</b>
-                        <span class="sh-sub">A course drawn for you, leaning towards the ones you have played least.</span>
-                    </span>
-                </button>
+                <!-- Its options ride on the tile itself: the cog opens what
+                     the draw may pick from (#shuffle). It used to be a link
+                     under the World Tour's grid, far from the button it set
+                     up (the owner: "strange thing to have on the starting
+                     page"). A sibling, not nested — a button in a button is
+                     not a thing HTML allows. -->
+                <div class="surprise-cell">
+                    <button type="button" class="sh-go surprise-go" id="menu-surprise">
+                        <span class="sh-die" aria-hidden="true">&#x1F3B2;</span>
+                        <span class="sh-go-text">
+                            <b>Surprise me</b>
+                            <span class="sh-sub">A course drawn for you, leaning towards the ones you have played least.</span>
+                        </span>
+                    </button>
+                    <button type="button" class="sh-opts" id="menu-draw-settings"
+                            aria-label="Surprise me options: what it draws from"
+                            aria-controls="shuffle" aria-expanded="false"
+                            title="What Surprise me draws from">&#x2699;&#xFE0E;</button>
+                </div>
             </div>
             <!-- One tab per kind of golf. Fifteen courses shown flat is a list
                  nobody reads; shown a kind at a time it is three or four. -->
@@ -994,7 +1006,6 @@
             <div class="worlds-panel" id="menu-worlds-panel" role="tabpanel" hidden>
                 <p class="sh-label" id="menu-worlds-label">Pick a hole</p>
                 <div class="world-grid" id="menu-worlds" role="list" aria-labelledby="menu-worlds-label"></div>
-                <p class="tour-credit"><button type="button" class="linkish" id="menu-draw-settings">What Surprise me draws from</button></p>
             </div>
             <!-- One card's page: what it is, how you have done, its holes
                  and the button that plays it. game.js → drawDetail. -->
