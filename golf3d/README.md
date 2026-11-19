@@ -4619,7 +4619,7 @@ every hole as a plan to start on. Two presses for anything, worlds and
 courses alike; the detailed list the kind tabs used to show is gone, and so
 is the fifth way of doing things it was. **Surprise me** is the third
 featured button beside Showcase and Challenge, and what it draws from is
-behind a link under the grid, not a tab. The tabs are one row of named chips
+behind the ⚙ in the corner of its own tile, not a tab or a link on the start page. The tabs are one row of named chips
 that scrolls sideways on a phone. A bar under the title is every star there
 is; *Keep playing* is pinned to the bottom.
 

@@ -5610,10 +5610,11 @@
 
     /* What is under the tabs. One of three things is ever on screen: the
        grid of the open tab, the page of the card picked from it, or — from
-       the link under the featured row — what "Surprise me" draws from.
+       the cog on the Surprise me tile — what it draws from.
        Returns what focus should land on. */
     function drawCourses() {
         var onDraw = menuGroup === G3.SHUFFLE_GROUP.id;
+        $('menu-draw-settings').setAttribute('aria-expanded', onDraw ? 'true' : 'false');
         $('menu-list').hidden = true;
         $('shuffle').hidden = !onDraw;
         $('menu-worlds-panel').hidden = onDraw || !!menuPick;
@@ -7970,10 +7971,15 @@
         });
         $('shuffle-go').addEventListener('click', function () { takeRandom(); });
         $('menu-surprise').addEventListener('click', function () { maybeAutoFullscreen(); takeRandom(); });
+        // The cog on the Surprise me tile: opens what the draw picks from,
+        // and a second press puts the list back.
         $('menu-draw-settings').addEventListener('click', function () {
             menuPick = null;
             menuGroup = menuGroup === G3.SHUFFLE_GROUP.id ? ALL_GROUP.id : G3.SHUFFLE_GROUP.id;
             drawShuffle(); drawTabs(); drawCourses(); drawPlans();
+            if (menuGroup === G3.SHUFFLE_GROUP.id && $('shuffle').scrollIntoView) {
+                $('shuffle').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
         });
         $('menu-portals').addEventListener('click', takeJourney);
         $('menu-endless').addEventListener('click', takeEndless);
