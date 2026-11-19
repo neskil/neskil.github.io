@@ -484,6 +484,25 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     hook or slice. A shape picked on the ball wins over a drawn one, and a club
     that cannot bend does not.
 
+  **The lane's scale** (v1.190.0, game.js `drawScale`; the owner, after
+  playing another finger-golf game: "the slight colours for the swing meter
+  is a good idea, and it's better at displaying distance for the long game").
+  Down the pull, a tick at a quarter, half, three quarters and all of a full
+  swing, each with what that pull runs on flat grass in still air — the
+  readout's own `runTable`, capped by the lie, rounded as every distance is,
+  and a dot rather than a number inside NEAR — then the overdraw in rust to
+  its end. A small brass flag stands where the pin's distance falls on that
+  scale, and a chip beside the thumb says what is loaded (rust past a full
+  swing, a brass rim when it is on the flag). Across the start, the line's
+  band: moss for the clean lean, brass out to half the feel's SPAN, rust to a
+  full miss — the angles the strike reads (`laneTol` = `swipeTol` with the
+  feel, the putt and the deck), drawn at the pull's depth and centred over
+  its bottom, so it widens as the thumb goes down and tightens past a full
+  swing as the strike does. The swipe up is drawn in the colour of the band
+  it is heading for. All of it is faint until the lane is held, like the
+  lane. The scale ignores wind and slope, as the readout does; the shot
+  preview on the course is still the truth.
+
   After the shot a card under the topbar and the View row (`showSwingCard`,
   `placeSwingCard`) draws the swipe small against a straight line and the lean
   that was forgiven, gives the grade, and says one line per thing read —

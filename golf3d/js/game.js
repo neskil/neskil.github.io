@@ -1672,7 +1672,7 @@
         var t = (ev.timeStamp > 0 ? ev.timeStamp : performance.now()) / 1000;
         swipe.last = { x: x, y: y, t: t };
         swipe.pts.push([x, y, t]);
-        if (swipe.pts.length > 400) swipe.pts.shift();
+        if (swipe.pts.length > 400) { swipe.pts.shift(); swipe.lowI = Math.max(0, (swipe.lowI || 0) - 1); }
         if (swipe.needle) {
             // The needle's pull is only the power, and it can be trimmed both
             // ways until the thumb lets go.
@@ -1684,6 +1684,7 @@
         if (y >= swipe.low.y) {
             // Still going back: the meter follows the thumb down.
             swipe.low = { x: x, y: y, t: t };
+            swipe.lowI = swipe.pts.length - 1;
             swipe.through = false;
             swipe.up = [[x, y]];
             loadFromPull(y);
@@ -1953,14 +1954,187 @@
         var cone = '';
         if (s && s.through) {
             var tx = s.low.x - r.left, ty = s.low.y - r.top;
-            var over = deckHard(SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power)));
-            var half = Math.tan(SW.swipeTol(over)) * (ty - y0);
+            // The feel and the putt are the strike's own (`swipeStrike`): the
+            // wedge used to be drawn at the default feel whatever was set.
+            var half = Math.tan(laneTol()) * (ty - y0);
             cone = [tx, ty, tx - half, y0, tx + half, y0].join(' ');
         }
         $('sw-cone').setAttribute('points', cone);
-        $('sw-trail').setAttribute('points', s
-            ? s.pts.map(function (p) { return (p[0] - r.left) + ',' + (p[1] - r.top); }).join(' ') : '');
+        /* The trail in two: the pull in chalk, and the swipe up coloured by
+           the band it is heading for, so a drift shows while it can still
+           be saved rather than on the card afterwards. */
+        var cut = s ? Math.min(s.pts.length, (s.lowI || 0) + 1) : 0;
+        function pts(list) {
+            return list.map(function (p) { return (p[0] - r.left).toFixed(1) + ',' + (p[1] - r.top).toFixed(1); }).join(' ');
+        }
+        $('sw-trail').setAttribute('points', s ? pts(s.pts.slice(0, cut)) : '');
+        var up = s && !s.needle && s.through ? s.pts.slice(Math.max(0, cut - 1)) : [];
+        $('sw-trail-up').setAttribute('points', up.length > 1 ? pts(up) : '');
+        if (up.length > 1) {
+            var last = up[up.length - 1];
+            var zone = lineZone(SW.swipeAngle(s.low, { x: last[0], y: last[1] }));
+            $('sw-trail-up').setAttribute('class', 'sw-trail-up ' + zone);
+        }
         $('swipe-cue').hidden = !!s;
+        drawScale(r, s, x0, y0, len);
+    }
+
+    /* ── the lane's scale ──
+
+       Down the pull, a tick at a quarter, a half and three quarters of a full
+       swing and at the full swing itself, each with what that pull runs on
+       flat grass in still air (the readout's own `runTable`, rounded the way
+       every distance in the game is, and nothing said inside NEAR); the
+       overdraw past it in rust; and a small flag where the pin falls on the
+       scale. Across the start, the line's band: the clean lean in moss, the
+       close miss in brass, and out to a full miss in rust — the same
+       angles the strike reads (`swipeTol`, the feel's SPAN), drawn at the
+       depth of the pull, so the band widens as the thumb goes down and
+       narrows past a full swing exactly as the strike does. Before a pull it
+       is drawn at a full swing's depth. */
+    var SCALE_AT = [0.25, 0.5, 0.75, 1];
+    var scaleBuilt = false;
+    function buildScale() {
+        var g = $('sw-ticks'), ns = 'http://www.w3.org/2000/svg';
+        SCALE_AT.concat([1 + C.OVERDRAW]).forEach(function (f, i) {
+            var l = document.createElementNS(ns, 'line'), t = document.createElementNS(ns, 'text');
+            l.id = 'sw-tick-' + i;
+            t.id = 'sw-tick-label-' + i;
+            t.setAttribute('text-anchor', 'end');
+            g.appendChild(l);
+            g.appendChild(t);
+        });
+        scaleBuilt = true;
+    }
+
+    // The line's clean lean for the shot in hand, as the strike will read it.
+    function laneTol() {
+        var over = deckHard(SW.shapeOver(shapeNow(), P.overdraw(state.aim.power, state.club.power)));
+        return SW.swipeTol(over, tune.feel, (state.club.loft || 0) < 9 * Math.PI / 180);
+    }
+
+    function lineZone(angle) {
+        var a = Math.abs(angle || 0), tol = laneTol();
+        var span = (C.SWIPE.FEEL[tune.feel] || C.SWIPE.FEEL[C.SWIPE.DEFAULT.feel]).SPAN;
+        return a <= tol ? 'clean' : a <= tol + span * 0.5 ? 'near' : 'miss';
+    }
+
+    // The flat-grass run at a power for the club in hand, capped by the lie.
+    function laneRun(power) {
+        var club = state.club, hole = state.world.hole;
+        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1);
+        return runAt(t, Math.min(power, P.lieCeiling(club, lieKind())), club);
+    }
+
+    // The power whose run is `d` units, or -1 past the club's reach.
+    function powerFor(d) {
+        var club = state.club, hole = state.world.hole;
+        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1);
+        var top = maxPower(club), cap = P.lieCeiling(club, lieKind());
+        for (var i = 1; i <= RUN_STEPS; i++) {
+            if (t[i] >= d) {
+                var f = t[i] > t[i - 1] ? (d - t[i - 1]) / (t[i] - t[i - 1]) : 1;
+                var p = top * (i - 1 + Math.max(0, Math.min(1, f))) / RUN_STEPS;
+                return p <= cap + 1e-6 ? p : -1;
+            }
+        }
+        return -1;
+    }
+
+    function metresText(units) {
+        var hole = state.world.hole, m = units * G3.distance.scale(hole);
+        return G3.distance.round(m) + ' m';
+    }
+
+    function drawScale(r, s, x0, y0, len) {
+        if (!state || !state.club || !state.world) return;
+        if (!scaleBuilt) buildScale();
+        var needleOn = s ? s.needle : styleLive() === 'needle';
+        var club = state.club, hole = state.world.hole;
+        var near = G3.distance.near(hole) / G3.distance.scale(hole);
+        var top = maxPower(club), fullY = y0 + len * SW.markAt();
+        var floor = r.height + 26;              // nothing drawn far over the controls
+        var labelX = Math.max(34, x0 - 10);
+        SCALE_AT.concat([1 + C.OVERDRAW]).forEach(function (f, i) {
+            var y = y0 + len * (f * club.power / top);
+            var run = laneRun(f * club.power);
+            var on = y <= floor && run > 0;
+            var cls = f > 1 ? ' over' : f === 1 ? ' full' : '';
+            var w = f === 1 ? 9 : 6;
+            var l = $('sw-tick-' + i), t = $('sw-tick-label-' + i);
+            l.setAttribute('visibility', on ? 'visible' : 'hidden');
+            t.setAttribute('visibility', on ? 'visible' : 'hidden');
+            if (!on) return;
+            l.setAttribute('class', 'sw-tick' + cls);
+            attrs('sw-tick-' + i, { x1: x0 - w, y1: y, x2: x0 + w, y2: y });
+            t.setAttribute('class', 'sw-tick-label' + cls + (run < near ? ' near' : ''));
+            attrs('sw-tick-label-' + i, { x: labelX - 4, y: y + 4 });
+            t.textContent = run < near ? '·' : metresText(run);
+        });
+        // The overdraw, from the full swing to the end of the pull.
+        attrs('sw-over', { x1: x0, y1: fullY, x2: x0, y2: Math.min(floor, y0 + len) });
+
+        // The flag, where the pin's distance falls on the scale.
+        var b = state.world.ball, cup = hole.cup;
+        var pin = powerFor(Math.sqrt((cup.x - b.x) * (cup.x - b.x) + (cup.z - b.z) * (cup.z - b.z)));
+        var flagY = pin > 0 ? y0 + len * (pin / top) : -1;
+        var flagOn = pin > 0 && flagY <= floor && !state.course.isRange;
+        $('sw-flag').setAttribute('visibility', flagOn ? 'visible' : 'hidden');
+        if (flagOn) {
+            var fx = x0 + 12;
+            attrs('sw-flag-pole', { x1: fx, y1: flagY + 1, x2: fx, y2: flagY - 13 });
+            $('sw-flag-cloth').setAttribute('d', 'M' + fx + ',' + (flagY - 13).toFixed(1) + ' l9,3.5 l-9,3.5 z');
+        }
+
+        // The band across the start, centred over the bottom of the pull.
+        var depth = s ? Math.max(24, s.low.y - s.y0) : len * SW.markAt();
+        var cx = s ? s.low.x - r.left : x0;
+        var tol = laneTol();
+        var span = (C.SWIPE.FEEL[tune.feel] || C.SWIPE.FEEL[C.SWIPE.DEFAULT.feel]).SPAN;
+        var room = Math.max(20, Math.min(cx, r.width - cx) - 4);
+        function halfAt(a) { return Math.min(room, Math.tan(Math.min(a, 1.3)) * depth); }
+        var hc = Math.max(3, halfAt(tol)), hn = Math.max(hc + 3, halfAt(tol + span * 0.5)), hm = Math.max(hn + 3, halfAt(tol + span));
+        [['sb-miss', hm], ['sb-near', hn], ['sb-clean', hc]].forEach(function (z) {
+            attrs(z[0], { x: cx - z[1], y: y0 - 3, width: 2 * z[1], height: 6 });
+        });
+        attrs('sb-mid', { x1: cx, y1: y0 - 6, x2: cx, y2: y0 + 6 });
+        attrs('sb-left', { x: cx - hm - 4, y: y0 + 3.5 });
+        attrs('sb-right', { x: cx + hm + 4, y: y0 + 3.5 });
+        var words = cx - hm > 34 && r.width - (cx + hm) > 34;
+        $('sb-left').setAttribute('visibility', words ? 'visible' : 'hidden');
+        $('sb-right').setAttribute('visibility', words ? 'visible' : 'hidden');
+        $('sw-band').setAttribute('visibility', needleOn ? 'hidden' : 'visible');
+
+        // What is loaded, beside the thumb at the bottom of the pull.
+        var read = $('swipe-read');
+        var loaded = s && state.aim.power >= C.MIN_POWER;
+        read.hidden = !loaded;
+        if (loaded) {
+            var run = laneRun(state.aim.power);
+            var ly = Math.min(r.height + 40, s.low.y - r.top);
+            read.textContent = run < near ? '< ' + G3.distance.near(hole) + ' m' : metresText(run);
+            read.className = 'swipe-read' + (state.aim.power > club.power * 1.0001 ? ' over' : '') +
+                (flagOn && Math.abs(ly - flagY) < 6 ? ' flag' : '');
+            var rx = s.low.x - r.left + 22;
+            read.style.left = Math.round(Math.min(rx, r.width - 8)) + 'px';
+            read.style.top = Math.round(ly) + 'px';
+        }
+    }
+
+    /* The scale depends on the club, the lie, the shape and the flag, none
+       of which move the lane: asked every frame while aiming, redrawn only
+       when its key changes. */
+    var scaleKey = '';
+    function syncLaneScale() {
+        // Not while it is put away by a class (the flyover, the picker):
+        // measured at no width, everything would be drawn down its left edge.
+        if (swipe || $('swipe').hidden || !$('swipe').offsetWidth || !state.club) return;
+        var b = state.world.ball;
+        var key = [$('swipe').offsetWidth, $('swipe').offsetHeight, state.club.id, shapeNow(), runKind(), lieKind(), tune.feel, offDeck(),
+            b.x.toFixed(1), b.z.toFixed(1), state.holeIndex].join('|');
+        if (key === scaleKey) return;
+        scaleKey = key;
+        drawSwipe();
     }
 
     function attrs(id, o) {
@@ -6717,6 +6891,7 @@
             tickNeedle(dt);
             tickAimTurn(dt);
             syncRun();
+            syncLaneScale();
             // Gates and blades keep their own time whether or not the ball is
             // rolling, so the preview you aim with is the course you will hit.
             state.world.time += dt;
