@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.194.0">
+    <link rel="stylesheet" href="style.css?v=1.195.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -849,7 +849,7 @@
             <div class="about-head" id="about-head">
                 <div class="about-title-row">
                     <h2 id="about-title">About Loft Links</h2>
-                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.194.0</button>
+                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.195.0</button>
                     <span class="dev-pill" id="about-dev-pill" hidden>DEV MODE</span>
                 </div>
             </div>
@@ -890,6 +890,13 @@
             <button type="button" class="card-shop menu-shop" id="menu-btn-shop" title="Pro Shop — balls and club colours (B)">
                 <span class="card-shop-ball" aria-hidden="true"></span>
                 <span class="card-shop-text"><b>Pro Shop <i class="shop-new" id="menu-shop-new" hidden></i></b><span><span id="menu-shop-stars">★ 0</span> to spend · balls and club colours</span></span>
+                <span class="card-shop-go" aria-hidden="true">›</span>
+            </button>
+            <!-- What the achievements are, how far along each is, and what it
+                 opens in the shop (game.js → openAchievements). -->
+            <button type="button" class="card-shop menu-shop menu-ach" id="menu-btn-ach" title="Achievements — what they are and what they unlock">
+                <span class="card-shop-ball ach-cup" aria-hidden="true">🏆</span>
+                <span class="card-shop-text"><b>Achievements</b><span id="menu-ach-text">See what each one unlocks</span></span>
                 <span class="card-shop-go" aria-hidden="true">›</span>
             </button>
             <!-- On a desktop the round starts fullscreen: a browser only lets a
@@ -1080,6 +1087,25 @@
         </div>
     </div>
 
+    <div class="modal" id="achievements">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="ach-title">
+            <div class="shop-head">
+                <div>
+                    <h2 id="ach-title">Achievements</h2>
+                    <p class="sub">The top shelf of the Pro Shop asks for one of these as well as stars. Tap anything they unlock to see it in the shop.</p>
+                </div>
+                <div class="shop-wallet" aria-live="polite">
+                    <span class="shop-wallet-avail" id="ach-count">0 / 7</span>
+                    <span class="shop-wallet-label">done</span>
+                </div>
+            </div>
+            <ol class="ach-list" id="ach-list"></ol>
+            <div class="modal-actions">
+                <button type="button" id="ach-close">Done</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="ball-shop">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="shop-title">
             <div class="shop-head">
@@ -1105,6 +1131,7 @@
             <div class="shop-tabs" id="shop-tabs" role="tablist" aria-label="What to shop for">
                 <button type="button" class="shop-tab on" data-tab="balls" role="tab" aria-selected="true">⚪ Balls</button>
                 <button type="button" class="shop-tab" data-tab="clubs" role="tab" aria-selected="false">🏌 Clubs</button>
+                <button type="button" class="shop-tab shop-tab-ach" id="shop-btn-ach">🏆 Achievements</button>
             </div>
 
             <div class="shop-stage">
@@ -1175,44 +1202,44 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.194.0"></script>
-    <script src="js/balls.js?v=1.194.0"></script>
-    <script src="js/themes.js?v=1.194.0"></script>
-    <script src="js/physics.js?v=1.194.0"></script>
-    <script src="js/courses.js?v=1.194.0"></script>
-    <script src="js/tour-ground.js?v=1.194.0"></script>
-    <script src="js/portals.js?v=1.194.0"></script>
-    <script src="js/portal-worlds.js?v=1.194.0"></script>
-    <script src="js/endless.js?v=1.194.0"></script>
-    <script src="js/audit.js?v=1.194.0"></script>
-    <script src="js/custom.js?v=1.194.0"></script>
-    <script src="js/scoring.js?v=1.194.0"></script>
-    <script src="js/swing.js?v=1.194.0"></script>
-    <script src="js/school.js?v=1.194.0"></script>
-    <script src="js/audio.js?v=1.194.0"></script>
-    <script src="js/music.js?v=1.194.0"></script>
-    <script src="js/bag.js?v=1.194.0"></script>
-    <script src="js/textures.js?v=1.194.0"></script>
-    <script src="js/shaders.js?v=1.194.0"></script>
-    <script src="js/postfx.js?v=1.194.0"></script>
-    <script src="js/weather.js?v=1.194.0"></script>
-    <script src="js/flyover.js?v=1.194.0"></script>
-    <script src="js/replay.js?v=1.194.0"></script>
-    <script src="js/bot.js?v=1.194.0"></script>
-    <script src="js/models.js?v=1.194.0"></script>
-    <script src="js/life.js?v=1.194.0"></script>
-    <script src="js/worlds.js?v=1.194.0"></script>
-    <script src="js/sandfx.js?v=1.194.0"></script>
-    <script src="js/render.js?v=1.194.0"></script>
-    <script src="js/minimap.js?v=1.194.0"></script>
-    <script src="js/debug.js?v=1.194.0"></script>
-    <script src="js/game.js?v=1.194.0"></script>
+    <script src="js/config.js?v=1.195.0"></script>
+    <script src="js/balls.js?v=1.195.0"></script>
+    <script src="js/themes.js?v=1.195.0"></script>
+    <script src="js/physics.js?v=1.195.0"></script>
+    <script src="js/courses.js?v=1.195.0"></script>
+    <script src="js/tour-ground.js?v=1.195.0"></script>
+    <script src="js/portals.js?v=1.195.0"></script>
+    <script src="js/portal-worlds.js?v=1.195.0"></script>
+    <script src="js/endless.js?v=1.195.0"></script>
+    <script src="js/audit.js?v=1.195.0"></script>
+    <script src="js/custom.js?v=1.195.0"></script>
+    <script src="js/scoring.js?v=1.195.0"></script>
+    <script src="js/swing.js?v=1.195.0"></script>
+    <script src="js/school.js?v=1.195.0"></script>
+    <script src="js/audio.js?v=1.195.0"></script>
+    <script src="js/music.js?v=1.195.0"></script>
+    <script src="js/bag.js?v=1.195.0"></script>
+    <script src="js/textures.js?v=1.195.0"></script>
+    <script src="js/shaders.js?v=1.195.0"></script>
+    <script src="js/postfx.js?v=1.195.0"></script>
+    <script src="js/weather.js?v=1.195.0"></script>
+    <script src="js/flyover.js?v=1.195.0"></script>
+    <script src="js/replay.js?v=1.195.0"></script>
+    <script src="js/bot.js?v=1.195.0"></script>
+    <script src="js/models.js?v=1.195.0"></script>
+    <script src="js/life.js?v=1.195.0"></script>
+    <script src="js/worlds.js?v=1.195.0"></script>
+    <script src="js/sandfx.js?v=1.195.0"></script>
+    <script src="js/render.js?v=1.195.0"></script>
+    <script src="js/minimap.js?v=1.195.0"></script>
+    <script src="js/debug.js?v=1.195.0"></script>
+    <script src="js/game.js?v=1.195.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.194.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.195.0"></script>
 </body>
 </html>

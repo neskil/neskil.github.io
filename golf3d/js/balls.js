@@ -264,14 +264,18 @@ window.G3 = window.G3 || {};
     /* Achievements a top-shelf item asks for besides its stars. `need` is the
        target, and scoring.lockStatus counts the player's progress to it. */
     var LOCKS = {
-        kinds:   { need: 4,  text: 'Finish a round in all four kinds of course: mini, crazy, adventure and the long game' },
-        ace:     { need: 1,  text: 'Make a hole in one' },
-        tour:    { need: 6,  text: 'Earn stars on six World Tour holes' },
-        rounds:  { need: 10, text: 'Finish ten rounds' },
-        under:   { need: 1,  text: 'Finish a round under par' },
-        courses: { need: 8,  text: 'Finish a round on eight different courses' },
-        perfect: { need: 6,  text: 'Three stars on all six holes of one course' }
+        kinds:   { need: 4,  title: 'All-Rounder',      text: 'Finish a round in all four kinds of course: mini, crazy, adventure and the long game' },
+        ace:     { need: 1,  title: 'Hole in One',      text: 'Make a hole in one' },
+        tour:    { need: 6,  title: 'Globetrotter',     text: 'Earn stars on six World Tour holes' },
+        rounds:  { need: 10, title: 'Regular',          text: 'Finish ten rounds' },
+        under:   { need: 1,  title: 'Under Par',        text: 'Finish a round under par' },
+        courses: { need: 8,  title: 'Course Collector', text: 'Finish a round on eight different courses' },
+        perfect: { need: 6,  title: 'Perfect Card',     text: 'Three stars on all six holes of one course' }
     };
+    /* The order the Achievements list shows them in: roughly the order a
+       player meets them, from the one a lucky first round can give to the
+       one that takes a course learned by heart. */
+    var LOCK_ORDER = ['ace', 'under', 'kinds', 'tour', 'rounds', 'courses', 'perfect'];
 
     /* Club finishes: the second tab of the Pro Shop. A finish repaints every
        club in the bag at once — the lacquered `paint` panels, a tint on the
@@ -363,5 +367,6 @@ window.G3 = window.G3 || {};
     // Everything the one wallet buys: what scoring's spentStars counts.
     G3.SHOP_ITEMS = BALLS.concat(CLUB_FINISHES);
     G3.SHOP_LOCKS = LOCKS;
+    G3.SHOP_LOCK_ORDER = LOCK_ORDER;
 
 })(window.G3);
