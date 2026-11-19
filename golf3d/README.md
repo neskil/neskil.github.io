@@ -503,6 +503,24 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   lane. The scale ignores wind and slope, as the readout does; the shot
   preview on the course is still the truth.
 
+  **Golfer and Swing pad** (v1.191.0, two rows in the Swing panel, kept in
+  `TUNE_KEY` with the rest). *Lefty* is the right-hander's game in a
+  mirror, held at two edges and nowhere else: `swipeStrike` mirrors the
+  swipe about where the thumb went in before `swipeRead` sees it, and
+  `strike` mirrors the shot about the aim (`g.lefty`: the yaw's offset and
+  the spin change sign) before launch. So swing.js has never heard of it,
+  the ball still goes the way the thumb went, and for a lefty that drift
+  left is a push, the bow left that starts it left and brings it back is a
+  draw, and a shank goes left. Every on-screen word that names a side goes
+  out through `sides`, which swaps left and right for a lefty; push, pull,
+  draw, fade, hook and slice are already the golfer's and are left alone.
+  The club at the ball is the head as modelled (a left-hander's) rather than
+  its mirror (`bag.js setHand`). Only the touch swing is mirrored; the dev
+  styles stay right-handed. *Swing pad* puts the lane in the middle over the
+  ball (the default), or at its natural width against the left or right edge,
+  no further than `reach` from the middle on a wide screen; on the left it
+  is shortened to stop above the bag rather than narrowed round it.
+
   After the shot a card under the topbar and the View row (`showSwingCard`,
   `placeSwingCard`) draws the swipe small against a straight line and the lean
   that was forgiven, gives the grade, and says one line per thing read —

@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.190.0';
+G3.VERSION = '1.191.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -334,7 +334,7 @@ G3.CONFIG = {
        the thumb has to come back up before the backswing counts as over, so a
        wobble at the bottom is not a swing. */
     SWIPE: {
-        DEFAULT: { assist: 'off', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
+        DEFAULT: { assist: 'off', hand: 'right', pad: 'centre', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
             easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
             normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },

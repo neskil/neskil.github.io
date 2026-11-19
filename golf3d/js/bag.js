@@ -3778,7 +3778,7 @@
            leaning right runs under the club chip. Flipped, it leans left
            toward the bag it came out of. */
         var k = C.BALL_R / BALL_M;
-        AD.root.scale.set(k, k, -k);
+        AD.root.scale.set(k, k, lefty ? k : -k);
         AD.root.visible = false;
         scene.add(AD.root);
     }
@@ -3838,7 +3838,17 @@
         AD.sh.quaternion.setFromAxisAngle(made.axis, AD.now < 0 ? AD.now * AD.back : AD.now * SWING_FINISH);
     }
 
+    /* A lefty's club: the heads are modelled as a left-hander's, so a
+       lefty is the model as it was made and a righty the mirror of it
+       (`buildAddress`). Only the sign of the scale changes. */
+    var lefty = false;
+    function setHand(left) {
+        lefty = !!left;
+        if (AD.root) AD.root.scale.z = (lefty ? 1 : -1) * Math.abs(AD.root.scale.x);
+    }
+
     var address = {
+        setHand: setHand,
         // The thumb, mid-gesture (see swing.js `clubPose`).
         swing: function (load, up) {
             if (!AD.root || AD.mode === 'through') return;
