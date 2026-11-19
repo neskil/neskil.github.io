@@ -24,6 +24,7 @@
          DOM beyond this page. -->
     <script src="js/config.js"></script>
     <script src="js/balls.js"></script>
+    <script src="js/celebrate.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/courses.js"></script>
     <script src="js/tour-ground.js"></script>
@@ -6335,6 +6336,57 @@
             assert('a fresh save has the stock clubs, and a club cannot be equipped unowned',
                 S.equippedClub(S.emptySave()) === 'club-stock' &&
                 !S.equipBall(S.emptySave(), 'club-glacier').ok);
+
+            /* Hole-in celebrations: the third shelf, the same wallet, its own slot. */
+            var celes = G3.CELEBRATIONS || [];
+            var celeCost = celes.reduce(function (t, c) { return t + c.cost; }, 0);
+            assert('celebrations exist, ship with Cup Sparkle free, and all three shelves fit inside earnable stars',
+                celes.length >= 6 && celes[0].id === 'cele-classic' && celes[0].cost === 0 &&
+                celes.every(function (c) { return c.kind === 'cele'; }) &&
+                totalCost + clubCost + celeCost <= maxStars, (totalCost + clubCost + celeCost) + ' / ' + maxStars);
+            assert('every celebration has a script to run and the dearest ones are behind achievements',
+                celes.every(function (c) { return G3.celebrate.ids.indexOf(c.id) >= 0; }) &&
+                celes.filter(function (c) { return c.lock && G3.SHOP_LOCKS[c.lock]; }).length >= 2);
+            var buyConf = S.buyBall(buyTriple.save, 'cele-confetti', opts);
+            assert('a celebration is bought with stars and equipped without touching the ball or the clubs',
+                buyConf.ok && S.equippedCele(buyConf.save) === 'cele-confetti' &&
+                S.equippedBall(buyConf.save) === 'triple-track' && S.equippedClub(buyConf.save) === 'club-stock' &&
+                S.spentStars(buyConf.save) === carbonCost + tripleCost + G3.celebrationById('cele-confetti').cost);
+            assert('a fresh save has Cup Sparkle, and a celebration cannot be equipped unowned',
+                S.equippedCele(S.emptySave()) === 'cele-classic' &&
+                !S.equipBall(S.emptySave(), 'cele-fireworks').ok &&
+                S.equipBall(buyConf.save, 'cele-classic').save.cele === 'cele-classic');
+            var singLock = S.buyBall(richSv, 'cele-singularity', opts);
+            assert('Singularity asks for a hole in one before its stars',
+                !singLock.ok && singLock.reason === 'achievement');
+            S.save(buyConf.save);
+            assert('save and load round-trip the celebration', S.equippedCele(S.load()) === 'cele-confetti');
+            var devCele = S.resetFreeBalls(S.unlockBallFree(sv, 'cele-supernova').save).save;
+            assert('a dev-unlocked celebration falls back to Cup Sparkle when the dev unlocks are reset',
+                S.equippedCele(devCele) === 'cele-classic');
+
+            /* …and each one actually goes off and ends: something is drawn,
+               nothing is drawn below the green or out of the shop's frame,
+               and it is all over inside a few seconds. */
+            celes.forEach(function (c) {
+                var fx = G3.celebrate.start(c.id, G3.celebrate.seeded(3)), most = 0, tall = 0, wide = 0, low = 0, n = 0;
+                while (!fx.done && n < 600) {
+                    G3.celebrate.step(fx, 1 / 60);
+                    n++;
+                    most = Math.max(most, fx.parts.length);
+                    fx.parts.forEach(function (p) {
+                        if (p.oa <= 0) return;
+                        tall = Math.max(tall, p.oy); wide = Math.max(wide, Math.abs(p.ox), Math.abs(p.oz));
+                        if (p.oy < -0.05) low++;
+                    });
+                }
+                assert(c.name + ' goes off, stays over the green and is over in ' + (n / 60).toFixed(1) + 's',
+                    fx.done && most >= 30 && most <= 1500 && tall > 1.5 && tall < 11 && wide < 9 && low === 0 && n / 60 < 5,
+                    'peak ' + most + ' particles, ' + tall.toFixed(1) + ' high, ' + wide.toFixed(1) + ' wide, ' + low + ' under the green');
+            });
+            var pk1 = G3.celebrate.peek('cele-fireworks', 5), pk2 = G3.celebrate.peek('cele-fireworks', 5);
+            assert('a shop card\'s picture draws the same every time (seeded)',
+                pk1.parts.length > 0 && pk1.parts.length === pk2.parts.length && pk1.parts[0].ox === pk2.parts[0].ox);
 
             // Switching back to an owned ball works; switching to a locked ball fails cleanly
             var eqWhite = S.equipBall(buyTriple.save, 'tour-white');

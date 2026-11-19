@@ -6252,18 +6252,33 @@ the draw, stored as the ones excluded so that an empty value is every kind and
 a new group of courses arrives ticked rather than hidden. All these writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
 
-## The Pro Shop: balls, club finishes and what they cost
+## The Pro Shop: balls, club finishes, celebrations and what they cost
 
-Two shelves behind one wallet (`B`, the menu's brass plate, or the plate on a
+Three shelves behind one wallet (`B`, the menu's brass plate, or the plate on a
 finished round's card). `js/balls.js` is the catalog — `BALLS`, `CLUB_FINISHES`,
 and `LOCKS` — and `js/scoring.js` owns the rules: `availableStars` is stars
 earned minus stars spent, both kinds of purchase live in `save.balls`, and the
 equipped club finish is `save.club`.
 
 - **The economy.** 330 stars exist (270 on the courses, 60 on the World Tour).
-  Balls cost 220 and club finishes 88, so a completionist can own everything
-  with stars to spare. `tests.html` holds the sum under the cap; add an item
-  and re-price rather than loosen it.
+  Balls cost 206, club finishes 79 and celebrations 40, so a completionist can
+  own everything with five to spare. `tests.html` holds the sum under the cap;
+  add an item and re-price rather than loosen it (the celebrations went in by
+  taking a few stars off each top-shelf ball and club, v1.194.0).
+- **Hole-in celebrations** (v1.194.0, the owner: "similar to how they work for
+  Rocket League"). The equipped one goes off over the cup whenever a ball
+  drops — every hole, the range, and again in an ace's replay — through
+  `render.sinkAt`. `balls.js → CELEBRATIONS` is the catalog and `save.cele`
+  the slot; `js/celebrate.js` is how each one moves, a DOM-free particle
+  script that both `render.js` (two point clouds — light added, paper drawn
+  over — four flat rings and two beams, all built once in `buildCelebration`)
+  and the shop (`game.js → drawCeleFrame`, a flat picture of the same
+  simulation: the looping preview and every card, the cards from a fixed seed
+  at each effect's `peek`) draw from. They are drawn half as big again as the
+  scripts are written (`R.cele.scale`), because the victory lap backs out to
+  ten or eighteen units. Nothing is made when one goes off, so no program
+  compiles and no light is added mid-hole — `shader-tests.html` plays every
+  one over a cup and counts both.
 - **Achievement locks.** A top-shelf item with `lock` also needs that
   achievement met — counted from the save alone by `scoring.lockProgress`
   (rounds, aces, a round under par, every kind of course, eight courses, six
