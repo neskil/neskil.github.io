@@ -203,13 +203,15 @@
        stand on. Each of the first two has a pad in it: the floor throws the
        ball and at this weight it stays thrown for two seconds. The second
        balloon's pad is off to one side — land beside it and take two more,
-       or come down on it still running and be thrown on to the third. */
+       or come down on it still running and be thrown on to the third.
+       The chipper is in the bag (the owner, v1.192.0): at a third of a g a
+       pitch hangs long enough to be a choice, not a shortcut. */
     add({
         id: 'gasgiant', title: 'Balloon Hop', world: 'Living Balloons over a Gas Giant', kind: 'alien', tier: 2,
         caption: 'A third of a g, three balloons and nothing under them for a thousand miles.',
         theme: 'gasgiant',
         hole: world({
-            name: 'Balloon Hop', par: 3, bag: ROLL, gravity: 0.35,
+            name: 'Balloon Hop', par: 3, bag: ['putter', 'mallet', 'chipper'], gravity: 0.35,
             blurb: 'The pads throw the ball and at this weight it stays thrown. Balloon to balloon — or both hops in one.',
             pads: [
                 disc(4, 3.2, 3.2), sprung(4, 5.4, 0.9, 7.6),
