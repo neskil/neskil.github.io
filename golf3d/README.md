@@ -6259,6 +6259,15 @@ equipped club finish is `save.club`.
   (rounds, aces, a round under par, every kind of course, eight courses, six
   World Tour holes, a perfect course). `buyBall` refuses with reason
   `'achievement'`. Owning an item already is never undone by a lock.
+- **The Achievements screen** (the menu's 🏆 plate, or the shop's third tab)
+  lists the locks in `LOCK_ORDER` with their `title`, progress and every item
+  that asks for each; tapping an item opens the shop on it.
+- **The grid's thumbnails are the real ball.** `createBallPreview().snapshot`
+  renders each ball once, straight on and without its coaster, on the
+  preview's own WebGL context and copies it to the card's 2D canvas, a few a
+  frame (`game.js → queueShopThumb`). `drawBallSwatch`'s 2D painting is the
+  placeholder until then and the fallback without WebGL. A new ball needs
+  nothing extra: if it draws in the game it draws in the grid.
 - **Club finishes recolour, never rebuild.** `bag.js` keeps every material set
   `mats()` hands out and `setFinish` repaints paint, head steel and grips in
   place. The extreme finishes (`glow: 'fire' | 'ice'`) breathe an emissive

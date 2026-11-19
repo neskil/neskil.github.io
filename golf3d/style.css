@@ -5241,7 +5241,7 @@ body.flight-mode .controls { display: none; }
 .shop-tabs {
     flex: none;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 0;
     border: 1px solid var(--panel-border);
     border-radius: 6px;
@@ -5519,3 +5519,101 @@ body.flight-mode .controls { display: none; }
     color: var(--ink);
 }
 .shop-dev-btn.muted:hover { background: #2f3527; }
+
+/* ── Achievements (game.js → drawAchievements) ─────────────────────────── */
+#menu .menu-ach { margin-top: -0.35rem; }
+.card-shop-ball.ach-cup {
+    background: #171a12;
+    box-shadow: none;
+    display: grid;
+    place-items: center;
+    font-size: 1.05rem;
+}
+.shop-tab-ach { color: var(--gold); }
+#achievements .modal-inner {
+    width: min(640px, 100%);
+    max-width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+.ach-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.ach-row {
+    padding: 0.7rem 0.8rem;
+    background: #1a1e15;
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--panel-border);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.ach-row.met { border-left-color: var(--under); background: #1d2418; }
+.ach-head { display: flex; align-items: center; gap: 0.6rem; }
+.ach-mark {
+    flex: none;
+    width: 1.8rem;
+    height: 1.8rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #252a1e;
+    font-size: 0.85rem;
+}
+.ach-row.met .ach-mark { background: #243822; color: #9ae08b; font-weight: 700; }
+.ach-words { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.ach-words b { color: var(--ink); font-size: 1rem; }
+.ach-words span { color: var(--ink-dim); font-size: 0.84rem; }
+.ach-num { flex: none; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+.ach-row.met .ach-num { color: #9ae08b; }
+.ach-bar {
+    display: block;
+    height: 5px;
+    border-radius: 3px;
+    background: #11140d;
+    overflow: hidden;
+}
+.ach-bar i { display: block; height: 100%; background: var(--accent); }
+.ach-row.met .ach-bar i { background: var(--under); }
+.ach-unlocks { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.ach-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    flex-basis: 100%;
+}
+.ach-item {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    column-gap: 0.45rem;
+    line-height: 1.2;
+    padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+    font: inherit;
+    text-align: left;
+    color: var(--ink);
+    background: #14170f;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+.ach-item:hover { border-color: rgba(201, 163, 82, 0.5); }
+.ach-item.ready { border-color: var(--accent); }
+.ach-item canvas { width: 34px; height: 34px; grid-row: span 2; }
+.ach-item-name { font-weight: 700; font-size: 0.86rem; }
+.ach-item-st { font-size: 0.74rem; color: var(--ink-dim); }
+.ach-item.ready .ach-item-st { color: var(--gold); }
+.ach-item.owned .ach-item-st { color: #9ae08b; }
+@media (max-width: 560px) {
+    #achievements .modal-inner { padding: 1rem; }
+}

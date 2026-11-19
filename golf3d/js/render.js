@@ -8755,6 +8755,43 @@
                 bundle.uniforms.time.value = clock;
                 gl.render(sc, cam);
             },
+            /* A still of one ball for the shop's grid, drawn by these same
+               shaders on this same context so a thumbnail is the ball you
+               get rather than a 2D painting of it. Straight on, no coaster,
+               the ball filling the frame; copied into `out` (a 2D canvas)
+               before the browser composites, so the live preview never shows
+               it. The caller re-ticks the preview afterwards. */
+            snapshot: function (id, out, rot) {
+                var ctx = out && out.getContext('2d');
+                if (!ctx) return false;
+                var n = out.width;
+                gl.setPixelRatio(1);
+                gl.setSize(n, n, false);
+                var pos = cam.position.clone(), fov = cam.fov, asp = cam.aspect;
+                // Fit the sphere to 84% of the frame: half-angle off its radius.
+                var dist = 0.6;
+                cam.position.set(0, 0, dist);
+                cam.fov = 2 * Math.atan(C.BALL_R / 0.84 / Math.sqrt(dist * dist - C.BALL_R * C.BALL_R)) * 180 / Math.PI;
+                cam.aspect = 1;
+                cam.lookAt(0, 0, 0);
+                cam.updateProjectionMatrix();
+                plinth.visible = false;
+                applyBallStyleTo(ballMesh, bundle, id, 0xffffff);
+                // Turned so the sight line runs across the face, tipped a little toward the camera.
+                ballMesh.rotation.set(rot ? rot[0] : 0.28, rot ? rot[1] : -1.7, 0);
+                bundle.uniforms.uGbTime.value = 1.7;
+                bundle.uniforms.time.value = 1.7;
+                gl.render(sc, cam);
+                ctx.clearRect(0, 0, n, n);
+                ctx.drawImage(canvas, 0, 0, n, n);
+                plinth.visible = true;
+                cam.position.copy(pos);
+                cam.fov = fov;
+                cam.aspect = asp;
+                cam.lookAt(0, -0.02, 0);
+                cam.updateProjectionMatrix();
+                return true;
+            },
             dispose: function () {
                 ballMesh.geometry.dispose();
                 plinth.geometry.dispose();

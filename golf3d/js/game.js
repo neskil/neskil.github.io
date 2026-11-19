@@ -4529,6 +4529,7 @@
             closeHowTo();
             closeAbout();
             closeShop();
+            closeAchievements();
             closeTopMenu();
             hideHoleCard();
             return;
@@ -6170,6 +6171,11 @@
         el.textContent = n ? n + ' to unlock' : '';
         if ($('menu-btn-shop')) $('menu-btn-shop').classList.toggle('has-new', !!n);
         if ($('menu-shop-stars')) $('menu-shop-stars').textContent = '\u2605 ' + avail;
+        if ($('menu-ach-text')) {
+            var a = achievementRows(save);
+            var done = a.filter(function (r) { return r.met; }).length;
+            $('menu-ach-text').textContent = done + ' of ' + a.length + ' done \u00b7 each opens a top-shelf ball or club';
+        }
     }
 
     /* Six holes played is when there are stars to spend, so a finished round's
@@ -7325,6 +7331,47 @@
         ctx.restore();
     }
 
+    /* The grid's thumbnails are stills of the real ball (shopPreview.snapshot),
+       taken once per ball per visit and kept. The 2D swatch above stands in
+       until a ball's still is ready, and for good when there is no WebGL.
+       A few a frame, so opening the shop does not wait on every shader. */
+    var shopThumbs = {};
+    var shopThumbQueue = [];
+    var shopThumbTimer = 0;
+    function queueShopThumb(id, sw) {
+        if (!shopPreview || !shopPreview.snapshot) return;
+        shopThumbQueue.push({ id: id, sw: sw });
+        if (!shopThumbTimer) shopThumbTimer = requestAnimationFrame(takeShopThumbs);
+    }
+    function takeShopThumbs() {
+        shopThumbTimer = 0;
+        var took = 0;
+        while (shopThumbQueue.length && took < 3) {
+            var job = shopThumbQueue.shift();
+            var img = shopThumbs[job.id];
+            if (!img) {
+                img = document.createElement('canvas');
+                img.width = job.sw.width;
+                img.height = job.sw.height;
+                if (!shopPreview.snapshot(job.id, img)) { shopThumbQueue.length = 0; break; }
+                shopThumbs[job.id] = img;
+                took++;
+            }
+            if (job.sw.isConnected) {
+                var c = job.sw.getContext('2d');
+                c.clearRect(0, 0, job.sw.width, job.sw.height);
+                c.drawImage(img, 0, 0);
+            }
+        }
+        if (took) {
+            // Put the live preview back as it was: its size, its ball, a frame.
+            shopPreview.resize();
+            shopPreview.setStyle(shopInspect || 'tour-white');
+            shopPreview.tick(0, !!shopDrag);
+        }
+        if (shopThumbQueue.length) shopThumbTimer = requestAnimationFrame(takeShopThumbs);
+    }
+
     function openShop(inspectId) {
         if (!$('ball-shop')) return;
         shopFromMenu = $('menu') && $('menu').classList.contains('show');
@@ -7379,7 +7426,7 @@
 
         // Balls | Clubs
         if ($('shop-tabs')) {
-            Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button'), function (btn) {
+            Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button[data-tab]'), function (btn) {
                 var on = btn.getAttribute('data-tab') === (clubs ? 'clubs' : 'balls');
                 btn.classList.toggle('on', on);
                 btn.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -7499,7 +7546,9 @@
             sw.className = 'bc-swatch';
             sw.width = 116;
             sw.height = 116;
-            if (clubs) drawClubSwatch(sw, b); else drawBallSwatch(sw, b);
+            if (clubs) drawClubSwatch(sw, b);
+            else if (shopThumbs[b.id]) sw.getContext('2d').drawImage(shopThumbs[b.id], 0, 0);
+            else { drawBallSwatch(sw, b); queueShopThumb(b.id, sw); }
             card.appendChild(sw);
 
             var nm = document.createElement('span');
@@ -7549,6 +7598,140 @@
         }
     }
 
+    /* ── Achievements ───────────────────────────────────────────────────
+       Each lock in balls.js (G3.SHOP_LOCKS), in G3.SHOP_LOCK_ORDER, with how
+       far along it is (scoring.lockProgress) and every shop item that asks
+       for it. Counted from the save, so it says what the shop says. */
+    var achFromMenu = false;
+    var achFromShop = false;
+
+    function achievementRows(save) {
+        var L = G3.SHOP_LOCKS || {};
+        var order = G3.SHOP_LOCK_ORDER || Object.keys(L);
+        var items = G3.SHOP_ITEMS || G3.BALLS || [];
+        return order.filter(function (k) { return L[k]; }).map(function (k) {
+            var have = S.lockProgress ? Math.min(L[k].need, S.lockProgress(save, k)) : 0;
+            return {
+                key: k, title: L[k].title || k, text: L[k].text, need: L[k].need, have: have,
+                met: have >= L[k].need,
+                items: items.filter(function (b) { return b.lock === k; })
+            };
+        });
+    }
+
+    function openAchievements() {
+        if (!$('achievements')) return;
+        achFromMenu = $('menu') && $('menu').classList.contains('show');
+        if (achFromMenu) $('menu').className = 'modal';
+        achFromShop = $('ball-shop') && $('ball-shop').classList.contains('show');
+        if (achFromShop) $('ball-shop').className = 'modal';
+        // The real-ball thumbnails come from the shop's preview renderer.
+        if (!shopPreview && R.createBallPreview) shopPreview = R.createBallPreview($('shop-preview'));
+        drawAchievements();
+        $('achievements').className = 'modal show';
+        $('achievements').querySelector('.modal-inner').scrollTop = 0;
+    }
+
+    function closeAchievements(toShop) {
+        if (!$('achievements') || !$('achievements').classList.contains('show')) return;
+        $('achievements').className = 'modal';
+        if (toShop) return;
+        if (achFromShop) { achFromShop = false; $('ball-shop').className = 'modal show'; drawShop(); }
+        else if (achFromMenu) { achFromMenu = false; openMenu(); }
+    }
+
+    function drawAchievements() {
+        var save = state && state.save ? state.save : S.load();
+        var avail = S.availableStars ? S.availableStars(save) : 0;
+        var rows = achievementRows(save);
+        var list = $('ach-list');
+        list.innerHTML = '';
+        $('ach-count').textContent = rows.filter(function (r) { return r.met; }).length + ' / ' + rows.length;
+        rows.forEach(function (r) {
+            var li = document.createElement('li');
+            li.className = 'ach-row' + (r.met ? ' met' : '');
+            var head = document.createElement('div');
+            head.className = 'ach-head';
+            var mark = document.createElement('span');
+            mark.className = 'ach-mark';
+            mark.textContent = r.met ? '\u2713' : '\ud83d\udd12';
+            head.appendChild(mark);
+            var words = document.createElement('div');
+            words.className = 'ach-words';
+            var t = document.createElement('b');
+            t.textContent = r.title;
+            var d = document.createElement('span');
+            d.textContent = r.text;
+            words.appendChild(t);
+            words.appendChild(d);
+            head.appendChild(words);
+            var n = document.createElement('span');
+            n.className = 'ach-num';
+            n.textContent = r.have + ' / ' + r.need;
+            head.appendChild(n);
+            li.appendChild(head);
+            var bar = document.createElement('span');
+            bar.className = 'ach-bar';
+            var fill = document.createElement('i');
+            fill.style.width = Math.round(100 * r.have / r.need) + '%';
+            bar.appendChild(fill);
+            li.appendChild(bar);
+            if (r.items.length) {
+                var un = document.createElement('div');
+                un.className = 'ach-unlocks';
+                var lab = document.createElement('span');
+                lab.className = 'ach-label';
+                lab.textContent = 'Unlocks';
+                un.appendChild(lab);
+                r.items.forEach(function (b) {
+                    var club = b.kind === 'club';
+                    var owned = S.ownsBall && S.ownsBall(save, b.id);
+                    var it = document.createElement('button');
+                    it.type = 'button';
+                    it.className = 'ach-item' + (owned ? ' owned' : '');
+                    var cv = document.createElement('canvas');
+                    cv.width = cv.height = 116;
+                    if (club) drawClubSwatch(cv, b);
+                    else if (shopThumbs[b.id]) cv.getContext('2d').drawImage(shopThumbs[b.id], 0, 0);
+                    else { drawBallSwatch(cv, b); queueShopThumb(b.id, cv); }
+                    it.appendChild(cv);
+                    var nm = document.createElement('span');
+                    nm.className = 'ach-item-name';
+                    nm.textContent = b.name + (club ? ' clubs' : '');
+                    it.appendChild(nm);
+                    var st = document.createElement('span');
+                    st.className = 'ach-item-st';
+                    st.textContent = owned ? 'Owned'
+                        : !r.met ? '\u2605 ' + b.cost + ' once done'
+                        : avail >= b.cost ? 'Ready \u00b7 \u2605 ' + b.cost
+                        : '\u2605 ' + b.cost;
+                    if (!owned && r.met && avail >= b.cost) it.classList.add('ready');
+                    it.appendChild(st);
+                    it.addEventListener('click', function () {
+                        var back = achFromMenu;
+                        closeAchievements(true);
+                        if (club) { shopTab = 'clubs'; shopInspectClub = b.id; openShop(); }
+                        else { shopTab = 'balls'; openShop(b.id); }
+                        if (back) shopFromMenu = true;
+                    });
+                    un.appendChild(it);
+                });
+                li.appendChild(un);
+            }
+            list.appendChild(li);
+        });
+    }
+
+    function wireAchievements() {
+        if (!$('achievements')) return;
+        $('ach-close').addEventListener('click', function () { closeAchievements(); });
+        $('achievements').addEventListener('click', function (e) {
+            if (e.target === this) closeAchievements();
+        });
+        if ($('menu-btn-ach')) $('menu-btn-ach').addEventListener('click', openAchievements);
+        if ($('shop-btn-ach')) $('shop-btn-ach').addEventListener('click', openAchievements);
+    }
+
     function wireShop() {
         if (!$('ball-shop')) return;
         $('shop-close').addEventListener('click', closeShop);
@@ -7557,7 +7740,7 @@
         });
         $('shop-d-action').addEventListener('click', onShopAction);
         if ($('shop-tabs')) {
-            Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button'), function (btn) {
+            Array.prototype.forEach.call($('shop-tabs').querySelectorAll('button[data-tab]'), function (btn) {
                 btn.addEventListener('click', function () {
                     shopTab = btn.getAttribute('data-tab');
                     drawShop();
@@ -8031,6 +8214,7 @@
         state = { save: S.load() };
         applyEquippedBall(q.ball);
         wireShop();
+        wireAchievements();
         loadShuffle();
         // ?weather=rain holds for the whole round, the same as picking it with
         // W would; anything unrecognised is simply ignored.
@@ -8118,6 +8302,7 @@
         setDev: setDev,
         openShop: openShop,
         closeShop: closeShop,
+        openAchievements: openAchievements,
         get state() { return state; },
         /* The swing gate, for the inspector and for a driver that has to time
            a strike without a thumb. Read-only from out here in the sense that
