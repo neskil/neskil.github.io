@@ -153,7 +153,8 @@ A card can carry more than one shot: put several `<img>` in the `.peek-shot`
 and the script stacks them, cross-fades between them every 2.6s and adds dots.
 Cargo Lander uses this for five — four missions in flight (canyon, islands,
 grotto, derelict station) and the R&D Upgrades shop. The golf picker does the
-same in each of its two `.dim-shot` frames, four holes apiece; the two frames
+same in each of its two `.dim-shot` frames — five holes in the 3D one (a World Tour
+hole first), four in the 2D; the two frames
 take turns on a half-beat so the panel never changes both pictures at once.
 The markup stays a plain list, so with the script off the card shows the first
 shot rather than a pile. A regenerated shot that keeps its filename gets a
