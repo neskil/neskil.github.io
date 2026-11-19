@@ -906,6 +906,13 @@
                 <span class="card-shop-text"><b>Pro Shop <i class="shop-new" id="menu-shop-new" hidden></i></b><span><span id="menu-shop-stars">★ 0</span> to spend · balls and club colours</span></span>
                 <span class="card-shop-go" aria-hidden="true">›</span>
             </button>
+            <!-- What the achievements are, how far along each is, and what it
+                 opens in the shop (game.js → openAchievements). -->
+            <button type="button" class="card-shop menu-shop menu-ach" id="menu-btn-ach" title="Achievements — what they are and what they unlock">
+                <span class="card-shop-ball ach-cup" aria-hidden="true">🏆</span>
+                <span class="card-shop-text"><b>Achievements</b><span id="menu-ach-text">See what each one unlocks</span></span>
+                <span class="card-shop-go" aria-hidden="true">›</span>
+            </button>
             <!-- On a desktop the round starts fullscreen: a browser only lets a
                  page go fullscreen off a press, and Start and a pick in this
                  list are both presses, so the switch is the place the game
@@ -1094,6 +1101,25 @@
         </div>
     </div>
 
+    <div class="modal" id="achievements">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="ach-title">
+            <div class="shop-head">
+                <div>
+                    <h2 id="ach-title">Achievements</h2>
+                    <p class="sub">The top shelf of the Pro Shop asks for one of these as well as stars. Tap anything they unlock to see it in the shop.</p>
+                </div>
+                <div class="shop-wallet" aria-live="polite">
+                    <span class="shop-wallet-avail" id="ach-count">0 / 7</span>
+                    <span class="shop-wallet-label">done</span>
+                </div>
+            </div>
+            <ol class="ach-list" id="ach-list"></ol>
+            <div class="modal-actions">
+                <button type="button" id="ach-close">Done</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="ball-shop">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="shop-title">
             <div class="shop-head">
@@ -1119,6 +1145,7 @@
             <div class="shop-tabs" id="shop-tabs" role="tablist" aria-label="What to shop for">
                 <button type="button" class="shop-tab on" data-tab="balls" role="tab" aria-selected="true">⚪ Balls</button>
                 <button type="button" class="shop-tab" data-tab="clubs" role="tab" aria-selected="false">🏌 Clubs</button>
+                <button type="button" class="shop-tab shop-tab-ach" id="shop-btn-ach">🏆 Achievements</button>
             </div>
 
             <div class="shop-stage">
