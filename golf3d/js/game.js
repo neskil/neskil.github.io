@@ -687,6 +687,7 @@
            course does not keep resetting you to the driver. */
         state.bag = G3.bagFor(hole);
         state.greenBag = null;
+        gravityWarn(hole);
         state.lieBagFor = null;
         state.lieCards = null;
         if (G3.bag && G3.bag.setLie) G3.bag.setLie(null);
@@ -3072,6 +3073,9 @@
             $('shud-blurb').textContent = hole.blurb;
             syncTurn(multi() ? state.players[state.turn] : null);
         }
+        var gtag = gravityTag(hole);
+        $('shud-grav').hidden = !gtag;
+        $('shud-grav').textContent = gtag;
 
         syncDistance();
         syncClubs();
@@ -3107,6 +3111,51 @@
         }
         if (!c.isShowcase) return c.name;
         return c.name + ' \u00B7 ' + G3.courseById(holeRef(state.holeIndex).id).name;
+    }
+
+    /* The one rule of a hole the picture cannot show besides its bag: the
+       ball weighing less (or more) than it does everywhere else. Every hole
+       whose `gravity` is under one is tagged "Low gravity" — the gravity
+       course's light holes and the tour's balloon and harbour holes alike —
+       so a player knows before the first swing why it will carry. */
+    function gravityTag(hole) {
+        var g = hole && hole.gravity;
+        if (!g || g === 1) return '';
+        return g < 1 ? 'Low gravity' : 'Heavy gravity';
+    }
+
+    /* The same warning on the stage, where it is seen without opening
+       anything (the owner, v1.195.0): it arrives large, in light red with a
+       ⚠️, says it for a couple of seconds, then shrinks to a small dim line
+       in the corner that stays for the hole and is out of the way of the
+       swing. A hole at normal weight hides it. */
+    var gravWarnTimer = 0, gravWarnPending = false;
+    function gravityWarn(hole) {
+        var el = $('grav-warn');
+        if (!el) return;
+        clearTimeout(gravWarnTimer);
+        var tag = gravityTag(hole);
+        el.classList.remove('flash', 'settled');
+        el.hidden = true;
+        el.textContent = tag ? '\u26A0\uFE0F ' + tag : '';
+        gravWarnPending = !!tag;
+    }
+
+    /* Asked every frame with the fly hint: the flash waits until the hole is
+       in front of the player — world built, nothing over it, the flyover
+       over or skipped — or it plays behind the loader to nobody. */
+    function tickGravityWarn() {
+        if (!gravWarnPending || !state || !state.world) return;
+        if (R.flying() || state.flyPending || modalUp()) return;
+        gravWarnPending = false;
+        var el = $('grav-warn');
+        el.hidden = false;
+        void el.offsetWidth;
+        el.classList.add('flash');
+        gravWarnTimer = setTimeout(function () {
+            el.classList.remove('flash');
+            el.classList.add('settled');
+        }, 2600);
     }
 
     /* ── the hole card ──────────────────────────────────────────────────── */
@@ -3148,6 +3197,7 @@
                 ? ' · ' + state.bag.map(function (c) { return c.name; }).join(' + ') + ' only'
                 : '') +
             (hole.inWorld ? ' · in ' + hole.inWorld : '') +
+            (gravityTag(hole) ? ' · ' + gravityTag(hole) : '') +
             (state.weather ? ' · ' + state.weather.icon + ' ' + state.weather.label : '');
         $('hole-card').classList.add('show');
         // The card and the overlay's drawer say the same thing; whichever was
@@ -7024,6 +7074,7 @@
         // The sweep can end on any frame and nothing else would notice.
         takeSnap();
         syncFlyHint();
+        tickGravityWarn();
         syncWipe();
 
         // After the frame, so the inspector's outlines are placed from the
