@@ -3254,6 +3254,7 @@
         $('topbar-menu').classList.remove('open');
         $('btn-menu').classList.remove('on');
         $('btn-menu').setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('tm-open');
     }
 
     function toggleTopMenu() {
@@ -3262,6 +3263,7 @@
         el.classList.toggle('open', open);
         $('btn-menu').classList.toggle('on', open);
         $('btn-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
+        document.body.classList.toggle('tm-open', open);
     }
 
     /* The overlay's second half: the hole's name, what it is, and the sky.

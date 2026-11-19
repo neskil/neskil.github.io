@@ -3568,41 +3568,93 @@ body.compact-ui .topbar-menu .chip {
     background: rgba(255, 255, 255, 0.04);
 }
 
-/* Phones: bigger targets, but sized to the bar rather than to the screen.
-   The three primary actions are the big ones; the rest are tiles and folds. */
+/* Phones: the panel takes the screen's width (up to a hand's span) and as
+   much of its height as it needs, rather than a 260px strip off the ☰. The
+   owner (v1.191.0): "menu perhaps a bit bigger on mobile. Can expand and use
+   screen as its toggle." The three primary actions are the big ones; the
+   rest are tiles and folds. */
 body.compact-ui .topbar-menu {
-    width: min(260px, calc(100vw - 24px));
-    max-height: calc(100vh - 90px);
-    max-height: calc(100dvh - 90px);
+    width: min(440px, calc(100vw - 18px));
+    max-height: calc(100vh - 70px);
+    max-height: calc(100dvh - 70px);
     overflow-y: auto;
     overscroll-behavior: contain;
+    gap: 0.45rem;
+    padding: 0.55rem;
 }
-body.compact-ui .tm-primary { display: grid; gap: 0.35rem; }
+body.compact-ui .tm-primary { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
 body.compact-ui .topbar-menu .tm-primary .chip {
-    font-size: 1.15rem;
-    padding: 0.85rem 0.9rem;
+    font-size: 1.3rem;
+    padding: 1rem 1rem;
     font-weight: 700;
 }
-body.compact-ui #btn-courses { background: var(--accent); color: #16180f; border-color: transparent; }
-body.compact-ui .tm-primary > .chip:not(#btn-courses) { display: block; }
-body.compact-ui .tm-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
-body.compact-ui .topbar-menu .tm-quick .chip { font-size: 1rem; padding: 0.6rem 0.5rem; text-align: center; }
+body.compact-ui #btn-courses { grid-column: 1 / -1; background: var(--accent); color: #16180f; border-color: transparent; }
+/* The tiles are icon over word, app-grid style ("a bit more fun with icons
+   and stuff", v1.191.0); Courses is icon beside word with a line under it. */
+body.compact-ui .topbar-menu #btn-courses { display: flex; align-items: center; gap: 0.8rem; text-align: left; }
+body.compact-ui #btn-courses .tm-ico { font-size: 2rem; }
+body.compact-ui .tm-primary > .chip:not(#btn-courses),
+body.compact-ui .tm-quick > .chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    text-align: center;
+}
+body.compact-ui .tm-primary > .chip:not(#btn-courses) .tm-ico { font-size: 1.8rem; line-height: 1; }
+body.compact-ui .tm-quick .tm-ico { font-size: 1.9rem; line-height: 1; }
+body.compact-ui .tm-lbl { display: block; }
+body.compact-ui .tm-sub {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+body.compact-ui #btn-courses .tm-sub { font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.8; }
+body.compact-ui .tm-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
+body.compact-ui .topbar-menu .tm-quick .chip { font-size: 1.1rem; font-weight: 700; padding: 0.8rem 0.3rem 0.7rem; white-space: nowrap; }
+body.compact-ui .tm-fico { display: inline-block; width: 1.6rem; margin-right: 0.35rem; text-align: center; }
 body.compact-ui .topbar-menu button.chip.tm-fold {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 1.15rem;
-    padding: 0.85rem 0.9rem;
+    font-size: 1.25rem;
+    padding: 0.95rem 1rem;
     font-weight: 700;
 }
 body.compact-ui .tm-fold[aria-expanded="true"] .tm-caret { transform: rotate(180deg); }
 body.compact-ui .tm-caret { display: inline-block; transition: transform 0.15s ease; }
-body.compact-ui .tm-group { display: none; gap: 0.3rem; padding-left: 0.5rem; border-left: 2px solid var(--ov-border); }
+body.compact-ui .tm-group { display: none; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding-left: 0.5rem; border-left: 2px solid var(--ov-border); }
 body.compact-ui .tm-group.open { display: grid; }
-body.compact-ui .topbar-menu .tm-group .chip { font-size: 1.05rem; padding: 0.7rem 0.9rem; }
-body.compact-ui .tm-about { margin: 0; padding: 0.3rem 0.4rem; font-size: 0.85rem; line-height: 1.5; color: var(--ink-dim); }
+body.compact-ui .topbar-menu .tm-group .chip { font-size: 1.05rem; padding: 0.85rem 0.8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.compact-ui .tm-about { grid-column: 1 / -1; margin: 0; padding: 0.3rem 0.4rem; font-size: 0.95rem; line-height: 1.5; color: var(--ink-dim); }
+
+/* Open, the menu is the top of the page: the bar is lifted over the stroke
+   card, the club bag and the rest of the HUD (all z-index 4–9, and the stroke
+   card, later in the document at the bar's own 6, used to paint across the
+   panel), and the course behind it is dimmed by a scrim that is the menu's
+   other toggle. The scrim takes the press, so a tap meant to close the menu
+   does not also turn the camera or start a swing; game.js's capture listener
+   shuts the menu on it. Below the portal wipe (40) and the modals (50) that
+   the menu itself opens. */
+body.compact-ui.tm-open .topbar { z-index: 30; }
+body.compact-ui.tm-open .topbar::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: rgba(10, 12, 8, 0.55);
+    pointer-events: auto;
+    animation: tmScrimIn 0.16s ease-out;
+}
+@keyframes tmScrimIn { from { opacity: 0; } }
 body.compact-ui .tm-about a { color: inherit; }
 .tm-about { display: none; }
+.tm-sub { display: none; }
 body.compact-ui .tm-about { display: block; }
 
 /* …but only the chips that are *off*, and this is where that is said.

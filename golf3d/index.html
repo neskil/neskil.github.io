@@ -185,25 +185,25 @@
                          the bar as before. Ids are unchanged: game.js binds
                          them by name. -->
                     <div class="tm-primary">
-                        <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
-                        <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
-                        <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                        <button class="chip" id="btn-courses" title="Pick a course"><span class="tm-ico" aria-hidden="true">⛳</span> <span class="tm-lbl">Courses<span class="tm-sub">World Tour · Endless · fifteen courses</span></span></button>
+                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true">🔄</span> <span class="tm-lbl"><span class="chip-text">Restart </span>Hole</span></button>
+                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true">📋</span> <span class="tm-lbl">Scorecard</span></button>
                     </div>
                     <div class="tm-quick">
-                        <button class="chip" id="btn-range" title="Driving range practice (T)">🎯<span class="chip-text"> Range</span></button>
-                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false">🗺️<span class="chip-text"> Map</span></button>
-                        <button class="chip" id="btn-balls" title="Pro Shop — Golf Balls (B)">⚪<span class="chip-text"> Balls</span></button>
+                        <button class="chip" id="btn-range" title="Driving range practice (T)"><span class="tm-ico" aria-hidden="true">🎯</span><span class="chip-text tm-lbl"> Range<span class="tm-sub">practice</span></span></button>
+                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true">🗺️</span><span class="chip-text tm-lbl"> Map<span class="tm-sub">mini map</span></span></button>
+                        <button class="chip" id="btn-balls" title="Pro Shop — balls and club colours (B)"><span class="tm-ico" aria-hidden="true">🛍️</span><span class="chip-text tm-lbl"> Pro Shop<span class="tm-sub">cosmetics</span></span></button>
                     </div>
-                    <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false">More <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true">🧩</span> Extras</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-more" data-group>
                         <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false">👥<span class="chip-text"> Players</span> <span id="players-count">1</span></button>
                         <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false">🤖<span class="chip-text"> Autoplay</span></button>
                         <button class="chip" id="btn-flight" title="Free-fly camera around the course (`)" aria-pressed="false" hidden>✈<span class="chip-text"> Flight</span></button>
                         <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own">&#9998;<span class="chip-text"> Editor</span></a>
                     </div>
-                    <button type="button" class="chip tm-fold" data-fold="tm-settings" aria-expanded="false">⚙ Settings &amp; help <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <button type="button" class="chip tm-fold" data-fold="tm-settings" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true">⚙️</span> Settings &amp; help</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-settings" data-group>
-                        <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
+                        <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">❓<span class="chip-text"> How to play</span></button>
                         <button class="chip" id="btn-about" title="About Loft Links" aria-label="About">ⓘ<span class="chip-text"> About</span></button>
                         <button class="chip" id="btn-style" title="Touch swing settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="style-pad">🏌<span class="chip-text"> Swing: <span id="style-now">Touch swing</span></span></button>
                         <button class="chip" id="btn-quality" title="Graphics and performance settings (Q)" aria-haspopup="dialog" aria-expanded="false" aria-controls="quality-pad">✦<span class="chip-text"> Graphics: <span id="quality-now">Auto</span></span></button>
@@ -214,7 +214,7 @@
                         <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true">🎬<span class="chip-text"> Flyover</span></button>
                         <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon">▦</span><span class="chip-text"> FPS</span></button>
                     </div>
-                    <button type="button" class="chip tm-fold" data-fold="tm-about" aria-expanded="false">ⓘ About <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <button type="button" class="chip tm-fold" data-fold="tm-about" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true">📖</span> About</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-about" data-group>
                         <p class="tm-about">Loft Links, by Niklas Billgren. The tour's worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.</p>
                     </div>
