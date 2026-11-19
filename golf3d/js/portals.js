@@ -296,7 +296,7 @@
        The lane is green up to the loop now and ice only after it, the boards
        are lined with green, and the bar is gone.
 
-       v1.193.0 put a bar back, the gentle way (the owner: "some kind of
+       v1.194.0 put a bar back, the gentle way (the owner: "some kind of
        spinning thing … not too hard, it's about timing, so the loop should
        get you on line to sink"). The cup is on the loop's exit line now, so
        any weight that gets round drops straight out of it — and the bar
