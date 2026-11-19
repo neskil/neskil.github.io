@@ -5690,7 +5690,8 @@ body.flight-mode .controls { display: none; }
     place-items: center;
     font-size: 1.05rem;
 }
-.shop-tab-ach { color: var(--gold); }
+.shop-tab-ach { color: var(--gold); white-space: nowrap; }
+@media (max-width: 440px) { .shop-tab { font-size: 0.82rem; } }
 #achievements .modal-inner {
     width: min(640px, 100%);
     max-width: 100%;

@@ -188,7 +188,9 @@
         tour: 0, optic: 1, matte: 2, triple: 3, divide: 4,
         pix: 5, truvis: 6, splatter: 7, camo: 8, carbon: 9,
         rainbow: 10, holo: 11, magma: 12, cyber: 13,
-        featherie: 14, aurora: 15
+        featherie: 14, aurora: 15,
+        tennis: 16, beach: 17, basketball: 18, baseball: 19,
+        eightball: 20, football: 21, bowling: 22, disco: 23
     };
 
     function makeBallBundle() {
@@ -285,6 +287,17 @@
         } else if (modeName === 'holo' || modeName === 'carbon' || modeName === 'rainbow') {
             bundle.phong.shininess = 120;
             bundle.phong.specular.setHex(0xffffff);
+        } else if (modeName === 'tennis' || modeName === 'baseball' || modeName === 'basketball') {
+            // Felt, hide and pebbled rubber: barely any shine.
+            bundle.phong.shininess = modeName === 'tennis' ? 4 : 14;
+            bundle.phong.specular.setHex(modeName === 'tennis' ? 0x1a1a14 : 0x3c3a36);
+        } else if (modeName === 'eightball' || modeName === 'bowling' || modeName === 'disco') {
+            // Lacquer, polished resin and mirror: a hard, tight highlight.
+            bundle.phong.shininess = modeName === 'disco' ? 240 : 170;
+            bundle.phong.specular.setHex(0xffffff);
+        } else if (modeName === 'beach' || modeName === 'football') {
+            bundle.phong.shininess = 60;
+            bundle.phong.specular.setHex(0xb8bcc0);
         } else if (modeName === 'magma' || modeName === 'cyber' || modeName === 'aurora') {
             bundle.phong.shininess = 68;
             bundle.phong.specular.setHex(0x8fa4b8);
@@ -8778,7 +8791,11 @@
                 plinth.visible = false;
                 applyBallStyleTo(ballMesh, bundle, id, 0xffffff);
                 // Turned so the sight line runs across the face, tipped a little toward the camera.
-                ballMesh.rotation.set(rot ? rot[0] : 0.28, rot ? rot[1] : -1.7, 0);
+                // A ball whose marking sits elsewhere (the eight, the finger
+                // holes) names its own `pose` in balls.js.
+                var def = G3.ballById ? G3.ballById(id) : null;
+                var pose = rot || (def && def.pose) || [0.28, -1.7];
+                ballMesh.rotation.set(pose[0], pose[1], 0);
                 bundle.uniforms.uGbTime.value = 1.7;
                 bundle.uniforms.time.value = 1.7;
                 gl.render(sc, cam);

@@ -6265,8 +6265,8 @@ earned minus stars spent, both kinds of purchase live in `save.balls`, and the
 equipped club finish is `save.club`.
 
 - **The economy.** 330 stars exist (270 on the courses, 60 on the World Tour).
-  Balls cost 220 and club finishes 88, so a completionist can own everything
-  with stars to spare. `tests.html` holds the sum under the cap; add an item
+  Balls cost 242 and club finishes 88, so a completionist can own exactly
+  everything. `tests.html` holds the sum under the cap; add an item
   and re-price rather than loosen it.
 - **Achievement locks.** A top-shelf item with `lock` also needs that
   achievement met — counted from the save alone by `scoring.lockProgress`
@@ -6276,6 +6276,14 @@ equipped club finish is `save.club`.
 - **The Achievements screen** (the menu's 🏆 plate, or the shop's third tab)
   lists the locks in `LOCK_ORDER` with their `title`, progress and every item
   that asks for each; tapping an item opens the shop on it.
+- **Other Sports** (category `novelty`, ball modes 16–23 in `shaders.js →
+  BALL_FS_COLOR`): tennis, beach ball, basketball, baseball, eight ball,
+  football, bowling ball and disco ball — cosmetic only, smooth (no dimples),
+  each with its own shine in `render.js → applyBallStyleTo`. The football is a
+  real truncated icosahedron (`gbBucky`: a direction belongs to the face plane
+  its ray meets first, pentagons' planes sitting slightly further out). A ball
+  whose marking is not where the default thumbnail turn shows it names a
+  `pose` (the eight, the finger holes).
 - **The grid's thumbnails are the real ball.** `createBallPreview().snapshot`
   renders each ball once, straight on and without its coaster, on the
   preview's own WebGL context and copies it to the card's 2D canvas, a few a
