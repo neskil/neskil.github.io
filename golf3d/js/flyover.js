@@ -38,12 +38,12 @@
        little and in a little as it goes, and ends high behind the tee,
        already facing down the hole, which is the way the seat faces.
 
-       It never lands. The orbit takes ORBIT_SHARE of the run and the leg
+       It never lands. The orbit takes SWEEP_SHARE of the run and the leg
        from its end down to the seat is the rest; the cut (`plan.cut`) is
-       where the orbit ends, while the camera is still travelling, and
-       render.js wipes from there to the seat (render.js → the wipe). The
-       seat is still the last key, to the last decimal: the arithmetic of
-       the hand-off, and a skip, are unchanged. */
+       where the orbit ends, and render.js wipes from there to the seat
+       (render.js → the wipe). The seat is still the last key, to the last
+       decimal: the arithmetic of the hand-off, and a skip, are unchanged.
+       (`keys.hold`, and why the cut comes so late in the run: `held`.) */
     function orbit(hole, ball, seat, F) {
         var cup = hole.cup;
         var dx = cup.x - ball.x, dz = cup.z - ball.z;
@@ -89,15 +89,45 @@
                 k === 0 ? cup.y + 0.4 : groundAt(hole, lx, lz, base) + 0.5, lz));
         }
         keys.push(key(seat.px, seat.py, seat.pz, seat.tx, seat.ty, seat.tz));
+        keys.hold = N - 1;
         return keys;
     }
 
-    /* The orbit's clock: its keys evenly through ORBIT_SHARE of the run, the
-       seat at the end. Even, because the keys are evenly round the circle and
-       the circle is the speed. */
-    function spendOrbit(keys, dur, F) {
-        var n = keys.length - 1, i;
-        for (i = 0; i < n; i++) keys[i].t = dur * F.ORBIT_SHARE * i / (n - 1);
+    /* The end of what is seen, and how it is timed (the owner, v1.193.0,
+       of the wipe: "the effect is cool, but it starts too early … not
+       smooth and deliberate").
+
+       `keys.hold` is the last key a player sees — the end of the orbit, or
+       the last key on a world's line — and the cut is there. Everything
+       before it gets SWEEP_SHARE of the run's eased clock, so that with the
+       run's smootherstep the cut comes about four fifths of the way through,
+       when the camera has slowed to under half its top speed and is visibly
+       settling: still moving when the wipe takes it, never stopped (the
+       glide to a halt read as "stopping weirdly", v1.188.0), and never
+       flung away at full tilt either. The keys after it — the approach and
+       the seat — share the rest, and are wiped rather than flown.
+
+       Up to the hold the keys are spaced by plain chord length, so the
+       camera covers ground at one even pace under the ease: a world's line
+       is picked up a point at a time and its keys are not evenly apart, and
+       anything softer sped up over every long gap and
+       slowed over every short one. An orbit's keys are evenly round its
+       circle, so for it this is the same as even. The last key lands exactly
+       on the duration, floating point or not, or the arrival is a hair short
+       of the seat. */
+    function held(keys, dur, F) {
+        var h = keys.hold, n = keys.length - 1, w = [], total = 0, i, len;
+        for (i = 0; i < h; i++) {
+            len = Math.hypot(keys[i + 1].p.x - keys[i].p.x, keys[i + 1].p.y - keys[i].p.y,
+                             keys[i + 1].p.z - keys[i].p.z);
+            len = Math.max(len, 0.001);
+            w.push(len);
+            total += len;
+        }
+        keys[0].t = 0;
+        for (i = 0; i < h; i++) keys[i + 1].t = keys[i].t + dur * F.SWEEP_SHARE * w[i] / total;
+        keys[h].t = dur * F.SWEEP_SHARE;
+        for (i = h + 1; i < n; i++) keys[i].t = keys[h].t + (dur - keys[h].t) * (i - h) / (n - h);
         keys[n].t = dur;
     }
 
@@ -200,31 +230,9 @@
 
     /* ── time ───────────────────────────────────────────────────────────── */
 
-    /* How long the whole thing runs for, and how that time is shared out.
-
-       The length is off the hole rather than flat: a nine-metre putting lane
-       does not need the five seconds Ashdown's par five earns. The share is by
-       chord length, softened by a power — straight chord length lets the one
-       long leg swallow the run and makes the short ones flick past, and a flat
-       share does the opposite. */
-    function spend(keys, dur, F) {
-        F = F || C.FLY;
-        var w = [], total = 0, i, len;
-        for (i = 0; i < keys.length - 1; i++) {
-            len = Math.hypot(keys[i + 1].p.x - keys[i].p.x,
-                             keys[i + 1].p.y - keys[i].p.y,
-                             keys[i + 1].p.z - keys[i].p.z);
-            len = Math.pow(Math.max(len, 0.001), F.PACE);
-            w.push(len);
-            total += len;
-        }
-        keys[0].t = 0;
-        for (i = 0; i < w.length; i++) keys[i + 1].t = keys[i].t + dur * w[i] / total;
-        // Floating point, a key at a time: the last key must land exactly on
-        // the duration or the arrival is a hair short of the seat.
-        keys[keys.length - 1].t = dur;
-    }
-
+    /* How long the whole thing runs for: off the hole rather than flat, since
+       a nine-metre putting lane does not need the five seconds Ashdown's par
+       five earns. How that time is shared out is `held`'s. */
     function seconds(d, F) {
         F = F || C.FLY;
         return clamp(F.BASE_SECONDS + d * F.PER_UNIT, F.MIN_SECONDS, F.MAX_SECONDS);
@@ -241,7 +249,10 @@
         var n = keys.length, i, a, b, h;
         for (i = 0; i < n; i++) {
             a = keys[i === 0 ? 0 : i - 1];
-            b = keys[i === n - 1 ? n - 1 : i + 1];
+            /* The held key looks back only: the curve arrives at it the way
+               the sweep was going, rather than already bending off towards a
+               seat that is wiped to, not flown to (`held`). */
+            b = keys[i === n - 1 || i === keys.hold ? i : i + 1];
             h = b.t - a.t;
             if (h < 1e-6) h = 1e-6;
             keys[i].mp.x = (b.p.x - a.p.x) / h;
@@ -356,69 +367,22 @@
     function plan(hole, ball, seat, opts) {
         var d = Math.hypot(hole.cup.x - ball.x, hole.cup.z - ball.z);
         var F = knobs(opts && opts.tour);
-        var keys = null, dur;
+        var keys = null, dur, line = false;
         if (opts && opts.line) {
             keys = worldLine(hole, ball, seat, opts.line, F);
-            if (keys) dur = clamp(F.LINE_BASE + pathLength(keys) * F.LINE_PER_UNIT,
-                                  F.LINE_MIN, F.LINE_MAX);
+            if (keys) {
+                line = true;
+                dur = clamp(F.LINE_BASE + pathLength(keys) * F.LINE_PER_UNIT, F.LINE_MIN, F.LINE_MAX);
+            }
         }
-        if (keys) {
-            spend(keys, dur, F);
-            lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
-            return { keys: keys, dur: dur, out: pose(), line: true, cut: cutAt(keys, dur) };
+        if (!keys) {
+            keys = orbit(hole, ball, seat, F);
+            dur = seconds(d, F);
         }
-        keys = orbit(hole, ball, seat, F);
-        dur = seconds(d, F);
-        spendOrbit(keys, dur, F);
+        held(keys, dur, F);
         lift(hole, keys, dur, Math.max(ball.y, hole.cup.y));
-        return { keys: keys, dur: dur, out: pose(), line: false,
-                 cut: unease(keys[keys.length - 2].t, dur) };
-    }
-
-    /* ── the cut ────────────────────────────────────────────────────────
-
-       Where the sweep stops being flown and is cut instead. The path runs
-       green to tee and the seat looks tee to green, so the end of it has to
-       pass over the ball and turn the whole view round to face the other
-       way — and since the look is pinned to the ball by then, that turn is
-       a camera spinning on the spot above it: up to fifty degrees a second
-       on a tour hole, for the last three seconds of the run. The owner:
-       "it's focusing a bit much on the ball when it spins over … do a quick
-       fade to black (or circle in out thing)".
-
-       So render.js wipes from this moment to the seat instead (render.js →
-       the wipe). This is the cut on a world's line only; the orbit is cut
-       where the orbit ends (`plan`).
-       The moment is the first sample in the second half of the run where
-       the look turns faster than CUT_TURN degrees a second — read off the
-       path rather than set as a share of it, since a straight putting lane
-       and a tour hole with a dog-leg turn at very different points — and
-       never later than CUT_TAIL from the end, where all that is left is
-       the ease settling onto the seat. Pure, like the rest of this file:
-       tests.html can hold it to that with no canvas. */
-    function cutAt(keys, dur) {
-        var F = C.FLY, n = F.CUT_SAMPLES, i, t, dt = dur / n;
-        var a = pose(), b = pose(), turn;
-        var latest = Math.max(dur * 0.5, dur - F.CUT_TAIL);
-        sample(keys, dur, dur * 0.5 - dt, a);
-        for (i = Math.ceil(n * 0.5); i <= n; i++) {
-            t = i * dt;
-            if (t >= latest) break;
-            sample(keys, dur, t, b);
-            turn = lookTurn(a, b) / dt;
-            if (turn > F.CUT_TURN) return t;
-            var s = a; a = b; b = s;
-        }
-        return latest;
-    }
-
-    // The angle between two poses' lines of sight, in degrees.
-    function lookTurn(a, b) {
-        var ax = a.tx - a.px, ay = a.ty - a.py, az = a.tz - a.pz;
-        var bx = b.tx - b.px, by = b.ty - b.py, bz = b.tz - b.pz;
-        var d = (ax * bx + ay * by + az * bz) /
-                (Math.sqrt(ax * ax + ay * ay + az * az) * Math.sqrt(bx * bx + by * by + bz * bz) || 1);
-        return Math.acos(clamp(d, -1, 1)) * 180 / Math.PI;
+        return { keys: keys, dur: dur, out: pose(), line: line,
+                 cut: unease(keys[keys.hold].t, dur) };
     }
 
     /* The tour's own numbers: FLY with FLY.TOUR laid over it. A world is the
@@ -509,9 +473,13 @@
             keys.push(key(a[0], a[1], a[2], ball.x, ball.y + 0.8, ball.z));
         }
 
-        // The approach and the seat, exactly as the ordinary sweep has them.
+        /* The approach and the seat, exactly as the ordinary sweep has them —
+           wiped to rather than flown: the cut is on the last key of the line
+           (`held`). Flown, the pass over the ball turned the view round at
+           up to 76°/s, which is what the cut is there to spare a player. */
         var tail = keyframes(hole, ball, seat, F);
         keys.push(tail[2], tail[3]);
+        keys.hold = keys.length - 3;
         return keys;
     }
 

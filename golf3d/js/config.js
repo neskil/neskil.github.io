@@ -935,8 +935,11 @@ G3.CONFIG = {
            ORBIT_RISE of it at the start to ORBIT_FALL at the end, and coming
            in to ORBIT_IN of the radius; round from ORBIT_FROM degrees off the
            line past the cup to ORBIT_TO off it behind the tee, through
-           ORBIT_KEYS keys in ORBIT_SHARE of the run — the rest is the leg to
-           the seat, which is wiped rather than flown. */
+           ORBIT_KEYS keys. SWEEP_SHARE of the run's eased clock goes to
+           everything a player sees (the orbit, or a world's line) and the
+           rest to the leg to the seat, which is wiped rather than flown —
+           0.94 puts the cut about four fifths through the run, the camera
+           settling at under half its top speed (flyover.js → held). */
         ORBIT_R: 1.05,
         ORBIT_ADD: 5,
         ORBIT_MIN: 12,
@@ -948,8 +951,7 @@ G3.CONFIG = {
         ORBIT_FROM: 35,
         ORBIT_TO: 25,
         ORBIT_KEYS: 7,
-        ORBIT_SHARE: 0.86,
-        PACE: 0.6,          // how far the time follows the chord lengths
+        SWEEP_SHARE: 0.94,
         LIFT: 0.66,         // apex, as a fraction of the hole's length…
         LIFT_MIN: 9,        // …with a floor and a ceiling in world units
         LIFT_MAX: 32,
@@ -971,12 +973,7 @@ G3.CONFIG = {
         AIR_FROM: 6,
         AIR_SPAN: 18,
         AIR_MAX: 0.85,
-        /* Where a world's line is cut rather than flown to the end (flyover.js
-           → cutAt): the first moment in its second half that the look turns
-           faster than CUT_TURN degrees a second, and never later than
-           CUT_TAIL seconds from the end. (The orbit is cut where it ends.)
-
-           WIPE is the cut itself (render.js → the wipe, game.js → syncWipe;
+        /* WIPE is the cut itself (render.js → the wipe, game.js → syncWipe;
            the owner, v1.188.0: "two renders going away at the same time"):
            TIME seconds for the edge to cross the screen, QUICK for a skip;
            SLANT how far off upright the edge leans; the outgoing picture
@@ -984,9 +981,6 @@ G3.CONFIG = {
            grown by GROW as it goes; and the incoming shot pushing in on to
            the seat from PULL of the seat's distance further back and LIFT
            of it higher. */
-        CUT_TURN: 30,
-        CUT_TAIL: 1.2,
-        CUT_SAMPLES: 120,
         WIPE: { TIME: 0.95, QUICK: 0.55, SLANT: 0.22, DRIFT: 0.18, GROW: 0.06, PULL: 0.45, LIFT: 0.12 },
         /* The tour's sweep (flyover.js → knobs): laid over the numbers above
            for a hole played in a Portals world, where the world is the thing
