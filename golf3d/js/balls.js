@@ -14,14 +14,18 @@ window.G3 = window.G3 || {};
         { id: 'all',     name: 'All' },
         { id: 'tour',    name: 'Tour' },
         { id: 'pattern', name: 'Patterns' },
+        { id: 'novelty', name: 'Other Sports' },
         { id: 'shader',  name: 'Shader FX' },
         { id: 'glass',   name: 'Glass & Void' }
     ];
 
     /* The economy: 330 stars in the game (270 on the fifteen courses, 60 on
-       the World Tour). The seventeen balls cost 220 and the nine club
-       finishes 88, so 308 buys everything with room to spare; early favourites
-       unlock in a hole or two and anything can be bought in any order.
+       the World Tour). The twenty-five balls cost 242 and the nine club
+       finishes 88, so 330 buys exactly everything; early favourites unlock in
+       a hole or two and anything can be bought in any order. The eight
+       other-sports balls (category 'novelty') are priced at two and three
+       stars because that is all the room there was: a new item past them
+       means re-pricing, not loosening the test.
 
        Stars are not the only price at the top. A ball with a `lock` also needs
        the achievement of that name met (LOCKS below, judged by
@@ -53,6 +57,30 @@ window.G3 = window.G3 || {};
             swatch: { type: 'stripe', base: '#e8f235', accent: '#1b263b', trim: '#9db316' }
         },
         {
+            id: 'tennis',
+            name: 'Baseline Fuzz',
+            cost: 2,
+            category: 'novelty',
+            badge: 'Tennis',
+            inspired: 'Pressurised Tennis Ball',
+            blurb: 'Optic-yellow felt you can almost feel, wrapped in the white rubber seam of a fresh can. Plays like a golf ball, sounds like one too.',
+            mode: 'tennis',
+            colors: ['#cfe23a', '#f4f4ea', '#9fb21c'],
+            swatch: { type: 'plain', base: '#cfe23a' }
+        },
+        {
+            id: 'beach-ball',
+            name: 'Beach Day',
+            cost: 2,
+            category: 'novelty',
+            badge: 'Beach',
+            inspired: 'Inflatable Beach Ball',
+            blurb: 'Six bright vinyl gores and two white caps, straight off the sand. It keeps the weight of a golf ball, sadly for the windmill.',
+            mode: 'beach',
+            colors: ['#e2302a', '#2a6ad8', '#f5c71f'],
+            swatch: { type: 'plain', base: '#e2302a' }
+        },
+        {
             id: 'coral-matte',
             name: 'Crimson Flare',
             cost: 3,
@@ -63,6 +91,80 @@ window.G3 = window.G3 || {};
             mode: 'matte',
             colors: ['#d9383a', '#f7f5ee', '#8f1d22'],
             swatch: { type: 'stripe', base: '#d9383a', accent: '#f7f5ee', trim: '#8f1d22' }
+        },
+        {
+            id: 'basketball',
+            name: 'Full Court',
+            cost: 3,
+            category: 'novelty',
+            badge: 'Hoops',
+            inspired: 'Pebbled Basketball',
+            blurb: 'Pebble-grain orange leather with black channel ribs. The only thing in the bag that wants to be bounced.',
+            mode: 'basketball',
+            colors: ['#d65d1c', '#141210', '#a8461a'],
+            swatch: { type: 'plain', base: '#d65d1c' }
+        },
+        {
+            id: 'baseball',
+            name: 'Seventh Inning',
+            cost: 3,
+            category: 'novelty',
+            badge: 'Diamond',
+            inspired: 'Stitched Baseball',
+            blurb: 'White horsehide and a hundred and eight red stitches in a double row, scuffed just enough to look used.',
+            mode: 'baseball',
+            colors: ['#f3efe2', '#c41c22', '#d8d2c0'],
+            swatch: { type: 'plain', base: '#f3efe2' }
+        },
+        {
+            id: 'eight-ball',
+            name: 'Behind the Eight',
+            cost: 3,
+            category: 'novelty',
+            badge: 'Billiards',
+            inspired: 'Black Eight Ball',
+            blurb: 'Lacquered black with the white roundel and the eight on it. Sink it last.',
+            mode: 'eightball',
+            pose: [0.2, -0.45],   // the shop thumbnail turns the marking to face you
+            colors: ['#0d0d10', '#f4f2ea', '#2a2a30'],
+            swatch: { type: 'plain', base: '#0d0d10' }
+        },
+        {
+            id: 'football',
+            name: 'Classic Panel',
+            cost: 3,
+            category: 'novelty',
+            badge: 'Football',
+            inspired: 'Black-and-White Panel Football',
+            blurb: 'Twelve black pentagons, twenty white hexagons, stitched along every seam: the ball everyone draws when they draw a football.',
+            mode: 'football',
+            colors: ['#f4f4ef', '#111114', '#bfc2c4'],
+            swatch: { type: 'plain', base: '#f4f4ef' }
+        },
+        {
+            id: 'bowling',
+            name: 'Strike Night',
+            cost: 3,
+            category: 'novelty',
+            badge: 'Bowling',
+            inspired: 'Reactive Resin Bowling Ball',
+            blurb: 'Polished purple resin swirled with magenta, three finger holes drilled into it. Rolls true; knocks over nothing.',
+            mode: 'bowling',
+            pose: [0.2, -0.45],   // the shop thumbnail turns the marking to face you
+            colors: ['#3b1666', '#c43a8e', '#120a24'],
+            swatch: { type: 'plain', base: '#3b1666' }
+        },
+        {
+            id: 'disco',
+            name: 'Mirror Ball',
+            cost: 3,
+            category: 'novelty',
+            badge: 'Disco',
+            inspired: 'Mirrored Disco Ball',
+            blurb: 'Hundreds of flat mirror tiles that catch the sun one at a time and throw it back as it turns.',
+            mode: 'disco',
+            colors: ['#c8ccd4', '#8e939c', '#ffffff'],
+            swatch: { type: 'plain', base: '#c8ccd4' }
         },
         {
             id: 'triple-track',
