@@ -4740,7 +4740,25 @@ body.lane-swing .swipe-hint {
    single Showcase button, and easy to never meet (v1.189.0). */
 .menu-featured { grid-template-columns: repeat(6, 1fr); }
 .menu-featured .showcase-go { grid-column: span 2; }
-.menu-featured .challenge-go, .menu-featured .surprise-go { grid-column: span 3; }
+.menu-featured .challenge-go, .menu-featured .surprise-cell { grid-column: span 3; }
+/* Surprise me and its cog: the tile fills the cell, the cog sits in its
+   top-right corner and the tile's text keeps clear of it. */
+.surprise-cell { position: relative; display: grid; min-width: 0; }
+.surprise-cell .surprise-go { padding-right: 2.6rem; }
+.sh-opts {
+    position: absolute; top: 0.3rem; right: 0.3rem;
+    width: 36px; height: 36px; padding: 0;
+    display: grid; place-items: center;
+    font: inherit; font-size: 1.05rem; line-height: 1;
+    color: var(--ink-dim);
+    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, #c4b5fd 40%, transparent);
+    background: color-mix(in srgb, #c4b5fd 8%, transparent);
+    cursor: pointer;
+}
+.sh-opts:hover { color: var(--ink); background: color-mix(in srgb, #c4b5fd 20%, transparent); }
+.sh-opts:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+.sh-opts[aria-expanded="true"] { color: #1d1530; background: #c4b5fd; border-color: #c4b5fd; }
 .surprise-go { --cg-tint: #c4b5fd; }
 .showcase-mini { --cg-tint: #7dd3fc; }
 .showcase-long { --cg-tint: #86efac; }
@@ -4751,6 +4769,8 @@ body.lane-swing .swipe-hint {
     .menu-featured .sh-go { flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.55rem 0.2rem; min-height: 60px; text-align: center; }
     .menu-featured .sh-go b { font-size: 0.86rem; }
     .menu-featured .challenge-go, .menu-featured .surprise-go { flex-direction: row; justify-content: center; min-height: 48px; gap: 0.45rem; }
+    .surprise-cell .surprise-go { padding-right: 2.4rem; }
+    .sh-opts { top: 50%; transform: translateY(-50%); width: 34px; height: 34px; }
 }
 
 /* The tabs are one row of named chips; on a phone the row scrolls sideways
