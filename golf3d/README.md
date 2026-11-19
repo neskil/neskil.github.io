@@ -3769,7 +3769,7 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   scrim dims the course and is the other way to shut it, taking the press so
   it does not also swing. Its tiles are icon over word in one golf line set
   (the `<svg>` sprite at the top of `index.html`, drawn in brass by `.ico`).
-  Since v1.197.0 the desktop bar is the same: title, ⛶ and ☰, one row, so the
+  Since v1.198.0 the desktop bar is the same: title, ⛶ and ☰, one row, so the
   canvas's height (`calc(100dvh - 196px)`) keeps the whole game in the window.
 - **The wordmark is not in the bar while you play.** On a phone the top-left was
   a line of branding over a line of figures — two rows of chrome saying one

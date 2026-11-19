@@ -164,7 +164,7 @@ body::before {
    drops the wrapper out of the layout and its chips sit in the topbar row
    exactly as they used to. The compact rules further down put the wrapper
    back and turn it into a panel. */
-/* No longer: since v1.197.0 every layout keeps them behind ☰ (the owner did
+/* No longer: since v1.198.0 every layout keeps them behind ☰ (the owner did
    not like the desktop bar's two rows of chips), so the panel rules below
    apply everywhere and only the bar around them differs. */
 .chip-menu { display: inline-block; }
@@ -331,7 +331,7 @@ canvas {
     display: block;
     width: 100%;
     /* Tall enough to be the thing you are looking at, and the whole game
-       inside the window (owner, v1.197.0: "the full game should be within the
+       inside the window (owner, v1.198.0: "the full game should be within the
        viewport"): 196px is the page padding, the one-row bar (title, ⛶, ☰)
        and the scoreboard above it, plus a 12px foot. If the bar grows a
        second row again this number is what goes wrong. The floor keeps it
@@ -3636,7 +3636,7 @@ body.compact-ui .chip-text { display: inline; }
 
 /* Phones: the panel takes the screen's width (up to a hand's span) and as
    much of its height as it needs, rather than a 260px strip off the ☰. The
-   owner (v1.197.0): "menu perhaps a bit bigger on mobile. Can expand and use
+   owner (v1.198.0): "menu perhaps a bit bigger on mobile. Can expand and use
    screen as its toggle." The three primary actions are the big ones; the
    rest are tiles and folds. */
 .topbar-menu {
@@ -3656,7 +3656,7 @@ body.compact-ui .chip-text { display: inline; }
 }
 #btn-courses { grid-column: 1 / -1; background: var(--accent); color: #16180f; border-color: transparent; }
 /* The tiles are icon over word, app-grid style ("a bit more fun with icons
-   and stuff", v1.197.0); Courses is icon beside word with a line under it. */
+   and stuff", v1.198.0); Courses is icon beside word with a line under it. */
 .topbar-menu #btn-courses { display: flex; align-items: center; gap: 0.8rem; text-align: left; }
 #btn-courses .tm-ico { font-size: 2rem; }
 .tm-primary > .chip:not(#btn-courses),
