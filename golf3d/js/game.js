@@ -1379,6 +1379,7 @@
     var TUNE_ROWS = [
         { key: 'assist', label: 'Easy strike', opts: [['off', 'Off'], ['on', 'On']] },
         { key: 'hand', label: 'Golfer', opts: [['right', 'Righty'], ['left', 'Lefty']] },
+        { key: 'club', label: 'Club side', opts: [['auto', 'Golfer'], ['left', 'Left'], ['right', 'Right']] },
         { key: 'pad', label: 'Swing pad', opts: [['left', 'Left'], ['centre', 'Centre'], ['right', 'Right']] },
         { key: 'where', label: 'Courses', opts: [['all', 'Every course'], ['long', 'Long game']] },
         { key: 'feel', label: 'Line', opts: [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']] },
@@ -1390,6 +1391,9 @@
                   on: 'Easy rules. Misses cost less. No extra cost past 100%.' },
         hand: { right: 'A right-handed golfer: a push goes right, a draw curves left.',
                 left: 'A left-handed golfer: a push goes left, a draw curves right. The ball still goes the way your thumb goes.' },
+        club: { auto: 'The club stands where your golfer holds it: leaning left for a righty, right for a lefty.',
+                left: 'The club leans left, the way a right-hander holds it.',
+                right: 'The club leans right, the way a left-hander holds it.' },
         pad: { left: 'The swing pad on the left of the screen.',
                centre: 'The swing pad in the middle, over the ball.',
                right: 'The swing pad on the right of the screen.' },
@@ -1419,7 +1423,7 @@
         tune[key] = value;
         SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
-        if (key === 'hand' && G3.bag && G3.bag.address) G3.bag.address.setHand(value === 'left');
+        if ((key === 'hand' || key === 'club') && G3.bag && G3.bag.address) G3.bag.address.setHand(clubRight());
         syncStyle();
         A.tick(0.4);
         $('tune-says').textContent = key === 'shapes' ? sides(TUNE_SAYS[key][value]) : TUNE_SAYS[key][value];
@@ -1439,6 +1443,8 @@
        swapped on the way out (`sides`), and push, pull, draw and fade are
        left alone because they are already the golfer's. */
     function lefty() { return tune.hand === 'left'; }
+    // Which way the club at the ball leans: the golfer's way unless picked.
+    function clubRight() { return tune.club === 'auto' ? lefty() : tune.club === 'right'; }
     var SIDE_SWAP = { left: 'right', right: 'left', Left: 'Right', Right: 'Left', LEFT: 'RIGHT', RIGHT: 'LEFT' };
     function sides(text) {
         if (!lefty() || !text) return text;
@@ -1768,6 +1774,7 @@
 
     function loadFromPull(y) {
         setPower(SW.swipeLoad(y - swipe.y0, swipe.len) * maxPower());
+        if (tutor === 1) syncTutor();
         var full = state.aim.power >= state.club.power;
         if (full !== swipe.full) { swipe.full = full; A.tick(full ? 0.9 : 0.4); }
     }
@@ -1855,6 +1862,7 @@
         g.lefty = flip;
         g.shape = picked || (read.shape && read.shape.name) || null;
         var frac = state.aim.power / state.club.power;
+        if (tutor === 1) tutorSet(2);
         var drawn = sw.pts.map(function (p) { return [p[0], p[1]]; }).concat([[cross.x, cross.y]]);
         endSwipe();
         strike(g);
@@ -2038,6 +2046,85 @@
         }
         $('swipe-cue').hidden = !!s;
         drawScale(r, s, x0, y0, len);
+    }
+
+    /* ── the tutorial ──
+
+       A first game is met by a coach: four short steps, one at a time, each
+       stood beside the thing it is about and each moving on when the player
+       does it — aim (the line turns), swing (a strike; while the thumb is
+       pulled back it says what to do next), the bag (a club is changed),
+       and where the settings are. "Got it" moves on without doing it, "Skip
+       tutorial" ends it, and the Swing panel's "Show the tutorial again"
+       starts it over on the next shot. It is the touch swing's, so it only
+       shows while the lane does. Someone who has played before — a saved
+       round on this device — is not shown it unasked. */
+    var TUTOR_STEPS = 4;
+    var tutor = (function () {
+        try {
+            var v = localStorage.getItem(C.TUTOR_KEY);
+            if (v === null) return localStorage.getItem(C.SAVE_KEY) !== null ? 'done' : 0;
+            return v === 'done' ? 'done' : Math.max(0, Math.min(TUTOR_STEPS - 1, parseInt(v, 10) || 0));
+        } catch (e) { return 'done'; }
+    })();
+    var tutorYaw = null, tutorSaid = '';
+
+    function tutorSet(step) {
+        tutor = step;
+        tutorYaw = null;
+        try { localStorage.setItem(C.TUTOR_KEY, String(step)); } catch (e) { /* ignore */ }
+        syncTutor();
+    }
+
+    function tutorNext() {
+        tutorSet(tutor === 'done' || tutor >= TUTOR_STEPS - 1 ? 'done' : tutor + 1);
+    }
+
+    function tutorText() {
+        if (tutor === 0) return 'Drag the course left or right to aim. The white line is where the ball starts.';
+        if (tutor === 1) {
+            if (swipe && !swipe.needle && state.aim.power >= C.MIN_POWER) {
+                return 'Now swipe straight up through where you started. Cross the band at the top in the green for a straight shot.';
+            }
+            return 'Put your thumb in the swing pad and pull straight down. The further you pull, the further it goes — the ticks say how far.';
+        }
+        if (tutor === 2) return 'Tap the bag for another club, or swipe across it to step through them.';
+        return 'That is all. 🏌 Swing in ☰ sets your hand, where the pad sits and how strict the swing is — and can show this again.';
+    }
+
+    function syncTutor() {
+        var coach = $('coach'), lane = $('swipe');
+        var on = tutor !== 'done' && state && styleLive() === 'swipe' && styleOpen() &&
+            !lane.hidden && lane.offsetWidth > 0 && !(tutor === 1 && swipe && swipe.through);
+        if (!on) { if (!coach.hidden) coach.hidden = true; return; }
+        // The aim step moves on by itself once the line has turned.
+        if (tutor === 0) {
+            if (tutorYaw === null) tutorYaw = state.aim.yaw;
+            else if (Math.abs(state.aim.yaw - tutorYaw) > 0.03) { tutorSet(1); return; }
+        }
+        var text = tutorText();
+        var stage = $('stage').getBoundingClientRect(), lr = lane.getBoundingClientRect();
+        var key = tutor + '|' + text + '|' + Math.round(lr.left) + '|' + Math.round(lr.top) + '|' + Math.round(stage.width);
+        coach.hidden = false;
+        if (key === tutorSaid) return;
+        tutorSaid = key;
+        $('coach-step').textContent = 'Tutorial · ' + (tutor + 1) + ' of ' + TUTOR_STEPS;
+        $('coach-text').textContent = text;
+        $('coach-next').textContent = tutor === TUTOR_STEPS - 1 ? 'Play' : 'Got it';
+        // Stood by what it is about: over the bag for the bag, otherwise
+        // just over the swing pad, kept inside the stage.
+        var w = coach.offsetWidth, h = coach.offsetHeight, left, top;
+        var bag = tutor === 2 && G3.bag && G3.bag.screenBox && R.state.camera
+            ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
+        if (bag) {
+            left = 10;
+            top = bag.top * stage.height - h - 12;
+        } else {
+            left = lr.left - stage.left + lr.width / 2 - w / 2;
+            top = lr.top - stage.top - h - 14;
+        }
+        coach.style.left = Math.round(Math.max(10, Math.min(stage.width - w - 10, left))) + 'px';
+        coach.style.top = Math.round(Math.max(70, top)) + 'px';
     }
 
     /* ── the lane's scale ──
@@ -2406,6 +2493,10 @@
         var frac = state.aim.power / state.club.power;
         state.club = club;
         state.aim.power = Math.min(maxPower(club), frac * club.power);
+        /* Only a change made while the bag step is on screen: after a drive
+           the game swaps the driver out by itself (`nextClub`), and that is
+           not the player finding the bag. */
+        if (tutor === 2 && !$('coach').hidden) tutorSet(3);
         syncClubs();
         syncPower();
         if (state.phase === 'aim' && offDeck()) toast('Driver off the fairway: harder to strike');
@@ -6964,6 +7055,9 @@
         // The wind gusts whether or not anything is happening, so the readout
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
+        // The coach shows only while a shot is the player's; asked every
+        // frame so it goes the moment the ball does (`syncTutor`).
+        syncTutor();
         syncMiniMapBall();
         stepFlight(dt);
 
@@ -7717,7 +7811,14 @@
         buildStylePad();
         buildTune();
         SW.setAssist(tune.assist === 'on');
-        if (G3.bag && G3.bag.address && G3.bag.address.setHand) G3.bag.address.setHand(lefty());
+        if (G3.bag && G3.bag.address && G3.bag.address.setHand) G3.bag.address.setHand(clubRight());
+        $('coach-next').addEventListener('click', function () { tutorNext(); });
+        $('coach-skip').addEventListener('click', function () { tutorSet('done'); toast('Tutorial off. 🏌 Swing in ☰ can show it again.'); });
+        $('tutor-replay').addEventListener('click', function () {
+            tutorSet(0);
+            toggleStylePad(false);
+            toast('The tutorial starts on your next shot.');
+        });
         $('btn-style').addEventListener('click', function () { toggleStylePad(); });
         $('style-close').addEventListener('click', function () { toggleStylePad(false); });
         if ($('btn-quality')) $('btn-quality').addEventListener('click', function () { toggleQualityPad(); });
