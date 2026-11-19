@@ -343,7 +343,15 @@
         var cs = courses || defaultCourses();
         var played = function (id) { var r = sv.courses && sv.courses[id]; return !!(r && r.rounds > 0); };
         var n = 0, i, j;
-        if (key === 'ace') return sv.aces || 0;
+        // Holes aced, each counted once however often (balls.js LOCKS.ace).
+        if (key === 'ace') {
+            for (i = 0; i < cs.length; i++) {
+                for (j = 0; j < cs[i].holes.length; j++) if (holeRecord(sv, cs[i].id, j).best === 1) n++;
+            }
+            var aw = worlds || (G3.portals && G3.portals.WORLDS) || [];
+            for (i = 0; i < aw.length; i++) if (holeRecord(sv, 'world-' + aw[i].id, 0).best === 1) n++;
+            return n;
+        }
         if (key === 'rounds') return sv.rounds || 0;
         if (key === 'under') {
             for (var id in sv.courses || {}) {

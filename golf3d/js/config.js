@@ -1030,7 +1030,8 @@ G3.CONFIG = {
     REPLAY: {
         DELAY: 0.55,        // after the drop, before the replay starts itself
         PRE: 0.25,          // the ball at rest on the tee before it is struck
-        HOLD: 1.8,          // after the drop, before the banner comes back
+        HOLD: 1.8,          // after the drop, before the banner comes back…
+        HOLD_MAX: 4.2,      // …or longer while the hole-in celebration is still going off, up to this
         CUT_SHARE: 0.32,    // the cup camera takes over this far from the cup…
         CUT_MIN: 3,         // …as a share of the hole, clamped to these units
         CUT_MAX: 8,

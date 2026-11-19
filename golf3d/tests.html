@@ -6356,9 +6356,22 @@
                 S.equippedCele(S.emptySave()) === 'cele-classic' &&
                 !S.equipBall(S.emptySave(), 'cele-fireworks').ok &&
                 S.equipBall(buyConf.save, 'cele-classic').save.cele === 'cele-classic');
-            var singLock = S.buyBall(richSv, 'cele-singularity', opts);
-            assert('Singularity asks for a hole in one before its stars',
+            /* Ace Hunter counts different holes: one generous hole aced over
+               and over is one (the owner: "hole in one is quite easy on the
+               right map"). */
+            var farm = S.emptySave(), spread;
+            for (hi = 0; hi < 12; hi++) farm = S.recordHole(farm, 'c1', 0, 1, 3, { scored: true }).save;
+            for (hi = 0; hi < 6; hi++) farm = S.recordHole(farm, 'c2', hi, 2, 3, { scored: true }).save;
+            spread = farm;
+            for (hi = 1; hi < 5; hi++) spread = S.recordHole(spread, 'c1', hi, 1, 3, { scored: true }).save;
+            var singLock = S.buyBall(farm, 'cele-singularity', opts);
+            assert('twelve aces on one hole are one hole towards Ace Hunter, and Singularity stays locked',
+                S.lockProgress(farm, 'ace', mockCourses, mockWorlds) === 1 &&
                 !singLock.ok && singLock.reason === 'achievement');
+            assert('aces on five different holes meet it',
+                S.lockProgress(spread, 'ace', mockCourses, mockWorlds) === 5 &&
+                S.lockStatus(spread, 'cele-singularity', opts).met &&
+                G3.SHOP_LOCKS.ace.need === 5);
             S.save(buyConf.save);
             assert('save and load round-trip the celebration', S.equippedCele(S.load()) === 'cele-confetti');
             var devCele = S.resetFreeBalls(S.unlockBallFree(sv, 'cele-supernova').save).save;

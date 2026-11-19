@@ -721,11 +721,35 @@
             grp.add(bm);
             beams.push(bm);
         }
+        /* Singularity's black hole: the game's own black-hole shader, the
+           one a pipe opens in the sky (addMouth), turned to the camera. Its
+           own material rather than one from blackHoleMaterial, which belongs
+           to the hole and is thrown away with it; the same source and defines,
+           so it is the same program. */
+        var bhMat = new THREE.ShaderMaterial({
+            defines: { FACING: '' },
+            uniforms: {
+                time: { value: 0 }, size: { value: 2.4 }, open: { value: 0.01 },
+                hor: { value: 0.3 }, ring: { value: 0.44 }, feed: { value: 1.4 }, shade: { value: 0.2 },
+                gulp: { value: 0 }, spin: { value: 1.6 }, beam: { value: 0.45 }, rim: { value: 0 },
+                hot: { value: lin(0xd6b0ff).multiplyScalar(2.2) }, cool: { value: lin(0x5a3cff).multiplyScalar(2.2) }
+            },
+            vertexShader: SH.BLACKHOLE_VS,
+            fragmentShader: SH.BLACKHOLE_FS,
+            transparent: true, depthWrite: false, premultipliedAlpha: true, side: THREE.DoubleSide
+        });
+        var hole = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bhMat);
+        hole.frustumCulled = false;
+        hole.renderOrder = 3;
+        hole.raycast = function () {};
+        hole.visible = false;
+        grp.add(hole);
         R.scene.add(grp);
         /* The scripts are written in units that read from the putting seat;
            the victory lap backs out to ten or eighteen, so it is all drawn half
            as big again. */
-        R.cele = { group: grp, light: light, matter: matter, rings: rings, beams: beams, fx: null, at: new THREE.Vector3(), scale: 1.5 };
+        R.cele = { group: grp, light: light, matter: matter, rings: rings, beams: beams, hole: hole,
+            fx: null, at: new THREE.Vector3(), scale: 1.5 };
         grp.scale.setScalar(R.cele.scale);
         R.celeId = R.celeId || 'cele-classic';
     }
@@ -780,8 +804,35 @@
             m.material.color.setRGB(b.c[0], b.c[1], b.c[2]);
             m.material.opacity = b.oa;
         });
+        var h = fx.hole;
+        c.hole.visible = !!h;
+        if (h) {
+            var u = c.hole.material.uniforms;
+            c.hole.position.set(0, h.y, 0);
+            u.size.value = h.size * c.scale;
+            u.open.value = h.open;
+            u.gulp.value = h.gulp;
+            u.time.value = R.clock;
+        }
         if (!live) { c.fx = null; c.group.visible = false; }
     }
+
+    /* What the celebration bends on the screen (postfx lens, through
+       lensList): its black hole while it is open, and any ripple running out. */
+    function celeLenses(add) {
+        var c = R.cele;
+        if (!c || !c.fx || !c.group.visible) return;
+        var fx = c.fx, sc = c.scale, at = c.at, i;
+        if (fx.hole && fx.hole.k > 0.01) {
+            add(at.x, at.y + fx.hole.y * sc, at.z, fx.hole.size * sc * 0.3 * fx.hole.open, fx.hole.k);
+        }
+        for (i = 0; i < fx.lenses.length; i++) {
+            var L = fx.lenses[i];
+            if (L.ok > 0.01) add(at.x, at.y + L.y * sc, at.z, L.or * sc * 0.22, L.ok);
+        }
+    }
+
+    function celebrating() { return !!(R.cele && R.cele.fx); }
 
     function stopCelebration() {
         if (!R.cele) return;
@@ -3727,6 +3778,7 @@
             m = R.wells[i];
             add(m.cx, m.cy, m.cz, m.rs, 0.8);
         }
+        celeLenses(add);
         if (R.dive && R.diveBH && R.diveBH.visible) {
             var bhOpen = R.diveBH.material.uniforms.open.value;
             add(R.diveBH.position.x, R.diveBH.position.y, R.diveBH.position.z, C.HOLE_R * 1.15 * bhOpen, 0.95 * bhOpen);
@@ -8979,11 +9031,12 @@
        simulation has never heard of the pin — so the pin at least acknowledges
        it and rattles, which is what a real one does and what your ear is
        expecting when the cup sound plays. */
-    function sinkAt(x, y, z) {
+    // `quiet`: a pop only — the celebration is being kept for the ace replay (game.js celeOwed).
+    function sinkAt(x, y, z, quiet) {
         // The equipped celebration, from the lip of the cup (the ball is at the bottom of it).
         var top = R.cupTop !== undefined && R.hole && Math.abs(R.hole.cup.x - x) < 1 && Math.abs(R.hole.cup.z - z) < 1
             ? R.cupTop : y;
-        if (!celebrate(x, top, z)) burst(x, y + 0.1, z, 0xffe98a, 26, 2.2);
+        if (quiet || !celebrate(x, top, z)) burst(x, y + 0.1, z, 0xffe98a, 26, 2.2);
         R.pinShake = 1;
     }
 
@@ -9159,6 +9212,7 @@
         celebrate: celebrate,
         setCelebration: setCelebration,
         stopCelebration: stopCelebration,
+        celebrating: celebrating,
         divot: divot,
         punch: punch,
         setCam: setCam,

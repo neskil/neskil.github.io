@@ -21,7 +21,7 @@ window.G3 = window.G3 || {};
 
     /* The economy: 330 stars in the game (270 on the fifteen courses, 60 on
        the World Tour). The twenty-five balls cost 217, the nine club finishes
-       79 and the eight hole-in celebrations 30, so 326 buys everything with
+       79 and the eight hole-in celebrations 32, so 328 buys everything with
        a little to spare; early favourites unlock in a hole or two and
        anything can be bought in any order. The eight other-sports balls
        (category 'novelty') are priced at two and three stars, and the
@@ -368,7 +368,10 @@ window.G3 = window.G3 || {};
        target, and scoring.lockStatus counts the player's progress to it. */
     var LOCKS = {
         kinds:   { need: 4,  title: 'All-Rounder',      text: 'Finish a round in all four kinds of course: mini, crazy, adventure and the long game' },
-        ace:     { need: 1,  title: 'Hole in One',      text: 'Make a hole in one' },
+        /* Five different holes, not five aces: one generous hole could be
+           played until it gave an ace (the owner, v1.201.0: "hole in one is
+           quite easy on the right map"), and could hand out all five. */
+        ace:     { need: 5,  title: 'Ace Hunter',       text: 'Make a hole in one on five different holes' },
         tour:    { need: 6,  title: 'Globetrotter',     text: 'Earn stars on six World Tour holes' },
         rounds:  { need: 10, title: 'Regular',          text: 'Finish ten rounds' },
         under:   { need: 1,  title: 'Under Par',        text: 'Finish a round under par' },
@@ -376,9 +379,10 @@ window.G3 = window.G3 || {};
         perfect: { need: 6,  title: 'Perfect Card',     text: 'Three stars on all six holes of one course' }
     };
     /* The order the Achievements list shows them in: roughly the order a
-       player meets them, from the one a lucky first round can give to the
-       one that takes a course learned by heart. */
-    var LOCK_ORDER = ['ace', 'under', 'kinds', 'tour', 'rounds', 'courses', 'perfect'];
+       player meets them, from the one a good first round can give to the
+       one that takes a course learned by heart. (Aces moved down the list
+       when they became five different holes, v1.201.0.) */
+    var LOCK_ORDER = ['under', 'kinds', 'tour', 'rounds', 'ace', 'courses', 'perfect'];
 
     /* Club finishes: the second tab of the Pro Shop. A finish repaints every
        club in the bag at once — the lacquered `paint` panels, a tint on the
@@ -491,8 +495,8 @@ window.G3 = window.G3 || {};
             colors: ['#9fe9ff', '#ffd36a', '#ffffff']
         },
         {
-            id: 'cele-singularity', kind: 'cele', name: 'Singularity', cost: 8, badge: 'Extreme', lock: 'ace',
-            blurb: 'Everything is dragged spiralling into a point over the cup — and then it lets go.',
+            id: 'cele-singularity', kind: 'cele', name: 'Singularity', cost: 10, badge: 'Ace Hunter', lock: 'ace',
+            blurb: 'A real black hole tears open over the cup, bends the course round it and drinks a spiral of light — then shuts, and lets it all go in a ripple through space.',
             colors: ['#b27bff', '#5fa8ff', '#ffc44d']
         }
     ];
