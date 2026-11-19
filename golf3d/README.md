@@ -3769,7 +3769,7 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   scrim dims the course and is the other way to shut it, taking the press so
   it does not also swing. Its tiles are icon over word in one golf line set
   (the `<svg>` sprite at the top of `index.html`, drawn in brass by `.ico`).
-  Since v1.194.0 the desktop bar is the same: title, ⛶ and ☰, one row, so the
+  Since v1.197.0 the desktop bar is the same: title, ⛶ and ☰, one row, so the
   canvas's height (`calc(100dvh - 196px)`) keeps the whole game in the window.
 - **The wordmark is not in the bar while you play.** On a phone the top-left was
   a line of branding over a line of figures — two rows of chrome saying one
@@ -4252,7 +4252,7 @@ is the place.
 | The Marble Run | Marble Run, Falling Dominoes | Three chutes and a tray at the bottom the long way round, or out through the hatch at the first turn and down by the flag. Coming round that turn sets the world's dominoes going. |
 | Balloon Hop | Living Balloons over a Gas Giant | A third of a g. The pads throw the ball and it stays thrown. |
 | Slack Water | Kelp Cathedral | Two currents across the line, one each way, and a bank of still water between. A current carries a ball sideways for as long as it is in it: stop on the slack, or go through both in one putt round the weed. |
-| Loop and Rink | Carnival on the Frozen River | A boardwalk to a loop-the-loop, then a hexagonal rink: ice in the middle, a band of green round the boards and a rug round the flag, so a ball stops at the edge or on the rug and never comes back down the lane. |
+| Loop and Rink | Carnival on the Frozen River | A boardwalk to a loop-the-loop that comes out on line for the flag, then a hexagonal rink: ice in the middle, a band of green round the boards and a rug round the flag. A slow bar on the ice, hung off the line, crosses it for part of each turn: the shot is the timing. |
 | The Fairy Ring | Spore Rain | Eight toadstool bumpers round the flag and one big cap in front that throws the ball over them. |
 | The Orrery | Library with a Brass Orrery | Three arms on one spindle at three speeds. |
 | The Cloud Ladder | The Cloud Armada | Four landings at four heights, 0.7 g, nothing rolls between them. |
@@ -6273,6 +6273,15 @@ equipped club finish is `save.club`.
   (rounds, aces, a round under par, every kind of course, eight courses, six
   World Tour holes, a perfect course). `buyBall` refuses with reason
   `'achievement'`. Owning an item already is never undone by a lock.
+- **The Achievements screen** (the menu's 🏆 plate, or the shop's third tab)
+  lists the locks in `LOCK_ORDER` with their `title`, progress and every item
+  that asks for each; tapping an item opens the shop on it.
+- **The grid's thumbnails are the real ball.** `createBallPreview().snapshot`
+  renders each ball once, straight on and without its coaster, on the
+  preview's own WebGL context and copies it to the card's 2D canvas, a few a
+  frame (`game.js → queueShopThumb`). `drawBallSwatch`'s 2D painting is the
+  placeholder until then and the fallback without WebGL. A new ball needs
+  nothing extra: if it draws in the game it draws in the grid.
 - **Club finishes recolour, never rebuild.** `bag.js` keeps every material set
   `mats()` hands out and `setFinish` repaints paint, head steel and grips in
   place. The extreme finishes (`glow: 'fire' | 'ice'`) breathe an emissive
