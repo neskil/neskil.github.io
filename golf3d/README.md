@@ -6282,8 +6282,8 @@ earned minus stars spent, both kinds of purchase live in `save.balls`, and the
 equipped club finish is `save.club`.
 
 - **The economy.** 330 stars exist (270 on the courses, 60 on the World Tour).
-  Balls cost 217, club finishes 79 and celebrations 30, so a completionist can
-  own everything with four to spare. `tests.html` holds the sum under the cap;
+  Balls cost 217, club finishes 79 and celebrations 32, so a completionist can
+  own everything with two to spare. `tests.html` holds the sum under the cap;
   add an item and re-price rather than loosen it (the celebrations went in by
   taking a star or a few off the dearer balls and clubs, v1.200.0).
 - **Hole-in celebrations** (v1.200.0, the owner: "similar to how they work for
@@ -6300,9 +6300,28 @@ equipped club finish is `save.club`.
   ten or eighteen units. Nothing is made when one goes off, so no program
   compiles and no light is added mid-hole — `shader-tests.html` plays every
   one over a cup and counts both.
+- **An ace's celebration goes off once, in the replay** (v1.201.0, the owner:
+  "celebrations plays twice due to the replay"). When the ball that drops is
+  about to be replayed (`game.js → aceReplayAhead`, holeComplete's own test
+  asked at the drop), the live drop gets only a pop (`sinkAt(…, quiet)`) and
+  `celeOwed` is set; the replay's drop pays it, watched by the cup camera in
+  slow motion, and the replay holds past `REPLAY.HOLD` while it is still going
+  off (up to `HOLD_MAX`). A replay skipped before its drop, or one that never
+  starts under a modal, pays it over the real cup instead (`payCelebration`);
+  a hole that goes away owes nothing.
+- **Singularity is a real black hole** (v1.201.0): `fx.hole` is drawn with the
+  game's own black-hole shader (the facing one a pipe opens in the sky, its own
+  material so it outlives the hole), and the celebration hands postfx's lens
+  its horizon and any ripples (`fx.lenses`, `render.celeLenses` into
+  `lensList`) — Supernova and Shockwave send a ripple through space as well.
+  Light spiralling in goes out at the horizon rather than piling up white on
+  it. The shop cannot bend its picture, so its preview draws the hole flat.
+- **Ace Hunter** (the `ace` lock) is five *different* holes aced, counted from
+  each hole's best score, not five aces: one generous hole could be replayed
+  for all of them. It unlocks Singularity (★10) and the Holo Prism ball.
 - **Achievement locks.** A top-shelf item with `lock` also needs that
   achievement met — counted from the save alone by `scoring.lockProgress`
-  (rounds, aces, a round under par, every kind of course, eight courses, six
+  (rounds, aces on five different holes, a round under par, every kind of course, eight courses, six
   World Tour holes, a perfect course). `buyBall` refuses with reason
   `'achievement'`. Owning an item already is never undone by a lock.
 - **The Achievements screen** (the menu's 🏆 plate, or the shop's third tab)

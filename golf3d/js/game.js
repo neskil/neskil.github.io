@@ -2541,7 +2541,14 @@
             A.rim(P.speedOf(b));
         }
         if (ev.out) A.out();
-        if (ev.sunk) R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z);
+        if (ev.sunk) {
+            /* An ace is about to be shown again (holeComplete → the replay), so
+               the drop gets a pop and the celebration waits for the replay's
+               drop, where the cup camera is watching it in slow motion —
+               rather than going off now and then again half a second later. */
+            celeOwed = aceReplayAhead();
+            R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z, celeOwed);
+        }
         // A pipe (physics.js, "the wormhole"): swallowed, the sky opening,
         // and the landing on the far side, which is a landing like any other.
         if (ev.warp && A.warpIn) A.warpIn();
@@ -2873,7 +2880,7 @@
                     state.phase !== 'holed') return;
                 // Anything that stops it playing still owes the banner.
                 if (!modalUp()) playReplay(shown);
-                if (!replay) $('banner').className = shown;
+                if (!replay) { $('banner').className = shown; payCelebration(); }
             }, C.REPLAY.DELAY * 1000);
         }
         syncHud();
@@ -2886,6 +2893,22 @@
        ball is sitting in the cup waiting for it to finish — and every key and
        press ends it, the way they end the flyover. */
     var tape = null;            // the shot in flight, or the last one played
+    var celeOwed = false;       // the drop was quiet: the celebration is the replay's
+
+    // Will the ball that just dropped be replayed? (holeComplete's own test, asked early.)
+    function aceReplayAhead() {
+        if (demo || !state || state.course.isRange || !G3.replay) return false;
+        var hole = state.course.holes[state.holeIndex];
+        return S.term(state.strokes, hole.par).kind === 'ace' && G3.replay.playable(tape, hole);
+    }
+
+    // The replay did not get as far as the drop: the celebration goes off now, over the real cup.
+    function payCelebration() {
+        if (!celeOwed) return;
+        celeOwed = false;
+        var hole = state && state.course.holes[state.holeIndex];
+        if (hole && R.celebrate) R.celebrate(hole.cup.x, R.state.cupTop === undefined ? hole.cup.y : R.state.cupTop, hole.cup.z);
+    }
     var replay = null;          // { tape, t, i, cut, struck, banner, ball, world }
     var replayTimer = 0;
     var replayIntent = { show: false, yaw: 0, power: 0, loft: 0, bite: 0, over: 0 };
@@ -2918,6 +2941,8 @@
     function endReplay(keep) {
         clearTimeout(replayTimer);
         replayTimer = 0;
+        // Skipped before its drop, the celebration is still owed; a hole going away owes nothing.
+        if (keep) celeOwed = false;
         if (!replay) return;
         var banner = replay.banner;
         replay = null;
@@ -2928,6 +2953,7 @@
         }
         if (!keep) $('banner').className = banner;
         syncReplayChrome(false);
+        if (!keep) payCelebration();
     }
 
     function syncReplayChrome(on) {
@@ -2954,7 +2980,11 @@
            moving on screen, before the banner came back. */
         var rate = r.t < 0 || r.t >= end ? 1 : RE.rate(r.tape, r.t, r.ball);
         r.t += dt * rate;
-        if (r.t >= end + RP.HOLD) { endReplay(false); return; }
+        /* …and it holds on past HOLD while the celebration is still going
+           off, up to HOLD_MAX: cutting back to the banner half way through
+           one is the replay talking over the best part of it. */
+        var held = r.t - end;
+        if (held >= RP.HOLD && (held >= RP.HOLD_MAX || !(R.celebrating && R.celebrating()))) { endReplay(false); return; }
 
         var s = RE.sample(r.tape, Math.max(0, r.t), r.ball);
         if (r.t < 0) { s.vx = s.vy = s.vz = 0; }
@@ -2972,7 +3002,7 @@
             if (ev & RE.BOUNCE) A.bounce(Math.sqrt(f[k].vx * f[k].vx + f[k].vz * f[k].vz));
             if (ev & RE.LAND) A.land(spd);
             if (ev & RE.RIM) A.rim(spd);
-            if (ev & RE.SUNK) { R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z); A.ace(); }
+            if (ev & RE.SUNK) { celeOwed = false; R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z); A.ace(); }
             if ((ev & RE.WARP) && A.warpIn) A.warpIn();
             if ((ev & RE.OPEN) && A.warpOpen) A.warpOpen();
             if (ev & RE.OUT) A.land(spd + 6);
@@ -7304,6 +7334,20 @@
         });
         var i, p, px, py, r;
         ctx.globalCompositeOperation = 'source-over';
+        if (fx.hole) {
+            // The black hole, flat: a glowing disc feeding a horizon that is properly black.
+            var hx = sx(0, 0), hy = sy(fx.hole.y, 0), hr = fx.hole.size * 0.3 * fx.hole.open * k;
+            ctx.globalCompositeOperation = 'lighter';
+            var disc = ctx.createRadialGradient(hx, hy, hr * 0.9, hx, hy, hr * 3.2);
+            disc.addColorStop(0, 'rgba(214,176,255,0.95)');
+            disc.addColorStop(0.25, 'rgba(140,90,255,0.55)');
+            disc.addColorStop(1, 'rgba(90,60,255,0)');
+            ctx.fillStyle = disc;
+            ctx.beginPath(); ctx.arc(hx, hy, hr * 3.2, 0, Math.PI * 2); ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fill();
+        }
         for (i = 0; i < fx.parts.length; i++) {
             p = fx.parts[i];
             if (p.add || p.oa <= 0) continue;

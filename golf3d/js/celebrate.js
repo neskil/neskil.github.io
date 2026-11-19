@@ -82,6 +82,16 @@ window.G3 = window.G3 || {};
             a0: o.a === undefined ? 1 : o.a, oh: 0, or: 0, oa: 0 });
     }
 
+    /* A ripple through space: a lens (postfx) that runs out from the middle
+       and weakens as it goes. Only the game draws it; the shop cannot bend
+       its picture. */
+    function lens(fx, o) {
+        fx.lenses.push({ age: -(o.delay || 0), dur: o.dur || 0.8, y: o.y || 1, r0: o.r0 || 0.3, r1: o.r1 || 4,
+            k0: o.k === undefined ? 0.5 : o.k, or: 0, ok: 0 });
+    }
+
+    function smooth(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+
     // Did the moment `at` fall inside this step?
     function at(fx, t) { return t > fx.t0 && t <= fx.t; }
     // How many of a stream at `rate` a second fall inside this step, between `from` and `to`.
@@ -178,6 +188,7 @@ window.G3 = window.G3 || {};
                 if (at(fx, 0)) {
                     part(fx, { y: 0.3, grav: 0, life: 0.3, c: hex(0xfff2c4), size: 2.6, grow: 1.6 });
                     ring(fx, { r0: 0.2, r1: 6.5, dur: 0.9, c: hex(0xffcf6a), a: 1 });
+                    lens(fx, { y: 0.4, r0: 0.3, r1: 3.5, k: 0.4, dur: 0.6 });
                     ring(fx, { r0: 0.2, r1: 4.2, dur: 0.8, c: BRASS, a: 0.8, delay: 0.16 });
                     ring(fx, { r0: 0.2, r1: 2.4, dur: 0.7, c: WHITE, a: 0.6, delay: 0.3 });
                     burstOf(fx, 80, { upper: true, flat: 1, speed: 7.5, lift: 0.2, grav: 4, drag: 2.2, life: 0.9, c: hex(0xffe08a), c1: hex(0xff7a2a), size: 0.17, even: true, land: true });
@@ -244,6 +255,7 @@ window.G3 = window.G3 || {};
                     burstOf(fx, 170, { y: 1.6, speed: 5.6, even: true, grav: 0.8, drag: 1.7, life: 1.8,
                         c: function (k) { return k % 2 ? hex(0x9fe9ff) : hex(0xffd36a); }, size: 0.2 });
                     ring(fx, { r0: 0.3, r1: 7.5, dur: 0.9, c: hex(0x9fe9ff), a: 1 });
+                    lens(fx, { y: 1.6, r0: 0.3, r1: 4.5, k: 0.55, dur: 0.8 });
                     ring(fx, { r0: 0.3, r1: 5.5, dur: 0.9, c: hex(0xffd36a), a: 0.8, delay: 0.22 });
                 }
                 n = stream(fx, 0.25, 1.7, 70);
@@ -254,30 +266,39 @@ window.G3 = window.G3 || {};
             }
         },
 
+        /* A real black hole (render.js draws fx.hole with the game's own
+           black-hole shader, the one the pipes open in the sky, and bends the
+           picture round it through postfx's lens): it opens over the cup,
+           eats a spiral of light, flares, shuts — and lets it all go, with a
+           ripple through space on the way out. */
         'cele-singularity': {
-            peek: 1.2,
-            dur: 3,
+            peek: 1.05,
+            dur: 3.6,
             run: function (fx) {
-                var rnd = fx.rnd, n, i, CY = 1.7;
-                // First the hole pulls everything in…
-                n = stream(fx, 0, 0.75, 280);
+                var rnd = fx.rnd, n, i, CY = 2, SHUT = 1.45, t = fx.t;
+                if (t < SHUT + 0.14) {
+                    var op = t < SHUT ? smooth(t / 0.55) : 1 - smooth((t - SHUT) / 0.14);
+                    fx.hole = { y: CY, size: 2.4, open: Math.max(0.01, op),
+                        gulp: smooth((t - 0.9) / 0.5), k: 0.95 * op };
+                } else fx.hole = null;
+                // Light dragged in from all round, every strand timed to reach the middle as it shuts.
+                n = stream(fx, 0.05, SHUT - 0.2, 240);
                 for (i = 0; i < n; i++) {
-                    var r = 2.6 + rnd() * 1.2, life = 0.95 - fx.t;
                     part(fx, {
-                        mode: 2, ang: rnd() * TAU, rad: r, angV: 3 + rnd() * 2, cy: CY,
-                        y: CY + (rnd() - 0.5) * 2.4, life: Math.max(0.18, life),
-                        c: rnd() < 0.5 ? hex(0xb27bff) : hex(0x5fa8ff), c1: hex(0xffffff), size: 0.17
+                        mode: 2, ang: rnd() * TAU, rad: 2.8 + rnd() * 1.6, angV: 2.5 + rnd() * 2, cy: CY,
+                        y: CY + (rnd() - 0.5) * 1.6, life: Math.max(0.25, SHUT - t),
+                        c: rnd() < 0.5 ? hex(0xb27bff) : hex(0x5fa8ff), c1: hex(0xffe6b0), size: 0.19
                     });
                 }
-                if (at(fx, 0)) part(fx, { y: CY, grav: 0, life: 0.95, c: hex(0x7a4dff), size: 0.9, grow: -0.7 });
-                // …then lets it all go.
-                if (at(fx, 0.95)) {
-                    part(fx, { y: CY, grav: 0, life: 0.45, c: hex(0xffffff), size: 4.2, grow: 1.6 });
-                    burstOf(fx, 190, { y: CY, speed: 6.8, even: true, grav: 1, drag: 1.6, life: 1.7,
-                        c: function (k) { return k % 3 === 0 ? hex(0xffc44d) : hex(0xb27bff); }, c1: hex(0x3a1a8a), size: 0.21 });
-                    ring(fx, { r0: 0.3, r1: 8, dur: 1, c: hex(0xb27bff), a: 1, y: 0.03 });
-                    ring(fx, { r0: 0.3, r1: 5, dur: 0.9, c: hex(0xffc44d), a: 0.8, delay: 0.15 });
-                    beam(fx, { h: 9, r: 0.3, dur: 1.6, c: hex(0x9a6bff), a: 0.7 });
+                if (at(fx, 0)) ring(fx, { r0: 4.5, r1: 0.4, dur: SHUT, c: hex(0x6a4dff), a: 0.6 });
+                if (at(fx, SHUT + 0.1)) {
+                    part(fx, { y: CY, grav: 0, life: 0.5, c: hex(0xffffff), size: 5, grow: 1.6 });
+                    burstOf(fx, 220, { y: CY, speed: 7.2, even: true, grav: 1, drag: 1.6, life: 1.8,
+                        c: function (k) { return k % 3 === 0 ? hex(0xffc44d) : hex(0xb27bff); }, c1: hex(0x3a1a8a), size: 0.22 });
+                    ring(fx, { r0: 0.3, r1: 8.5, dur: 1, c: hex(0xb27bff), a: 1 });
+                    ring(fx, { r0: 0.3, r1: 5.5, dur: 0.9, c: hex(0xffc44d), a: 0.8, delay: 0.15 });
+                    beam(fx, { h: 10, r: 0.32, dur: 1.6, c: hex(0x9a6bff), a: 0.75 });
+                    lens(fx, { y: CY, r0: 0.4, r1: 5, k: 0.7, dur: 0.9 });
                 }
             }
         }
@@ -288,7 +309,7 @@ window.G3 = window.G3 || {};
         return {
             id: SCRIPTS[id] ? id : 'cele-classic', script: s,
             t: -1e-6, t0: -1e-6, acc: 0, rnd: rnd || Math.random,
-            parts: [], rings: [], beams: [], done: false
+            parts: [], rings: [], beams: [], lenses: [], hole: null, done: false
         };
     }
 
@@ -307,6 +328,7 @@ window.G3 = window.G3 || {};
             p.x = Math.cos(p.ang) * rr;
             p.z = Math.sin(p.ang) * rr;
             p.y = p.cy + (p.y0 - p.cy) * k * k;
+            p.pull = rr;
         } else {
             p.vy -= p.grav * dt;
             if (p.drag) {
@@ -344,6 +366,8 @@ window.G3 = window.G3 || {};
             p.ob = c[2] + (p.c1[2] - c[2]) * m;
         } else { p.or = c[0]; p.og = c[1]; p.ob = c[2]; }
         var a = p.flut ? 1 - Math.pow(u2, 6) : 1 - u2 * u2;
+        // Light falling into a black hole goes out at the horizon rather than piling up white on it.
+        if (p.mode === 2) a = Math.min(1, Math.max(0, (p.pull - 0.55) / 0.6));
         if (p.flick && u2 > 0.35 && Math.sin(p.ph * 7 + p.age * 38) < -0.2) a *= 0.25;
         var s = p.size;
         if (p.flut) {
@@ -394,7 +418,19 @@ window.G3 = window.G3 || {};
             if (v < 1) bk.push(b);
         }
         fx.beams = bk;
-        fx.done = fx.t > fx.script.dur && !fx.parts.length && !fx.rings.length && !fx.beams.length;
+        var lk = [];
+        for (i = 0; i < fx.lenses.length; i++) {
+            var L = fx.lenses[i];
+            L.age += dt;
+            if (L.age < 0) { L.ok = 0; lk.push(L); continue; }
+            var w = Math.min(1, L.age / L.dur);
+            L.or = L.r0 + (L.r1 - L.r0) * (1 - Math.pow(1 - w, 2));
+            L.ok = L.k0 * (1 - w) * (1 - w);
+            if (w < 1) lk.push(L);
+        }
+        fx.lenses = lk;
+        fx.done = fx.t > fx.script.dur && !fx.parts.length && !fx.rings.length && !fx.beams.length &&
+            !fx.lenses.length && !fx.hole;
         return !fx.done;
     }
 
