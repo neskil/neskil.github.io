@@ -7508,7 +7508,7 @@
         G3.flyover.retarget(f.plan, _seat);
         /* The end of it is wiped, not flown (the owner, v1.188.0: the cut
            should be "two renders going away at the same time"). At the cut
-           — the end of the orbit, or flyover.js → cutAt on a world's line —
+           — the end of the orbit, or the last key on a world's line (flyover.js → held) —
            the camera is still travelling; that frame is held for game.js to
            take a picture of (`snapWanted`), and from the next the camera is
            the incoming shot: a short push in on to the seat, while the
