@@ -102,6 +102,27 @@
         return A.build(h);
     }
 
+    /* A train on a straight track along x: a locomotive and its coaches,
+       one wall a car, all running one way at `speed` (signed, units a
+       second) round a run `amp` either side of `cx` — so it comes past, is
+       gone, and comes past again from the same side, rather than shuttling.
+       `at` is how far along the run the engine is at t = 0. Each car is
+       the box the ball meets and is drawn by render.js → addTrain. */
+    function train(cx, z, d, o) {
+        var cars = o.cars || [2.2, 1.8], gap = o.gap === undefined ? 0.12 : o.gap;
+        var dir = o.speed < 0 ? -1 : 1, behind = 0, out = [];
+        cars.forEach(function (len, i) {
+            if (i) behind += cars[i - 1] / 2 + gap + len / 2;
+            var w = wall(cx - len / 2, z, len, d, o.h || 0.9, {
+                base: -0.1, kind: 'train',
+                move: { axis: 'x', run: true, amp: o.amp, speed: o.speed, phase: (o.at || 0) - dir * behind }
+            });
+            w.car = i ? 'coach' : 'engine'; w.facing = dir; w.livery = o.livery || 0; w.seat = i;
+            out.push(w);
+        });
+        return out;
+    }
+
     var ROLL = ['putter', 'mallet'];
     var LOFT = ['putter', 'mallet', 'chipper', 'wedge'];
 
@@ -773,8 +794,17 @@
        two of them waited inside it. Until then it hung in the air beside
        the trestle past the table's edge, at a size where one sleeper of
        the world's track was as wide as the lane (the owner: "weak scaling
-       and the minigolf is placed really bad"). The hole itself is as it
-       was. */
+       and the minigolf is placed really bad").
+
+       The trains are trains since v1.201.0 (the owner: "why can't it be a
+       real train … continuous one direction but with gaps"). Until then
+       each was a yellow block shuttling across the lane on a sine. Now an
+       engine and its coaches run one way along the world's rails, round a
+       twenty-unit run: the near one is an engine and a coach, quicker, and
+       leaves the lane open about half the time; the far one has two
+       coaches, is slower, and leaves it open a little less. Their beats
+       (5.9 and 7.7 seconds) do not divide, so the two gaps line up a
+       different way every time round. */
     add({
         id: 'railway', title: 'The Level Crossing', world: 'The Attic Line', kind: 'home', tier: 1,
         caption: 'A straight putt over two tracks of a model railway, with a train on each.',
@@ -788,10 +818,11 @@
                 kerb(0, 0, 0, 5.2), kerb(5, 0, 5, 5.2),
                 kerb(0, 6.8, 0, 10.2), kerb(5, 6.8, 5, 10.2),
                 kerb(0, 11.8, 0, 18), kerb(5, 11.8, 5, 18),
-                slider(0.5, 5.5, 4, 1.0, { amp: 5.5, speed: 1.1, h: 0.9 }),
-                slider(0.5, 10.5, 4, 1.0, { amp: 5.5, speed: 0.8, phase: 2.1, h: 0.9 }),
                 post(1.4, 14.2), post(3.6, 14.2)
-            ],
+            ].concat(
+                train(2.5, 5.5, 1.0, { amp: 10, speed: 3.4, at: 4, cars: [2.2, 1.8] }),
+                train(2.5, 10.5, 1.0, { amp: 10, speed: -2.6, at: -7, livery: 1, cars: [2.2, 1.8, 1.8] })
+            ),
             tee: { x: 2.5, z: 1.5 }, cup: { x: 2.5, z: 15.8 }
         })
     });

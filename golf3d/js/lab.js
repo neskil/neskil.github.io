@@ -39,7 +39,7 @@
     function beat(hole) {
         var T = 0;
         hole.walls.forEach(function (w) {
-            if (w.move && w.move.speed) T = Math.max(T, 2 * Math.PI / Math.abs(w.move.speed));
+            if (w.move && w.move.speed) T = Math.max(T, G3.physics.movePeriod(w.move));
             if (w.spin) T = Math.max(T, 2 * Math.PI / Math.abs(w.spin));
             if (w.swing && w.swing.speed) T = Math.max(T, 2 * Math.PI / Math.abs(w.swing.speed));
             if (w.sails && w.sails.speed) T = Math.max(T, Math.PI / 2 / Math.abs(w.sails.speed));

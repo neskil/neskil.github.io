@@ -4651,6 +4651,7 @@
         if (wall.kind === 'slingback') return;
         if (wall.tri) { addSling(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
+        if (wall.kind === 'train') { addTrain(group, wall); return; }
         var B = P.wallBox(wall, 0);
         if (wall.swing && wall.kind === 'blade') { addFlipper(group, wall, B); return; }
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
@@ -4684,6 +4685,114 @@
                 group.add(post);
             }
         }
+    }
+
+    /* A car of a model train (portals.js → train): an engine — wheels, a
+       boiler, a chimney, a dome, a cab and a lamp — or a coach with a row
+       of lit windows down each side. It is the box the solver meets drawn
+       as what it is, built in the box's own frame about its middle so it
+       rides R.movers like any slider; the engine is turned to face the way
+       its train runs. A train runs round and starts again at the far end of
+       its run (physics.runOffset), which happens off the hole, and a car
+       fades out over the last stretch of the run and in over the first, so
+       the jump is never seen. Every car owns its materials, because its
+       opacity is its own; none of them changes after it is built but that. */
+    var TRAIN_LIVERY = [
+        { engine: 0x1f5a3a, coach: 0x8c2a2e, trim: 0xc9a24a },
+        { engine: 0x26428c, coach: 0xc08a2a, trim: 0xd9d2c0 }
+    ];
+    var TRAIN_FADE = 1.6;
+    function addTrain(group, wall) {
+        var L = wall.w, D = wall.d, H = wall.h, B = P.wallBox(wall, 0);
+        var liv = TRAIN_LIVERY[wall.livery || 0] || TRAIN_LIVERY[0];
+        var mats = [];
+        function mat(o, lit) {
+            o.transparent = true;
+            var m = lit ? new THREE.MeshPhongMaterial(o) : new THREE.MeshLambertMaterial(o);
+            mats.push(m);
+            return m;
+        }
+        var paint = mat({ color: wall.car === 'engine' ? liv.engine : liv.coach, shininess: 60, specular: 0x444444 }, true);
+        var black = mat({ color: 0x1a1a1e });
+        var roof = mat({ color: 0x3a3a40 });
+        var trim = mat({ color: liv.trim, shininess: 90, specular: 0x888888 }, true);
+        var red = mat({ color: 0xb3262a });
+        var glass = mat({ color: 0xffd98a, emissive: 0xffc861, emissiveIntensity: 0.9 }, true);
+        var car = new THREE.Group(), body = new THREE.Group();
+        var g = -H / 2 - (wall.base || 0);         // the ground, in the box's frame
+        function box(w, h, d, m, x, y, z) {
+            var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+            o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true;
+            body.add(o); return o;
+        }
+        function cyl(r0, r1, len, m, x, y, z, along) {
+            var o = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, len, 16), m);
+            if (along === 'x') o.rotation.z = Math.PI / 2;
+            if (along === 'z') o.rotation.x = Math.PI / 2;
+            o.position.set(x, y, z); o.castShadow = true;
+            body.add(o); return o;
+        }
+        function wheels(xs, r) {
+            xs.forEach(function (x) {
+                [-1, 1].forEach(function (s) { cyl(r, r, 0.07, black, x, g + r, s * D * 0.4, 'z'); });
+            });
+        }
+        // The frame and the buffers, both kinds.
+        box(L - 0.06, 0.1, D * 0.82, black, 0, g + 0.27, 0);
+        [-1, 1].forEach(function (e) {
+            [-1, 1].forEach(function (s) { cyl(0.04, 0.04, 0.1, trim, e * (L / 2 - 0.02), g + 0.3, s * D * 0.28, 'x'); });
+        });
+        if (wall.car === 'engine') {
+            var r = D * 0.27, x0 = -L * 0.12, x1 = L / 2 - 0.1, by = g + 0.32 + r;
+            wheels([L * 0.28, L * 0.04, -L * 0.2], 0.17);
+            wheels([L / 2 - 0.22], 0.1);
+            cyl(r, r, x1 - x0, paint, (x0 + x1) / 2, by, 0, 'x');                   // the boiler
+            cyl(r * 1.04, r * 1.04, 0.22, black, x1 - 0.06, by, 0, 'x');           // smokebox
+            [0.3, 0.62].forEach(function (f) { cyl(r * 1.06, r * 1.06, 0.04, trim, x0 + (x1 - x0) * f, by, 0, 'x'); });
+            cyl(0.08, 0.11, 0.34, black, x1 - 0.2, by + r + 0.14, 0);              // chimney
+            cyl(0.12, 0.12, 0.04, black, x1 - 0.2, by + r + 0.31, 0);
+            var dome = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), trim);
+            dome.position.set((x0 + x1) / 2, by + r - 0.02, 0); body.add(dome);
+            var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), glass);
+            lamp.position.set(L / 2 - 0.02, by + r * 0.4, 0); body.add(lamp);
+            box(0.06, 0.12, D * 0.86, red, L / 2 - 0.03, g + 0.28, 0);              // buffer beam
+            // The cab: walls, a window each side and to the front, a roof.
+            var cx0 = -L / 2 + 0.06, cx1 = x0 + 0.06, cw = cx1 - cx0, ch = by + r + 0.2 - (g + 0.32);
+            box(cw, ch, D * 0.84, paint, (cx0 + cx1) / 2, g + 0.32 + ch / 2, 0);
+            [-1, 1].forEach(function (s) {
+                box(cw * 0.5, ch * 0.3, 0.02, glass, (cx0 + cx1) / 2 + cw * 0.06, g + 0.32 + ch * 0.66, s * D * 0.425);
+            });
+            box(cw + 0.12, 0.06, D * 0.94, roof, (cx0 + cx1) / 2, g + 0.32 + ch + 0.03, 0);
+        } else {
+            var bh = H * 0.62, y0 = g + 0.33;
+            wheels([L / 2 - 0.3, L / 2 - 0.55, -L / 2 + 0.3, -L / 2 + 0.55], 0.1);
+            box(L - 0.12, bh, D * 0.82, paint, 0, y0 + bh / 2, 0);
+            box(L - 0.12, 0.04, D * 0.835, trim, 0, y0 + bh * 0.42, 0);
+            // A rounded roof: half a cylinder along the car, a little wider.
+            var rg = new THREE.CylinderGeometry(D * 0.45, D * 0.45, L - 0.06, 16, 1, false, 0, Math.PI);
+            rg.rotateZ(Math.PI / 2);               // its axis along the car, the half that is left on top
+            rg.scale(1, 0.4, 1);
+            var top = new THREE.Mesh(rg, roof);
+            top.position.set(0, y0 + bh, 0);
+            top.castShadow = true; body.add(top);
+            var n = Math.max(2, Math.floor((L - 0.4) / 0.36)), k, step = (L - 0.4) / n;
+            for (k = 0; k < n; k++) {
+                [-1, 1].forEach(function (s) {
+                    box(step * 0.62, bh * 0.32, 0.02, glass, -L / 2 + 0.2 + step * (k + 0.5), y0 + bh * 0.68, s * D * 0.415);
+                });
+            }
+        }
+        if ((wall.facing || 1) < 0) body.rotation.y = Math.PI;
+        car.add(body);
+        car.position.set(B.cx, B.base + H / 2, B.cz);
+        group.add(car);
+        R.movers.push({ mesh: car, wall: wall, h: H, fade: mats, seen: 1 });
+    }
+
+    // How far into its run a train's car is from the nearer end, 0 to 1.
+    function trainSeen(wall, t) {
+        var m = wall.move, u = P.runOffset(m, t) + m.amp, e = Math.min(u, 2 * m.amp - u);
+        return Math.max(0, Math.min(1, e / TRAIN_FADE));
     }
 
     /* A flipper, drawn as a pinball flipper rather than as the box it is to
@@ -7079,6 +7188,14 @@
             B = P.wallBox(m.wall, t, _box);
             m.mesh.position.set(B.cx, B.base + m.h / 2, B.cz);
             m.mesh.rotation.y = B.yaw;
+            if (m.fade) {
+                var a = trainSeen(m.wall, t), j;
+                if (a !== m.seen) {
+                    m.seen = a;
+                    m.mesh.visible = a > 0;
+                    for (j = 0; j < m.fade.length; j++) m.fade[j].opacity = a;
+                }
+            }
         }
     }
 

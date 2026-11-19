@@ -1254,14 +1254,38 @@
        about its own centre, `move` slides it on a sine, `spin` turns it. The
        renderer calls this same function for the mesh transform, so a blade the
        player sees and the blade the ball hits cannot drift apart. */
+    /* Where along its run a train is, from -amp to +amp: `phase` is a
+       distance (units) along the run, not an angle. */
+    function runOffset(m, t) {
+        var span = 2 * m.amp, u = (t * m.speed + (m.phase || 0)) % span;
+        if (u < 0) u += span;
+        return u - m.amp;
+    }
+
+    /* How long a moving wall takes to come back to where it was. */
+    function movePeriod(m) {
+        return m.run ? 2 * Math.abs(m.amp) / Math.abs(m.speed) : 2 * Math.PI / Math.abs(m.speed);
+    }
+
     function wallBox(w, t, out) {
         var cx = w.x + w.w / 2, cz = w.z + w.d / 2;
         var yaw = w.yaw || 0;
         var vx = 0, vz = 0, spin = 0;
 
         if (w.move) {
-            var o = Math.sin(t * w.move.speed + (w.move.phase || 0)) * w.move.amp;
-            var v = Math.cos(t * w.move.speed + (w.move.phase || 0)) * w.move.amp * w.move.speed;
+            var o, v;
+            if (w.move.run) {
+                /* A train: one way at a steady `speed` (units a second, signed)
+                   over a run `amp` either side of its middle, and back to the
+                   far end the moment it reaches the near one — a belt of track
+                   rather than a shuttle. The jump is made off the hole, where
+                   the run's ends are, and the renderer fades a car out there. */
+                o = runOffset(w.move, t);
+                v = w.move.speed;
+            } else {
+                o = Math.sin(t * w.move.speed + (w.move.phase || 0)) * w.move.amp;
+                v = Math.cos(t * w.move.speed + (w.move.phase || 0)) * w.move.amp * w.move.speed;
+            }
             if (w.move.axis === 'z') { cz += o; vz = v; } else { cx += o; vx = v; }
         }
         if (w.spin) {
@@ -2567,6 +2591,8 @@
         waterAt: waterAt,
         fieldAt: fieldAt,
         wallBox: wallBox,
+        runOffset: runOffset,
+        movePeriod: movePeriod,
         circleBox: circleBox,
         wallPointVelocity: wallPointVelocity,
         ballTop: ballTop,
