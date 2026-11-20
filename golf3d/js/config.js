@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.203.0';
+G3.VERSION = '1.204.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -336,17 +336,19 @@ G3.CONFIG = {
     SWIPE: {
         DEFAULT: { assist: 'off', hand: 'right', club: 'auto', pad: 'centre', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
-            easy:   { TOL: 8 * Math.PI / 180,   SPAN: 18 * Math.PI / 180, FLOOR: 0.75 },
-            normal: { TOL: 3.5 * Math.PI / 180, SPAN: 11 * Math.PI / 180, FLOOR: 0.9 },
+            /* Normal was 3.5° clean over an 11° span with a 0.9 floor, and
+               the owner found it had become a bit too hard (v1.204.0). */
+            easy:   { TOL: 9 * Math.PI / 180,   SPAN: 20 * Math.PI / 180, FLOOR: 0.7 },
+            normal: { TOL: 5 * Math.PI / 180,   SPAN: 14 * Math.PI / 180, FLOOR: 0.8 },
             hard:   { TOL: 1.8 * Math.PI / 180, SPAN: 7 * Math.PI / 180,  FLOOR: 1 }
         },
-        TIGHTEN: 0.45,
+        TIGHTEN: 0.35,
         TIMING: {
             /* Rhythm also asks for a sensible pace: the swipe up near PACE
                seconds, PACE_TOL doublings either side clean, PACE_SPAN more
                the worst — and weighed at PACE_W, so an even swing that is
                far too quick or too slow costs a little, not a lot. */
-            rhythm: { IDEAL: 1, TOL: 0.6, SPAN: 1.6, PACE: 0.25, PACE_TOL: 1, PACE_SPAN: 1.5, PACE_W: 0.6 },
+            rhythm: { IDEAL: 1, TOL: 0.8, SPAN: 1.8, PACE: 0.25, PACE_TOL: 1.3, PACE_SPAN: 1.6, PACE_W: 0.5 },
             snap:   { TARGET: 0.22, TOL: 0.55, SPAN: 1.4 },
             LINE: 0.6,
             POWER_LOSS: 0.3
@@ -368,7 +370,7 @@ G3.CONFIG = {
            finishing across the line to the left pulls it left). Kept mild on
            the owner's word — lower MAX if it plays too hard. A shape drawn on
            purpose is not charged twice: its bow comes off the width first. */
-        WIDE: { FREE: 0.22, SPAN: 0.3, MAX: 0.5, TAIL: 0.25 },
+        WIDE: { FREE: 0.28, SPAN: 0.35, MAX: 0.35, TAIL: 0.25 },
         /* A scribble rather than a swing (swing.js `swipeMess`, `swipeJunk`):
            a path more than RATIO times as long as a clean pull-and-swipe of
            the same depth (plus SLACK px), or more than TURNS changes between
@@ -378,7 +380,7 @@ G3.CONFIG = {
            side — and otherwise a shank: SHANK_POWER of it, SHANK_YAW off the
            line, to the right SHANK_RIGHT of the time. */
         JUNK: {
-            RATIO: 1.5, SLACK: 40, TURNS: 4, HYST: 18, STEP: 6,
+            RATIO: 1.8, SLACK: 50, TURNS: 5, HYST: 18, STEP: 6,
             DUFF: 0.5, DUFF_POWER: [0.12, 0.25], DUFF_YAW: 6 * Math.PI / 180,
             SHANK_POWER: [0.15, 0.3], SHANK_YAW: [35 * Math.PI / 180, 65 * Math.PI / 180], SHANK_RIGHT: 0.75
         },
@@ -389,7 +391,7 @@ G3.CONFIG = {
            costs 1.75× what the same swipe costs at 100%. It was 2.5×, which
            the owner found a lot for a swing a quarter past full. The tempo's
            clean band narrows there by TIGHTEN, like the line's. */
-        OVER_MULT: 0.75,
+        OVER_MULT: 0.6,
         /* Putting (a club with no loft). TOL is the line's clean band as a
            share of the feel's, MULT what a miss costs over a full swing's, and
            JAB how much long a fully rushed stroke runs — on a putt a snatch

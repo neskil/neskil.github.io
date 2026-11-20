@@ -1691,6 +1691,18 @@
         return Math.max(140, r.height * 1.05);
     }
 
+    /* Where the meter starts, on screen. It used to start wherever the thumb
+       went in, so the scale — and the pin's flag on it — moved with the
+       press, and a press half way down the lane put the full swing below the
+       bottom of it (the owner: "too hard… I don't know if you should move the
+       target depending on the start of the thumb"). Now the scale stands
+       still at the top of the lane: press anywhere, pull down to the flag.
+       The strike is still crossing back over where the thumb went in. */
+    var SCALE_TOP = 18;
+    function swipeBase(y0) {
+        return Math.min(y0, $('swipe').getBoundingClientRect().top + SCALE_TOP);
+    }
+
     function onSwipeDown(e) {
         var live = styleLive();
         if (swipe || (live !== 'swipe' && live !== 'needle') || !styleOpen() || needle) return;
@@ -1706,7 +1718,7 @@
         try { $('swipe').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         var now = performance.now() / 1000;
         swipe = {
-            id: e.pointerId, x0: e.clientX, y0: e.clientY, len: swipeLength(),
+            id: e.pointerId, x0: e.clientX, y0: e.clientY, len: swipeLength(), base: swipeBase(e.clientY),
             low: { x: e.clientX, y: e.clientY, t: now }, through: false, full: false,
             last: { x: e.clientX, y: e.clientY, t: now }, pts: [[e.clientX, e.clientY, now]],
             up: [], needle: live === 'needle'
@@ -1774,7 +1786,7 @@
     }
 
     function loadFromPull(y) {
-        setPower(SW.swipeLoad(y - swipe.y0, swipe.len) * maxPower());
+        setPower(SW.swipeLoad(y - swipe.base, swipe.len) * maxPower());
         if (tutor === 1) syncTutor();
         var full = state.aim.power >= state.club.power;
         if (full !== swipe.full) { swipe.full = full; A.tick(full ? 0.9 : 0.4); }
@@ -1994,8 +2006,9 @@
         var s = swipe;
         var x0 = s ? s.x0 - r.left : r.width / 2, y0 = s ? s.y0 - r.top : 18;
         var len = s ? s.len : swipeLength();
-        var fullY = y0 + len * SW.markAt();
-        attrs('sw-guide', { x1: x0, y1: y0, x2: x0, y2: y0 + len });
+        var top = s ? s.base - r.top : SCALE_TOP;      // the scale stands still (`swipeBase`)
+        var fullY = top + len * SW.markAt();
+        attrs('sw-guide', { x1: x0, y1: top, x2: x0, y2: top + len });
         attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
         /* Where to let go for backspin, once there is a pull to measure it on.
            Over the thumb, not over where it went in: the swipe up is read
@@ -2046,7 +2059,7 @@
             $('sw-trail-up').setAttribute('class', 'sw-trail-up ' + zone);
         }
         $('swipe-cue').hidden = !!s;
-        drawScale(r, s, x0, y0, len);
+        drawScale(r, s, x0, y0, len, top);
     }
 
     /* ── the tutorial ──
@@ -2195,17 +2208,17 @@
         return G3.distance.round(m) + ' m';
     }
 
-    function drawScale(r, s, x0, y0, len) {
+    function drawScale(r, s, x0, y0, len, sy) {
         if (!state || !state.club || !state.world) return;
         if (!scaleBuilt) buildScale();
         var needleOn = s ? s.needle : styleLive() === 'needle';
         var club = state.club, hole = state.world.hole;
         var near = G3.distance.near(hole) / G3.distance.scale(hole);
-        var top = maxPower(club), fullY = y0 + len * SW.markAt();
+        var top = maxPower(club), fullY = sy + len * SW.markAt();
         var floor = r.height + 26;              // nothing drawn far over the controls
         var labelX = Math.max(34, x0 - 10);
         SCALE_AT.concat([1 + C.OVERDRAW]).forEach(function (f, i) {
-            var y = y0 + len * (f * club.power / top);
+            var y = sy + len * (f * club.power / top);
             var run = laneRun(f * club.power);
             var on = y <= floor && run > 0;
             var cls = f > 1 ? ' over' : f === 1 ? ' full' : '';
@@ -2221,12 +2234,12 @@
             t.textContent = run < near ? '·' : metresText(run);
         });
         // The overdraw, from the full swing to the end of the pull.
-        attrs('sw-over', { x1: x0, y1: fullY, x2: x0, y2: Math.min(floor, y0 + len) });
+        attrs('sw-over', { x1: x0, y1: fullY, x2: x0, y2: Math.min(floor, sy + len) });
 
         // The flag, where the pin's distance falls on the scale.
         var b = state.world.ball, cup = hole.cup;
         var pin = powerFor(Math.sqrt((cup.x - b.x) * (cup.x - b.x) + (cup.z - b.z) * (cup.z - b.z)));
-        var flagY = pin > 0 ? y0 + len * (pin / top) : -1;
+        var flagY = pin > 0 ? sy + len * (pin / top) : -1;
         var flagOn = pin > 0 && flagY <= floor && !state.course.isRange;
         $('sw-flag').setAttribute('visibility', flagOn ? 'visible' : 'hidden');
         if (flagOn) {
