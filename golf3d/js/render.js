@@ -124,13 +124,18 @@
             if (G3.postfx && THREE.WebGLMultisampleRenderTarget && window.WebGL2RenderingContext) {
                 gl2 = canvas.getContext('webgl2', {
                     alpha: false, depth: true, stencil: true, antialias: false,
-                    premultipliedAlpha: true, preserveDrawingBuffer: false
+                    premultipliedAlpha: true, preserveDrawingBuffer: false,
+                    powerPreference: 'high-performance'
                 });
             }
         } catch (e) { gl2 = null; }
+        /* 'high-performance' asks for the strongest GPU the machine has: on a
+           laptop with a built-in and a discrete chip, the browser otherwise
+           tends to pick the built-in one to save battery. Phones have one GPU,
+           so there it changes nothing. */
         R.renderer = gl2
             ? new THREE.WebGLRenderer({ canvas: canvas, context: gl2, antialias: false, alpha: false })
-            : new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+            : new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
         R.renderer.setPixelRatio(dprFor());
         R.renderer.shadowMap.enabled = true;
         R.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -9236,7 +9241,7 @@
         if (!canvas || typeof THREE === 'undefined') return null;
         var gl;
         try {
-            gl = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            gl = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
         } catch (e) {
             return null;
         }
