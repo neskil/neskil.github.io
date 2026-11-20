@@ -3528,12 +3528,11 @@
                 var h = entry.hole, tag = entry.course.id + '/' + h.name;
                 if (h.gravity) {
                     shifted++;
-                    /* A sanity bound rather than a design rule: it is here to
-                       catch a hole that says 20 when it meant 2, not to have
-                       an opinion about how heavy a heavy hole may be. Apogee
-                       Yard is built out of this number and walks it from 0.3
-                       to 2.4, so the bound has to be wider than the card. */
-                    if (h.gravity <= 0 || h.gravity > 3) worst = tag + ': gravity out of range';
+                    /* A design rule, the owner's (v1.207.0): no heavy
+                       holes, and low gravity is one gentle weight everywhere
+                       it appears, so a "Low gravity" tag always means the
+                       same ball. */
+                    if (h.gravity !== 0.7) worst = tag + ': gravity ' + h.gravity + ', not the one low weight (0.7)';
                 }
                 h.walls.forEach(function (wl) {
                     if (wl.swing) {

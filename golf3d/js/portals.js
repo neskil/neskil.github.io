@@ -220,23 +220,23 @@
         })()
     });
 
-    /* A third of a g, over the bands of a gas giant, and three balloons to
+    /* Light gravity (0.7, the one low weight), over the bands of a gas giant, and three balloons to
        stand on. Each of the first two has a pad in it: the floor throws the
        ball and at this weight it stays thrown for two seconds. The second
        balloon's pad is off to one side — land beside it and take two more,
        or come down on it still running and be thrown on to the third.
-       The chipper is in the bag (the owner, v1.195.0): at a third of a g a
+       The chipper is in the bag (the owner, v1.195.0): at this weight a
        pitch hangs long enough to be a choice, not a shortcut. */
     add({
         id: 'gasgiant', title: 'Balloon Hop', world: 'Living Balloons over a Gas Giant', kind: 'alien', tier: 2,
-        caption: 'A third of a g, three balloons and nothing under them for a thousand miles.',
+        caption: 'Light gravity, three balloons and nothing under them for a thousand miles.',
         theme: 'gasgiant',
         hole: world({
-            name: 'Balloon Hop', par: 3, bag: ['putter', 'mallet', 'chipper'], gravity: 0.35,
+            name: 'Balloon Hop', par: 3, bag: ['putter', 'mallet', 'chipper'], gravity: 0.7,
             blurb: 'The pads throw the ball and at this weight it stays thrown. Balloon to balloon — or both hops in one.',
             pads: [
-                disc(4, 3.2, 3.2), sprung(4, 5.4, 0.9, 7.6),
-                disc(4, 17, 5), sprung(6.4, 18.8, 1.1, 7.6),
+                disc(4, 3.2, 3.2), sprung(4, 5.4, 0.9, 10.7),
+                disc(4, 17, 5), sprung(6.4, 18.8, 1.1, 10.7),
                 (function () {
                     var p = disc(10, 30, 4.6);
                     p.bumps = [channel(10, 30, 4.2, 2.2, 0.6)];

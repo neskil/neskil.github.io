@@ -3271,7 +3271,7 @@
     function gravityTag(hole) {
         var g = hole && hole.gravity;
         if (!g || g === 1) return '';
-        return g < 1 ? 'Low gravity' : 'Heavy gravity';
+        return g < 1 ? 'Low gravity' : 'High gravity';
     }
 
     /* The same warning on the stage, where it is seen without opening
