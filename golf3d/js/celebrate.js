@@ -66,6 +66,7 @@ window.G3 = window.G3 || {};
             flip: o.flip || 1,            // which way the picture faces
             squeak: !!o.squeak,           // says so when it bounces (fx.events)
             keep: !!o.keep,               // holds its colour to the last moment, like paper
+            duckling: !!o.duckling,       // one of the Easter egg's parade
             // helix and pull
             ang: o.ang || 0, rad: o.rad || 0, angV: o.angV || 0, radV: o.radV || 0,
             cy: o.cy || 0, rad0: o.rad || 0, y0: o.y || 0,
@@ -271,35 +272,71 @@ window.G3 = window.G3 || {};
             }
         },
 
-        /* The Easter egg (balls.js: hidden until somebody knocks on the
-           flag in the shop's preview). A big rubber duck jumps out of the cup
-           to see what all the fuss is about and drops back in, and then it
-           rains ducks: they bounce on the green, squeaking, and sit there
-           looking pleased with themselves until they go. */
+        /* The Easter egg (balls.js: a "???" until twenty different holes
+           are finished). Mother Duck rises out of the cup and bobs there,
+           waddling from foot to foot; her ducklings drop in round the flag in
+           a ring, bounce, and then waddle round it in a parade, squeaking as
+           they go — until everybody jumps at once, and pop. */
         'cele-ducks': {
-            peek: 1.25,
-            dur: 4.6,
+            peek: 2.3,
+            dur: 4.3,
             run: function (fx) {
-                var rnd = fx.rnd, n, i;
+                var rnd = fx.rnd, i, p, t = fx.t, PARADE = 1.0, JUMP = 3.4, POP = 3.8, N = 16;
                 if (at(fx, 0)) {
-                    part(fx, { y: 0.05, vy: 6.2, grav: 9, life: 1.5, c: [1, 1, 1], size: 1.7, add: false,
-                        sprite: 'duck', flip: rnd() < 0.5 ? -1 : 1, keep: true });
+                    fx.mother = part(fx, { mode: 5, y: 0, life: 9, c: [1, 1, 1], size: 1.9, add: false,
+                        sprite: 'duck', keep: true });
                     fx.events.push('quack');
-                    burstOf(fx, 30, { upper: true, speed: 3.2, lift: 2, grav: 7, drag: 0.6, life: 0.9,
+                    burstOf(fx, 34, { upper: true, speed: 3.2, lift: 2, grav: 7, drag: 0.6, life: 0.9,
                         c: function () { return rnd() < 0.5 ? hex(0xbfefff) : hex(0xffffff); }, size: 0.2, land: true });
-                    ring(fx, { r0: 0.2, r1: 2.6, dur: 0.7, c: hex(0x9fe2ff), a: 0.8 });
+                    ring(fx, { r0: 0.2, r1: 2.8, dur: 0.7, c: hex(0x9fe2ff), a: 0.8 });
                 }
-                n = stream(fx, 0.3, 1.15, 44);
-                for (i = 0; i < n; i++) {
-                    var a = rnd() * TAU, r = 0.6 + rnd() * 3.4;
+                // The ducklings, one to a place on the ring, dropped in one after another.
+                for (i = 0; i < N; i++) {
+                    if (!at(fx, 0.2 + i * 0.045)) continue;
+                    var ang = i / N * TAU + (rnd() - 0.5) * 0.15, r = 2.5 + (rnd() - 0.5) * 0.3;
                     part(fx, {
-                        x: Math.cos(a) * r, z: Math.sin(a) * r, y: 5 + rnd() * 2,
-                        vx: (rnd() - 0.5) * 0.6, vz: (rnd() - 0.5) * 0.6, vy: -1 - rnd() * 2,
-                        grav: 9, life: 2.9 + rnd() * 0.5, c: [1, 1, 1], size: 0.75 + rnd() * 0.3, add: false,
-                        sprite: 'duck', flip: rnd() < 0.5 ? -1 : 1, bounce: 0.38, squeak: true, keep: true
+                        x: Math.cos(ang) * r, z: Math.sin(ang) * r, y: 3 + rnd() * 1.2, vy: -1 - rnd(),
+                        grav: 9, life: 9, c: [1, 1, 1], size: 0.85 + rnd() * 0.2, add: false,
+                        sprite: 'duck', flip: rnd() < 0.5 ? -1 : 1, bounce: 0.3, squeak: true, keep: true, duckling: true
                     });
                 }
-                if (at(fx, 1.3)) fx.events.push('quack');
+                // Landed ducklings fall in and march round the flag.
+                if (t > PARADE && t < JUMP) {
+                    for (i = 0; i < fx.parts.length; i++) {
+                        p = fx.parts[i];
+                        if (!p.duckling || p.mode !== 0 || p.vy !== 0 || p.y !== 0) continue;
+                        p.mode = 4;
+                        p.ang = Math.atan2(p.z, p.x);
+                        p.rad = Math.sqrt(p.x * p.x + p.z * p.z);
+                        p.angV = 1.25;
+                    }
+                    if (stream(fx, PARADE, JUMP, 7) && fx.events.length < 40) fx.events.push('squeak');
+                }
+                if (at(fx, 2.4)) fx.events.push('quack');
+                // Everybody jumps…
+                if (at(fx, JUMP)) {
+                    fx.events.push('quack');
+                    for (i = 0; i < fx.parts.length; i++) {
+                        p = fx.parts[i];
+                        if (!p.duckling && p !== fx.mother) continue;
+                        p.mode = 0; p.bounce = 0; p.squeak = false;
+                        p.vx = p.duckling ? Math.cos(p.ang || 0) * 1.2 : 0;
+                        p.vz = p.duckling ? Math.sin(p.ang || 0) * 1.2 : 0;
+                        p.vy = p.duckling ? 4.4 + rnd() * 0.6 : 3.2;
+                    }
+                }
+                // …and, at the top of it, pop — all but Mother, who goes home.
+                if (at(fx, POP)) {
+                    for (i = 0; i < fx.parts.length; i++) {
+                        p = fx.parts[i];
+                        if (!p.duckling || p.age >= p.life) continue;
+                        burstOf(fx, 9, { x: p.x, y: p.y, z: p.z, speed: 2.2, grav: 3, drag: 1.4, life: 0.7,
+                            c: function () { return rnd() < 0.4 ? hex(0xffd21f) : hex(0xdff6ff); }, size: 0.2 });
+                        p.life = p.age;
+                    }
+                    for (i = 0; i < 4; i++) fx.events.push('squeak');
+                    ring(fx, { r0: 0.5, r1: 4.2, dur: 0.6, c: hex(0xffd21f), a: 0.7, y: 1.2 });
+                }
             }
         },
 
@@ -358,6 +395,17 @@ window.G3 = window.G3 || {};
             p.y += p.vy * dt;
             p.x = Math.cos(p.ang) * p.rad;
             p.z = Math.sin(p.ang) * p.rad;
+        } else if (p.mode === 4) {
+            // A duckling in the parade: round the flag, hopping, facing the way it walks.
+            p.ang += p.angV * dt;
+            p.x = Math.cos(p.ang) * p.rad;
+            p.z = Math.sin(p.ang) * p.rad;
+            p.y = Math.abs(Math.sin(p.age * 11 + p.ph)) * 0.16;
+            p.flip = Math.sin(p.ang) > 0 ? -1 : 1;
+        } else if (p.mode === 5) {
+            // Mother Duck: up out of the cup, then bobbing on the spot from foot to foot.
+            p.y = 1.3 * smooth(p.age / 0.45) + 0.1 * Math.sin(p.age * 5);
+            p.flip = Math.floor(p.age / 0.42) % 2 ? -1 : 1;
         } else if (p.mode === 2) {
             var u = Math.min(1, p.age / p.life), k = 1 - u;
             var rr = p.rad0 * k * k;

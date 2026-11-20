@@ -6380,16 +6380,32 @@
                 egg.id === 'cele-ducks' && egg.secret && egg.cost === 0 && !S.ownsBall(sv, 'cele-ducks') &&
                 !eggBuy.ok && eggBuy.reason === 'secret' &&
                 eggFound.ok && S.equippedCele(eggFound.save) === 'cele-ducks' && S.spentStars(eggFound.save) === 0);
-            var duckFx = G3.celebrate.start('cele-ducks', G3.celebrate.seeded(9)), squeaks = 0, ducksSeen = 0, rested = 0;
+            /* …and turns up by itself once twenty different holes are
+               finished, not equipped (the owner chose what they celebrate
+               with), and not before. */
+            var nineteen = S.emptySave(), twenty;
+            for (hi = 0; hi < 19; hi++) nineteen = S.recordHole(nineteen, 'c' + (hi % 4), Math.floor(hi / 4), 3, 3, { scored: true }).save;
+            for (hi = 0; hi < 5; hi++) nineteen = S.recordHole(nineteen, 'c0', 0, 3, 3, { scored: true }).save;
+            twenty = S.recordHole(nineteen, 'world-w2', 0, 3, 3, { scored: true }).save;
+            var g19 = S.grantSecrets(nineteen), g20 = S.grantSecrets(twenty);
+            assert('nineteen different holes (one of them played six times) give nothing; the twentieth gives the ducks, unequipped',
+                S.lockProgress(nineteen, 'holes') === 19 && !g19.given.length && g19.save === nineteen &&
+                g20.given.length === 1 && g20.given[0].id === 'cele-ducks' && S.ownsBall(g20.save, 'cele-ducks') &&
+                S.equippedCele(g20.save) === 'cele-classic' && S.spentStars(g20.save) === 0 &&
+                !S.grantSecrets(g20.save).given.length);
+
+            var duckFx = G3.celebrate.start('cele-ducks', G3.celebrate.seeded(9)), squeaks = 0, ducksSeen = 0, marching = 0, mumUp = 0;
             for (var df = 0; df < 400 && !duckFx.done; df++) {
                 G3.celebrate.step(duckFx, 1 / 60);
                 squeaks += duckFx.events.filter(function (e) { return e === 'squeak'; }).length;
                 duckFx.events.length = 0;
-                ducksSeen = Math.max(ducksSeen, duckFx.parts.filter(function (p) { return p.sprite === 'duck'; }).length);
-                if (df === 200) rested = duckFx.parts.filter(function (p) { return p.sprite === 'duck' && p.oy === 0 && p.vy === 0; }).length;
+                ducksSeen = Math.max(ducksSeen, duckFx.parts.filter(function (p) { return p.duckling; }).length);
+                marching = Math.max(marching, duckFx.parts.filter(function (p) { return p.duckling && p.mode === 4; }).length);
+                if (duckFx.mother) mumUp = Math.max(mumUp, duckFx.mother.oy);
             }
-            assert('it rains ducks that bounce, squeak and come to rest on the green',
-                ducksSeen >= 20 && squeaks >= 10 && rested >= 5, ducksSeen + ' ducks, ' + squeaks + ' squeaks, ' + rested + ' sitting');
+            assert('Mother Duck rises, the ducklings land, parade round the flag squeaking, and it is all over by itself',
+                duckFx.done && ducksSeen >= 12 && marching >= 12 && squeaks >= 10 && mumUp > 1,
+                ducksSeen + ' ducklings, ' + marching + ' marching, ' + squeaks + ' squeaks, mother at ' + mumUp.toFixed(2));
 
             S.save(buyConf.save);
             assert('save and load round-trip the celebration', S.equippedCele(S.load()) === 'cele-confetti');

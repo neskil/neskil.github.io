@@ -6299,9 +6299,10 @@ equipped club finish is `save.club`.
   add an item and re-price rather than loosen it (the celebrations went in by
   taking a star or a few off the dearer balls and clubs, v1.200.0).
 - **Hole-in celebrations** (v1.200.0, the owner: "similar to how they work for
-  Rocket League"). The equipped one goes off over the cup whenever a ball
-  drops — every hole, the range, and again in an ace's replay — through
-  `render.sinkAt`. `balls.js → CELEBRATIONS` is the catalog and `save.cele`
+  Rocket League"). The equipped one goes off over the cup on a hole in one
+  only (v1.204.0, the owner: "wasn't celebration animation only in hole in
+  one" — `game.js → celebrates`; a ball holed on the range counts), through
+  `render.sinkAt`; every other drop gets the plain pop. `balls.js → CELEBRATIONS` is the catalog and `save.cele`
   the slot; `js/celebrate.js` is how each one moves, a DOM-free particle
   script that both `render.js` (two point clouds — light added, paper drawn
   over — four flat rings and two beams, all built once in `buildCelebration`)
@@ -6328,16 +6329,21 @@ equipped club finish is `save.club`.
   `lensList`) — Supernova and Shockwave send a ripple through space as well.
   Light spiralling in goes out at the horizon rather than piling up white on
   it. The shop cannot bend its picture, so its preview draws the hole flat.
-- **The Easter egg: Rubber Duck Rain** (v1.202.0). A ninth celebration,
-  `secret: true` and free, that sits on the shelf as a "???" card with only
-  its `hint` until somebody knocks on the flag in the shop's preview five
-  times, each within two seconds of the last (`game.js → knockFlag`). Then it is
-  given and equipped — `scoring.buyBall` refuses a secret unless it is handed
-  `found`, so it can never be bought — and a big duck jumps out of the cup and
-  it rains rubber ducks that bounce and squeak (`fx.events` → `audio.squeak`
-  and `quack`). The duck is drawn by one function, `celebrate.drawDuck`, into
-  the game's point sprite and the shop's picture alike. Don't put it in the
-  Achievements list or the "to unlock" count: finding it is the point.
+- **The Easter egg: Rubber Duck Parade** (v1.202.0, unlocking changed in
+  v1.204.0). A ninth celebration, `secret: true` and free, that sits on the
+  shelf as a "???" card with its `hint` and a count until the save has
+  finished twenty different holes (`unlock: { key: 'holes', need: 20 }`,
+  `scoring.lockProgress 'holes'`, any hole the save records). Then it turns
+  up by itself (`scoring.grantSecrets`, asked by `game.js → checkSecrets` after
+  every recorded hole and once at boot), given but not equipped, with a quack
+  and a toast. `buyBall` refuses a secret unless handed `found`, so it can
+  never be bought. Mother Duck rises out of the cup and bobs there, her
+  ducklings drop into a ring round the flag and waddle round it (particle
+  modes 4 and 5 in celebrate.js), then everybody jumps and pops; the squeaks
+  and quacks are `fx.events` → `audio.squeak` / `quack`. The duck is drawn by
+  one function, `celebrate.drawDuck`, into the game's point sprite and the
+  shop's picture alike. It is left out of the Achievements list and the "to
+  unlock" count on purpose.
 - **Ace Hunter** (the `ace` lock) is five *different* holes aced, counted from
   each hole's best score, not five aces: one generous hole could be replayed
   for all of them. It unlocks Singularity (★10) and the Holo Prism ball.

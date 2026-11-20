@@ -343,6 +343,13 @@
         var cs = courses || defaultCourses();
         var played = function (id) { var r = sv.courses && sv.courses[id]; return !!(r && r.rounds > 0); };
         var n = 0, i, j;
+        // Different holes finished, wherever they were (the Easter egg's unlock).
+        if (key === 'holes') {
+            for (var hk in sv.holes || {}) {
+                if (Object.prototype.hasOwnProperty.call(sv.holes, hk) && sv.holes[hk] && sv.holes[hk].plays > 0) n++;
+            }
+            return n;
+        }
         // Holes aced, each counted once however often (balls.js LOCKS.ace).
         if (key === 'ace') {
             for (i = 0; i < cs.length; i++) {
@@ -441,6 +448,22 @@
         return id;
     }
 
+    /* The secrets the save has earned and does not have yet, given without
+       being equipped: `{ save, given: [items] }`. A secret's `unlock` names a
+       lockProgress key and how much of it. */
+    function grantSecrets(prev) {
+        var list = G3.SHOP_ITEMS || [], next = prev, given = [], i, b;
+        for (i = 0; i < list.length; i++) {
+            b = list[i];
+            if (!b.secret || !b.unlock || ownsBall(next, b.id)) continue;
+            if (lockProgress(next, b.unlock.key) < b.unlock.need) continue;
+            if (next === prev) next = copySave(prev);
+            next.balls.push(b.id);
+            given.push(b);
+        }
+        return { save: next, given: given };
+    }
+
     function equippedCele(saveData) {
         var id = saveData && typeof saveData.cele === 'string' ? saveData.cele : 'cele-classic';
         var f = findBall(null, id);
@@ -504,6 +527,7 @@
         equipBall: equipBall,
         equippedClub: equippedClub,
         equippedCele: equippedCele,
+        grantSecrets: grantSecrets,
         lockProgress: lockProgress,
         lockStatus: lockStatus,
         unlockBallFree: unlockBallFree,
