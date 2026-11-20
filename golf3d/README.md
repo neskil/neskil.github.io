@@ -458,15 +458,15 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     from the bottom of the pull to the crossing (`swipeAngle`), so neither the
     phone's size nor the pull's length changes it. Inside the feel's `TOL` it
     is clean, past it the −1..1 over its `SPAN` (`swipeOff`), and a miss is
-    costed at no less than its `FLOOR` of overdraw. Easy is the swipe as it
-    first shipped (8°); normal forgives 3½°, hard under 2°.
+    costed at no less than its `FLOOR` of overdraw. Easy forgives 9°, normal 5°
+    (3½° until v1.204.0, when the owner found it too hard), hard under 2°.
 
     The angle alone let a loop through: pull down one side, come up the
     other, and the two ends of the swipe up still line up. So the line is
     also charged for the **width** of the whole gesture (`swipeWide`,
     `SWIPE.WIDE`): how far the pull and the swipe up spread across the line,
     as a share of its length. A thumb's own arc, retraced, is about 0.17 and
-    `FREE` lets 0.22 go; past it up to `MAX` (half a full miss, kept mild on
+    `FREE` lets 0.28 go; past it up to `MAX` (half a full miss, kept mild on
     the owner's word) over `SPAN`, the way the last quarter of the swipe up
     was heading — a thumb finishing across the line to the left pulls it
     left. A shape drawn on purpose has its own bow taken off the width
@@ -483,6 +483,13 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     straight swing, about `BOW.IDEAL` is clean, and more over-cooks it into a
     hook or slice. A shape picked on the ball wins over a drawn one, and a club
     that cannot bend does not.
+
+  **The scale stands still** (v1.204.0, game.js `swipeBase`). The meter is
+  measured from the top of the lane, not from where the thumb went in, so
+  the ticks and the flag do not move with the press: press anywhere, pull
+  down to the flag. A press half way down used to put the full swing below
+  the lane. The strike line (and the band across it) is still where the
+  thumb went in.
 
   **The lane's scale** (v1.190.0, game.js `drawScale`; the owner, after
   playing another finger-golf game: "the slight colours for the swing meter

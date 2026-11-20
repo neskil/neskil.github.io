@@ -4252,8 +4252,8 @@
                 var lazy100 = SW.swipeRead(gesture(0.15, 0.6), { over: 0, feel: 'normal', timing: 'rhythm' });
                 assert('and quitting on it past 100% costs more distance', lazy130.weight < lazy100.weight);
                 assert('the tempo band narrows past a full swing',
-                    SW.swipeTempo({ back: 0.3, through: 0.22 }, 'rhythm', 0).said === 'clean' &&
-                    SW.swipeTempo({ back: 0.3, through: 0.22 }, 'rhythm', 1).said === 'rushed');
+                    SW.swipeTempo({ back: 0.36, through: 0.22 }, 'rhythm', 0).said === 'clean' &&
+                    SW.swipeTempo({ back: 0.36, through: 0.22 }, 'rhythm', 1).said === 'rushed');
 
                 // Putting.
                 assert('a putt\'s line is judged tighter',
