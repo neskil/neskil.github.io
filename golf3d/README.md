@@ -2051,7 +2051,7 @@ changes at all. Two facts do the design work:
   carries twenty-three units instead of twelve, so a moat that is a real carry
   at home is a formality — and the holes that are light are therefore defended
   by what you have to *stop* on, with a long way down behind it.
-- **Heavy gravity gives distance back and takes the air.** At two g the longest
+- **(Gone in v1.204.0.) Heavy gravity gave distance back and took the air.** At two g the longest
   flight in the bag is under six units and a wedge at full power rises about as
   high as the rail beside it, so a gap in the floor is a wall and the only road
   is the floor itself.
@@ -2063,12 +2063,14 @@ carry ratio and the fact the slope does not budge.
 
 | # | Hole | g | Par | What it asks |
 | --- | --- | --- | --- | --- |
-| 1 | Hang Time | 0.5 | 3 | Three round stones in the dust: the tee, a big one half left, and the green — further than anything carries at home, with a rim that gathers a carry landed inside it. Go for it or step across. |
-| 2 | Dead Weight | 2 | 3 | Nothing flies, so the plank is the road, and the plank is a ramp: a heavy ball runs away down it and arrives at the same pace whatever it left with. A line and no weight, and a kicker at the foot turns it on to the pin. |
-| 3 | The Crater | 0.45 | 3 | One round pad sixteen across with a wall 2.6 high, the tee on the rim, the pin on the floor between two meteorites. At this weight the mallet climbs the wall: thirty degrees wide, up the far side and back down to the flag. |
-| 4 | Deadlift | 2.4 | 3 | Two steps of one point two and no ramps. The first pad is rated at twenty: all of the mallet clears both steps in one leap and the leaning top green brings it round a post to the pin; less goes up a step at a time. |
-| 5 | Orbit | 0.5 | 3 | A round table, a gravity well in the middle (`wells`) and the cup straight behind it. Ten degrees wide, either side, and the pull bends it round the back on to the pin. |
-| 6 | Apogee | 0.3 | 3 | The pad throws the ball ten units up for four seconds and a black hole standing in the void bends the flight round on to a crescent green; the further round it lands, the nearer the flag. Putter and mallet only. |
+| 1 | Hang Time | 0.7 | 3 | Three round stones in the dust: the tee, a big one half left, and the green — further than anything carries at home, with a rim that gathers a carry landed inside it. Go for it or step across. |
+| 2 | Slipway | 0.7 | 3 | The plank is a ramp down over the gap: a ball started on it runs away to the green, and a kicker at the foot turns it on to the pin. (Dead Weight, at 2 g, until v1.204.0.) |
+| 3 | The Crater | 0.7 | 3 | One round pad sixteen across with a wall 2.6 high, the tee on the rim, the pin on the floor between two meteorites. At this weight the mallet climbs the wall: thirty degrees wide, up the far side and back down to the flag. |
+| 4 | Liftoff | 0.7 | 3 | Two steps of one point two and no ramps, putter and mallet only. The first pad is rated at 10.8: all of the mallet clears both steps in one leap and the leaning top green brings it round a post to the pin; less goes up a step at a time. |
+| 5 | Orbit | 0.7 | 3 | A round table, a gravity well in the middle (`wells`) and the cup straight behind it. Ten degrees wide, either side, and the pull bends it round the back on to the pin. |
+| 6 | Apogee | 0.7 | 3 | The pad throws the ball high and a black hole standing in the void bends the flight round on to a crescent green; the further round it lands, the nearer the flag. Putter and mallet only. |
+
+**One weight since v1.204.0.** The owner asked for no heavy holes and a gentler low gravity, the same everywhere: every gravity hole in the game — the yard's six and the tour's Balloon Hop, Slack Water and Deck to Deck — is 0.7 g, and `tests.html` holds them to it. Liftoff's pads (10.8, 8.1) and post (2.0 high), The Crater's wall (profile 3.7 from 4.6) and Balloon Hop's pads (10.7) were retuned with the hole lab; the numbers below are the v1.146.0 measurements at the old weights.
 
 **Rebuilt in v1.146.0.** The six were slabs with a gap between them: the hole
 lab found no ace on five and the putt at the flag dropping on the sixth, and

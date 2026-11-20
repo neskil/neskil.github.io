@@ -5972,26 +5972,19 @@
        Gravitron, gone since v1.122.0) and it is the
        cheapest hole-shaped idea in the file: nothing about the course changes
        and everything about playing it does. Carry goes as 1/g and so does
-       apex, so half a g is a bag where every club reaches twice as far and
-       flies twice as high, and two g is a bag where the longest flight in the
-       game is under six units. The angle of repose does not move at all —
-       `HOLD` is a gradient, and a gradient does not care what the ball weighs
-       — so the ground under all six holes is ordinary ground.
+       apex, so at seven tenths of a g every club reaches about two fifths
+       further and hangs as much longer. The angle of repose does not move at
+       all — `HOLD` is a gradient, and a gradient does not care what the ball
+       weighs — so the ground under all six holes is ordinary ground.
 
-       What that does to a hole is worth stating, because it is the whole card:
-
-       - **Light gravity takes distance away as a defence.** A moat nothing
-         could carry at home is a formality at half a g, so the holes that are
-         light are defended by what you have to *stop* on — a small target with
-         a long way down behind it — rather than by how far away it is.
-       - **Heavy gravity gives it back, and takes the air.** At two g nothing
-         in the bag flies six units or rises much above a knee, so a gap in the
-         floor is a wall: the only road is the floor, and the machinery that
-         throws a ball three units up at home barely clears a step.
-
-       So the card alternates — light, heavy, light, heavy — and finishes with
-       the two lightest holes on it, where the ball is in the air for the best
-       part of four seconds and the longest club on the hole is a putter.
+       Every hole on the yard is the same weight, 0.7 (the owner, v1.204.0:
+       no heavy holes, and low gravity gentler and the same everywhere it
+       appears — tests.html holds every hole to it). It used to walk from 0.3
+       to 2.4 and alternate light and heavy; the two heavy holes are light
+       now and keep their ideas by keeping the ball on the floor: Slipway's
+       plank still runs a ball down to the green, and the yard's bag is
+       mini golf's putter and mallet, so Liftoff's pads are still the only
+       thing that throws it.
 
        There is no water anywhere on the yard. A ball that leaves the ground
        here falls past `OOB_Y` and comes back as a stroke, which is the same
@@ -6021,15 +6014,18 @@
        ball on every tee — so each hole is rebuilt round the one thing its
        gravity does that no other hole's can:
 
-         Hang Time    0.5   the carry is longer than it looks: three stones
-         Dead Weight  2     a ramp is a slide: the plank does the work
-         The Crater   0.45  a wall is a road: up the far side and back
-         Deadlift     2.4   the floor has to throw it: one leap or two
-         Orbit        0.5   the pull is most of what the ball feels
-         Apogee       0.3   four seconds in the air, bent by a black hole
+         Hang Time    the carry is longer than it looks: three stones
+         Slipway      a ramp is a slide: the plank does the work
+         The Crater   a wall is a road: up the far side and back
+         Liftoff      the floor has to throw it: one leap or two
+         Orbit        the pull bends it round on to the pin
+         Apogee       a long flight, bent by a black hole
+
+       (Weights went to one 0.7 in v1.204.0; the pads, the post and the
+       crater's wall were retuned for it with the hole lab.)
 
        What does not change with the weight is the roll: a putter runs eight
-       units on a level green at every gravity on the card. Only slopes and
+       units on a level green at any gravity. Only slopes and
        the air are different, which is why every hole here is one or the
        other. */
     var apogee = [
@@ -6046,9 +6042,9 @@
                generous one on purpose (0.4%, the tutorial band). Short of
                the nerve for it, the near stone is twice the target and
                leaves a pitch of half the length. */
-            name: 'Hang Time', par: 3, gravity: 0.5,
+            name: 'Hang Time', par: 3, gravity: 0.7,
             needsLoft: true,   // a carry: there is no road along the floor
-            blurb: 'Half a g, and three stones in the dust. The far one is further than anything carries at home — hit it anyway, or step across on the near one.',
+            blurb: 'Light gravity, and three stones in the dust. The far one is further than anything carries at home — hit it anyway, or step across on the near one.',
             pads: [
                 stage(4, 3.5, 3.5),
                 stage(-1.5, 11.5, 3),
@@ -6079,8 +6075,8 @@
                and is lost. It was a level plank off to one side of a Z,
                three shots long with no ace on it; that shape is kept in
                tests.html, where it is the planner's proof. */
-            name: 'Dead Weight', par: 3, gravity: 2,
-            blurb: 'Twice the weight, and nothing flies. The plank is a slide: start it straight and let the ball run away with itself.',
+            name: 'Slipway', par: 3, gravity: 0.7,
+            blurb: 'The plank is a slide down to the green. Start it on the plank and let the slope run it in, or carry the gap.',
             pads: [
                 pad(0, 0, 7, 8, 1.2),
                 pad(4.4, 8, 1.8, 8, 1.2, 'wood', 0, -0.15),
@@ -6110,12 +6106,12 @@
 
                It was an island with a rim, twenty units off across a gap,
                and nothing ever stayed on it. */
-            name: 'The Crater', par: 3, gravity: 0.45,
+            name: 'The Crater', par: 3, gravity: 0.7,
             blurb: 'The pin is on the crater floor, between two meteorites. At this weight the far wall is a road: go up it and come back.',
             pads: [(function () {
                 // The crest of the rim is 1.1 inside the rail: the tee's flat.
                 var p = stage(7.9, 7.9, 7.9);
-                p.bumps = [channel(7.9, 7.9, 6.8, 4.6, 2.6)];
+                p.bumps = [channel(7.9, 7.9, 6.8, 3.7, 2.6)];
                 return p;
             })()],
             extra: [meteor(7.9, 6.2, 1.0), meteor(7.9, 10.5, 1.6)],
@@ -6139,19 +6135,19 @@
                the post. Anything less than all of the mallet lands on the
                middle step and goes up by the second pad: three shots, the
                way it always was. */
-            name: 'Deadlift', par: 3, gravity: 2.4,
-            blurb: 'Two steps up, no ramps, and the pads have twice the weight to lift. All of the mallet takes both in one leap; less goes a step at a time.',
+            name: 'Liftoff', par: 3, gravity: 0.7,
+            blurb: 'Two steps up, no ramps, and nothing in the bag flies. All of the mallet takes both in one leap off the pad; less goes a step at a time.',
             pads: [
                 pad(0, 0, 7, 10),
-                sprung(3.5, 8.7, 1.2, 20),
+                sprung(3.5, 8.7, 1.2, 10.8),
                 pad(0, 10, 7, 6, 1.2),
-                sprung(3.5, 14.7, 1.2, 15, 1.2),
+                sprung(3.5, 14.7, 1.2, 8.1, 1.2),
                 pad(0, 16, 7, 8, 2.4, 'green', -0.035, 0)
             ],
             extra: [
                 bank(1.2, 9, 2.9, -0.62), bank(5.8, 9, 2.9, 0.62),
                 bank(1.2, 15, 2.9, -0.62, { base: 1.1 }), bank(5.8, 15, 2.9, 0.62, { base: 1.1 }),
-                wall(4.75, 20.0, 0.6, 0.6, 0.9, { base: 1.9 })
+                wall(4.75, 20.0, 0.6, 0.6, 2.0, { base: 1.9 })
             ],
             tee: { x: 3.5, z: 2 }, cup: { x: 5.2, z: 21.6 }
         }),
@@ -6168,7 +6164,7 @@
                bent as far as the pin: the pull is stronger now (22, from 13)
                and the pin is three units behind the middle, where the bent
                lines from both sides cross. */
-            name: 'Orbit', par: 3, gravity: 0.5,
+            name: 'Orbit', par: 3, gravity: 0.7,
             blurb: 'A black hole in the middle of the table and the cup straight behind it. Swing past, either side, and let it hand you the pin.',
             pads: [stage(9, 9, 9)],
             wells: [{ x: 9, z: 9, pull: 22, core: 0.85 }],
@@ -6198,8 +6194,8 @@
                of it was decided before it left. It was a pad, a gap and a
                shelf in a straight line, and the ace was the putt at the
                flag — the last hole on the lab's list. */
-            name: 'Apogee', par: 3, gravity: 0.3,
-            blurb: 'The pad throws it ten units up for four seconds, and the black hole bends the flight round on to the crescent. Everything is decided before it leaves.',
+            name: 'Apogee', par: 3, gravity: 0.7,
+            blurb: 'The pad throws it high and long, and the black hole bends the flight round on to the crescent. Everything is decided before it leaves.',
             pads: [
                 pad(0, 0, 8, 8),
                 sprung(4, 5.4, 1.4, 10.5),
@@ -7660,7 +7656,7 @@
             id: 'apogee',
             group: 'adventure',
             name: 'Apogee Yard',
-            blurb: 'Six holes and six weights of ball. The course never moves; what the ball does in the air is a different game on every one.',
+            blurb: 'Six holes on the moon, at seven tenths of the weight. The ball flies further and hangs longer; the ground is the same ground.',
             theme: 'lunar',
             holes: apogee
         },
