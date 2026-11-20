@@ -459,7 +459,7 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     phone's size nor the pull's length changes it. Inside the feel's `TOL` it
     is clean, past it the −1..1 over its `SPAN` (`swipeOff`), and a miss is
     costed at no less than its `FLOOR` of overdraw. Easy forgives 9°, normal 5°
-    (3½° until v1.207.0, when the owner found it too hard), hard under 2°.
+    (3½° until v1.204.0, when the owner found it too hard), hard under 2°.
 
     The angle alone let a loop through: pull down one side, come up the
     other, and the two ends of the swipe up still line up. So the line is
@@ -484,7 +484,7 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     hook or slice. A shape picked on the ball wins over a drawn one, and a club
     that cannot bend does not.
 
-  **The scale stands still** (v1.207.0, game.js `swipeBase`). The meter is
+  **The scale stands still** (v1.204.0, game.js `swipeBase`). The meter is
   measured from the top of the lane, not from where the thumb went in, so
   the ticks and the flag do not move with the press: press anywhere, pull
   down to the flag. A press half way down used to put the full swing below
@@ -6309,7 +6309,7 @@ equipped club finish is `save.club`.
   taking a star or a few off the dearer balls and clubs, v1.200.0).
 - **Hole-in celebrations** (v1.200.0, the owner: "similar to how they work for
   Rocket League"). The equipped one goes off over the cup on a hole in one
-  only (v1.207.0, the owner: "wasn't celebration animation only in hole in
+  only (v1.204.0, the owner: "wasn't celebration animation only in hole in
   one" — `game.js → celebrates`; a ball holed on the range counts), through
   `render.sinkAt`; every other drop gets the plain pop. `balls.js → CELEBRATIONS` is the catalog and `save.cele`
   the slot; `js/celebrate.js` is how each one moves, a DOM-free particle
@@ -6352,7 +6352,7 @@ equipped club finish is `save.club`.
   Light spiralling in goes out at the horizon rather than piling up white on
   it. The shop cannot bend its picture, so its preview draws the hole flat.
 - **The Easter egg: Rubber Duck Parade** (v1.202.0, unlocking changed in
-  v1.207.0). A ninth celebration, `secret: true` and free, that sits on the
+  v1.204.0). A ninth celebration, `secret: true` and free, that sits on the
   shelf as a "???" card with its `hint` and a count until the save has
   finished twenty different holes (`unlock: { key: 'holes', need: 20 }`,
   `scoring.lockProgress 'holes'`, any hole the save records). Then it turns
