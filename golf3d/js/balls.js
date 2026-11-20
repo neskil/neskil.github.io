@@ -498,6 +498,16 @@ window.G3 = window.G3 || {};
             id: 'cele-singularity', kind: 'cele', name: 'Singularity', cost: 10, badge: 'Ace Hunter', lock: 'ace',
             blurb: 'A real black hole tears open over the cup, bends the course round it and drinks a spiral of light — then shuts, and lets it all go in a ripple through space.',
             colors: ['#b27bff', '#5fa8ff', '#ffc44d']
+        },
+        /* The Easter egg. Free, and not for sale: `secret` keeps it a "???"
+           card on the shelf that buyBall refuses, until somebody knocks on the
+           flag in the shop's preview five times (game.js → knockFlag), which
+           gives it to them. `hint` is all the card says until then. */
+        {
+            id: 'cele-ducks', kind: 'cele', name: 'Rubber Duck Rain', cost: 0, badge: 'Secret', secret: true,
+            hint: 'Something in here keeps asking to be let out. Knock on the flag.',
+            blurb: 'A big rubber duck pops out of the cup to see what the fuss is about — then it rains ducks, squeaking, all over the green.',
+            colors: ['#ffd21f', '#ff7a1a', '#9fe2ff']
         }
     ];
 

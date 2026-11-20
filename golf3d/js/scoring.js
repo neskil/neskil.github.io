@@ -411,6 +411,8 @@
             var eq = equipBall(prev, ballId, o.catalog);
             return { ok: true, alreadyOwned: true, save: eq.save };
         }
+        // A secret is found, never bought (balls.js, the Easter egg).
+        if (b.secret && !o.found) return { ok: false, reason: 'secret', save: prev };
         var ls = lockStatus(prev, ballId, o);
         if (ls.locked) return { ok: false, reason: 'achievement', lock: ls, save: prev };
         var avail = availableStars(prev, o.courses, o.worlds, o.catalog);

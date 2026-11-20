@@ -6316,6 +6316,16 @@ equipped club finish is `save.club`.
   `lensList`) — Supernova and Shockwave send a ripple through space as well.
   Light spiralling in goes out at the horizon rather than piling up white on
   it. The shop cannot bend its picture, so its preview draws the hole flat.
+- **The Easter egg: Rubber Duck Rain** (v1.202.0). A ninth celebration,
+  `secret: true` and free, that sits on the shelf as a "???" card with only
+  its `hint` until somebody knocks on the flag in the shop's preview five
+  times, each within two seconds of the last (`game.js → knockFlag`). Then it is
+  given and equipped — `scoring.buyBall` refuses a secret unless it is handed
+  `found`, so it can never be bought — and a big duck jumps out of the cup and
+  it rains rubber ducks that bounce and squeak (`fx.events` → `audio.squeak`
+  and `quack`). The duck is drawn by one function, `celebrate.drawDuck`, into
+  the game's point sprite and the shop's picture alike. Don't put it in the
+  Achievements list or the "to unlock" count: finding it is the point.
 - **Ace Hunter** (the `ace` lock) is five *different* holes aced, counted from
   each hole's best score, not five aces: one generous hole could be replayed
   for all of them. It unlocks Singularity (★10) and the Holo Prism ball.

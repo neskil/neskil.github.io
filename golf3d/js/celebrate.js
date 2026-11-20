@@ -61,6 +61,11 @@ window.G3 = window.G3 || {};
             grow: o.grow || 0,            // a flash: swells as it fades
             ph: o.ph === undefined ? fx.rnd() * TAU : o.ph,
             land: !!o.land,               // rests on the green rather than falling through it
+            bounce: o.bounce || 0,        // a rubber duck: comes back up off the green, this much of it
+            sprite: o.sprite || null,     // drawn as a picture ('duck') rather than a point
+            flip: o.flip || 1,            // which way the picture faces
+            squeak: !!o.squeak,           // says so when it bounces (fx.events)
+            keep: !!o.keep,               // holds its colour to the last moment, like paper
             // helix and pull
             ang: o.ang || 0, rad: o.rad || 0, angV: o.angV || 0, radV: o.radV || 0,
             cy: o.cy || 0, rad0: o.rad || 0, y0: o.y || 0,
@@ -266,6 +271,38 @@ window.G3 = window.G3 || {};
             }
         },
 
+        /* The Easter egg (balls.js: hidden until somebody knocks on the
+           flag in the shop's preview). A big rubber duck jumps out of the cup
+           to see what all the fuss is about and drops back in, and then it
+           rains ducks: they bounce on the green, squeaking, and sit there
+           looking pleased with themselves until they go. */
+        'cele-ducks': {
+            peek: 1.25,
+            dur: 4.6,
+            run: function (fx) {
+                var rnd = fx.rnd, n, i;
+                if (at(fx, 0)) {
+                    part(fx, { y: 0.05, vy: 6.2, grav: 9, life: 1.5, c: [1, 1, 1], size: 1.7, add: false,
+                        sprite: 'duck', flip: rnd() < 0.5 ? -1 : 1, keep: true });
+                    fx.events.push('quack');
+                    burstOf(fx, 30, { upper: true, speed: 3.2, lift: 2, grav: 7, drag: 0.6, life: 0.9,
+                        c: function () { return rnd() < 0.5 ? hex(0xbfefff) : hex(0xffffff); }, size: 0.2, land: true });
+                    ring(fx, { r0: 0.2, r1: 2.6, dur: 0.7, c: hex(0x9fe2ff), a: 0.8 });
+                }
+                n = stream(fx, 0.3, 1.15, 44);
+                for (i = 0; i < n; i++) {
+                    var a = rnd() * TAU, r = 0.6 + rnd() * 3.4;
+                    part(fx, {
+                        x: Math.cos(a) * r, z: Math.sin(a) * r, y: 5 + rnd() * 2,
+                        vx: (rnd() - 0.5) * 0.6, vz: (rnd() - 0.5) * 0.6, vy: -1 - rnd() * 2,
+                        grav: 9, life: 2.9 + rnd() * 0.5, c: [1, 1, 1], size: 0.75 + rnd() * 0.3, add: false,
+                        sprite: 'duck', flip: rnd() < 0.5 ? -1 : 1, bounce: 0.38, squeak: true, keep: true
+                    });
+                }
+                if (at(fx, 1.3)) fx.events.push('quack');
+            }
+        },
+
         /* A real black hole (render.js draws fx.hole with the game's own
            black-hole shader, the one the pipes open in the sky, and bends the
            picture round it through postfx's lens): it opens over the cup,
@@ -309,7 +346,7 @@ window.G3 = window.G3 || {};
         return {
             id: SCRIPTS[id] ? id : 'cele-classic', script: s,
             t: -1e-6, t0: -1e-6, acc: 0, rnd: rnd || Math.random,
-            parts: [], rings: [], beams: [], lenses: [], hole: null, done: false
+            parts: [], rings: [], beams: [], lenses: [], hole: null, events: [], done: false
         };
     }
 
@@ -342,7 +379,11 @@ window.G3 = window.G3 || {};
             }
             // Paper and water come to rest on the green; light goes out on it.
             if (p.y < 0 && p.vy < 0) {
-                if (p.land) { p.y = 0; p.vx = p.vy = p.vz = 0; p.flut = p.flut ? 0.0001 : 0; }
+                if (p.bounce && p.vy < -1.2) {
+                    p.y = 0; p.vy = -p.vy * p.bounce; p.vx *= 0.7; p.vz *= 0.7;
+                    if (p.squeak && fx.events.length < 40) fx.events.push('squeak');
+                } else if (p.bounce) { p.y = 0; p.vx = p.vy = p.vz = 0; }
+                else if (p.land) { p.y = 0; p.vx = p.vy = p.vz = 0; p.flut = p.flut ? 0.0001 : 0; }
                 else if (!p.shell) { p.y = 0; p.life = Math.min(p.life, p.age + 0.06); }
             }
             if (p.trail && fx.parts.length < 1400) {
@@ -365,7 +406,7 @@ window.G3 = window.G3 || {};
             p.og = c[1] + (p.c1[1] - c[1]) * m;
             p.ob = c[2] + (p.c1[2] - c[2]) * m;
         } else { p.or = c[0]; p.og = c[1]; p.ob = c[2]; }
-        var a = p.flut ? 1 - Math.pow(u2, 6) : 1 - u2 * u2;
+        var a = p.flut || p.keep ? 1 - Math.pow(u2, 6) : 1 - u2 * u2;
         // Light falling into a black hole goes out at the horizon rather than piling up white on it.
         if (p.mode === 2) a = Math.min(1, Math.max(0, (p.pull - 0.55) / 0.6));
         if (p.flick && u2 > 0.35 && Math.sin(p.ph * 7 + p.age * 38) < -0.2) a *= 0.25;
@@ -442,5 +483,58 @@ window.G3 = window.G3 || {};
         return fx;
     }
 
-    G3.celebrate = { start: start, step: step, peek: peek, seeded: seeded, ids: Object.keys(SCRIPTS) };
+    /* A rubber duck, drawn into any 2D context: the game paints its point
+       sprite with this once (render.js), and the shop draws every duck in its
+       preview with it, so the two are the same duck. Centred on (x, y),
+       `s` across, facing right (flip -1 for left). */
+    function drawDuck(ctx, x, y, s, flip, alpha) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale((flip || 1) * s / 100, s / 100);
+        ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#7a4a00';
+        ctx.lineWidth = 3.5;
+        // Body, with a perky tail.
+        ctx.fillStyle = '#ffd21f';
+        ctx.beginPath();
+        ctx.moveTo(-40, 6);
+        ctx.quadraticCurveTo(-48, -14, -30, -12);
+        ctx.quadraticCurveTo(-14, -8, 2, 0);
+        ctx.quadraticCurveTo(30, -4, 38, 8);
+        ctx.quadraticCurveTo(40, 34, 4, 36);
+        ctx.quadraticCurveTo(-36, 36, -40, 6);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        // Head.
+        ctx.beginPath();
+        ctx.arc(16, -22, 19, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        // Wing.
+        ctx.fillStyle = '#f5b800';
+        ctx.beginPath();
+        ctx.moveTo(-18, 10);
+        ctx.quadraticCurveTo(0, 2, 14, 12);
+        ctx.quadraticCurveTo(0, 26, -18, 10);
+        ctx.fill(); ctx.stroke();
+        // Beak.
+        ctx.fillStyle = '#ff7a1a';
+        ctx.beginPath();
+        ctx.moveTo(32, -24);
+        ctx.quadraticCurveTo(48, -26, 50, -18);
+        ctx.quadraticCurveTo(44, -12, 32, -14);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        // Eye, with a glint.
+        ctx.fillStyle = '#1a1206';
+        ctx.beginPath(); ctx.arc(21, -27, 4.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(22.4, -28.4, 1.4, 0, Math.PI * 2); ctx.fill();
+        // A shine on the head.
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); ctx.ellipse(8, -32, 6, 3.5, -0.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    G3.celebrate = { drawDuck: drawDuck, start: start, step: step, peek: peek, seeded: seeded, ids: Object.keys(SCRIPTS) };
 })(window.G3);
