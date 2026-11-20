@@ -111,8 +111,12 @@ Both done in v1.162.0 (see "After the handoff was written" below and README
 1. Send him the five fixes above and wait for the phone.
 2. Sweep the six never-commented placed holes for a skill line; redesign any
    that is flat, one per merge, the way the Marble Run and Slack Water were.
-3. A second world event (the carnival's skater, the forge's hammer, the
-   library's orrery are all on the world's clock already: `place.event`).
+3. A second world event — done in v1.203.0: Dry Dock's Moon launches when
+   the ball drops (README → "A world can have an event"). More candidates on
+   the world's clock: Île Flottante's cage cracking (the custard world's
+   "tap", u 0.80), the library's orrery beam (`setProgress`), the rapids'
+   lip. The carnival world does not read `u` at all, and the forge moves
+   only its fountain with it (a surge from u 0.72).
 4. Sculpt the carnival's river: ice at 0, banks at 3, and the fair along it.
 5. Fairway paint from a polygon or a distance field instead of rectangles.
 
@@ -228,3 +232,12 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   a fluke (0.007%): the cup is tiny next to a sixth-of-a-g pitch, and the
   window is one weight wide. The lighting is warmed for the sunny harbour
   town the world is. **Not yet seen by him.**
+- **Dry Dock's launch** (`drydock`), v1.203.0: the tour's second world
+  event. Hole out and the forty moorings slip, the cradle's petals lean out,
+  loose planks fall and the Moon lifts twenty metres off its keel blocks and
+  starts drifting down the dock; the victory lap turns to watch it from
+  behind the cup. Seen here on SwiftShader at about a frame a second, so the
+  ten seconds' pacing (`event.secs`) and whether the lap's framing
+  (`C.LAP.LOOK_*`, and the 0.22/0.3 in `lapLook`) catches the Moon well on a
+  portrait phone are **not yet seen by him**. In a one-hole round the score
+  card comes up over it.
