@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.201.0';
+G3.VERSION = '1.202.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1062,6 +1062,9 @@ G3.CONFIG = {
        out of it. Seconds, world units and radians a second. */
     LAP: {
         RISE: 2.2,          // how long it takes to back out to its circle
+        LOOK_IN: 1.6,       // a world event's `look`: how long to turn to it…
+        LOOK_HOLD: 2.5,     // …how long past the event's own length to stay…
+        LOOK_OUT: 2.5,      // …and how long to go back to the circle
         SPIN: 0.38,         // its pace round the cup once it is going…
         SPIN_IN: 1.4,       // …reached over this long, from standing
         SHARE: 0.4,         // the circle's radius, as a share of the hole's length…

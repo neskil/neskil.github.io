@@ -6946,6 +6946,7 @@
             var along = ((world.ball.x - h.tee.x) * tx + (world.ball.z - h.tee.z) * tz) / Math.max(1e-6, tx * tx + tz * tz);
             var eg = R.place.event.gate, hit;
             if (eg) hit = (world.ball.x - eg[0]) * (world.ball.x - eg[0]) + (world.ball.z - eg[1]) * (world.ball.z - eg[1]) < eg[2] * eg[2];
+            else if (R.place.event.sink) hit = false;   // the drop alone sets it going
             else hit = along >= (R.place.event.at === undefined ? 0.5 : R.place.event.at);
             if (world.sunk || hit) {
                 R.eventFired = true;
@@ -8089,6 +8090,7 @@
         if (g && y < g.y + L.CLEAR) y = g.y + L.CLEAR;
         _lp.set(x, y, z);
         _lt.set(cup.x, l.top + L.LOOK_UP * e, cup.z);
+        lapLook(hole, l, dt);
         /* And never behind something. A windmill, a castle or a cliff can
            stand on the circle, so a ray goes out from over the cup to where
            the lap wants to be — a few times a second, not every frame — and
@@ -8111,6 +8113,40 @@
         return true;
     }
     function stopLap() { R.lap = null; }
+
+    /* A world event with a `look` — a point in the world's own coordinates —
+       is something too big or too high for the lap to have in its picture:
+       Dry Dock's Moon lifting off its blocks is a hundred units past the cup
+       and most of fifty up. While it plays, the lap gives up its circle and
+       stands low behind the cup with the cup at the bottom of the frame and
+       the thing itself above it, and eases back on to the circle after. */
+    var _kp = new THREE.Vector3(), _kt = new THREE.Vector3();
+    function lapLook(hole, l, dt) {
+        var ev = R.place && R.place.event, B = G3.backdrop;
+        if (!ev || !ev.look || !R.eventFired || !B || !B.toHole) return;
+        if (!l.look) {
+            var v = B.toHole(R.place, R.placeSeat, ev.look);
+            if (!v) return;
+            var cup = hole.cup, dx = v.x - cup.x, dz = v.z - cup.z, d = Math.sqrt(dx * dx + dz * dz) || 1;
+            dx /= d; dz /= d;
+            var back = Math.max(7, Math.min(12, l.rad * 0.7));
+            l.look = {
+                t: 0, hold: (ev.secs || 5) + C.LAP.LOOK_HOLD,
+                pos: new THREE.Vector3(cup.x - dx * back, l.top + 2.6, cup.z - dz * back),
+                // a third of the way up to it from the cup: the cup low in the
+                // picture and the thing filling the rest
+                at: new THREE.Vector3(cup.x + (v.x - cup.x) * 0.22, l.top + (v.y - l.top) * 0.3, cup.z + (v.z - cup.z) * 0.22)
+            };
+        }
+        var k = l.look;
+        k.t += dt;
+        var a = Math.min(1, k.t / C.LAP.LOOK_IN), b = Math.min(1, Math.max(0, (k.t - k.hold) / C.LAP.LOOK_OUT));
+        var f = a * a * (3 - 2 * a) * (1 - b * b * (3 - 2 * b));
+        if (f <= 0) return;
+        // Ground and things in the way are the probe's, after this.
+        _kp.copy(k.pos); _kt.copy(k.at);
+        _lp.lerp(_kp, f); _lt.lerp(_kt, f);
+    }
 
     /* How much of the way from `from` to `to` is clear of the hole: 1 for
        all of it, else the share up to just short of the first thing in the

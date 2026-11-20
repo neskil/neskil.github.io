@@ -4414,6 +4414,18 @@ watches the ball, `G3.backdrop.play()` runs it, a new hole rewinds it, and
 `say` is toasted. The Marble Run's is the dominoes beside it going over in
 a wave as the ball comes round the first turn; the owner asked for it.
 
+Two more fields (v1.202.0): `sink: true` sets it going on the drop alone, and
+`look: [x, y, z]`, a point in the world's own coordinates
+(`G3.backdrop.toHole` brings it on to the hole), turns the victory lap to it
+while the event plays — it stands low behind the cup with the cup at the foot
+of the picture (`render.js → lapLook`, `C.LAP.LOOK_*`), then eases back on to
+its circle. Dry Dock's is the second event: hole out and the moorings slip,
+the cradle opens and the Moon lifts off its blocks and starts down the dock.
+Its `from` puts the world's clock at 0.60 while the hole is played, just short
+of the first rope (0.62), so the launch starts the moment the ball drops; ten
+seconds for 0.22 of the flight is close to the world's own pace (43 s a
+flight), so the ropes whip and the planks fall as Portals timed them.
+
 **A world's own vehicle can be put away** (v1.162.2). Some worlds fly a ship
 or ride a boat with their camera, and from the tee it is a hull across the
 bottom of the picture: `place.hide` names the world's objects to hide

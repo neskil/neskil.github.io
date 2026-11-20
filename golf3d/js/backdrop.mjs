@@ -933,6 +933,18 @@ function line(place, seat, n) {
     return { pts, u: A.u, scale: A.scale, at: !!place.at };
 }
 
+/* A point of the world, [x, y, z] in its own coordinates, in golf units on
+   the hole: the same inverse `line` takes. Null without the world built. */
+function toHole(place, seat, v) {
+    const W = cur;
+    if (!W || !engine || !place || !seat || !v || W.def.id !== place.world || place.drift) return null;
+    if (!W.anchor || W.anchor.key !== place) { W.anchor = anchorFor(W, place, seat); W.anchor.key = place; }
+    const A = W.anchor;
+    _yaw.setFromAxisAngle(_up, -A.turn);
+    _p.set(v[0] - A.x, v[1] - A.y, v[2] - A.z).applyQuaternion(_yaw).multiplyScalar(1 / A.scale);
+    return { x: _p.x + A.sx, y: _p.y + A.sy, z: _p.z + A.sz };
+}
+
 G3.backdrop = {
     canvas, want, prepare, frame, info,
     setQuality(t) { qualityTier = t || 'auto'; applyQuality(); },
@@ -981,7 +993,7 @@ G3.backdrop = {
        the height under a point in world coordinates, or null over nothing. */
     groundAt(x, z, from, any) { return cur ? groundUnder(cur, x, from === undefined || from === null ? 2000 : from, z, any) : null; },
     pathAt(u) { if (!cur) return null; const v = cur.path.pointAt(u, new THREE.Vector3()); return [v.x, v.y, v.z]; },
-    line,
+    line, toHole,
     // A place edited by hand (the console, a tuning script): work it out again.
     reanchor() { if (cur) cur.anchor = null; },
     // How far along its world a riding hole is (endless.js), 0…1, and whether the next world is in the portal.
