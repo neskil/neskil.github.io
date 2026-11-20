@@ -7351,6 +7351,10 @@
         for (i = 0; i < fx.parts.length; i++) {
             p = fx.parts[i];
             if (p.add || p.oa <= 0) continue;
+            if (p.sprite === 'duck' && G3.celebrate.drawDuck) {
+                G3.celebrate.drawDuck(ctx, sx(p.ox, p.oz), sy(p.oy, p.oz) - p.os * k * 0.1, p.os * k, p.flip, Math.min(1, p.oa));
+                continue;
+            }
             ctx.globalAlpha = Math.min(1, p.oa);
             ctx.fillStyle = 'rgb(' + Math.round(p.or * 255) + ',' + Math.round(p.og * 255) + ',' + Math.round(p.ob * 255) + ')';
             r = p.os * k;
@@ -7381,6 +7385,52 @@
         }
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
+    }
+
+    /* The Easter egg: five knocks on the flag in the shop's preview, each
+       inside two seconds of the last, while the "???" is the one
+       being looked at. The fifth lets the ducks out — given, never bought
+       (scoring.buyBall, `found`) — and plays them at once. */
+    var knocks = { n: 0, at: 0 };
+    function knockFlag() {
+        if (shopTab !== 'cele' || !G3.celebrationById) return false;
+        var save = state && state.save ? state.save : S.load();
+        var cur = G3.celebrationById(shopInspectCele);
+        if (!cur.secret || S.ownsBall(save, cur.id)) return false;
+        var now = Date.now();
+        knocks.n = now - knocks.at < 2000 ? knocks.n + 1 : 1;
+        knocks.at = now;
+        var wrap = $('shop-cele-wrap');
+        if (wrap) {
+            wrap.classList.remove('knock');
+            void wrap.offsetWidth;
+            wrap.classList.add('knock');
+        }
+        if (A.squeak && knocks.n >= 3) A.squeak();
+        if (knocks.n < 5) return true;
+        knocks.n = 0;
+        var res = S.buyBall(save, cur.id, { found: true });
+        if (!res.ok) return true;
+        if (state) state.save = S.save(res.save); else S.save(res.save);
+        applyEquippedBall();
+        if (A.quack) A.quack();
+        toast('🦆 You found the ducks! Rubber Duck Rain is yours, and equipped.', 'good');
+        drawShop();
+        return true;
+    }
+
+    // The "???" card: the green and the flag, and a question over them.
+    function drawMysteryCard(canvas) {
+        drawCeleFrame(canvas, null);
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.save();
+        ctx.fillStyle = '#c9a352';
+        ctx.font = '700 ' + Math.round(canvas.height * 0.42) + 'px "Barlow Semi Condensed", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', canvas.width * 0.3, canvas.height * 0.42);
+        ctx.restore();
     }
 
     // The shop's preview plays the inspected celebration on a loop while its shelf is open.
@@ -7796,7 +7846,11 @@
 
         // Inspected detail + preview
         var cur = byId(inspect);
-        if (cele) playCelePreview(cur.id);
+        // The Easter egg, not yet found: a "???" with a hint, and the bare flag in the preview to knock on.
+        var hidden = function (b) { return b.secret && !S.ownsBall(save, b.id); };
+        var mystery = cele && hidden(cur);
+        if (mystery) { stopCelePreview(); if ($('shop-cele-preview')) drawCeleFrame($('shop-cele-preview'), null); }
+        else if (cele) playCelePreview(cur.id);
         else if (clubs) {
             if ($('shop-club-preview')) drawClubSwatch($('shop-club-preview'), cur);
         } else if (shopPreview) shopPreview.setStyle(cur.id);
@@ -7805,9 +7859,10 @@
         var lockCur = S.lockStatus ? S.lockStatus(save, cur.id) : { locked: false };
         $('shop-d-cat').textContent = cur.badge || cur.category;
         $('shop-d-cost').textContent = cur.cost === 0 ? 'Included' : (ownedCur ? 'Unlocked (★ ' + cur.cost + ')' : '★ ' + cur.cost);
-        $('shop-d-name').textContent = cur.name;
+        $('shop-d-name').textContent = mystery ? '???' : cur.name;
         $('shop-d-inspired').textContent = cur.inspired ? 'Inspired by: ' + cur.inspired : '';
-        $('shop-d-blurb').textContent = cur.blurb || '';
+        $('shop-d-blurb').textContent = mystery ? cur.hint : (cur.blurb || '');
+        if (mystery) $('shop-d-cost').textContent = 'Not for sale';
         var lockEl = $('shop-d-lock');
         if (lockEl) {
             lockEl.hidden = !(cur.lock && !ownedCur);
@@ -7821,7 +7876,10 @@
         var act = $('shop-d-action');
         var noun = cele ? 'Celebration' : clubs ? 'Finish' : 'Ball';
         act.className = 'shop-action';
-        if (isEqCur) {
+        if (mystery) {
+            act.textContent = '🔒 Find it';
+            act.disabled = true;
+        } else if (isEqCur) {
             act.textContent = '✓ Equipped';
             act.disabled = true;
         } else if (ownedCur) {
@@ -7875,7 +7933,8 @@
             if (cele) {
                 sw.width = 140;
                 sw.height = 116;
-                if (G3.celebrate) drawCeleFrame(sw, G3.celebrate.peek(b.id));
+                if (hidden(b)) drawMysteryCard(sw);
+                else if (G3.celebrate) drawCeleFrame(sw, G3.celebrate.peek(b.id));
                 sw.classList.add('bc-cele');
             } else if (clubs) drawClubSwatch(sw, b);
             else if (shopThumbs[b.id]) sw.getContext('2d').drawImage(shopThumbs[b.id], 0, 0);
@@ -7884,12 +7943,12 @@
 
             var nm = document.createElement('span');
             nm.className = 'bc-name';
-            nm.textContent = b.name;
+            nm.textContent = hidden(b) ? '???' : b.name;
             card.appendChild(nm);
 
             var st = document.createElement('span');
             st.className = 'bc-status' + (eq ? ' on' : owned ? ' owned' : canBuy ? ' buyable' : lk.locked ? ' lock' : '');
-            st.textContent = eq ? '✓ Equipped' : owned ? 'Owned'
+            st.textContent = hidden(b) ? 'Secret' : eq ? '✓ Equipped' : owned ? 'Owned'
                 : lk.locked ? '🔒 ' + lk.have + '/' + lk.need + ' · ★ ' + b.cost
                 : '★ ' + b.cost;
             card.appendChild(st);
@@ -8076,6 +8135,7 @@
         // A tap on the preview plays the celebration again from the top.
         if ($('shop-cele-wrap')) {
             $('shop-cele-wrap').addEventListener('click', function () {
+                if (knockFlag()) return;
                 if (!celeLoop) return;
                 var id = celeLoop.id;
                 stopCelePreview();

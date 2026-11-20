@@ -5487,6 +5487,14 @@ body.flight-mode .controls { display: none; }
 .shop-cats[hidden], .shop-preview-wrap[hidden] { display: none; }
 .shop-club-wrap { cursor: default; }
 .shop-cele-wrap { cursor: pointer; }
+/* A knock on the flag (the Easter egg): the preview jumps a little. */
+.shop-cele-wrap.knock { animation: shop-knock 0.18s ease-out; }
+@keyframes shop-knock {
+    0% { transform: translateY(0); }
+    40% { transform: translateY(2px) scale(0.985); }
+    100% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .shop-cele-wrap.knock { animation: none; } }
 
 .shop-cats {
     display: flex;

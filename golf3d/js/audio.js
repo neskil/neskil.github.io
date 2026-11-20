@@ -326,6 +326,17 @@
                 setTimeout(function () { tone(f, 0.22, 'sine', 0.13); }, 70 + i * 85);
             });
         },
+        // The Easter egg's rubber ducks (celebrate.js 'cele-ducks'): a squeeze, and the big one's quack.
+        squeak: function () {
+            var f = 1150 + Math.random() * 500;
+            tone(f, 0.07, 'square', 0.035, f * 1.35);
+            setTimeout(function () { tone(f * 1.3, 0.09, 'square', 0.03, f * 0.85); }, 60);
+        },
+        quack: function () {
+            tone(420, 0.16, 'sawtooth', 0.09, 250);
+            noise(0.14, 900, 2.5, 0.05);
+            setTimeout(function () { tone(400, 0.18, 'sawtooth', 0.08, 230); }, 190);
+        },
         ace: function () {
             [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach(function (f, i) {
                 setTimeout(function () { tone(f, 0.35, 'triangle', 0.15); }, i * 90);

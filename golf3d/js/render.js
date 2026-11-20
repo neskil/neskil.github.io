@@ -598,7 +598,7 @@
        walks hidden objects too), so a celebration costs no program and no
        light mid-hole: two point clouds — light, drawn additively, and matter
        (paper, dust), drawn over — four flat rings and two beams. */
-    var CELE_LIGHT = 1500, CELE_MATTER = 420;
+    var CELE_LIGHT = 1500, CELE_MATTER = 420, CELE_DUCKS = 80;
     var CELE_VS = [
         'attribute float size;',
         'attribute float alpha;',
@@ -606,11 +606,14 @@
         'uniform float uHalfH;',
         'varying vec3 vTint;',
         'varying float vAlpha;',
+        'varying float vFlip;',
         'void main() {',
         '    vec4 mv = modelViewMatrix * vec4(position, 1.0);',
         '    gl_Position = projectionMatrix * mv;',
         // World-true size: the projection's own focal length, over the depth.
-        '    gl_PointSize = clamp(size * projectionMatrix[1][1] * uHalfH / max(0.05, -mv.z), 0.0, 256.0);',
+        // (A negative size is a picture facing the other way: the duck.)
+        '    gl_PointSize = clamp(abs(size) * projectionMatrix[1][1] * uHalfH / max(0.05, -mv.z), 0.0, 256.0);',
+        '    vFlip = size < 0.0 ? 1.0 : 0.0;',
         '    vTint = tint;',
         '    vAlpha = alpha;',
         '}'
@@ -638,7 +641,21 @@
         '}'
     ].join('\n');
 
-    function celeCloud(n, light) {
+    // A picture on a point (the Easter egg's duck), turned round when it faces left.
+    var CELE_FS_SPRITE = [
+        'uniform sampler2D map;',
+        'varying vec3 vTint;',
+        'varying float vAlpha;',
+        'varying float vFlip;',
+        'void main() {',
+        '    vec2 uv = vec2(mix(gl_PointCoord.x, 1.0 - gl_PointCoord.x, vFlip), 1.0 - gl_PointCoord.y);',
+        '    vec4 c = texture2D(map, uv);',
+        '    if (c.a < 0.04) discard;',
+        '    gl_FragColor = vec4(c.rgb * vTint, c.a * vAlpha);',
+        '}'
+    ].join('\n');
+
+    function celeCloud(n, light, sprite) {
         var g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
         g.setAttribute('tint', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
@@ -646,9 +663,9 @@
         g.setAttribute('size', new THREE.Float32BufferAttribute(new Float32Array(n), 1));
         g.setDrawRange(0, 0);
         var m = new THREE.ShaderMaterial({
-            uniforms: { uHalfH: { value: 400 } },
+            uniforms: { uHalfH: { value: 400 }, map: { value: sprite || null } },
             vertexShader: CELE_VS,
-            fragmentShader: light ? CELE_FS_LIGHT : CELE_FS_MATTER,
+            fragmentShader: sprite ? CELE_FS_SPRITE : light ? CELE_FS_LIGHT : CELE_FS_MATTER,
             transparent: true, depthWrite: false,
             blending: light ? THREE.AdditiveBlending : THREE.NormalBlending
         });
@@ -674,6 +691,13 @@
         var grp = new THREE.Group();
         grp.visible = false;
         var light = celeCloud(CELE_LIGHT, true), matter = celeCloud(CELE_MATTER, false);
+        // The duck, drawn once by the same hand the shop draws its ducks with.
+        var duckTex = celeCanvas(function (x) {
+            if (G3.celebrate && G3.celebrate.drawDuck) G3.celebrate.drawDuck(x, 64, 70, 118, 1);
+        });
+        var ducks = celeCloud(CELE_DUCKS, false, duckTex);
+        ducks.renderOrder = 5;
+        grp.add(ducks);
         grp.add(matter);
         grp.add(light);
         // A soft ring: bright at its rim, nothing inside or out.
@@ -748,7 +772,7 @@
         /* The scripts are written in units that read from the putting seat;
            the victory lap backs out to ten or eighteen, so it is all drawn half
            as big again. */
-        R.cele = { group: grp, light: light, matter: matter, rings: rings, beams: beams, hole: hole,
+        R.cele = { group: grp, light: light, matter: matter, ducks: ducks, rings: rings, beams: beams, hole: hole,
             fx: null, at: new THREE.Vector3(), scale: 1.5 };
         grp.scale.setScalar(R.cele.scale);
         R.celeId = R.celeId || 'cele-classic';
@@ -772,15 +796,15 @@
         if (!c || !c.fx) return;
         var live = G3.celebrate.step(c.fx, Math.min(dt, 0.05));
         var fx = c.fx;
-        [[c.light, true, CELE_LIGHT], [c.matter, false, CELE_MATTER]].forEach(function (e) {
+        [[c.light, true, CELE_LIGHT, null], [c.matter, false, CELE_MATTER, null], [c.ducks, false, CELE_DUCKS, 'duck']].forEach(function (e) {
             var g = e[0].geometry, pos = g.attributes.position.array, tint = g.attributes.tint.array;
             var al = g.attributes.alpha.array, sz = g.attributes.size.array, n = 0;
             for (var i = 0; i < fx.parts.length && n < e[2]; i++) {
                 var p = fx.parts[i];
-                if (p.add !== e[1] || p.oa <= 0.002) continue;
+                if (p.add !== e[1] || (p.sprite || null) !== e[3] || p.oa <= 0.002) continue;
                 pos[n * 3] = p.ox; pos[n * 3 + 1] = p.oy; pos[n * 3 + 2] = p.oz;
                 tint[n * 3] = p.or; tint[n * 3 + 1] = p.og; tint[n * 3 + 2] = p.ob;
-                al[n] = p.oa; sz[n] = p.os * c.scale;
+                al[n] = p.oa; sz[n] = p.os * c.scale * (p.flip < 0 ? -1 : 1);
                 n++;
             }
             g.setDrawRange(0, n);
@@ -804,6 +828,14 @@
             m.material.color.setRGB(b.c[0], b.c[1], b.c[2]);
             m.material.opacity = b.oa;
         });
+        // What the effect says out loud (the duck's squeaks), once each.
+        var now = R.clock;
+        while (fx.events.length) {
+            var ev = fx.events.shift();
+            // A shower of ducks landing together is a few squeaks, not forty at once.
+            if (ev === 'squeak') { if (now - (c.squeakAt || -1) < 0.09) continue; c.squeakAt = now; }
+            if (G3.audio && G3.audio[ev]) G3.audio[ev]();
+        }
         var h = fx.hole;
         c.hole.visible = !!h;
         if (h) {

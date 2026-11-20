@@ -6372,6 +6372,25 @@
                 S.lockProgress(spread, 'ace', mockCourses, mockWorlds) === 5 &&
                 S.lockStatus(spread, 'cele-singularity', opts).met &&
                 G3.SHOP_LOCKS.ace.need === 5);
+            /* The Easter egg: free, but found rather than bought. */
+            var egg = G3.celebrationById('cele-ducks');
+            var eggBuy = S.buyBall(sv, 'cele-ducks', opts);
+            var eggFound = S.buyBall(sv, 'cele-ducks', { courses: mockCourses, worlds: mockWorlds, found: true });
+            assert('the secret celebration cannot be bought, only found, and finding it costs nothing',
+                egg.id === 'cele-ducks' && egg.secret && egg.cost === 0 && !S.ownsBall(sv, 'cele-ducks') &&
+                !eggBuy.ok && eggBuy.reason === 'secret' &&
+                eggFound.ok && S.equippedCele(eggFound.save) === 'cele-ducks' && S.spentStars(eggFound.save) === 0);
+            var duckFx = G3.celebrate.start('cele-ducks', G3.celebrate.seeded(9)), squeaks = 0, ducksSeen = 0, rested = 0;
+            for (var df = 0; df < 400 && !duckFx.done; df++) {
+                G3.celebrate.step(duckFx, 1 / 60);
+                squeaks += duckFx.events.filter(function (e) { return e === 'squeak'; }).length;
+                duckFx.events.length = 0;
+                ducksSeen = Math.max(ducksSeen, duckFx.parts.filter(function (p) { return p.sprite === 'duck'; }).length);
+                if (df === 200) rested = duckFx.parts.filter(function (p) { return p.sprite === 'duck' && p.oy === 0 && p.vy === 0; }).length;
+            }
+            assert('it rains ducks that bounce, squeak and come to rest on the green',
+                ducksSeen >= 20 && squeaks >= 10 && rested >= 5, ducksSeen + ' ducks, ' + squeaks + ' squeaks, ' + rested + ' sitting');
+
             S.save(buyConf.save);
             assert('save and load round-trip the celebration', S.equippedCele(S.load()) === 'cele-confetti');
             var devCele = S.resetFreeBalls(S.unlockBallFree(sv, 'cele-supernova').save).save;
