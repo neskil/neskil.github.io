@@ -2547,7 +2547,7 @@
                drop, where the cup camera is watching it in slow motion —
                rather than going off now and then again half a second later. */
             celeOwed = aceReplayAhead();
-            R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z, celeOwed);
+            R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z, celeOwed || !celebrates());
         }
         // A pipe (physics.js, "the wormhole"): swallowed, the sky opening,
         // and the landing on the far side, which is a landing like any other.
@@ -2895,6 +2895,16 @@
     var tape = null;            // the shot in flight, or the last one played
     var celeOwed = false;       // the drop was quiet: the celebration is the replay's
 
+    /* The celebration is for a hole in one only (the owner, v1.203.0: "wasn't
+       celebration animation only in hole in one"); any other drop gets the
+       plain pop. A ball holed on the range is a hole in one by definition. */
+    function celebrates() {
+        if (!state || !state.course) return false;
+        if (state.course.isRange) return true;
+        var hole = state.course.holes[state.holeIndex];
+        return S.term(state.strokes, hole.par).kind === 'ace';
+    }
+
     // Will the ball that just dropped be replayed? (holeComplete's own test, asked early.)
     function aceReplayAhead() {
         if (demo || !state || state.course.isRange || !G3.replay) return false;
@@ -3120,6 +3130,7 @@
         if (!counted) {
             var res = S.recordHole(state.save, ref.id, ref.index, state.strokes, hole.par, { scored: solo });
             state.save = S.save(res.save);
+            checkSecrets(false);
             return solo ? res : null;
         }
         return null;
@@ -7387,36 +7398,22 @@
         ctx.globalCompositeOperation = 'source-over';
     }
 
-    /* The Easter egg: five knocks on the flag in the shop's preview, each
-       inside two seconds of the last, while the "???" is the one
-       being looked at. The fifth lets the ducks out — given, never bought
-       (scoring.buyBall, `found`) — and plays them at once. */
-    var knocks = { n: 0, at: 0 };
-    function knockFlag() {
-        if (shopTab !== 'cele' || !G3.celebrationById) return false;
-        var save = state && state.save ? state.save : S.load();
-        var cur = G3.celebrationById(shopInspectCele);
-        if (!cur.secret || S.ownsBall(save, cur.id)) return false;
-        var now = Date.now();
-        knocks.n = now - knocks.at < 2000 ? knocks.n + 1 : 1;
-        knocks.at = now;
-        var wrap = $('shop-cele-wrap');
-        if (wrap) {
-            wrap.classList.remove('knock');
-            void wrap.offsetWidth;
-            wrap.classList.add('knock');
-        }
-        if (A.squeak && knocks.n >= 3) A.squeak();
-        if (knocks.n < 5) return true;
-        knocks.n = 0;
-        var res = S.buyBall(save, cur.id, { found: true });
-        if (!res.ok) return true;
-        if (state) state.save = S.save(res.save); else S.save(res.save);
-        applyEquippedBall();
+    /* The Easter egg turns up by itself: once the save has finished enough
+       different holes (balls.js `unlock`), it is given — not equipped, since
+       the player chose what they celebrate with — and a quack says so. Asked
+       after every hole that is recorded and once at boot, for a save that was
+       already past the mark when the egg went in. */
+    function checkSecrets(quiet) {
+        if (!S.grantSecrets || !state || !state.save) return;
+        var res = S.grantSecrets(state.save);
+        if (!res.given.length) return;
+        state.save = S.save(res.save);
+        if (quiet) return;
         if (A.quack) A.quack();
-        toast('🦆 You found the ducks! Rubber Duck Rain is yours, and equipped.', 'good');
-        drawShop();
-        return true;
+        res.given.forEach(function (b) {
+            toast('🦆 Something quacked in the Pro Shop: ' + b.name + ' is yours. Equip it on the Hole-in shelf.', 'good', 6000);
+        });
+        if (S.availableStars) syncShopNew(state.save, S.availableStars(state.save));
     }
 
     // The "???" card: the green and the flag, and a question over them.
@@ -7846,7 +7843,7 @@
 
         // Inspected detail + preview
         var cur = byId(inspect);
-        // The Easter egg, not yet found: a "???" with a hint, and the bare flag in the preview to knock on.
+        // The Easter egg, not yet earned: a "???" with a hint and the count, over the bare flag.
         var hidden = function (b) { return b.secret && !S.ownsBall(save, b.id); };
         var mystery = cele && hidden(cur);
         if (mystery) { stopCelePreview(); if ($('shop-cele-preview')) drawCeleFrame($('shop-cele-preview'), null); }
@@ -7861,7 +7858,8 @@
         $('shop-d-cost').textContent = cur.cost === 0 ? 'Included' : (ownedCur ? 'Unlocked (★ ' + cur.cost + ')' : '★ ' + cur.cost);
         $('shop-d-name').textContent = mystery ? '???' : cur.name;
         $('shop-d-inspired').textContent = cur.inspired ? 'Inspired by: ' + cur.inspired : '';
-        $('shop-d-blurb').textContent = mystery ? cur.hint : (cur.blurb || '');
+        var eggHave = mystery && cur.unlock && S.lockProgress ? Math.min(cur.unlock.need, S.lockProgress(save, cur.unlock.key)) : 0;
+        $('shop-d-blurb').textContent = mystery ? cur.hint + (cur.unlock ? ' (' + eggHave + ' / ' + cur.unlock.need + ')' : '') : (cur.blurb || '');
         if (mystery) $('shop-d-cost').textContent = 'Not for sale';
         var lockEl = $('shop-d-lock');
         if (lockEl) {
@@ -7877,7 +7875,7 @@
         var noun = cele ? 'Celebration' : clubs ? 'Finish' : 'Ball';
         act.className = 'shop-action';
         if (mystery) {
-            act.textContent = '🔒 Find it';
+            act.textContent = '🔒 ' + eggHave + ' / ' + (cur.unlock ? cur.unlock.need : '?') + ' holes';
             act.disabled = true;
         } else if (isEqCur) {
             act.textContent = '✓ Equipped';
@@ -8135,7 +8133,6 @@
         // A tap on the preview plays the celebration again from the top.
         if ($('shop-cele-wrap')) {
             $('shop-cele-wrap').addEventListener('click', function () {
-                if (knockFlag()) return;
                 if (!celeLoop) return;
                 var id = celeLoop.id;
                 stopCelePreview();
@@ -8627,6 +8624,8 @@
         loadFlight();
 
         state = { save: S.load() };
+        // A save already past the Easter egg's mark gets it now, and is told.
+        checkSecrets(false);
         applyEquippedBall(q.ball);
         wireShop();
         wireAchievements();

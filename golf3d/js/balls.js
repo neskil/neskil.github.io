@@ -453,9 +453,9 @@ window.G3 = window.G3 || {};
         }
     ];
 
-    /* Hole-in celebrations: the third shelf. What goes off over the cup when
-       the ball drops — the equipped one, on every hole you finish, and again
-       in an ace's replay. How each one moves is js/celebrate.js; this is what
+    /* Hole-in celebrations: the third shelf. What goes off over the cup on a
+       hole in one — the equipped one, in the ace's replay (any other drop
+       gets the plain pop). How each one moves is js/celebrate.js; this is what
        they are called and what they cost. Kept in `save.balls` like the
        rest, equipped on `save.cele`. */
     var CELEBRATIONS = [
@@ -500,13 +500,15 @@ window.G3 = window.G3 || {};
             colors: ['#b27bff', '#5fa8ff', '#ffc44d']
         },
         /* The Easter egg. Free, and not for sale: `secret` keeps it a "???"
-           card on the shelf that buyBall refuses, until somebody knocks on the
-           flag in the shop's preview five times (game.js → knockFlag), which
-           gives it to them. `hint` is all the card says until then. */
+           card on the shelf that buyBall refuses, until the save has finished
+           `unlock.need` different holes (scoring.lockProgress 'holes'), when
+           it turns up by itself (game.js → checkSecrets, the owner: "auto
+           unlock after you played 20 maps"). `hint` is all the card says. */
         {
-            id: 'cele-ducks', kind: 'cele', name: 'Rubber Duck Rain', cost: 0, badge: 'Secret', secret: true,
-            hint: 'Something in here keeps asking to be let out. Knock on the flag.',
-            blurb: 'A big rubber duck pops out of the cup to see what the fuss is about — then it rains ducks, squeaking, all over the green.',
+            id: 'cele-ducks', kind: 'cele', name: 'Rubber Duck Parade', cost: 0, badge: 'Secret', secret: true,
+            unlock: { key: 'holes', need: 20 },
+            hint: 'Finish twenty different holes and something will turn up.',
+            blurb: 'Mother Duck rises out of the cup, a flock of ducklings drops in around her and waddles round the flag in a squeaking parade — then everybody jumps, and pop.',
             colors: ['#ffd21f', '#ff7a1a', '#9fe2ff']
         }
     ];
