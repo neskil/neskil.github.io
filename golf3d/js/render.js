@@ -8363,8 +8363,15 @@
 
     // Clear from `p` to the point (x, y, z)? Anything in the hole closer than
     // the last half unit is ignored: that is the pin, the cup and the ball
-    // itself, all of which stand where the camera is looking.
-    function clearTo(p, x, y, z) {
+    // itself, all of which stand where the camera is looking. `pinOk`: the
+    // flag is no blocker either — a camera looking down at the cup from above
+    // sees past a strip of cloth, and the pin is what the picture is of.
+    function onPin(o) {
+        for (; o; o = o.parent) if (o === R.pin) return true;
+        return false;
+    }
+
+    function clearTo(p, x, y, z, pinOk) {
         _rayFrom.set(p.x, p.y, p.z);
         _rayDir.set(x - p.x, y - p.y, z - p.z);
         var len = _rayDir.length();
@@ -8372,9 +8379,15 @@
         _rayDir.multiplyScalar(1 / len);
         _ray.set(_rayFrom, _rayDir);
         _ray.far = len;
-        var hits = _ray.intersectObject(R.holeGroup, true), i;
+        var hits = _ray.intersectObject(R.holeGroup, true), i, o;
         for (i = 0; i < hits.length; i++) {
-            if (hits[i].distance < len - 0.5 && hits[i].object.visible) return false;
+            o = hits[i].object;
+            /* Particles are never in the way: the raycaster gives every point
+               a pick radius of a unit, so a burst or a spray in the air read
+               as a wall — and which seat the camera got depended on where the
+               sparks happened to be. */
+            if (o.isPoints || o.isSprite || o.isLine) continue;
+            if (hits[i].distance < len - 0.5 && o.visible && !(pinOk && onPin(o))) return false;
         }
         return true;
     }
@@ -8392,6 +8405,69 @@
     }
 
     function stopReplay() { R.replay = null; }
+
+    /* How high and how wide a celebration goes, in units off the lip: run
+       once off-screen on a fixed seed, and kept, since it is the same answer
+       every time it is asked. */
+    var celeReach = {};
+    function reachOf(id) {
+        if (celeReach[id]) return celeReach[id];
+        var seed = 12345, rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+        var fx = G3.celebrate.start(id, rnd), up = 0.5, side = 0.6, k, i, q, dur = 0;
+        for (k = 0; k < 240; k++) {
+            if (!G3.celebrate.step(fx, 1 / 40)) break;
+            dur += 1 / 40;
+            for (i = 0; i < fx.parts.length; i++) {
+                q = fx.parts[i];
+                if (q.oa < 0.1) continue;
+                if (q.oy > up) up = q.oy;
+                q = Math.sqrt(q.ox * q.ox + q.oz * q.oz);
+                if (q > side) side = q;
+            }
+        }
+        return (celeReach[id] = { up: Math.min(up, 7), side: Math.min(side, 5), dur: dur });
+    }
+
+    /* The ball has dropped in the replay and the celebration is going off:
+       work out where the camera backs off to. Out from the cup through the
+       seat it was in, far enough that the whole burst (reachOf) fits the frame
+       on this screen's shape. Where something in the hole stands between
+       there and the burst, the bearing turns a step at a time either way
+       round the cup, then the distance comes in, until it is clear; a cup
+       boxed in on every side keeps the seat it has. */
+    var DROP_TURNS = [0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.5, -1.5, 2.1, -2.1, Math.PI];
+
+    function replayDrop(hole) {
+        var r = R.replay, RP = C.REPLAY;
+        if (!r || !r.seat || !celebrating() || !G3.celebrate) return;
+        var cup = hole.cup, top = R.cupTop !== undefined ? R.cupTop : cup.y;
+        var dx = r.seat.x - cup.x, dz = r.seat.z - cup.z, d = Math.sqrt(dx * dx + dz * dz) || 1;
+        var head = Math.atan2(dx / d, dz / d);
+        var reach = reachOf(R.cele.fx.id), M = RP.CELE_MARGIN;
+        var vhalf = R.camera.fov * Math.PI / 360;
+        var hhalf = Math.atan(Math.tan(vhalf) * R.camera.aspect);
+        // The burst from the lip to its top, centred, and its width.
+        var want = Math.max(reach.up * M / 2 / Math.tan(vhalf), reach.side * RP.CELE_SIDE * M / Math.tan(hhalf));
+        want = Math.min(RP.CELE_DIST_MAX, Math.max(RP.CELE_DIST_MIN, want));
+        var lift = Math.max(2.4, reach.up * 0.6);
+        var look = { x: cup.x, y: top + reach.up * 0.45, z: cup.z }, k, j, a, dist, g, p = null;
+        for (k = 0; k < 4 && !p; k++) {
+            dist = Math.max(d, want * (1 - k * 0.15));
+            for (j = 0; j < DROP_TURNS.length; j++) {
+                a = head + DROP_TURNS[j];
+                g = P.surfaceTop(hole, cup.x + Math.sin(a) * dist, cup.z + Math.cos(a) * dist);
+                p = { x: cup.x + Math.sin(a) * dist, y: Math.max(g ? g.y : top, top) + lift, z: cup.z + Math.cos(a) * dist };
+                if (clearTo(p, look.x, look.y, look.z, true) && clearTo(p, cup.x, top + 0.02, cup.z, true)) break;
+                p = null;
+            }
+        }
+        if (!p) return;
+        r.wide = p;
+        r.look = look;
+        r.drop = 0;
+        // A short burst gets a quick pull, or the camera arrives as it ends.
+        r.ease = Math.max(0.6, Math.min(RP.CELE_EASE, reach.dur * 0.4));
+    }
 
     function replaying() { return !!R.replay; }
 
@@ -8415,8 +8491,20 @@
             R.camera.lookAt(R.smooth.target);
             return true;
         }
+        // After the drop: ease from the seat out to the wide one (replayDrop).
+        var w = 0;
+        if (r.wide) {
+            r.drop += dt;
+            w = Math.min(1, r.drop / r.ease);
+            w = w * w * (3 - 2 * w);
+        }
         if (r.seat) {
             px = r.seat.x; py = r.seat.y; pz = r.seat.z;
+            if (w > 0) {
+                px += (r.wide.x - px) * w;
+                py += (r.wide.y - py) * w;
+                pz += (r.wide.z - pz) * w;
+            }
         } else {
             // Turn with the ball while it is going somewhere; a ball crawling
             // up to the lip has no heading worth following.
@@ -8440,6 +8528,11 @@
             tx = (ball.x + hole.cup.x) / 2;
             ty = (ball.y + hole.cup.y) / 2 + 0.1;
             tz = (ball.z + hole.cup.z) / 2;
+            if (w > 0) {
+                tx += (r.look.x - tx) * w;
+                ty += (r.look.y - ty) * w;
+                tz += (r.look.z - tz) * w;
+            }
         }
         if (r.fresh) {
             R.smooth.pos.set(px, py, pz);
@@ -9295,6 +9388,7 @@
         startReplay: startReplay,
         cutReplay: cutReplay,
         stopReplay: stopReplay,
+        replayDrop: replayDrop,
         replaying: replaying,
         cycleView: cycleView,
         viewLabel: viewLabel,

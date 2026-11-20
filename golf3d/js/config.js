@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.205.0';
+G3.VERSION = '1.206.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1045,6 +1045,17 @@ G3.CONFIG = {
         UP: 2.4,            // …and above it
         SEAT_DIST: 3.0,     // the cup camera: this far from the cup…
         SEAT_UP: 1.15,      // …and this far above it
+        /* Once it drops, the cup camera backs off and tilts up so the whole
+           celebration is in the picture — the owner: "make the replay better
+           show the celebration". How far depends on the celebration: a classic
+           burst is a unit or two high, fireworks go off at four or five, so
+           render.js → replayDrop runs the equipped one once off-screen and
+           frames how high and wide it actually goes. */
+        CELE_MARGIN: 1.25,  // that reach, with this much room round it
+        CELE_SIDE: 0.45,    // and this share of its width: the stray sparks may leave the sides of an upright phone, the top of it may not
+        CELE_DIST_MIN: 4,   // never closer than this…
+        CELE_DIST_MAX: 11,  // …or further than this
+        CELE_EASE: 1.2,     // seconds to get there, at most (a short burst is quicker)
         MAX_FRAMES: 6000    // a tape longer than this stops recording
     },
 

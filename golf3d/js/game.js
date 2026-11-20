@@ -3025,7 +3025,12 @@
             if (ev & RE.BOUNCE) A.bounce(Math.sqrt(f[k].vx * f[k].vx + f[k].vz * f[k].vz));
             if (ev & RE.LAND) A.land(spd);
             if (ev & RE.RIM) A.rim(spd);
-            if (ev & RE.SUNK) { celeOwed = false; R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z); A.ace(); }
+            if (ev & RE.SUNK) {
+                celeOwed = false;
+                R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z);
+                A.ace();
+                if (R.replayDrop) R.replayDrop(r.world.hole);
+            }
             if ((ev & RE.WARP) && A.warpIn) A.warpIn();
             if ((ev & RE.OPEN) && A.warpOpen) A.warpOpen();
             if (ev & RE.OUT) A.land(spd + 6);
