@@ -6329,6 +6329,19 @@ equipped club finish is `save.club`.
   off (up to `HOLD_MAX`). A replay skipped before its drop, or one that never
   starts under a modal, pays it over the real cup instead (`payCelebration`);
   a hole that goes away owes nothing.
+- **The replay backs off for the celebration** (v1.206.0, the owner: "make
+  the replay better show the celebration"). The cup seat is three units off
+  and a unit up, built to watch a ball arrive; a burst that goes up four or
+  five units went off over the top of it. At the replay's drop
+  `render.replayDrop` runs the equipped celebration once off-screen
+  (`reachOf`, kept per id) for how high and wide it goes and how long it
+  lasts, and the camera eases out along the seat's bearing and up until that
+  fits the frame on this screen's shape (`REPLAY.CELE_*`). The width counts
+  for less than the height: on an upright phone the stray sparks may leave
+  the sides, the top of the burst may not. A blocked bearing turns round the
+  cup, then comes in; a cup boxed in on every side keeps its seat.
+  `clearTo` skips particles (`Points`): the raycaster gives each point a
+  unit's pick radius, so a burst in the air used to read as a wall.
 - **Singularity is a real black hole** (v1.201.0): `fx.hole` is drawn with the
   game's own black-hole shader (the facing one a pipe opens in the sky, its own
   material so it outlives the hole), and the celebration hands postfx's lens
