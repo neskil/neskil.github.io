@@ -1608,7 +1608,7 @@
         var lane = $('swipe');
         var stage = $('stage').getBoundingClientRect();
         var ctl = document.querySelector('.controls .ctl-row').getBoundingClientRect();
-        var top = Math.round(stage.height * 0.46);
+        var top = Math.round(stage.height * 0.43);
         var bottom = Math.round(ctl.top - stage.top - 34);
         /* On a phone it stops short of the controls (the owner, v1.180.0: "a
            bit smaller on mobile"). The pull is measured off the lane's height
@@ -1648,14 +1648,14 @@
     /* A phone, or anything held in the hand: the same test the view row
        folds on (`viewCtlOpenByDefault`), and the same one style.css narrows
        `.swipe` under. */
-    var LANE_SHORT = 0.82;
+    var LANE_SHORT = 0.95;   // 0.82 until v1.208.0 ("make the touch box bigger")
     function laneSmall() {
         return !!(window.matchMedia && window.matchMedia('(max-width: 640px), (pointer: coarse)').matches);
     }
 
     // The lane's width before the bag has its say; style.css's `.swipe`.
     function laneNatural(stage) {
-        return laneSmall() ? Math.min(stage.width * 0.42, 240) : Math.min(stage.width * 0.72, 300);
+        return laneSmall() ? Math.min(stage.width * 0.6, 300) : Math.min(stage.width * 0.76, 340);
     }
 
     /* On a phone held upright the lane's lower corner stood over the bag:
@@ -1697,7 +1697,12 @@
        bottom of it (the owner: "too hard… I don't know if you should move the
        target depending on the start of the thumb"). Now the scale stands
        still at the top of the lane: press anywhere, pull down to the flag.
-       The strike is still crossing back over where the thumb went in. */
+       The strike is still crossing back over where the thumb went in.
+       And it stands still sideways too (v1.208.0, the owner again: "don't
+       move the target depending on where you start"): the guide, the ticks
+       and the flag are drawn down the middle of the lane, not down the
+       column the thumb went in on. Only the band across the start follows
+       the thumb, since that is the line it is judged on. */
     var SCALE_TOP = 18;
     function swipeBase(y0) {
         return Math.min(y0, $('swipe').getBoundingClientRect().top + SCALE_TOP);
@@ -2007,9 +2012,10 @@
         var x0 = s ? s.x0 - r.left : r.width / 2, y0 = s ? s.y0 - r.top : 18;
         var len = s ? s.len : swipeLength();
         var top = s ? s.base - r.top : SCALE_TOP;      // the scale stands still (`swipeBase`)
+        var sx = r.width / 2;                          // and down the middle, wherever the press
         var fullY = top + len * SW.markAt();
-        attrs('sw-guide', { x1: x0, y1: top, x2: x0, y2: top + len });
-        attrs('sw-full', { x1: x0 - 16, y1: fullY, x2: x0 + 16, y2: fullY });
+        attrs('sw-guide', { x1: sx, y1: top, x2: sx, y2: top + len });
+        attrs('sw-full', { x1: sx - 16, y1: fullY, x2: sx + 16, y2: fullY });
         /* Where to let go for backspin, once there is a pull to measure it on.
            Over the thumb, not over where it went in: the swipe up is read
            from the bottom of the pull (the cone stands there too), and a
@@ -2059,7 +2065,7 @@
             $('sw-trail-up').setAttribute('class', 'sw-trail-up ' + zone);
         }
         $('swipe-cue').hidden = !!s;
-        drawScale(r, s, x0, y0, len, top);
+        drawScale(r, s, sx, y0, len, top);
     }
 
     /* ── the tutorial ──

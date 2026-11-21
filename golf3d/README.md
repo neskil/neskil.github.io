@@ -447,7 +447,8 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
 
 - **Touch swing.** A light grey lane up the middle of the stage, from about
   where the ball sits down to the controls — narrower and a little shorter on
-  a phone (`laneSmall`, v1.180.0), so more of the course is left for aiming;
+  a phone (`laneSmall`, v1.180.0; widened again to 60% / 300px in v1.208.0,
+  when the owner found it too small to hit), so more of the course is left for aiming;
   a mouse drag is the same gesture, so it plays on a desktop too. Press and pull straight down — the meter fills
   with the pull (`swipeLoad`), the full swing ticked at the same white line —
   then swipe up through where you started; crossing that line is the strike,
@@ -458,8 +459,9 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
     from the bottom of the pull to the crossing (`swipeAngle`), so neither the
     phone's size nor the pull's length changes it. Inside the feel's `TOL` it
     is clean, past it the −1..1 over its `SPAN` (`swipeOff`), and a miss is
-    costed at no less than its `FLOOR` of overdraw. Easy forgives 9°, normal 5°
-    (3½° until v1.204.0, when the owner found it too hard), hard under 2°.
+    costed at no less than its `FLOOR` of overdraw. Easy forgives 10°, normal 6°
+    (3½° until v1.204.0, when the owner found it too hard, then 5° until
+    v1.208.0), hard under 2°.
 
     The angle alone let a loop through: pull down one side, come up the
     other, and the two ends of the swipe up still line up. So the line is
@@ -488,8 +490,9 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   measured from the top of the lane, not from where the thumb went in, so
   the ticks and the flag do not move with the press: press anywhere, pull
   down to the flag. A press half way down used to put the full swing below
-  the lane. The strike line (and the band across it) is still where the
-  thumb went in.
+  the lane. Since v1.208.0 it stands still sideways too: the guide, ticks and
+  flag run down the middle of the lane, not the column the thumb went in on.
+  The strike line (and the band across it) is still where the thumb went in.
 
   **The lane's scale** (v1.190.0, game.js `drawScale`; the owner, after
   playing another finger-golf game: "the slight colours for the swing meter

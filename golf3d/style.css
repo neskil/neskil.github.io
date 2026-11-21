@@ -3969,7 +3969,7 @@ body.compact-ui .picker { padding-top: 52px; }
 .swipe {
     position: absolute;
     left: 50%;
-    width: min(72%, 300px);
+    width: min(76%, 340px);
     transform: translateX(-50%);
     /* A light grey panel, so the place to swipe is somewhere you can see
        rather than somewhere you have to remember — but faint (the owner,
@@ -3986,11 +3986,13 @@ body.compact-ui .picker { padding-top: 52px; }
     -webkit-user-select: none;
 }
 .swipe[hidden] { display: none; }
-/* Smaller on a phone (the owner, v1.180.0): the lane is the middle of the
-   screen, and every pixel of it is a pixel of course a drag cannot aim on.
-   The same numbers as game.js `laneNatural`, which sizes it round the bag. */
+/* Narrower on a phone than on a desktop — the lane is the middle of the
+   screen, and every pixel of it is a pixel of course a drag cannot aim on —
+   but not so narrow a thumb misses it (the owner, v1.180.0 "smaller", then
+   v1.208.0 "make the touch box bigger": it was 42%, at most 240px). The
+   same numbers as game.js `laneNatural`, which sizes it round the bag. */
 @media (max-width: 640px), (pointer: coarse) {
-    .swipe { width: min(42%, 240px); }
+    .swipe { width: min(60%, 300px); }
 }
 .swipe.held { cursor: grabbing; background: rgba(18, 20, 14, 0.14); border-color: rgba(201, 163, 82, 0.45); }
 .swipe-svg {
