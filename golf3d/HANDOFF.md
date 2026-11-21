@@ -241,3 +241,16 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   (`C.LAP.LOOK_*`, and the 0.22/0.3 in `lapLook`) catches the Moon well on a
   portrait phone are **not yet seen by him**. In a one-hole round the score
   card comes up over it.
+- **Three more worlds** (v1.208.0), the owner's "add some new maps based on
+  some cool portal world". Each is one thing no tour hole did, measured with
+  `portal-check` and `tee-sweep` and looked at live here (SwiftShader):
+  **The Maelstrom** (`maelstrom`, `maelstrom-descent`): a deck over a
+  whirlpool, a well with the new `swirl` and `reach`. The ace is a line just
+  right of the eye over 55–100% of the mallet (0.04%); the right side, with
+  the current, leaves short putts, the left side long ones.
+  **The Snow Globe** (`globe`, `shaken-globe`): the glass curves up all round,
+  three firs on the straight line. The ace is up the right-hand glass (0.5%).
+  **The Knuckles** (`pins`, `country-of-pins`): four ridges of pins across
+  the board, a level valley between each pair; the flag is in the third
+  valley, from 80% of a mallet (0.29%). `u` is pinned at 0.5 on all three.
+  **Not yet seen by him.**

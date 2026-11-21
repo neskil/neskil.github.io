@@ -1997,8 +1997,26 @@
             w = ws[i];
             dx = w.x - x; dz = w.z - z;
             q = dx * dx + dz * dz;
-            k = w.pull / ((q + w.core * w.core) * Math.sqrt(q + 1e-9));
+            /* `reach` (a whirlpool's, The Maelstrom): past it the water is
+               slack. The pull and the swirl fade to nothing at it, smoothly,
+               so a ball can come to rest on the ring outside. A well without
+               one (the black holes) reaches everywhere, as before. */
+            var fade = 1;
+            if (w.reach) {
+                if (q >= w.reach * w.reach) continue;
+                fade = 1 - q / (w.reach * w.reach);
+                fade *= fade;
+            }
+            k = fade * w.pull / ((q + w.core * w.core) * Math.sqrt(q + 1e-9));
             _well.x += k * dx; _well.z += k * dz;
+            /* And `swirl` carries the ball round the well as well as in, at
+               swirl·r/(r² + core²): strongest a core out from the eye and
+               falling off as 1/r past it. Positive is anticlockwise seen from
+               above (+x to +z). */
+            if (w.swirl) {
+                k = fade * w.swirl / (q + w.core * w.core);
+                _well.x += k * dz; _well.z -= k * dx;
+            }
         }
         return _well;
     }

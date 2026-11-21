@@ -133,7 +133,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "scale": 1.8}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -933,6 +933,89 @@
         })
     });
 
+    /* ── three more worlds (v1.208.0) ─────────────────────────────────────
+       Chosen for the one thing each does that no tour hole did: a current
+       that goes round, a wall that curves up to meet you, and ground that
+       is pressed up from underneath. */
+
+    /* A deck over the eye of a whirlpool off Norway. The water goes round
+       anticlockwise and in: a ball on the deck is carried round the eye as
+       well as drawn to it, and what reaches the eye goes down with the
+       barrels. So nothing is putted at the flag. The putt is sent wide,
+       upstream, and the current bends it round; too slow and it is drawn in,
+       too firm and it is flung off the far side of the deck. */
+    add({
+        id: 'maelstrom', title: 'The Maelstrom', world: 'Down the Maelstrom', kind: 'ocean', tier: 3,
+        caption: 'A deck over the eye of a whirlpool. The water carries everything round, and in.',
+        theme: 'maelstrom',
+        hole: world({
+            name: 'The Maelstrom', par: 3, bag: ROLL,
+            blurb: 'The current goes round and in. Putt wide of the eye and let the water bend it to the flag — slow is drawn down, firm is flung off.',
+            pads: [disc(0, 0, 7.5, 0, 'green')],
+            wells: [{ x: 0, z: 0, pull: 4, core: 0.8, swirl: 14, reach: 4.8 }],
+            extra: A.arc(0, 0, 7.3, 0.05 * Math.PI, 0.95 * Math.PI, { drawn: 'rail', h: 0.6 }),
+            tee: { x: 0, z: -6 }, cup: { x: 0, z: 5.4 }
+        })
+    });
+
+    /* Inside a snow globe, seconds after somebody shook it. The floor is
+       snow and the glass curves up out of it all the way round, so a ball
+       sent at the wall climbs it, runs round and comes back down further
+       on. Three firs stand in the middle across the straight line. Round
+       them along the floor is two putts; up the glass and round in one,
+       at the weight that brings it down off the bank by the flag, is the
+       ace. The flag is a little right of the firs, so it is the right-hand
+       glass that brings it down there; too hard and it rattles along the
+       rail at the top of the bank. */
+    add({
+        id: 'globe', title: 'The Snow Globe', world: 'The Shaken Globe', kind: 'home', tier: 2,
+        caption: 'Inside a snow globe. Three firs in the middle, and the glass curving up all round.',
+        theme: 'globe',
+        hole: world({
+            name: 'The Snow Globe', par: 3, bag: ROLL,
+            blurb: 'The firs shut the straight line. Walk round them on the floor \u2014 or send it up the glass and let the curve bring it round to the flag.',
+            pads: [(function () {
+                var p = disc(0, 0, 6.2, 0, 'green');
+                p.bumps = [channel(0, 0, 6.2, 1.9, 1.3)];
+                return p;
+            })()],
+            extra: A.arc(0, 0, 6.2, 0, TAU, { drawn: 'rail', h: 0.5, base: 1.2, n: 32 }).concat([
+                A.tree(0, 0, { t: 0.8, h: 2.4, fir: true }),
+                A.tree(-0.9, 0.6, { t: 0.6, h: 1.9, fir: true }),
+                A.tree(0.9, 0.6, { t: 0.6, h: 1.9, fir: true })
+            ]),
+            tee: { x: 0, z: -3.8 }, cup: { x: 0.9, z: 3.6 }
+        })
+    });
+
+    /* A pin art toy the size of a country, and somebody's knuckles pressed
+       up into it from below: four ridges of pins across the board, each a
+       little higher than the last, with a level valley between each pair.
+       A ball stops in a valley or nowhere, so the whole hole is the weight.
+       The flag is in the third valley; the last ridge is the highest, and
+       over it is off the end of the board. */
+    add({
+        id: 'pins', title: 'The Knuckles', world: 'The Country of Pins', kind: 'bizarre', tier: 2,
+        caption: 'A pin art board pressed up from below: four ridges, three valleys, and the flag in the last of them.',
+        theme: 'pins',
+        hole: world({
+            name: 'The Knuckles', par: 3, bag: ROLL,
+            blurb: 'Every ball finishes in a valley between the ridges. The flag is in the third: it is all in the weight.',
+            pads: [(function () {
+                var p = pad(0, 0, 6, 19, 0, 'green');
+                p.bumps = [
+                    A.trough(0, 4.6, 6, 4.6, 1.1, 0.25),
+                    A.trough(0, 8.2, 6, 8.2, 1.1, 0.38),
+                    A.trough(0, 11.8, 6, 11.8, 1.1, 0.5),
+                    A.trough(0, 15.4, 6, 15.4, 1.1, 0.9)
+                ];
+                return p;
+            })()],
+            extra: [kerb(0, 0, 0, 19, 0, 1.2), kerb(6, 0, 6, 19, 0, 1.2), kerb(0, 0, 6, 0)],
+            tee: { x: 3, z: 1.6 }, cup: { x: 3, z: 13.6 }
+        })
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -1120,6 +1203,38 @@
         stars: 0.5, cloudLum: 0.1, birds: false,
         surroundY: -60, surround: 'floor', floor: '#141a24',
         water: 0x2a3a52, side: '#4a5260'
+    };
+    /* The whirlpool: a deck of wet green-black planking over a sea of
+       green water and white foam, and the eye painted foam and deep water
+       rather than fire. */
+    THEMES.maelstrom = {
+        sky: [0x0a1c1a, 0x5f8f86], fog: 0x3f6f68,
+        sun: 0xe8fff4, sunPos: [-6, 13, 7], ambient: 0x7fb8a8, ambientI: 0.8,
+        grass: ['#1f5a4a', '#1a4f41'], rail: 0xd8efe4, machine: 0xeafff6,
+        wellHot: 0xeafff6, wellCool: 0x0b4a3c,
+        cloudLum: 0.4, birds: false,
+        surroundY: -60, surround: 'floor', floor: '#0e3a32',
+        water: 0x1f6a5a, side: '#123c33'
+    };
+    /* The snow globe: snow underfoot, a frosted glass rail, and the cold
+       blue evening light of the village in it. */
+    THEMES.globe = {
+        sky: [0x1a2a4a, 0xc8d8f0], fog: 0xb8c8e4,
+        sun: 0xfff2dc, sunPos: [7, 12, -6], ambient: 0xb0c4ec, ambientI: 0.85,
+        grass: ['#eef3fa', '#e2e9f4'], rail: 0xcfe6ff,
+        cloudLum: 0.8, birds: false, motes: true,
+        surroundY: -0.42, surround: 'floor', floor: '#dfe7f2',
+        water: 0x8fb0d8, side: '#c8d4e6'
+    };
+    /* The pin board: its own violet pins with brass heads, under a dusk
+       that is all violet. */
+    THEMES.pins = {
+        sky: [0x120a2e, 0x6a4ab8], fog: 0x4a347e,
+        sun: 0xffe2a8, sunPos: [-7, 12, 6], ambient: 0x8a78d0, ambientI: 0.8,
+        grass: ['#5a46a8', '#50409a'], rail: 0xe8b84a, machine: 0xe8b84a,
+        stars: 0.4, cloudLum: 0.3, birds: false,
+        surroundY: -0.42, surround: 'floor', floor: '#2a1e58',
+        water: 0x6a5ac8, side: '#3a2c78'
     };
     THEMES.table = {};
     Object.keys(THEMES.breakfast).forEach(function (k) { THEMES.table[k] = THEMES.breakfast[k]; });
