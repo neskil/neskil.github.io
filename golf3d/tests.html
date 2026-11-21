@@ -396,6 +396,22 @@
                     !P.padContains(holed.pads[0], 5, 9) && P.padContains(holed.pads[0], 5, 6));
                 var fell = shootFrom(holed, { x: 5, z: 2 }, 0, 10);
                 assert('…and a ball rolled over one drops through it', fell.out, 'finished at z ' + fell.ball.z.toFixed(2));
+
+                /* A whirlpool (The Maelstrom) is a well with `swirl` and
+                   `reach`: it carries the ball round anticlockwise (+x
+                   towards +z) as well as in, and past `reach` the water is
+                   slack, so a ball can rest on the deck outside it. */
+                var wp = lab({ pads: [A.pad(0, 0, 20, 30)], cup: { x: 10, z: 28 } });
+                wp.wells = [{ x: 10, z: 12, pull: 4, core: 0.8, swirl: 14, reach: 4.8 }];
+                var east = P.wellPull(wp, 12, 12), ex = east.x, ez = east.z;
+                assert('a whirlpool carries the ball round anticlockwise as well as in',
+                    ex < 0 && ez > Math.abs(ex) * 3, ex.toFixed(2) + ', ' + ez.toFixed(2));
+                var slack = P.wellPull(wp, 15.2, 12), sx = slack.x, sz = slack.z, edge = P.wellPull(wp, 14.6, 12).z;
+                assert('…and past its reach the water is slack, fading to it rather than stopping dead',
+                    sx === 0 && sz === 0 && edge > 0 && edge < ez / 10, 'at the edge ' + edge.toFixed(3));
+                var rest = shootFrom(wp, { x: 16, z: 12 }, 0, 0.5);
+                assert('…so a ball outside it comes to rest', !rest.out && !rest.moving &&
+                    Math.hypot(rest.ball.x - 10, rest.ball.z - 12) > 4.8, 'at ' + rest.ball.x.toFixed(2) + ',' + rest.ball.z.toFixed(2));
             })();
 
             /* A curved rail is chords (courses.arc), each turned to the

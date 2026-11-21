@@ -56,7 +56,7 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-three holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -1851,6 +1851,16 @@ from the tee the outer half of a plain disc was too faint to read — a horizon 
 that eats the ball, a black sphere standing in it that the near half of the disc
 passes in front of, and the glow and the lens round that. It replaced a black
 ball and two flat rings (the owner on Orbit: "very ugly").
+
+**A whirlpool is a well with two more fields** (v1.209.0, The Maelstrom).
+`swirl` carries the ball round as well as in, at swirl·r/(r² + core²),
+anticlockwise from +x to +z when positive. `reach` is where the water goes
+slack: pull and swirl both fade to nothing there (`(1 − r²/reach²)²`), so a
+ball can come to rest on the deck outside it, which it never could round a
+swirl that reached everywhere. Every ball would go round until friction
+drained it and then be drawn down. `wellReach` draws the disc out to
+`reach` when a well has one, and the theme paints it foam and deep water
+(`wellHot`, `wellCool`).
 
 And one that is about drawing rather than physics: **the ground under
 machinery is kept flat**, the same way it is under the tee and the cup
@@ -4291,6 +4301,9 @@ is the place.
 | The Iron River | Black Glass and Lava | Sculpted. A par four off the bridge over the lava canyon to a green far below on the east bank. |
 | The Nave | Kelp Cathedral | Sculpted. A par four down the trench, a half-pipe, to a shelf levelled into one bank. |
 | The Sugar Gate | Breakfast Kingdom | Sculpted. A par three the length of the breakfast table, played off the cloth itself between what is laid on it. |
+| The Maelstrom | Down the Maelstrom | A deck over the eye of a whirlpool (a well with `swirl` and `reach`). The straight putt goes down the eye; sent just right of it, upstream, the current bends it round to the flag across most of the mallet's range. |
+| The Snow Globe | The Shaken Globe | The floor curves up into the glass all round (a `channel` on a disc) and three firs shut the straight line. Round them on the floor, or up the right-hand glass and down by the flag. |
+| The Knuckles | The Country of Pins | Four ridges of pins across the board (`trough`s), each higher than the last, with a level valley between each pair. A ball stops in a valley or nowhere; the flag is in the third. |
 
 **The hole** is `portals.js → WORLDS`: `{ id, title, world, kind, caption,
 theme, tier, hole, place }`, written with `G3.authoring`. `world()` makes each

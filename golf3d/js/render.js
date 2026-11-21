@@ -3158,6 +3158,7 @@
            picture round it (`lensList`), which is what lifts the far side of
            the disc up over the top. */
     function wellReach(hole, w) {
+        if (w.reach) return w.reach;     // a whirlpool says where its water goes slack
         var g = P.gravityOf(hole);
         var d = Math.sqrt(Math.max(0, w.pull / (0.1 * g) - w.core * w.core));
         return Math.max(w.core * 3, Math.min(w.core * 6, d));
