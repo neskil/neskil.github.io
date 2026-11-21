@@ -4036,8 +4036,8 @@
                 F.easy.TOL > F.normal.TOL && F.normal.TOL > F.hard.TOL &&
                 F.easy.SPAN > F.normal.SPAN && F.normal.SPAN > F.hard.SPAN &&
                 F.easy.FLOOR <= F.normal.FLOOR && F.normal.FLOOR <= F.hard.FLOOR);
-            assert('the same 6° lean is clean on easy and a miss on normal',
-                SW.swipeOff(6 * Math.PI / 180, 0, 'easy') === 0 && SW.swipeOff(6 * Math.PI / 180, 0, 'normal') > 0);
+            assert('the same 8° lean is clean on easy and a miss on normal',
+                SW.swipeOff(8 * Math.PI / 180, 0, 'easy') === 0 && SW.swipeOff(8 * Math.PI / 180, 0, 'normal') > 0);
             assert('past it the miss grows, and stops at a total one',
                 approx(SW.swipeOff(F.normal.TOL + F.normal.SPAN * 0.5, 0, 'normal'), 0.5) &&
                 SW.swipeOff(Math.PI / 2, 0, 'normal') === 1 && SW.swipeOff(-Math.PI / 2, 0, 'normal') === -1);

@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.207.0';
+G3.VERSION = '1.208.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -337,9 +337,10 @@ G3.CONFIG = {
         DEFAULT: { assist: 'off', hand: 'right', club: 'auto', pad: 'centre', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
             /* Normal was 3.5° clean over an 11° span with a 0.9 floor, and
-               the owner found it had become a bit too hard (v1.204.0). */
-            easy:   { TOL: 9 * Math.PI / 180,   SPAN: 20 * Math.PI / 180, FLOOR: 0.7 },
-            normal: { TOL: 5 * Math.PI / 180,   SPAN: 14 * Math.PI / 180, FLOOR: 0.8 },
+               the owner found it had become a bit too hard (v1.204.0); 5°
+               over 14° then, and "a bit easier" again in v1.208.0. */
+            easy:   { TOL: 10 * Math.PI / 180,  SPAN: 21 * Math.PI / 180, FLOOR: 0.7 },
+            normal: { TOL: 6 * Math.PI / 180,   SPAN: 15 * Math.PI / 180, FLOOR: 0.75 },
             hard:   { TOL: 1.8 * Math.PI / 180, SPAN: 7 * Math.PI / 180,  FLOOR: 1 }
         },
         TIGHTEN: 0.35,
