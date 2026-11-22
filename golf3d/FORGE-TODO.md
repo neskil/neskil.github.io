@@ -1,8 +1,11 @@
 # The map forge — work in progress
 
-A handoff for whichever session picks this up. The work is on branch
-`ccr-852d36fc-74tmv7`, **not merged to `master`** (it is unfinished). Delete
-this file when the forge has shipped and its contents are in README/HANDOFF.
+A handoff for whichever session picks this up. The files are on `master`
+(the owner asked for them merged as they are, so a new session finds them),
+but **nothing in the game loads them yet**: `js/forge.js` is in no `<script>`
+tag and `js/forge-maps.js` does not exist until `tools/forge.mjs` is run.
+Delete this file when the forge has shipped and its contents are in
+README/HANDOFF.
 
 ## What the owner asked for (2026-11-22, in his words, condensed)
 
@@ -46,7 +49,7 @@ He said: once started, finish the task.
    (`loftLinks.devMode`) and the verdicts (`loftLinks.forgeNotes`, keyed
    `<batch>:<id>`), the form's choices (`ISSUES`, `VERDICTS`) and
    `exportText()`.
-3. **`tools/forge.mjs`** (TO WRITE): the generator.
+3. **`tools/forge.mjs`** (written, not yet run end to end): the generator.
    - Pool: `G3.PORTAL_INDEX` minus worlds that have a tour hole, seeded
      shuffle; skip media `space` (no ground). Sample 3 at a time in parallel.
    - Per world: `samplePatches` with us 0.2–0.8 step 0.15, turns −0.5/0/0.5.
@@ -119,7 +122,7 @@ them into the World Tour (`portals.js`, a `PLACES` entry, its grid into
 
 ## State at the time of writing
 
-- Done: `tools/forge-sample.mjs` (tried on glider-country, hill-of-round-doors,
+- Done: `tools/forge.mjs` (written, first run pending), `tools/forge-sample.mjs` (tried on glider-country, hill-of-round-doors,
   chinar-water-terraces: works; relief ranges 0 to 6.7 golf units),
   `js/forge.js` (untested).
 - Not done: everything from step 3 on.
