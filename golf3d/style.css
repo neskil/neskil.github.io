@@ -5861,8 +5861,8 @@ body.flight-mode .controls { display: none; }
 /* ── the forge (dev mode): the batch of new maps and the form after each ──
    Played on a phone, so every choice is a thumb-sized button. */
 .topbar-menu button.chip.tm-dev { display: flex; align-items: center; font-size: 1.1rem; padding: 0.85rem 1rem; font-weight: 700; }
-#btn-forge .tm-sub { font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.8; }
-#forge .modal-inner, #forge-form .modal-inner { max-width: 34rem; }
+#btn-forge .tm-sub, #btn-maps .tm-sub { font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.8; }
+#forge .modal-inner, #forge-form .modal-inner, #maps .modal-inner { max-width: 34rem; }
 .forge-actions { display: flex; gap: 0.6rem; margin-bottom: 0.8rem; }
 .forge-actions button, .ff-row button, .ff-chips button {
     font: inherit; font-weight: 600; border-radius: 6px; cursor: pointer;
@@ -5895,3 +5895,39 @@ body.flight-mode .controls { display: none; }
 .forge-all-pip::after { content: ''; position: absolute; top: 0.2rem; left: 0.2rem; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--ink-dim); transition: transform 0.15s, background 0.15s; }
 .forge-all.on .forge-all-pip { background: var(--accent-soft); }
 .forge-all.on .forge-all-pip::after { transform: translateX(1.1rem); background: var(--accent); }
+
+/* Played maps (dev mode): one compact line a map, opened out a line at a time. */
+.maps-filter { display: flex; gap: 0.35rem; margin: 0.2rem 0 0.6rem; }
+.maps-filter button { flex: 1; min-width: 0; padding: 0.5rem 0.2rem; font-family: inherit; font-weight: 600; font-size: 0.82rem; line-height: 1.1; color: var(--ink); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.maps-filter button i { font-style: normal; font-weight: 400; opacity: 0.7; margin-left: 0.15rem; font-variant-numeric: tabular-nums; }
+.maps-filter button.on { background: var(--accent); color: #16180f; border-color: transparent; }
+.maps-list { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; overflow-x: hidden; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.maps-list .ml-group { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); padding: 0.55rem 0.2rem 0.2rem; }
+.maps-list .ml-none { color: var(--ink-dim); padding: 1rem 0.3rem; }
+.maps-list .ml-item { min-width: 0; border-radius: 5px; background: rgba(255, 255, 255, 0.035); }
+.maps-list .ml-item.here { box-shadow: inset 3px 0 0 var(--accent); }
+.maps-list .ml-item.open { background: rgba(255, 255, 255, 0.07); }
+.ml-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-width: 0; padding: 0.4rem 0.55rem; font: inherit; color: var(--ink); background: none; border: 0; text-align: left; cursor: pointer; }
+.ml-v { flex: none; width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 1.5px solid var(--ink-dim); opacity: 0.55; }
+.ml-v.keep, .ml-v.fix, .ml-v.drop { opacity: 1; border-color: transparent; }
+.ml-v.keep { background: var(--under); }
+.ml-v.fix { background: var(--gold); }
+.ml-v.drop { background: var(--over); }
+.ml-v.new { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent); }
+.ml-name { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.ml-name b, .ml-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-name b { font-weight: 600; font-size: 0.92rem; }
+.ml-name small { font-size: 0.72rem; color: var(--ink-dim); }
+.ml-par { flex: none; font-size: 0.75rem; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.ml-res { flex: none; min-width: 5.6rem; text-align: right; font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ml-res small { color: var(--ink-dim); font-size: 0.72rem; }
+.ml-dim { color: var(--ink-dim); }
+.ml-more { display: flex; gap: 0.7rem; padding: 0.2rem 0.55rem 0.6rem; align-items: flex-start; }
+.ml-plan { flex: none; width: 38%; max-width: 10rem; max-height: 14rem; border-radius: 4px; background: rgba(0, 0, 0, 0.25); }
+.ml-info { flex: 1; min-width: 0; }
+.ml-info dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.15rem 0.6rem; margin: 0; font-size: 0.8rem; }
+.ml-info dt { color: var(--ink-dim); }
+.ml-info dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.ml-acts { display: flex; gap: 0.4rem; margin-top: 0.55rem; }
+.ml-acts button { flex: 1; padding: 0.55rem; font-family: inherit; font-weight: 600; font-size: 0.88rem; color: var(--ink); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; }
+.ml-acts button.primary { background: var(--accent); color: #16180f; border-color: transparent; }

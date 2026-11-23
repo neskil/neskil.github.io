@@ -4758,6 +4758,31 @@ from `holeRef`). It is always reachable from "Rate … now" in the panel, and
 with **Rate released maps too** switched on it is put up after every hole.
 The export lists these under RELEASED MAPS.
 
+**Played maps, stats and sent** (the owner, v1.211.0: "pick any map to
+feedback … copy the feedback at any point … mark feedback as sent
+(automatic when you copy it) … keep track of play stats … a very compact
+list of all maps played and results"). In dev mode a **Played maps** chip
+sits under New maps. Its panel is every map there is (`G3.forge.catalogue()`:
+the batch, each tour hole, each course hole — not Endless, which is made up
+as it is played), one line each: a verdict dot (ringed while not sent), name,
+where, par, plays, best against par and the average. Filters: Played (most
+recent first), Not sent, Rated, All. A tap opens the line: the hole's plan
+(`minimap.render`), the last twelve cards, gave-ups, when it was last played,
+the rating and note, **Play** (straight into that hole) and **Rate** — the
+same form, for any map, played or not; it returns to the list.
+
+Play stats are `loftLinks.playLog`, written by `game.js → logPlayHere` for
+every solo hole a person finishes (not the caddie's, not pass and play), under
+the same key as the notes. A released hole also folds in what the save
+already knew (`save.holes` plays and best), so holes played before the log
+existed still count. The export adds each map's stats to its line.
+
+**Copy new** puts only the notes not yet sent on the clipboard and stamps
+them `sent`; the forge's batch is still listed whole, a map already sent
+saying so. **Copy all** repeats everything. Re-rating a note writes a fresh
+one without the stamp, so it is new again. The text is shown in the panel as
+well, for a phone that refuses the clipboard.
+
 **The loop.** He plays the batch, copies the feedback and pastes it to
 Claude. The copied text starts with a line telling Claude to read
 [FORGE-FEEDBACK.md](FORGE-FEEDBACK.md), which says how to read the block and

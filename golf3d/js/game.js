@@ -807,7 +807,8 @@
                $('scorecard').classList.contains('show') ||
                ($('ball-shop') && $('ball-shop').classList.contains('show')) ||
                ($('forge') && $('forge').classList.contains('show')) ||
-               ($('forge-form') && $('forge-form').classList.contains('show'));
+               ($('forge-form') && $('forge-form').classList.contains('show')) ||
+               ($('maps') && $('maps').classList.contains('show'));
     }
 
     function maybeFly() {
@@ -2844,6 +2845,7 @@
         if (pickedUp) state.strokes = hole.par + C.PICKUP;
         state.scores[state.holeIndex] = state.strokes;
         if (state.course.isEndless && !demo && !autoUsed) noteEndless(hole.place && hole.place.world);
+        logPlayHere(hole, pickedUp);
         state.phase = 'holed';
         syncSwing();
         /* The victory lap: the camera leaves the seat and goes round the cup
@@ -4744,6 +4746,7 @@
             closeAbout();
             closeShop();
             closeAchievements();
+            closeMaps();
             closeTopMenu();
             hideHoleCard();
             return;
@@ -5165,7 +5168,32 @@
         return { key: G3.forge.releasedKey(ref), label: h.name || ('Hole ' + (ref.index + 1)), par: h.par,
             where: h.inWorld || (home && home.name) || ref.id };
     }
+    /* The key a hole's notes and play stats live under (forge.js), or null
+       for a hole that is not a map anyone comes back to: Endless, the range,
+       a dealt Challenge, an editor draft. */
+    function playKeyHere() {
+        if (!state || !state.course || !G3.forge) return null;
+        var w = forgeHere();
+        if (w) return G3.forge.keyOf(w.id);
+        var c = state.course;
+        if (c.isEndless || c.isRange || c.isChallenge) return null;
+        var ref = holeRef(state.holeIndex), home = ref && ref.id ? G3.courseById(ref.id) : null;
+        if (!home || home.playtest || home.isChallenge || home.isShowcase || home.isRange || home.isEndless) return null;
+        return G3.forge.releasedKey(ref);
+    }
+    // Play stats for the dev panel: every solo hole a person finished, rated or not.
+    function logPlayHere(hole, pickedUp) {
+        if (demo || autoUsed || multi() || !G3.forge) return;
+        var key = playKeyHere();
+        if (key) G3.forge.logPlay(key, state.strokes, hole.par, !!pickedUp);
+    }
+    // A map of the catalogue as the form's target, played or not.
+    function targetOf(e) {
+        if (e.forge) return { key: e.key, forge: e.forge, label: e.forge.id + ': ' + e.label, par: e.par };
+        return { key: e.key, label: e.label, par: e.par, where: e.kind === 'tour' ? e.where : e.group };
+    }
     function syncForgeChip() {
+        syncMapsChip();
         var b = $('btn-forge');
         if (!b) return;
         b.hidden = !(dev && G3.forge);
@@ -5201,6 +5229,7 @@
         $('forge-all-n').textContent = G3.forge.released().length ? G3.forge.released().length + ' rated so far' : 'none rated yet';
         $('forge-play').hidden = !L.length;
         $('forge-export').hidden = true;
+        syncForgeCopy();
         $('forge').className = 'modal show';
     }
     function closeForge() { $('forge').className = 'modal'; }
@@ -5210,13 +5239,192 @@
         maybeAutoFullscreen();
         newRound('forge', i);
     }
-    function copyForge() {
-        var text = G3.forge.exportText(), ta = $('forge-export');
-        ta.value = text; ta.hidden = false;
-        function fallback() { ta.focus(); ta.select(); try { document.execCommand('copy'); toast('Feedback copied \u2014 paste it to Claude'); } catch (e) { toast('Select the text and copy it'); } }
+    /* Copy the feedback — the new notes, or with `all` every one — and mark
+       what went as sent (the owner: "automatic when you copy it"). The text
+       is also shown in `ta`, so a phone that refuses the clipboard can still
+       select it by hand; it is marked sent either way, since it is there. */
+    function copyForge(all, ta) {
+        var out = G3.forge.exportFor({ all: !!all, save: state && state.save });
+        ta = ta || $('forge-export');
+        ta.value = out.text; ta.hidden = false;
+        var n = out.keys.length, said = n ? (n === 1 ? 'One note' : n + ' notes') + ' copied and marked sent \u2014 paste it to Claude'
+            : 'Nothing new to send \u2014 copied the batch and stats';
+        G3.forge.markSent(out.keys);
+        syncForgeChip();
+        if ($('maps').classList.contains('show')) drawMaps();
+        if ($('forge').classList.contains('show')) syncForgeCopy();
+        function fallback() { ta.focus(); ta.select(); try { document.execCommand('copy'); toast(said); } catch (e) { toast('Select the text and copy it'); } }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(function () { toast('Feedback copied \u2014 paste it to Claude'); }, fallback);
+            navigator.clipboard.writeText(out.text).then(function () { toast(said); }, fallback);
         } else fallback();
+    }
+    function syncForgeCopy() {
+        var n = G3.forge.unsent().length;
+        $('forge-copy').textContent = n ? 'Copy ' + n + ' new' : 'Copy feedback';
+    }
+
+    /* ── Played maps (dev mode): every map, compact, with how it went ──
+
+       One line a map — name, where, par, plays, best, average and the
+       verdict if there is one — and a tap opens it out: the plan, the last
+       cards, the note, and Play and Rate. Rate works on any map from here,
+       played or not; Copy takes the new notes and marks them sent. */
+    var mapsFilter = 'played', mapsOpen = null, mapsPlans = {};
+    function syncMapsChip() {
+        var b = $('btn-maps');
+        if (!b) return;
+        b.hidden = !(dev && G3.forge);
+        if (b.hidden) return;
+        var log = G3.forge.playLog(), save = state && state.save, n = 0;
+        G3.forge.catalogue().forEach(function (e) {
+            if (log[e.key] || (save && save.holes && e.key.indexOf('released:') === 0 && save.holes[e.key.slice(9)])) n++;
+        });
+        var u = G3.forge.unsent().length;
+        $('maps-chip-sub').textContent = n + ' played' + (u ? ' \u00B7 ' + u + ' new note' + (u === 1 ? '' : 's') : '');
+    }
+    function vsPar(s, par) {
+        var d = s - par;
+        return d === 0 ? 'E' : (d > 0 ? '+' : '') + d;
+    }
+    function verdictWord(v) { return v === 'keep' ? 'Keep' : v === 'fix' ? 'If fixed' : v === 'drop' ? 'Drop' : ''; }
+    function ago(iso) {
+        if (!iso) return '';
+        var m = (Date.now() - Date.parse(iso)) / 60000;
+        if (!(m >= 0)) return '';
+        if (m < 1) return 'just now';
+        if (m < 60) return Math.round(m) + ' min ago';
+        if (m < 60 * 24) return Math.round(m / 60) + ' h ago';
+        return Math.round(m / 1440) + ' d ago';
+    }
+    function openMaps() {
+        if (!G3.forge) return;
+        closeTopMenu(); closeForge();
+        $('maps-export').hidden = true;
+        drawMaps();
+        $('maps').className = 'modal show';
+    }
+    function closeMaps() { if ($('maps')) $('maps').className = 'modal'; }
+    function drawMaps() {
+        var F = G3.forge, save = state && state.save, all = F.notes(), host = $('maps-list');
+        var here = playKeyHere();
+        var rows = F.catalogue().map(function (e) { return { e: e, s: F.stats(e.key, save), n: all[e.key] || null }; });
+        var played = rows.filter(function (r) { return r.s.plays > 0; });
+        var counts = { played: played.length, rated: 0, unsent: 0, all: rows.length };
+        rows.forEach(function (r) { if (r.n) { counts.rated++; if (!r.n.sent) counts.unsent++; } });
+        var list = mapsFilter === 'played' ? played.slice().sort(function (a, b) {
+            return (b.s.at || '').localeCompare(a.s.at || '') || b.s.plays - a.s.plays;
+        }) : mapsFilter === 'rated' ? rows.filter(function (r) { return r.n; })
+            : mapsFilter === 'unsent' ? rows.filter(function (r) { return r.n && !r.n.sent; }) : rows;
+        Array.prototype.forEach.call($('maps-filter').children, function (b) {
+            var on = b.dataset.f === mapsFilter;
+            b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            b.querySelector('i').textContent = counts[b.dataset.f];
+        });
+        var holes = 0, under = 0;
+        played.forEach(function (r) { holes += r.s.plays; if (r.s.best !== null && r.s.best < r.e.par) under++; });
+        $('maps-sub').textContent = played.length + ' of ' + rows.length + ' maps played \u00B7 ' + holes + ' holes finished \u00B7 ' +
+            under + ' beaten under par \u00B7 ' + counts.rated + ' rated, ' + counts.unsent + ' not sent yet';
+        host.innerHTML = '';
+        if (!list.length) {
+            var none = document.createElement('li');
+            none.className = 'ml-none';
+            none.textContent = mapsFilter === 'played' ? 'Nothing played yet on this device.' : mapsFilter === 'unsent' ? 'Every note has been sent.' : 'No ratings yet.';
+            host.appendChild(none);
+        }
+        var group = null;
+        list.forEach(function (r) {
+            var e = r.e, s = r.s, n = r.n;
+            if (mapsFilter !== 'played' && e.group !== group) {
+                group = e.group;
+                var gh = document.createElement('li');
+                gh.className = 'ml-group'; gh.textContent = group;
+                host.appendChild(gh);
+            }
+            var li = document.createElement('li');
+            li.className = 'ml-item' + (here === e.key ? ' here' : '') + (mapsOpen === e.key ? ' open' : '');
+            var head = document.createElement('button');
+            head.type = 'button'; head.className = 'ml-row';
+            head.setAttribute('aria-expanded', mapsOpen === e.key ? 'true' : 'false');
+            var res = s.plays ? s.plays + '\u00D7' + (s.best !== null ? ' \u00B7 ' + s.best + ' <small>' + vsPar(s.best, e.par) + '</small>' : '') +
+                (s.avg !== null && s.holed > 1 ? ' \u00B7 \u2300' + (Math.round(s.avg * 10) / 10) : '') : '<span class="ml-dim">\u2014</span>';
+            head.innerHTML = '<span class="ml-v ' + (n ? n.verdict : '') + (n && !n.sent ? ' new' : '') + '" title="' + (n ? verdictWord(n.verdict) + (n.sent ? ', sent' : ', not sent') : 'not rated') + '"></span>' +
+                '<span class="ml-name"><b></b><small></small></span>' +
+                '<span class="ml-par">P' + e.par + '</span><span class="ml-res">' + res + '</span>';
+            head.querySelector('b').textContent = e.label;
+            head.querySelector('small').textContent = mapsFilter === 'played' ? (e.kind === 'course' ? e.where : e.group + ' \u00B7 ' + e.where) : e.where;
+            head.addEventListener('click', function () {
+                mapsOpen = mapsOpen === e.key ? null : e.key;
+                drawMaps();
+            });
+            li.appendChild(head);
+            if (mapsOpen === e.key) li.appendChild(mapDetail(r));
+            host.appendChild(li);
+        });
+        $('maps-copy').textContent = counts.unsent ? 'Copy ' + counts.unsent + ' new' : 'Copy (nothing new)';
+        var open = host.querySelector('.ml-item.open');
+        if (open && open.scrollIntoView) open.scrollIntoView({ block: 'nearest' });
+    }
+    function mapDetail(r) {
+        var e = r.e, s = r.s, n = r.n, d = document.createElement('div');
+        d.className = 'ml-more';
+        var cv = document.createElement('canvas');
+        cv.className = 'ml-plan';
+        cv.setAttribute('aria-label', 'Plan of ' + e.label);
+        d.appendChild(cv);
+        var info = document.createElement('div');
+        info.className = 'ml-info';
+        var facts = [];
+        facts.push(['Where', e.kind === 'course' ? e.where : e.group + ' \u00B7 ' + e.where]);
+        facts.push(['Par', String(e.par)]);
+        if (s.plays) {
+            facts.push(['Played', s.plays + (s.at ? ' \u00B7 last ' + ago(s.at) : '')]);
+            if (s.best !== null) facts.push(['Best', s.best + ' (' + vsPar(s.best, e.par) + ')' + (s.stars ? ' ' + S.starText(s.stars) : '')]);
+            if (s.avg !== null) facts.push(['Average', (Math.round(s.avg * 10) / 10) + ' over ' + s.holed]);
+            if (s.gaveUp) facts.push(['Gave up', String(s.gaveUp)]);
+            if (s.last.length) facts.push(['Cards', s.last.map(function (x) { return x === 'x' ? '\u2717' : x; }).join(' ')]);
+        } else facts.push(['Played', 'not yet']);
+        if (n) {
+            facts.push(['Rating', verdictWord(n.verdict) + ' \u00B7 fun ' + n.fun + ' \u00B7 diff ' + n.difficulty + ' \u00B7 look ' + n.look]);
+            if (n.issues && n.issues.length) facts.push(['Issues', n.issues.join(', ')]);
+            if (n.note) facts.push(['Note', n.note]);
+            facts.push(['Sent', n.sent ? ago(n.sent) : 'not yet']);
+        }
+        var dl = document.createElement('dl');
+        facts.forEach(function (f) {
+            var dt = document.createElement('dt'), dd = document.createElement('dd');
+            dt.textContent = f[0]; dd.textContent = f[1];
+            dl.appendChild(dt); dl.appendChild(dd);
+        });
+        info.appendChild(dl);
+        var acts = document.createElement('div');
+        acts.className = 'ml-acts';
+        var play = document.createElement('button'), rate = document.createElement('button');
+        play.type = rate.type = 'button';
+        play.className = 'primary'; play.textContent = 'Play';
+        rate.textContent = n ? 'Re-rate' : 'Rate';
+        play.addEventListener('click', function () {
+            closeMaps();
+            if (e.kind === 'forge') G3.FORGE_COURSE = null;
+            maybeAutoFullscreen();
+            newRound(e.play[0], e.play[1]);
+        });
+        rate.addEventListener('click', function () { openForgeForm(null, targetOf(e), true); });
+        acts.appendChild(play); acts.appendChild(rate);
+        info.appendChild(acts);
+        d.appendChild(info);
+        // The plan, drawn once the box has a size (minimap.js samples the real ground).
+        setTimeout(function () {
+            try {
+                cv.style.aspectRatio = G3.minimap.aspect(e.hole, 0.5, 1.4).toFixed(3);
+                var dpr = Math.min(window.devicePixelRatio || 1, 2);
+                var w = Math.max(48, Math.round((cv.clientWidth || 140) * dpr)), h = Math.max(48, Math.round((cv.clientHeight || 140) * dpr));
+                var k = e.key + '/' + w + 'x' + h;
+                var src = mapsPlans[k] || (mapsPlans[k] = G3.minimap.render(e.hole, w, h, e.theme));
+                cv.width = w; cv.height = h;
+                if (src) cv.getContext('2d').drawImage(src, 0, 0);
+            } catch (err) { /* a plan is a nicety; the list still works without one */ }
+        }, 0);
+        return d;
     }
     function ffButtons(host, list, key, multi) {
         host.innerHTML = '';
@@ -5249,16 +5457,24 @@
         });
         $('ff-save').disabled = !FF.verdict;
     }
-    var ffTarget = null;
-    function openForgeForm(then) {
-        var t = rateTarget(), w = t && t.forge;
+    var ffTarget = null, ffBack = false;
+    /* `target` is any map (the Played maps list); without one, the hole
+       being played. `back` returns to that list when the form shuts. */
+    function openForgeForm(then, target, back) {
+        var here = rateTarget(), t = target || here, w = t && t.forge;
         if (!t) return false;
-        closeForge(); closeTopMenu();
-        ffThen = then || null; ffTarget = t;
-        var old = G3.forge.noteAt(t.key), holed = state.phase === 'holed' || state.phase === 'finished';
+        closeForge(); closeMaps(); closeTopMenu();
+        ffThen = then || null; ffTarget = t; ffBack = !!back;
+        var old = G3.forge.noteAt(t.key), onIt = !!here && here.key === t.key;
+        var holed = onIt && (state.phase === 'holed' || state.phase === 'finished');
         var strokes = holed ? state.scores[state.holeIndex] : null;
         FF = old ? JSON.parse(JSON.stringify(old)) : { verdict: null, fun: 3, difficulty: 3, look: 3, issues: [], note: '' };
-        FF.strokes = strokes ? strokes + ' (par ' + t.par + ')' : (holed ? FF.strokes : 'gave up after ' + state.strokes);
+        if (onIt) FF.strokes = strokes ? strokes + ' (par ' + t.par + ')' : (holed ? FF.strokes : 'gave up after ' + state.strokes);
+        else if (!old) {
+            // Rated from the list: the last card this device has for it, if any.
+            var st = G3.forge.stats(t.key, state && state.save), last = st.last[st.last.length - 1];
+            FF.strokes = last === undefined ? '' : last === 'x' ? 'gave up' : last + ' (par ' + t.par + ')';
+        }
         var sc = [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']];
         ffButtons($('ff-verdict'), G3.forge.VERDICTS, 'verdict');
         ffButtons($('ff-fun'), sc, 'fun');
@@ -5268,7 +5484,9 @@
         $('ff-note').value = FF.note || '';
         $('ff-title').textContent = 'Rate ' + t.label;
         $('ff-sub').textContent = (strokes ? 'You took ' + strokes + ' on a par ' + t.par + '. ' : '') +
-            (w ? 'Map ' + (state.holeIndex + 1) + ' of ' + state.course.holes.length + ' in this batch.' : 'A released hole \u00B7 ' + t.where + '.');
+            (w ? (onIt && state.course.isForge ? 'Map ' + (state.holeIndex + 1) + ' of ' + state.course.holes.length + ' in this batch.' : 'A new map \u00B7 ' + w.world + '.')
+                : 'A released hole \u00B7 ' + t.where + '.');
+        $('ff-save').textContent = ffBack ? 'Save' : 'Save & next';
         ffPaint();
         $('forge-form').className = 'modal show';
         return true;
@@ -5285,6 +5503,7 @@
         $('forge-form').className = 'modal';
         syncForgeChip();
         var then = ffThen; ffThen = null;
+        if (ffBack) { ffBack = false; openMaps(); return; }
         if (then) then();
         else if (state.course.isForge && state.holeIndex < state.course.holes.length - 1) nextHole();
         else if (state.course.isForge) { toast('That was the last map in the batch \u2014 copy your feedback from New maps'); openForge(); }
@@ -8480,13 +8699,24 @@
             $('forge-play').addEventListener('click', function () { var i = G3.forge.nextUnrated(); if (i >= 0) playForge(i); });
             $('forge-rate-now').addEventListener('click', function () { openForgeForm(null); });
             $('forge-all').addEventListener('click', function () { G3.forge.setRateAll(!G3.forge.rateAll()); openForge(); });
-            $('forge-copy').addEventListener('click', copyForge);
+            $('forge-copy').addEventListener('click', function () { copyForge(false, $('forge-export')); });
+            $('forge-maps').addEventListener('click', openMaps);
             $('forge-clear').addEventListener('click', function () {
                 if (!window.confirm('Clear every rating saved in this browser? Copy them first if you have not.')) return;
                 G3.forge.clear(); syncForgeChip(); openForge();
             });
             $('ff-save').addEventListener('click', saveForgeForm);
-            $('ff-later').addEventListener('click', function () { $('forge-form').className = 'modal'; ffThen = null; });
+            $('ff-later').addEventListener('click', function () {
+                $('forge-form').className = 'modal'; ffThen = null;
+                if (ffBack) { ffBack = false; openMaps(); }
+            });
+            $('btn-maps').addEventListener('click', openMaps);
+            $('maps-close').addEventListener('click', closeMaps);
+            $('maps-copy').addEventListener('click', function () { copyForge(false, $('maps-export')); });
+            $('maps-copy-all').addEventListener('click', function () { copyForge(true, $('maps-export')); });
+            Array.prototype.forEach.call($('maps-filter').children, function (b) {
+                b.addEventListener('click', function () { mapsFilter = b.dataset.f; mapsOpen = null; drawMaps(); });
+            });
         }
         if ($('btn-range')) $('btn-range').addEventListener('click', function () { newRound('range'); });
         if ($('btn-players')) $('btn-players').addEventListener('click', cyclePlayers);
