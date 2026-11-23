@@ -527,10 +527,16 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   draw, fade, hook and slice are already the golfer's and are left alone.
   The club at the ball is the head as modelled (a left-hander's) rather than
   its mirror (`bag.js setHand`). Only the touch swing is mirrored; the dev
-  styles stay right-handed. *Swing pad* puts the lane in the middle over the
-  ball (the default), or at its natural width against the left or right edge,
-  no further than `reach` from the middle on a wide screen; on the left it
-  is shortened to stop above the bag rather than narrowed round it.
+  styles stay right-handed. *Swing pad* puts the lane at its natural width
+  against the right edge (the default since v1.215.0), in the middle over the
+  ball, or against the left edge, no further than `reach` from the middle on a
+  wide screen. With the pad on the left the bag goes to the right-hand
+  corner, mirrored (`bag.setSide`, `body.bag-right` for the controls' gap),
+  so the two never share a corner; wherever they still meet, the lane is
+  shortened to stop above the bag rather than narrowed round it. The ⇆ in the lane's corner cycles the three (`movePad`).
+  Only a pad somebody picked is kept over a change of default (`padPicked`):
+  the panel saves every row at once, so a stored `pad` was mostly the old
+  default riding along with some other change.
   *Club side* (v1.192.0) picks which way the club at the ball leans on its
   own — Golfer (the default: left for a righty, right for a lefty), Left or
   Right — because the owner read the righty's club as the wrong way round.
