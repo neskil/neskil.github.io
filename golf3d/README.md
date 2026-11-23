@@ -6211,6 +6211,31 @@ drop back behind the ball, the water reads the same lifted fog as the lit
 materials so the sea cannot go grey while the greens beside it stay clear, and
 the simulation has never heard of any of this.
 
+### The long game is drawn at its own scale
+
+The long game is the mini golf physics at about a fifth of a real course's
+size, read as `LONG_M` metres to the unit — and until v1.216.0 it was drawn at
+mini golf sizes too: a ball nearly two metres across in the course's own
+metres, a driver bigger than the cart parked behind it, and a camera standing
+over the whole thing like a model on a table (the owner: "scale is a bit off…
+perhaps long game and mini golf have to use different scale"). Now, on a long
+hole that is not a tour hole, the ball, the club in hand (`bag.addressUpdate`'s
+`look`), the trail and the aim strip are drawn at `CONFIG.LONG_LOOK.MIN` of
+themselves, and the follow and side-on seats come in to `SEAT` of their
+distance — render.js `lookFor` and `seatLook`, both read off the ball. The ball
+is still a little bigger than life on the screen, the course round it twice as
+big, and nothing the ball does reads any of it.
+
+Two places keep the mini golf picture. **The green**: the cup is the physics'
+cup (`HOLE_R`) and cannot shrink, and a small ball beside it is a ball beside a
+crater, so the look eases back to 1 between `FAR` and `NEAR` units of the cup.
+The camera comes back with it, so on the screen the ball barely changes size;
+what changes is how big the green looks round it, and a putt looks the way it
+always has. **A tour hole** (`hole.place`): those are fitted to a Portals
+world, seat and all. The drawn ball is lowered by what it lost, so it sits on
+the ground the physics' ball sits on. Anything that sets the ball's scale
+(the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
+
 ### The fourth camera, which is not a seat
 
 A hole is a shape before it is a shot, and the one moment a player can be shown

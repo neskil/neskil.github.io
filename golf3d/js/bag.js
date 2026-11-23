@@ -3826,7 +3826,7 @@
     /* Called by the renderer every frame. `show` is "a shot is being aimed";
        the club also stays for the moment after a strike, where it stood, to
        finish its swing. */
-    function addressUpdate(dt, show, ball, yaw, camera) {
+    function addressUpdate(dt, show, ball, yaw, camera, look) {
         if (!AD.root) return;
         if (AD.mode === 'through') {
             AD.t += dt;
@@ -3846,6 +3846,10 @@
         var made = addressTake(B.selected);
         if (!made) { AD.root.visible = false; return; }
         if (AD.mode !== 'through') {
+            // At the ball's own drawn size (render.js `lookFor`), which is
+            // smaller than the physics' out on a long hole.
+            var k = C.BALL_R / BALL_M * (look || 1);
+            AD.root.scale.set(k, k, lefty ? k : -k);
             AD.root.position.set(ball.x, ball.y - C.BALL_R, ball.z);
             AD.root.rotation.y = yaw - Math.PI / 2;
             AD.back = backMax(camera);

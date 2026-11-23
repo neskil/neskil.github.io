@@ -1363,6 +1363,24 @@ G3.CONFIG.LANDING_DEFAULT = { grip: G3.CONFIG.LAND_GRIP, bounce: G3.CONFIG.BOUNC
    inside NEAR there is no number at all — that is a green to read, not a
    figure to match. */
 G3.CONFIG.LONG_M = 5.5;
+
+/* …and what that does to the picture. The ball, the cup and the club at it
+   are the mini golf sizes on a long hole too — the physics is the same
+   physics — so beside a course read at LONG_M metres to the unit the ball was
+   nearly two metres across, and the cart parked behind it a toy next to the
+   driver (the owner, v1.216.0: "scale is a bit off… perhaps long game and
+   mini golf have to use different scale"). So on a long hole the ball, the
+   club in hand and the camera's seat behind them are all drawn at MIN of
+   themselves (render.js `lookFor`), and the seat comes in to SEAT of its
+   distance: the ball a little smaller on the screen than on a lane, the
+   course round it twice as big. Nothing the ball does reads it.
+
+   Not on the green, though. The cup is the physics' cup and cannot shrink,
+   and a small ball beside it is a ball beside a crater; so inside FAR of the
+   cup the look eases back, and inside NEAR it is the mini golf picture
+   exactly — a putt looks the way it always has. Nor on a tour hole: those are
+   fitted to a world (`place`), seat and all. */
+G3.CONFIG.LONG_LOOK = { MIN: 0.4, SEAT: 0.5, NEAR: 4, FAR: 12 };
 G3.CONFIG.BAND = 0.15;
 G3.CONFIG.NEAR = 20;
 
