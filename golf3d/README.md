@@ -4699,10 +4699,11 @@ hole in each world). `tools/forge.mjs`:
    game in headless Chromium, by borrowing the `carnival` tour hole's page
    and swapping its world with a request intercept, so nothing on disk
    changes. The world's scale comes from `backdrop.mjs → autoScale`'s rule
-   (how fast and how high its flight goes). Then the ground
-   (`G3.backdrop.groundAt`) is read over a rectangle of the hole's own units
-   ahead of the flight: five points along it and three headings at each
-   (straight on, and half a radian either side). Each patch is also drawn
+   (how fast and how high its flight goes). Then the ground is read over a
+   rectangle of the hole's own units ahead of the flight: five points along
+   it and three headings at each (straight on, and half a radian either
+   side), from one render of the patch (see **Speed** below; it keeps the
+   rules of `G3.backdrop.groundAt`, which used to be called per cell). Each patch is also drawn
    from straight above, orthographic, and its depth read back: `stood` is
    the height of whatever stands on each cell (see **Clutter** below).
 2. **Choose.** Each patch is baked into golf units (`recipe.smooth` passes
@@ -4773,28 +4774,90 @@ covered. That is stricter than the owner's
 play may bear out: where a turned-down map is rated well with no `clip`,
 loosen `stand`, `lane` or `bump` rather than keep the rule.
 
-**Speed.** Pinning and vetting is tens of thousands of simulated shots in
-plain JavaScript, and until batch 2 it ran on the one thread that also
-drove the browser. It now runs on a pool of worker threads (`forge.mjs` run
-as a worker loads the game's modules itself), one per core less one
-(`--threads`). That is not where the time goes, though: a dry run of three
-worlds took six minutes, of which the shots were under a minute. The rest is
-the browser loading each world on SwiftShader and probing its ground, a
-raycast per cell of fifteen patches against meshes with no spatial index.
-That is the part to make faster next (one depth render per patch, as
-`stood` already does, rather than a raycast per cell), and it needs care,
-because the ray's rules for what counts as ground (`groundUnder`) would
-have to be kept.
+**Speed.** A world used to take four minutes, nearly all of it the ground:
+`groundAt` once per cell, a raycast against meshes with no spatial index, for
+fifteen patches of 1,100 to 3,000 cells (storm-savanna at batch 1's recipe:
+234 s of ground, 8 s of `stood`, 6 s to load). What changed, in the order it
+paid:
+
+- **The ground is one render per patch** (`forge-sample.mjs → rendered`):
+  the world drawn from straight above, orthographic, each fragment writing
+  its world height to a float target, the depth test keeping the nearest.
+  `groundUnder`'s rules are kept by what is drawn and what is discarded:
+  only meshes that are not skinned, instanced, hidden, `BackSide`,
+  depth-less transparent or under 30 in bounding radius; faces as the ray
+  finds them (front only, or both for `DoubleSide`), a back face or one whose
+  normal points less than 0.3 up discarded, so what is under it shows, as the
+  ray `continue`s; the camera at the flight's height, where the ray starts.
+  It is drawn nine pixels a cell and the cell read off the middle one: at
+  one pixel a cell the rasteriser's snapping of vertices to its sub-pixel
+  grid tilted a slope's heights by about 2% of a cell against the ray's, and
+  put a box's rim on the wrong side of a cell, which was enough to move a cup
+  between two near-equal sites. Under a second a world instead of minutes.
+  `--ground both` checks it cell by cell against the raycast: at nine pixels
+  all but one or two cells a patch agree within 0.002 golf units, the worst
+  0.006. `--ground ray` is the old way.
+- **The samples are kept on disk** (`~/.cache/loft-links-forge`, outside the
+  repo; `--cache <dir>`, `--no-cache`). Only `W`, `L`, `back`, `d`, `ahead`
+  and `scaleK` change what is sampled, so each world is sampled once at the
+  longest `L` any lean asks for and cropped to each lean's, under a key of
+  those numbers and the source of `backdrop.mjs` and `forge-sample.mjs`. A
+  second batch, or a recipe move, starts no browser for a world seen before.
+  The ground crops cleanly; `stood` does not, since its camera sits `CEIL`
+  over the highest ground of the patch it is shown, and Flinching Forest's
+  patch at 70 reaches a rise 21 units over its patch at 42: the canopy
+  counted, the patch read as covered and its 268 out-of-bounds trees went.
+  So `stood` is drawn once for each length a lean can ask for (`crops`),
+  each as it would be on its own, and a shorter one whose highest and lowest
+  ground are a longer one's is cut from that.
+- **The pinning and vetting run on worker threads** (`forge.mjs` run as a
+  worker loads the game's modules itself), one per core less one
+  (`--threads`). Those simulated shots are most of a world's time now.
+- **A batch comes out the same however fast its worlds go.** Three worlds
+  are worked at once but committed in the pool's order, and a map's lean is
+  the next one the batch needs when its world's turn comes, as if they were
+  done one at a time. A world started early takes the lean it would get if
+  every world still in hand before it failed, which most do; when one makes a
+  map instead, it is done again on the right lean. Until this, the lean was
+  taken when a world *started*, so it depended on which world finished first:
+  a cached run made a different batch from the same samples, and the leans
+  were not covered (batch 2 on disk has lean 0 twice, b2-01 and b2-02).
+
+**Same maps.** Nine of batch 2's worlds, each forged alone by the new code on
+its map's own lean (`--recipe` scaling `L` and `relief` so that lean 0 is
+it), came back with the same patch, anchor, tee, cup, par, metrics and
+water as `js/forge-maps.js`, the grids within 0.003; two had one
+out-of-bounds cell more or fewer, a cell at the `stand` line, since `stood`
+is measured off the ground's height. At batch 1's recipe, before the change
+to nine pixels, fourteen worlds forged by old and new code made the same
+maps.
+
+**The time now.** Batch 2's own command (`--first` its six, `--skip` its
+three) made twelve maps from 56 worlds in 15¾ minutes from nothing, where
+batch 2 took about two hours, and in 2¾ minutes again from the cache; the
+two runs made the same twelve. Against `js/forge-maps.js`, the worlds that
+came on the same lean made the same maps; the others were dealt other leans
+(the old order was a race), and one world passed over there,
+wind-draws-the-namib, made a map on the lean it gets now. At batch 1's
+recipe a dry batch of twelve went from about two hours (estimated, 85 worlds
+at four minutes, three at a time) to 18–19½ minutes, and four from the
+cache. Of what is left, about two thirds of the browser's time is each
+world's own build and a fifth `stood`; the shots are most of a cached run.
+Loading less was measured and did not pay: blocking fonts, analytics
+and every other host, the lowest quality tier and `G3.backdrop.hurry()` each
+moved a world's load (4 to 10 s alone, about 20 with three pages on four
+cores) by less than the noise between runs.
 
 ```sh
 python3 -m http.server 8899                                # repo root
-node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js, ~40 min
+node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js
 node golf3d/tools/forge.mjs --batch 2 --recipe '{"relief":1.2,"smooth":3}'
 node golf3d/tools/forge.mjs --batch 2 --keep b2-01,b2-04   # keep these, forge the rest
 node golf3d/tools/forge.mjs --batch 3 --first a,b --skip c,d   # these worlds first; never those
 node golf3d/tools/forge.mjs --batch 2 --count 2 --out /tmp/try.js   # a dry run
 node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
 node golf3d/tools/forge-sample.mjs still-on-the-sprue --u 0.35 --turn -0.5 --d 0.5 --map   # what stands on one
+node golf3d/tools/forge-sample.mjs storm-savanna --d 0.5 --ground both    # the render against the raycast
 ```
 
 **Batch 2: the recipe after batch 1's verdicts** (v1.214.0). Batch 1 came
