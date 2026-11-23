@@ -1,7 +1,7 @@
 # Forge feedback — what to do with it
 
 For Claude, when the owner pastes a block starting `FORGE FEEDBACK`. It is
-copied out of Loft Links (☰ → Dev mode → New maps or Played maps → Copy) from their
+copied out of Loft Links (☰ → Dev menu → Copy new) from their
 phone, where they played the forge's batch of new holes and rated each one, and
 possibly some released holes too. The technique, the recipe and the tools are
 in [README.md → "The forge"](README.md#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode).
