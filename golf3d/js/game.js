@@ -1419,11 +1419,19 @@
             var ok = r.opts.some(function (o) { return o[0] === raw[r.key]; });
             out[r.key] = ok ? raw[r.key] : C.SWIPE.DEFAULT[r.key];
         });
+        /* The whole set is saved whenever any one row is touched, so a
+           stored `pad` was usually never chosen at all — it was the old
+           centre default riding along with a change to the line or the
+           timing. Only a pad somebody picked (on the lane's ⇆, or its row
+           here) outlives a change of default. */
+        out.padPicked = raw.padPicked === true;
+        if (!out.padPicked) out.pad = C.SWIPE.DEFAULT.pad;
         return out;
     })();
 
     function setTune(key, value) {
         tune[key] = value;
+        if (key === 'pad') tune.padPicked = true;
         SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
         if ((key === 'hand' || key === 'club') && G3.bag && G3.bag.address) G3.bag.address.setHand(clubRight());
@@ -1477,6 +1485,19 @@
             row.appendChild(seg);
             box.appendChild(row);
         });
+    }
+
+    /* The ⇆ on the lane: the pad's three places in turn, so where it can go
+       is found on the lane itself rather than only in the Swing panel. */
+    var PAD_NEXT = { right: 'centre', centre: 'left', left: 'right' };
+    var PAD_SAY = { left: 'Pad: left', centre: 'Pad: middle', right: 'Pad: right' };
+    var padSaid = 0;
+    function movePad() {
+        setTune('pad', PAD_NEXT[tune.pad] || 'right');
+        var b = $('swipe-move');
+        b.textContent = '\u21C6 ' + PAD_SAY[tune.pad];
+        clearTimeout(padSaid);
+        padSaid = setTimeout(function () { b.textContent = '\u21C6 Move'; }, 1600);
     }
 
     function syncTune() {
@@ -1624,21 +1645,25 @@
         var height = Math.max(120, bottom - top);
         if (laneSmall()) height = Math.max(120, Math.round(height * LANE_SHORT));
         var pad = tune.pad;
+        // The bag goes to the corner the pad has left free (bag.js `setSide`).
+        if (G3.bag && G3.bag.setSide) G3.bag.setSide(pad === 'left' ? 1 : -1);
+        document.body.classList.toggle('bag-right', pad === 'left');
         if (pad === 'left' || pad === 'right') {
             /* To one side (the Swing pad setting): its natural width, a small
                margin off the edge, and on a wide screen no further out than
-               a thumb would reach for. On the left it stops short of the bag
-               rather than narrowing — the bag *is* the left corner. */
+               a thumb would reach for. Where it meets the bag it stops short
+               above it rather than narrowing — though since v1.215.0 the bag
+               goes to the other corner from a pad at the side, so that is
+               only a very narrow screen. */
             var w = laneNatural(stage), M = 14, reach = 360;
             var cx = pad === 'right'
                 ? Math.min(stage.width - M - w / 2, stage.width / 2 + reach)
                 : Math.max(M + w / 2, stage.width / 2 - reach);
-            if (pad === 'left') {
-                var bag = G3.bag && G3.bag.screenBox && R.state.camera
-                    ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
-                if (bag && bag.right * stage.width + LANE_GAP > cx - w / 2 && bag.top * stage.height < top + height) {
-                    height = Math.max(120, Math.round(bag.top * stage.height - LANE_GAP - top));
-                }
+            var bag = G3.bag && G3.bag.screenBox && R.state.camera
+                ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
+            if (bag && bag.right * stage.width + LANE_GAP > cx - w / 2 && bag.left * stage.width - LANE_GAP < cx + w / 2 &&
+                bag.top * stage.height < top + height) {
+                height = Math.max(120, Math.round(bag.top * stage.height - LANE_GAP - top));
             }
             lane.style.left = Math.round(cx) + 'px';
             lane.style.width = Math.round(w) + 'px';
@@ -1646,6 +1671,7 @@
             lane.style.left = '';
             lane.style.width = laneWidth(stage, top, height) || '';
         }
+        lane.classList.toggle('pad-left', pad === 'left');
         lane.style.top = top + 'px';
         lane.style.height = height + 'px';
         if (!swipe) drawSwipe();
@@ -2143,7 +2169,7 @@
         var bag = tutor === 2 && G3.bag && G3.bag.screenBox && R.state.camera
             ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
         if (bag) {
-            left = 10;
+            left = bag.left > 0.5 ? stage.width - w - 10 : 10;   // whichever corner it is in
             top = bag.top * stage.height - h - 12;
         } else {
             left = lr.left - stage.left + lr.width / 2 - w / 2;
@@ -8912,6 +8938,9 @@
             pressArc();
         });
         $('needle').addEventListener('pointerdown', pressNeedle);
+        // Taken before the lane sees it, so moving the pad is not a swing.
+        $('swipe-move').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        $('swipe-move').addEventListener('click', function (e) { e.stopPropagation(); movePad(); });
         $('swipe').addEventListener('pointerdown', onSwipeDown);
         // The swing card is read, then tapped away (showSwingCard). Taken here
         // so the tap does not also land on the course and turn the aim.

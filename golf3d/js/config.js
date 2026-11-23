@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.214.0';
+G3.VERSION = '1.215.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -332,9 +332,13 @@ G3.CONFIG = {
        is a straight swing, IDEAL is a clean shape, TOL either side of it still
        is, and SPAN past that over- or under-cooks it fully. TURN_PX is how far
        the thumb has to come back up before the backswing counts as over, so a
-       wobble at the bottom is not a swing. */
+       wobble at the bottom is not a swing.
+
+       The pad stands on the right by default (the owner, v1.215.0: "default
+       the finger area for the swing more to the right"): the thumb that
+       swings is a right thumb, and over the ball it covered the ball. */
     SWIPE: {
-        DEFAULT: { assist: 'off', hand: 'right', club: 'auto', pad: 'centre', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
+        DEFAULT: { assist: 'off', hand: 'right', club: 'auto', pad: 'right', feel: 'normal', timing: 'rhythm', shapes: 'on', where: 'all' },
         FEEL: {
             /* Normal was 3.5° clean over an 11° span with a 0.9 floor, and
                the owner found it had become a bit too hard (v1.204.0); 5°

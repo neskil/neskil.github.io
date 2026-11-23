@@ -35,6 +35,7 @@
 
     var B = {
         rig: null,           // the bag, parked in the corner
+        side: -1,            // which corner: -1 the left, 1 the right (`setSide`)
         clubRig: null,       // the clubs, which travel out of it
         clubs: [],           // { group, meshes, label, target, now }
         pickables: [],
@@ -3189,7 +3190,7 @@
         // has to clear the meter, and the rest of the bag can go under it.
         var crest = Math.max(BAG_LOW, Math.min(BAG_HIGH,
             BAG_CLEAR - (1 - 2 * BAND.bottom)));
-        return { x: -bagW * BAG_EDGE, y: bagH * crest - B.crest * BAG_SCALE, z: -BAG_DEPTH, w: bagW };
+        return { x: B.side * bagW * BAG_EDGE, y: bagH * crest - B.crest * BAG_SCALE, z: -BAG_DEPTH, w: bagW };
     }
 
     function place(camera, aspect) {
@@ -3198,7 +3199,7 @@
 
         var at = bagSpot(camera, aspect);
         var cx = at.x, cy = at.y, cz = at.z, bagW = at.w;
-        put(B.rig, camera, cx, cy, cz, BAG_SCALE, -TWIST, 0.1);
+        put(B.rig, camera, cx, cy, cz, BAG_SCALE, TWIST * B.side, 0.1);
         follow(B.rigLights, B.rig);
 
 
@@ -3246,7 +3247,7 @@
             cy + (B.openY - cy) * k,
             cz + (-OPEN_DEPTH - cz) * k,
             BAG_SCALE + (B.openScale - BAG_SCALE) * k,   // up to the lens
-            -TWIST + TWIST * k,
+            TWIST * B.side * (1 - k),
             0.1 - 0.1 * k);
         follow(B.clubLights, B.clubRig);
     }
@@ -3281,7 +3282,7 @@
         var at = bagSpot(camera, aspect);
         _pose.position.set(at.x, at.y, at.z);
         _pose.quaternion.set(0, 0, 0, 1);
-        _pose.rotateY(-TWIST);
+        _pose.rotateY(TWIST * B.side);
         _pose.rotateX(0.1);
         _pose.scale.setScalar(BAG_SCALE);
         _pose.updateMatrix();
@@ -3382,6 +3383,20 @@
     function lightPass(on) {
         B.pass = on ? 1 : 0;
         lightRig();
+    }
+
+    /* Which corner the shut bag stands in: the left, or the right when the
+       swing pad has gone to the left (game.js `placeLane`; the owner,
+       v1.215.0: "switch side for the bag if you switch the place for the
+       finger touch area"). Mirrored, not moved: it turns to face the middle
+       from whichever corner, and its lamp goes round to the inside with it. */
+    function setSide(side) {
+        side = side > 0 ? 1 : -1;
+        if (side === B.side) return false;
+        B.side = side;
+        if (B.corner) B.corner.position.x = -0.6 * side;
+        B.settled = false;
+        return true;
     }
 
     // A carrier of lights, kept on the rig it lights.
@@ -3896,6 +3911,7 @@
         setHover: setHover,
         setBand: setBand,
         screenBox: screenBox,
+        setSide: setSide,
         isExpanded: isExpanded,
         setBackdrop: setBackdrop,
         LAYER: LAYER,
