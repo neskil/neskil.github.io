@@ -1645,21 +1645,25 @@
         var height = Math.max(120, bottom - top);
         if (laneSmall()) height = Math.max(120, Math.round(height * LANE_SHORT));
         var pad = tune.pad;
+        // The bag goes to the corner the pad has left free (bag.js `setSide`).
+        if (G3.bag && G3.bag.setSide) G3.bag.setSide(pad === 'left' ? 1 : -1);
+        document.body.classList.toggle('bag-right', pad === 'left');
         if (pad === 'left' || pad === 'right') {
             /* To one side (the Swing pad setting): its natural width, a small
                margin off the edge, and on a wide screen no further out than
-               a thumb would reach for. On the left it stops short of the bag
-               rather than narrowing — the bag *is* the left corner. */
+               a thumb would reach for. Where it meets the bag it stops short
+               above it rather than narrowing — though since v1.215.0 the bag
+               goes to the other corner from a pad at the side, so that is
+               only a very narrow screen. */
             var w = laneNatural(stage), M = 14, reach = 360;
             var cx = pad === 'right'
                 ? Math.min(stage.width - M - w / 2, stage.width / 2 + reach)
                 : Math.max(M + w / 2, stage.width / 2 - reach);
-            if (pad === 'left') {
-                var bag = G3.bag && G3.bag.screenBox && R.state.camera
-                    ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
-                if (bag && bag.right * stage.width + LANE_GAP > cx - w / 2 && bag.top * stage.height < top + height) {
-                    height = Math.max(120, Math.round(bag.top * stage.height - LANE_GAP - top));
-                }
+            var bag = G3.bag && G3.bag.screenBox && R.state.camera
+                ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
+            if (bag && bag.right * stage.width + LANE_GAP > cx - w / 2 && bag.left * stage.width - LANE_GAP < cx + w / 2 &&
+                bag.top * stage.height < top + height) {
+                height = Math.max(120, Math.round(bag.top * stage.height - LANE_GAP - top));
             }
             lane.style.left = Math.round(cx) + 'px';
             lane.style.width = Math.round(w) + 'px';
@@ -2165,7 +2169,7 @@
         var bag = tutor === 2 && G3.bag && G3.bag.screenBox && R.state.camera
             ? G3.bag.screenBox(R.state.camera, stage.width / Math.max(1, stage.height)) : null;
         if (bag) {
-            left = 10;
+            left = bag.left > 0.5 ? stage.width - w - 10 : 10;   // whichever corner it is in
             top = bag.top * stage.height - h - 12;
         } else {
             left = lr.left - stage.left + lr.width / 2 - w / 2;

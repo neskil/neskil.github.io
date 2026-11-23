@@ -530,8 +530,10 @@ way the ball was hit. game.js "swing styles" is the thumb and the pictures.
   styles stay right-handed. *Swing pad* puts the lane at its natural width
   against the right edge (the default since v1.215.0), in the middle over the
   ball, or against the left edge, no further than `reach` from the middle on a
-  wide screen; on the left it is shortened to stop above the bag rather than
-  narrowed round it. The ⇆ in the lane's corner cycles the three (`movePad`).
+  wide screen. With the pad on the left the bag goes to the right-hand
+  corner, mirrored (`bag.setSide`, `body.bag-right` for the controls' gap),
+  so the two never share a corner; wherever they still meet, the lane is
+  shortened to stop above the bag rather than narrowed round it. The ⇆ in the lane's corner cycles the three (`movePad`).
   Only a pad somebody picked is kept over a change of default (`padPicked`):
   the panel saves every row at once, so a stored `pad` was mostly the old
   default riding along with some other change.

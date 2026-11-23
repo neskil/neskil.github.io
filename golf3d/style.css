@@ -381,7 +381,7 @@ button,
     left: 12px;
     right: 12px;
     bottom: 12px;
-    padding-left: min(26%, 220px);   /* the bag stands here */
+    padding-left: min(26%, 220px);   /* the bag stands here… */
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -392,6 +392,9 @@ button,
        below, for why. The demo's own fade declares its own timing. */
     transition: opacity 0.2s ease;
 }
+/* …or here, when the swing pad has taken the left (game.js `placeLane`,
+   bag.js `setSide`). */
+body.bag-right .controls { padding-left: 0; padding-right: min(26%, 220px); }
 
 /* The shot itself — the meter and the three buttons that play it — and
    nothing else. Where you stand used to sit on a second line above this one
@@ -3296,6 +3299,7 @@ kbd {
         right: 10px;
         bottom: 10px;
     }
+    body.bag-right .controls { padding-left: 0; padding-right: min(34%, 150px); }
 
     .ctl-row {
         flex-direction: column;
