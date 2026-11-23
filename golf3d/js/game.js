@@ -806,7 +806,6 @@
                ($('about') && $('about').classList.contains('show')) ||
                $('scorecard').classList.contains('show') ||
                ($('ball-shop') && $('ball-shop').classList.contains('show')) ||
-               ($('forge') && $('forge').classList.contains('show')) ||
                ($('forge-form') && $('forge-form').classList.contains('show')) ||
                ($('dev-menu') && $('dev-menu').classList.contains('show'));
     }
@@ -1561,7 +1560,7 @@
            nothing else: no list of styles, and no "which courses" row,
            since the touch swing is played everywhere. */
         /* The other styles and where they apply are dev settings, and live in
-           the Dev menu (openDev) since v1.212.0; this pad is the touch
+           the Dev menu (openDev) since v1.213.0; this pad is the touch
            swing's for everyone. */
         $('style-pad').classList.remove('dev');
         $('style-list').hidden = true;
@@ -3482,6 +3481,104 @@
         $('btn-menu').classList.toggle('on', open);
         $('btn-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
         document.body.classList.toggle('tm-open', open);
+    }
+
+    /* ── the phone's back button ────────────────────────────────────────
+
+       On a phone, back (the button, or the edge swipe) is how anything gets
+       shut, and a page that ignores it sends the player off the site from
+       the middle of the course list. So while something back could shut is
+       up, one history entry of our own sits on top of the page's: back pops
+       it, `popstate` shuts the top layer (the same one Esc would), and if
+       another is still up underneath, the entry goes back on. When the last
+       layer is shut some other way — its button, Esc — the entry is taken
+       off again with a `history.back()` whose `popstate` is ours to ignore,
+       so the next back after that leaves the page as it always did.
+
+       The course list the game opens on is not a layer: it is the front door,
+       and back from the front door leaves, as it would from any page you have
+       just arrived on. (It is also opened without a tap, and Chrome skips a
+       history entry pushed before the page has been touched, so arming it
+       would leave anyway on some phones and not on others.) `menuFront`
+       marks it, and stays set through the shop and the achievements it can
+       hand over to, until none of the three is up.
+       What is open is read off the page, not tracked, so no open or close
+       path can forget to report itself: an observer on the layers' own class
+       and hidden attributes re-asks after anything changes, once the handler
+       that changed it has finished — so a close that opens the next layer
+       (the shop going back to the menu) is never seen as nothing open. */
+    var backArmed = false, backEating = false, menuFront = false;
+
+    function shown(id) { var el = $(id); return !!el && el.classList.contains('show'); }
+    function unhidden(id) { var el = $(id); return !!el && !el.hidden; }
+
+    function backLayer() {
+        if (shown('forge-form')) return 'forge-form';
+        if (shown('achievements')) return 'achievements';
+        if (shown('ball-shop')) return 'ball-shop';
+        if (shown('dev-menu')) return 'dev-menu';
+        if (shown('howto')) return 'howto';
+        if (shown('about')) return 'about';
+        if (shown('scorecard')) return 'scorecard';
+        if (shown('menu') && !menuFront && state && state.world) return 'menu';
+        if (unhidden('style-pad')) return 'style-pad';
+        if (unhidden('quality-pad')) return 'quality-pad';
+        if ($('topbar-menu') && $('topbar-menu').classList.contains('open')) return 'topbar-menu';
+        if (G3.bag && G3.bag.isExpanded()) return 'bag';
+        if (miniMapOn) return 'mini-map';
+        return null;
+    }
+
+    function shutLayer(which) {
+        switch (which) {
+            case 'forge-form': ffLater(); break;
+            case 'achievements': closeAchievements(); break;
+            case 'ball-shop': closeShop(); break;
+            case 'dev-menu': closeDev(); break;
+            case 'howto': closeHowTo(); break;
+            case 'about': closeAbout(); break;
+            case 'scorecard': closeCard(); break;
+            case 'menu': closeMenu(); break;
+            case 'style-pad': toggleStylePad(false); break;
+            case 'quality-pad': toggleQualityPad(false); break;
+            case 'topbar-menu': closeTopMenu(); break;
+            case 'bag': G3.bag.setExpanded(false); syncPicker(); break;
+            case 'mini-map': toggleMiniMap(false); break;
+        }
+    }
+
+    function syncBack() {
+        if (menuFront && !shown('menu') && !shown('ball-shop') && !shown('achievements')) menuFront = false;
+        if (backEating || !window.history || !history.pushState) return;
+        var up = !!backLayer();
+        if (up && !backArmed) {
+            try { history.pushState({ g3back: true }, ''); backArmed = true; } catch (e) { /* ignore */ }
+        } else if (!up && backArmed) {
+            backArmed = false;
+            backEating = true;
+            history.back();
+        }
+    }
+
+    function onBack() {
+        if (backEating) { backEating = false; syncBack(); return; }
+        backArmed = false;
+        var which = backLayer();
+        if (which) shutLayer(which);
+        syncBack();
+    }
+
+    function wireBack() {
+        if (!window.history || !history.pushState) return;
+        window.addEventListener('popstate', onBack);
+        if (window.MutationObserver) {
+            var watch = new MutationObserver(syncBack);
+            ['menu', 'howto', 'about', 'scorecard', 'dev-menu', 'forge-form',
+             'achievements', 'ball-shop', 'style-pad', 'quality-pad', 'topbar-menu',
+             'picker', 'mini-map'].forEach(function (id) {
+                if ($(id)) watch.observe($(id), { attributes: true, attributeFilter: ['class', 'hidden'] });
+            });
+        }
     }
 
     /* The overlay's second half: the hole's name, what it is, and the sky.
@@ -5496,6 +5593,10 @@
         $('forge-form').className = 'modal show';
         return true;
     }
+    function ffLater() {
+        $('forge-form').className = 'modal'; ffThen = null;
+        if (ffBack) { ffBack = false; openDev(); }
+    }
     function saveForgeForm() {
         var t = ffTarget;
         if (!t || !FF || !FF.verdict) return;
@@ -6566,6 +6667,7 @@
        entrance altogether, and with it the wait. Either way the class goes, and the list is live. */
     function openMenuArriving() {
         openMenu();
+        menuFront = true;
         if (reducedMotion()) return;
         var el = $('menu');
         el.classList.add('arriving');
@@ -8642,6 +8744,7 @@
         }, { passive: false });
         window.addEventListener('keydown', onKey);
         window.addEventListener('keyup', onFlightKeyUp);
+        wireBack();
         /* The net that cuts the intro short. On the window and in the capture
            phase, so it runs before the chip, the key or the drag it shares an
            event with does its own job — every one of those is a player who has
@@ -8713,10 +8816,7 @@
             $('dev-reset').addEventListener('click', resetShopDev);
             $('dev-off').addEventListener('click', function () { setDev(false, false); });
             $('ff-save').addEventListener('click', saveForgeForm);
-            $('ff-later').addEventListener('click', function () {
-                $('forge-form').className = 'modal'; ffThen = null;
-                if (ffBack) { ffBack = false; openDev(); }
-            });
+            $('ff-later').addEventListener('click', ffLater);
             $('maps-close').addEventListener('click', closeDev);
             $('maps-copy').addEventListener('click', function () { copyForge(false, $('maps-export')); });
             $('maps-copy-all').addEventListener('click', function () { copyForge(true, $('maps-export')); });

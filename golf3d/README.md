@@ -4807,8 +4807,8 @@ and `forge-<id>` is one map. Forge rounds write no records.
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
 unlocks). Off, a tap turns it on; on, it reads **Dev menu** with the build
-and what is waiting (`v1.212.0 · batch 1 3/10 · 2 to send`) and opens the
-**Dev menu**, where everything dev lives since v1.212.0 (the owner: "shouldn't
+and what is waiting (`v1.213.0 · batch 1 3/10 · 2 to send`) and opens the
+**Dev menu**, where everything dev lives since v1.213.0 (the owner: "shouldn't
 there be a separate dev menu that it's all collected under?"): the build
 number, **Play next unrated**, **Rate this hole**, the maps list below with
 a **Batch** filter (the forge's maps in order), Copy, **Rate released maps
@@ -6676,6 +6676,13 @@ and course after course, at the cost of the session's records — and
 <kbd>Esc</kbd> takes it back. Touch nothing at all and you get
 [demo mode](#demo-mode-the-game-playing-itself) instead, which any of the above
 ends.
+
+On a phone, **back** (the button or the edge swipe) shuts whatever is open —
+a dialog, the ☰ panel, the club picker, the map — one layer at a time, the
+same layer <kbd>Esc</kbd> would, and leaves the site only once nothing is open.
+The course list the game opens on is the exception: back from it leaves, as
+from any page just arrived on. How the history entry is kept is at the site
+(`game.js → syncBack`).
 
 ### Under a thumb
 
