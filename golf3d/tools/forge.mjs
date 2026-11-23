@@ -487,7 +487,8 @@ async function forgeOne(row, li) {
     for (const passes of [r.smooth, r.smoothHard || 0]) {
         if (!passes || scored.length) continue;
         const rr = Object.assign({}, r, { smooth: passes });
-        for (const q of s.patches) {
+        // `us` in the recipe: only these points along the flight (b1-09, "wrong spot?": forging one world at another place).
+        for (const q of s.patches.filter((q) => !r.us || r.us.includes(q.u))) {
             q.world = row[0];
             const b = bake(q, rr);
             if (process.env.FORGE_DEBUG && !b) console.log(`  ${row[0]} u${q.u} t${q.turn}: holes in the ground (${q.h.filter((x) => x === null).length}/${q.h.length})`);

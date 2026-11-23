@@ -50,6 +50,12 @@
         for (k in base) th[k] = base[k];
         var hue = w && w.tone ? w.tone[0] : 0.33, sat = Math.max(0.25, Math.min(0.6, (w && w.tone ? w.tone[1] : 0.2) * 2.4));
         th.grass = [hsl(hue, sat, 0.42), hsl(hue, sat, 0.37)];
+        /* A map finished by hand may carry its own colours (forge-finish
+           --palette), merged over the stand-in: b1-09's world is a night
+           planet lit by a ring of fire, and green grass under a blue sea
+           was "ugly". Colours are hex strings, numbers where THEMES has
+           numbers (sky, fog, sun, ambient, water). */
+        if (m.palette) for (k in m.palette) th[k] = m.palette[k];
         G3.THEMES[key] = th;
         if (G3.PORTAL_SKIES) G3.PORTAL_SKIES[key] = ['clear', 'fair'];
         return key;
@@ -150,7 +156,13 @@
     }
     function keyFor(m, batch) {
         if (batch === 1) return '1:' + m.id;
-        return 'forge:' + hashOf(JSON.stringify([m.world, m.u, m.at, m.tee, m.cup, m.par, m.bag, m.strips, m.grid]));
+        var what = [m.world, m.u, m.at, m.tee, m.cup, m.par, m.bag, m.strips, m.grid];
+        /* A map finished by hand (tools/forge-finish.mjs → `finished`) may
+           differ only in its water or its outs, which the list above left
+           out; so for those maps they count too. Maps without `finished`
+           keep the key they were first rated under. */
+        if (m.finished) what.push(m.finished, m.water || null, m.outs || null, m.green || null);
+        return 'forge:' + hashOf(JSON.stringify(what));
     }
     var KEYS = null;
     function keyOf(id) {
