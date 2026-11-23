@@ -808,7 +808,7 @@
                ($('ball-shop') && $('ball-shop').classList.contains('show')) ||
                ($('forge') && $('forge').classList.contains('show')) ||
                ($('forge-form') && $('forge-form').classList.contains('show')) ||
-               ($('maps') && $('maps').classList.contains('show'));
+               ($('dev-menu') && $('dev-menu').classList.contains('show'));
     }
 
     function maybeFly() {
@@ -1560,12 +1560,16 @@
         /* Outside dev mode the panel is the touch swing's settings and
            nothing else: no list of styles, and no "which courses" row,
            since the touch swing is played everywhere. */
-        $('style-pad').classList.toggle('dev', dev);
-        $('style-list').hidden = !dev;
-        $('st-sub').textContent = dev ? 'Dev mode. Other styles do not count for records.' : 'Settings for the touch swing.';
+        /* The other styles and where they apply are dev settings, and live in
+           the Dev menu (openDev) since v1.212.0; this pad is the touch
+           swing's for everyone. */
+        $('style-pad').classList.remove('dev');
+        $('style-list').hidden = true;
+        $('st-sub').textContent = dev && styleWanted !== 'swipe' ? 'Dev: ' + STYLE_INFO[styleWanted].name + ' is on (Dev menu). Not recorded.' : 'Settings for the touch swing.';
         Array.prototype.forEach.call(document.querySelectorAll('#tune-rows .tn-row'), function (row) {
-            if (row.dataset.key === 'where') row.hidden = !dev;
+            if (row.dataset.key === 'where') row.hidden = true;
         });
+        if ($('dev-styles') && $('dev-menu').classList.contains('show')) syncDevSwing();
         Array.prototype.forEach.call($('style-list').children, function (b) {
             b.classList.toggle('on', b.dataset.style === styleWanted);
             b.setAttribute('aria-pressed', b.dataset.style === styleWanted ? 'true' : 'false');
@@ -4746,7 +4750,7 @@
             closeAbout();
             closeShop();
             closeAchievements();
-            closeMaps();
+            closeDev();
             closeTopMenu();
             hideHoleCard();
             return;
@@ -5136,7 +5140,8 @@
         if ($('about-dev-pill')) $('about-dev-pill').hidden = !dev;
         if ($('about-dev-box')) $('about-dev-box').hidden = !dev;
         if ($('btn-about')) $('btn-about').classList.toggle('on', dev);
-        if ($('btn-dev')) { $('btn-dev').classList.toggle('on', dev); $('btn-dev').setAttribute('aria-pressed', dev ? 'true' : 'false'); }
+        if ($('btn-dev')) $('btn-dev').classList.toggle('on', dev);
+        if (!dev) closeDev();
         syncForgeChip();
     }
 
@@ -5192,49 +5197,20 @@
         if (e.forge) return { key: e.key, forge: e.forge, label: e.forge.id + ': ' + e.label, par: e.par };
         return { key: e.key, label: e.label, par: e.par, where: e.kind === 'tour' ? e.where : e.group };
     }
+    // The ☰ entry: "Dev mode" while off (a tap turns it on), "Dev" and what is waiting while on.
     function syncForgeChip() {
-        syncMapsChip();
-        var b = $('btn-forge');
-        if (!b) return;
-        b.hidden = !(dev && G3.forge);
-        if (b.hidden || !G3.forge) return;
-        var L = G3.forge.maps(), done = L.filter(function (w) { return G3.forge.noteFor(w.id); }).length;
-        if ($('forge-sub')) $('forge-sub').textContent = 'batch ' + G3.forge.DATA.batch + ' \u00B7 ' + done + ' of ' + L.length + ' rated' +
-            (G3.forge.released().length ? ' \u00B7 ' + G3.forge.released().length + ' released' : '');
+        if (!$('btn-dev')) return;
+        $('dev-label').textContent = dev ? 'Dev menu' : 'Dev mode';
+        var sub = dev ? 'v' + (G3.VERSION || '?') : '';
+        if (dev && G3.forge) {
+            var L = G3.forge.maps(), done = L.filter(function (w) { return G3.forge.noteFor(w.id); }).length, u = G3.forge.unsent().length;
+            sub += (L.length ? ' \u00B7 batch ' + G3.forge.DATA.batch + ' ' + done + '/' + L.length : '') + (u ? ' \u00B7 ' + u + ' to send' : '');
+        }
+        $('dev-sub').textContent = sub;
+        $('dev-sub').hidden = !sub;
     }
-    function openForge() {
-        if (!G3.forge) return;
-        closeTopMenu();
-        var L = G3.forge.maps(), here = forgeHere(), host = $('forge-list');
-        $('forge-title').textContent = 'New maps \u00B7 batch ' + G3.forge.DATA.batch;
-        host.innerHTML = '';
-        L.forEach(function (w, i) {
-            var n = G3.forge.noteFor(w.id), li = document.createElement('li');
-            li.className = here && here.id === w.id ? 'here' : '';
-            var v = n ? n.verdict : '';
-            li.innerHTML = '<span class="fl-n">' + (i + 1) + '</span><span class="fl-name">' + w.title +
-                '</span><span class="fl-v ' + v + '">' + (n ? (v === 'keep' ? 'Keep' : v === 'fix' ? 'If fixed' : 'Drop') + ' \u00B7 ' + n.fun + '\u2605' : 'not rated') + '</span>';
-            li.addEventListener('click', function () { playForge(i); });
-            host.appendChild(li);
-        });
-        var nx = G3.forge.nextUnrated();
-        $('forge-play').textContent = nx < 0 ? 'All rated \u2014 copy your feedback' : 'Play next unrated (' + (nx + 1) + ')';
-        $('forge-play').disabled = nx < 0;
-        var tgt = rateTarget();
-        $('forge-rate-now').hidden = !tgt;
-        if (tgt) $('forge-rate-now').textContent = (G3.forge.noteAt(tgt.key) ? 'Re-rate ' : 'Rate ') + (tgt.forge ? 'this map' : '\u201C' + tgt.label + '\u201D') + ' now';
-        var ra = G3.forge.rateAll();
-        $('forge-all').classList.toggle('on', ra);
-        $('forge-all').setAttribute('aria-pressed', ra ? 'true' : 'false');
-        $('forge-all-n').textContent = G3.forge.released().length ? G3.forge.released().length + ' rated so far' : 'none rated yet';
-        $('forge-play').hidden = !L.length;
-        $('forge-export').hidden = true;
-        syncForgeCopy();
-        $('forge').className = 'modal show';
-    }
-    function closeForge() { $('forge').className = 'modal'; }
     function playForge(i) {
-        closeForge();
+        closeDev();
         G3.FORGE_COURSE = null;
         maybeAutoFullscreen();
         newRound('forge', i);
@@ -5245,22 +5221,17 @@
        select it by hand; it is marked sent either way, since it is there. */
     function copyForge(all, ta) {
         var out = G3.forge.exportFor({ all: !!all, save: state && state.save });
-        ta = ta || $('forge-export');
+        ta = ta || $('maps-export');
         ta.value = out.text; ta.hidden = false;
         var n = out.keys.length, said = n ? (n === 1 ? 'One note' : n + ' notes') + ' copied and marked sent \u2014 paste it to Claude'
             : 'Nothing new to send \u2014 copied the batch and stats';
         G3.forge.markSent(out.keys);
         syncForgeChip();
-        if ($('maps').classList.contains('show')) drawMaps();
-        if ($('forge').classList.contains('show')) syncForgeCopy();
+        if ($('dev-menu').classList.contains('show')) drawMaps();
         function fallback() { ta.focus(); ta.select(); try { document.execCommand('copy'); toast(said); } catch (e) { toast('Select the text and copy it'); } }
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(out.text).then(function () { toast(said); }, fallback);
         } else fallback();
-    }
-    function syncForgeCopy() {
-        var n = G3.forge.unsent().length;
-        $('forge-copy').textContent = n ? 'Copy ' + n + ' new' : 'Copy feedback';
     }
 
     /* ── Played maps (dev mode): every map, compact, with how it went ──
@@ -5270,18 +5241,6 @@
        cards, the note, and Play and Rate. Rate works on any map from here,
        played or not; Copy takes the new notes and marks them sent. */
     var mapsFilter = 'played', mapsOpen = null, mapsPlans = {};
-    function syncMapsChip() {
-        var b = $('btn-maps');
-        if (!b) return;
-        b.hidden = !(dev && G3.forge);
-        if (b.hidden) return;
-        var log = G3.forge.playLog(), save = state && state.save, n = 0;
-        G3.forge.catalogue().forEach(function (e) {
-            if (log[e.key] || (save && save.holes && e.key.indexOf('released:') === 0 && save.holes[e.key.slice(9)])) n++;
-        });
-        var u = G3.forge.unsent().length;
-        $('maps-chip-sub').textContent = n + ' played' + (u ? ' \u00B7 ' + u + ' new note' + (u === 1 ? '' : 's') : '');
-    }
     function vsPar(s, par) {
         var d = s - par;
         return d === 0 ? 'E' : (d > 0 ? '+' : '') + d;
@@ -5296,24 +5255,59 @@
         if (m < 60 * 24) return Math.round(m / 60) + ' h ago';
         return Math.round(m / 1440) + ' d ago';
     }
-    function openMaps() {
+    /* The Dev menu: the batch and the feedback, the maps list, the dev
+       swing styles and the tools. `filter` picks the list to open on. */
+    function openDev(filter) {
         if (!G3.forge) return;
-        closeTopMenu(); closeForge();
+        if (filter) { mapsFilter = filter; mapsOpen = null; }
+        closeTopMenu();
         $('maps-export').hidden = true;
+        $('dev-ver').textContent = 'v' + (G3.VERSION || '?') + (G3.forge.maps().length ? ' \u00B7 batch ' + G3.forge.DATA.batch : '');
         drawMaps();
-        $('maps').className = 'modal show';
+        syncDevSwing();
+        $('dev-menu').className = 'modal show';
     }
-    function closeMaps() { if ($('maps')) $('maps').className = 'modal'; }
+    function closeDev() { if ($('dev-menu')) $('dev-menu').className = 'modal'; }
+    function syncDevSwing() {
+        var host = $('dev-styles'), wh = $('dev-where');
+        if (!host.children.length) {
+            STYLES.forEach(function (name) {
+                var b = document.createElement('button');
+                b.type = 'button'; b.dataset.v = name; b.textContent = STYLE_INFO[name].name;
+                b.title = STYLE_INFO[name].says;
+                b.addEventListener('click', function () { pickStyle(name); syncDevSwing(); });
+                host.appendChild(b);
+            });
+            TUNE_ROWS.forEach(function (r) {
+                if (r.key !== 'where') return;
+                r.opts.forEach(function (o) {
+                    var b = document.createElement('button');
+                    b.type = 'button'; b.dataset.v = o[0]; b.textContent = o[1];
+                    b.addEventListener('click', function () { setTune('where', o[0]); syncDevSwing(); });
+                    wh.appendChild(b);
+                });
+            });
+        }
+        Array.prototype.forEach.call(host.children, function (b) {
+            var on = b.dataset.v === styleWanted;
+            b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        Array.prototype.forEach.call(wh.children, function (b) {
+            var on = b.dataset.v === tune.where;
+            b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
     function drawMaps() {
         var F = G3.forge, save = state && state.save, all = F.notes(), host = $('maps-list');
         var here = playKeyHere();
         var rows = F.catalogue().map(function (e) { return { e: e, s: F.stats(e.key, save), n: all[e.key] || null }; });
         var played = rows.filter(function (r) { return r.s.plays > 0; });
-        var counts = { played: played.length, rated: 0, unsent: 0, all: rows.length };
+        var batch = rows.filter(function (r) { return r.e.kind === 'forge'; });
+        var counts = { batch: batch.length, played: played.length, rated: 0, unsent: 0, all: rows.length };
         rows.forEach(function (r) { if (r.n) { counts.rated++; if (!r.n.sent) counts.unsent++; } });
         var list = mapsFilter === 'played' ? played.slice().sort(function (a, b) {
             return (b.s.at || '').localeCompare(a.s.at || '') || b.s.plays - a.s.plays;
-        }) : mapsFilter === 'rated' ? rows.filter(function (r) { return r.n; })
+        }) : mapsFilter === 'batch' ? batch : mapsFilter === 'rated' ? rows.filter(function (r) { return r.n; })
             : mapsFilter === 'unsent' ? rows.filter(function (r) { return r.n && !r.n.sent; }) : rows;
         Array.prototype.forEach.call($('maps-filter').children, function (b) {
             var on = b.dataset.f === mapsFilter;
@@ -5324,17 +5318,28 @@
         played.forEach(function (r) { holes += r.s.plays; if (r.s.best !== null && r.s.best < r.e.par) under++; });
         $('maps-sub').textContent = played.length + ' of ' + rows.length + ' maps played \u00B7 ' + holes + ' holes finished \u00B7 ' +
             under + ' beaten under par \u00B7 ' + counts.rated + ' rated, ' + counts.unsent + ' not sent yet';
+        // The batch: play the next one without a verdict, or rate the hole being played.
+        var Lf = F.maps(), nx = F.nextUnrated(), tgt = rateTarget();
+        $('forge-play').hidden = !Lf.length;
+        $('forge-play').disabled = nx < 0;
+        $('forge-play').textContent = nx < 0 ? 'Batch ' + F.DATA.batch + ' all rated' : 'Play next unrated (' + (nx + 1) + ' of ' + Lf.length + ')';
+        $('forge-rate-now').hidden = !tgt;
+        if (tgt) $('forge-rate-now').textContent = (F.noteAt(tgt.key) ? 'Re-rate' : 'Rate') + ' this hole';
+        var ra = F.rateAll();
+        $('forge-all').classList.toggle('on', ra);
+        $('forge-all').setAttribute('aria-pressed', ra ? 'true' : 'false');
+        $('forge-all-n').textContent = F.released().length ? F.released().length + ' rated so far' : 'none rated yet';
         host.innerHTML = '';
         if (!list.length) {
             var none = document.createElement('li');
             none.className = 'ml-none';
-            none.textContent = mapsFilter === 'played' ? 'Nothing played yet on this device.' : mapsFilter === 'unsent' ? 'Every note has been sent.' : 'No ratings yet.';
+            none.textContent = mapsFilter === 'played' ? 'Nothing played yet on this device.' : mapsFilter === 'batch' ? 'No batch of new maps right now.' : mapsFilter === 'unsent' ? 'Every note has been sent.' : 'No ratings yet.';
             host.appendChild(none);
         }
         var group = null;
         list.forEach(function (r) {
             var e = r.e, s = r.s, n = r.n;
-            if (mapsFilter !== 'played' && e.group !== group) {
+            if (mapsFilter !== 'played' && mapsFilter !== 'batch' && e.group !== group) {
                 group = e.group;
                 var gh = document.createElement('li');
                 gh.className = 'ml-group'; gh.textContent = group;
@@ -5350,7 +5355,7 @@
             head.innerHTML = '<span class="ml-v ' + (n ? n.verdict : '') + (n && !n.sent ? ' new' : '') + '" title="' + (n ? verdictWord(n.verdict) + (n.sent ? ', sent' : ', not sent') : 'not rated') + '"></span>' +
                 '<span class="ml-name"><b></b><small></small></span>' +
                 '<span class="ml-par">P' + e.par + '</span><span class="ml-res">' + res + '</span>';
-            head.querySelector('b').textContent = e.label;
+            head.querySelector('b').textContent = (mapsFilter === 'batch' ? (batch.indexOf(r) + 1) + '. ' : '') + e.label;
             head.querySelector('small').textContent = mapsFilter === 'played' ? (e.kind === 'course' ? e.where : e.group + ' \u00B7 ' + e.where) : e.where;
             head.addEventListener('click', function () {
                 mapsOpen = mapsOpen === e.key ? null : e.key;
@@ -5403,7 +5408,7 @@
         play.className = 'primary'; play.textContent = 'Play';
         rate.textContent = n ? 'Re-rate' : 'Rate';
         play.addEventListener('click', function () {
-            closeMaps();
+            closeDev();
             if (e.kind === 'forge') G3.FORGE_COURSE = null;
             maybeAutoFullscreen();
             newRound(e.play[0], e.play[1]);
@@ -5463,7 +5468,7 @@
     function openForgeForm(then, target, back) {
         var here = rateTarget(), t = target || here, w = t && t.forge;
         if (!t) return false;
-        closeForge(); closeMaps(); closeTopMenu();
+        closeDev(); closeTopMenu();
         ffThen = then || null; ffTarget = t; ffBack = !!back;
         var old = G3.forge.noteAt(t.key), onIt = !!here && here.key === t.key;
         var holed = onIt && (state.phase === 'holed' || state.phase === 'finished');
@@ -5503,10 +5508,10 @@
         $('forge-form').className = 'modal';
         syncForgeChip();
         var then = ffThen; ffThen = null;
-        if (ffBack) { ffBack = false; openMaps(); return; }
+        if (ffBack) { ffBack = false; openDev(); return; }
         if (then) then();
         else if (state.course.isForge && state.holeIndex < state.course.holes.length - 1) nextHole();
-        else if (state.course.isForge) { toast('That was the last map in the batch \u2014 copy your feedback from New maps'); openForge(); }
+        else if (state.course.isForge) { toast('That was the last map in the batch \u2014 copy your feedback'); openDev('batch'); }
     }
 
     function unlockAllShopDev() {
@@ -8691,27 +8696,28 @@
         // Wrapped: openMenu takes the course to nudge towards, and a click
         // handler would otherwise hand it an Event.
         $('btn-courses').addEventListener('click', function () { openMenu(); });
-        // Dev mode, the last chip in ☰, and the forge it shows (forge.js).
-        if ($('btn-dev')) $('btn-dev').addEventListener('click', function () { setDev(!dev, false); });
-        if ($('btn-forge')) {
-            $('btn-forge').addEventListener('click', openForge);
-            $('forge-close').addEventListener('click', closeForge);
+        // Dev mode, the last chip in ☰: off, a tap turns it on; on, it opens the Dev menu.
+        if ($('btn-dev')) $('btn-dev').addEventListener('click', function () {
+            if (!dev) setDev(true, false);
+            openDev();
+        });
+        if ($('dev-menu')) {
             $('forge-play').addEventListener('click', function () { var i = G3.forge.nextUnrated(); if (i >= 0) playForge(i); });
-            $('forge-rate-now').addEventListener('click', function () { openForgeForm(null); });
-            $('forge-all').addEventListener('click', function () { G3.forge.setRateAll(!G3.forge.rateAll()); openForge(); });
-            $('forge-copy').addEventListener('click', function () { copyForge(false, $('forge-export')); });
-            $('forge-maps').addEventListener('click', openMaps);
+            $('forge-rate-now').addEventListener('click', function () { openForgeForm(null, null, true); });
+            $('forge-all').addEventListener('click', function () { G3.forge.setRateAll(!G3.forge.rateAll()); drawMaps(); });
             $('forge-clear').addEventListener('click', function () {
                 if (!window.confirm('Clear every rating saved in this browser? Copy them first if you have not.')) return;
-                G3.forge.clear(); syncForgeChip(); openForge();
+                G3.forge.clear(); syncForgeChip(); drawMaps();
             });
+            $('dev-unlock').addEventListener('click', unlockAllShopDev);
+            $('dev-reset').addEventListener('click', resetShopDev);
+            $('dev-off').addEventListener('click', function () { setDev(false, false); });
             $('ff-save').addEventListener('click', saveForgeForm);
             $('ff-later').addEventListener('click', function () {
                 $('forge-form').className = 'modal'; ffThen = null;
-                if (ffBack) { ffBack = false; openMaps(); }
+                if (ffBack) { ffBack = false; openDev(); }
             });
-            $('btn-maps').addEventListener('click', openMaps);
-            $('maps-close').addEventListener('click', closeMaps);
+            $('maps-close').addEventListener('click', closeDev);
             $('maps-copy').addEventListener('click', function () { copyForge(false, $('maps-export')); });
             $('maps-copy-all').addEventListener('click', function () { copyForge(true, $('maps-export')); });
             Array.prototype.forEach.call($('maps-filter').children, function (b) {
@@ -8947,9 +8953,7 @@
         if ($('about-close')) $('about-close').addEventListener('click', closeAbout);
         if ($('about')) $('about').addEventListener('click', function (e) { if (e.target === this) closeAbout(); });
         if ($('about-shop')) $('about-shop').addEventListener('click', function () { closeAbout(); openShop(); });
-        if ($('about-dev-unlock')) $('about-dev-unlock').addEventListener('click', unlockAllShopDev);
-        if ($('about-dev-reset')) $('about-dev-reset').addEventListener('click', resetShopDev);
-        if ($('about-dev-off')) $('about-dev-off').addEventListener('click', function () { setDev(false, false); });
+        if ($('about-dev-open')) $('about-dev-open').addEventListener('click', function () { closeAbout(); openDev(); });
         if ($('shop-dev-unlock-all')) $('shop-dev-unlock-all').addEventListener('click', unlockAllShopDev);
         if ($('shop-dev-reset')) $('shop-dev-reset').addEventListener('click', resetShopDev);
         syncDevUI();

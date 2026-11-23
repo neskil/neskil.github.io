@@ -4743,9 +4743,15 @@ and `forge-<id>` is one map. Forge rounds write no records.
 
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
-unlocks). With it on, a **New maps** chip shows. Its panel lists the batch
-with each map's verdict, and has **Play next unrated**, **Rate … now** for
-the hole being played, **Copy feedback** and **Clear ratings**. A forge
+unlocks). Off, a tap turns it on; on, it reads **Dev menu** with the build
+and what is waiting (`v1.212.0 · batch 1 3/10 · 2 to send`) and opens the
+**Dev menu**, where everything dev lives since v1.212.0 (the owner: "shouldn't
+there be a separate dev menu that it's all collected under?"): the build
+number, **Play next unrated**, **Rate this hole**, the maps list below with
+a **Batch** filter (the forge's maps in order), Copy, **Rate released maps
+too**, the dev swing styles and where they apply (out of the Swing pad, which
+is now the touch swing's for everyone), and the tools — unlock all balls,
+reset the dev unlocks, **Clear ratings**, turn dev mode off. A forge
 map is not left without a verdict: `nextHole` puts up the form first. The
 form asks for a verdict (Keep / Keep if fixed / Drop), Fun, Difficulty and
 Looks out of five, any of a dozen issue chips (`G3.forge.ISSUES`, each
@@ -4761,12 +4767,11 @@ The export lists these under RELEASED MAPS.
 **Played maps, stats and sent** (the owner, v1.211.0: "pick any map to
 feedback … copy the feedback at any point … mark feedback as sent
 (automatic when you copy it) … keep track of play stats … a very compact
-list of all maps played and results"). In dev mode a **Played maps** chip
-sits under New maps. Its panel is every map there is (`G3.forge.catalogue()`:
+list of all maps played and results"). The Dev menu's list is every map there is (`G3.forge.catalogue()`:
 the batch, each tour hole, each course hole — not Endless, which is made up
 as it is played), one line each: a verdict dot (ringed while not sent), name,
-where, par, plays, best against par and the average. Filters: Played (most
-recent first), Not sent, Rated, All. A tap opens the line: the hole's plan
+where, par, plays, best against par and the average. Filters: Batch, Played (most
+recent first), Not sent, All. A tap opens the line: the hole's plan
 (`minimap.render`), the last twelve cards, gave-ups, when it was last played,
 the rating and note, **Play** (straight into that hole) and **Rate** — the
 same form, for any map, played or not; it returns to the list.
