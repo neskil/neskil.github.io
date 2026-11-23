@@ -24,9 +24,10 @@
 // Each map records the settings it was made with (`gen`), and the recipe is
 // varied across the batch on purpose, so the owner's verdicts say which
 // settings make good holes.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { Worker, isMainThread, parentPort } from 'node:worker_threads';
-import { cpus } from 'node:os';
+import { cpus, homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -243,8 +244,9 @@ function pin(q, base, r) {
    all plain JavaScript, and it used to run on the one thread that also
    drives the browser. Now each patch's pin-and-vet goes to a pool of
    threads (this same file, run as a worker: it loads the game's modules on
-   its own), one per core less one. Most of a world's time is still the
-   browser's, loading and probing it (README → "The forge", Speed). */
+   its own), one per core less one. Since the ground became one render per
+   patch, these shots are most of a world's time (README → "The forge",
+   Speed). */
 function pinAndVet(cands, r) {
     const log = [];
     for (const c of cands) {
@@ -276,6 +278,7 @@ function onThread(task) {
     });
 }
 
+const T0 = Date.now();
 const tourWorlds = new Set(G3.portals.WORLDS.map((w) => w.place.world));
 let pool = G3.PORTAL_INDEX.filter((row) => !tourWorlds.has(row[0]) && !/\bspace\b/.test(row[5]));
 const R = rng(SEED);
@@ -284,7 +287,9 @@ if (one('--worlds')) { const want = one('--worlds').split(','); pool = want.map(
 
 const require = createRequire('/opt/');
 const { chromium } = require('playwright');
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// Launched the first time a world is not in the cache.
+let browser = null;
+const launch = () => browser || (browser = chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }));
 const made = [], tried = [];
 /* --keep b1-01,b1-02,…: those maps of the batch on disk are carried over as
    they are (renumbered in order at the end), and neither their worlds nor
@@ -298,16 +303,52 @@ if (one('--keep')) {
     pool = pool.filter((row) => !skip.has(row[0]));
     (old.passed || []).forEach((w) => tried.push([w, 'passed over in the batch kept from']));
 }
-let next = 0;
 
-async function forgeOne(row) {
-    const lean = LEAN[made.length % LEAN.length];
+/* The samples, kept on disk (README → "The forge", Speed). Only `W`, `L`,
+   `back`, `d`, `ahead` and `scaleK` change what is sampled; everything else
+   in the recipe acts on a patch already sampled. So each world is sampled
+   once, at the longest `L` any lean asks for, and cropped to each lean's;
+   the sample is kept under a key made of those numbers, the headings and
+   points along the flight, and the source of backdrop.mjs and
+   forge-sample.mjs (either changed is a new sample). A second batch, or a
+   second try at one with the recipe moved, skips the browser for every
+   world it has seen. `--cache <dir>` puts it elsewhere, `--no-cache`
+   neither reads nor writes it. */
+const GROUND = one('--ground', 'render');
+const SAMPLE_L = Math.max(...LEAN.map((l) => Math.round(RECIPE.L * l.L)));
+const CACHE = args.includes('--no-cache') ? null : one('--cache', join(homedir(), '.cache', 'loft-links-forge'));
+const SRC = createHash('sha1').update(readFileSync(join(js, 'backdrop.mjs'))).update(readFileSync(join(here, 'forge-sample.mjs'))).digest('hex');
+const stats = { cached: 0, sampled: 0, load: 0, ground: 0, stood: 0 };
+async function sampled(world) {
+    const R = {
+        us: [0.2, 0.35, 0.5, 0.65, 0.8], turns: [-0.5, 0, 0.5], ahead: RECIPE.ahead,
+        W: RECIPE.W, L: SAMPLE_L, back: RECIPE.back, d: RECIPE.d, scaleK: RECIPE.scaleK, ground: GROUND
+    };
+    const key = createHash('sha1').update(JSON.stringify([world, R, SRC])).digest('hex').slice(0, 16);
+    const file = CACHE && join(CACHE, world + '-' + key + '.json');
+    if (file && existsSync(file)) { stats.cached++; return JSON.parse(readFileSync(file, 'utf8')); }
+    const s = await samplePatches(await launch(), world, R);
+    if (s.error) return s;
+    stats.sampled++;
+    for (const k of ['load', 'ground', 'stood']) stats[k] += s.t[k] || 0;
+    if (file) { mkdirSync(CACHE, { recursive: true }); writeFileSync(file, JSON.stringify(s)); }
+    return s;
+}
+// A patch sampled long, cut to `L`: its rows run from the tee's back edge up
+// the line of play, so the first rows are the shorter patch.
+function crop(q, L) {
+    const nz = Math.round((L + q.back) / q.d) + 1;
+    if (nz >= q.nz) return Object.assign({}, q);
+    const n = nz * q.nx, h = q.h.slice(0, n);
+    return Object.assign({}, q, { nz, h, stood: q.stood && q.stood.slice(0, n), miss: h.filter((x) => x === null).length });
+}
+
+async function forgeOne(row, li) {
+    const lean = LEAN[li];
     const r = Object.assign({}, RECIPE, { L: Math.round(RECIPE.L * lean.L), relief: +(RECIPE.relief * lean.relief).toFixed(2) });
-    const s = await samplePatches(browser, row[0], {
-        us: [0.2, 0.35, 0.5, 0.65, 0.8], turns: [-0.5, 0, 0.5], ahead: r.ahead,
-        W: r.W, L: r.L, back: r.back, d: r.d, scaleK: r.scaleK
-    });
+    const s = await sampled(row[0]);
     if (s.error) return { why: 'load: ' + s.error };
+    s.patches = s.patches.map((q) => crop(Object.assign(q, { back: -q.z0 }), r.L));
     // Every patch baked and scored; the ones that pass are tried for a pin, best first.
     const scored = [];
     for (const q of s.patches) {
@@ -322,11 +363,9 @@ async function forgeOne(row) {
     if (!scored.length) return { why: 'no patch: ' + s.patches.length + ' sampled, none with relief ' + r.reliefMin + '–' + r.reliefMax + ' and slope ≤ ' + r.maxSlope };
     scored.sort((a, b) => a.sc - b.sc);
     const top = scored.slice(0, 3), got = await onThread({ cands: top.map((c) => ({ q: c.q, b: c.b })), r });
-    got.log.forEach((l) => console.log(`  ${row[0]}: ${l}`));
+    const log = got.log.map((l) => `  ${row[0]}: ${l}`);
     if (got.i >= 0) {
         const c = top[got.i], q = c.q, map = got.map, p = { m: got.m };
-        const idx = made.length + 1, id = 'b' + BATCH + '-' + String(idx).padStart(2, '0');
-        map.id = id;
         map.title = row[1];
         map.par = p.m.bot <= 2 ? 3 : 4;
         map.at = { x: +q.ox.toFixed(2), z: +q.oz.toFixed(2), y: +c.b.y0.toFixed(2), yaw: +q.yaw.toFixed(4), scale: +q.scale.toFixed(3) };
@@ -337,27 +376,45 @@ async function forgeOne(row) {
         map.gen = { L: r.L, relief: r.relief, got: +c.rel.toFixed(2), slope: +c.sl.toFixed(2), u: q.u, turn: q.turn, scale: +q.scale.toFixed(2), smooth: r.smooth, clutter: c.b.clutter.reduce((a, x) => a + x, 0) };
         if (c.b.covered) map.gen.covered = true;
         map.metrics = { bot: p.m.bot, ace: +(p.m.share * 100).toFixed(3), straight: p.m.straight };
-        return { map };
+        return { map, log };
     }
-    return { why: 'no pin: ' + scored.length + ' patches passed, no cup with a clear line that the bot holes in three' };
+    return { why: 'no pin: ' + scored.length + ' patches passed, no cup with a clear line that the bot holes in three', log };
 }
 
-async function worker() {
-    while (made.length < COUNT && next < pool.length) {
-        const row = pool[next++];
-        const t0 = Date.now();
-        const res = await forgeOne(row);
-        if (res.map && made.length < COUNT) {
-            made.push(res.map);
-            console.log(`✓ ${res.map.id} ${row[0]} — par ${res.map.par}, bot ${res.map.metrics.bot}, ace ${res.map.metrics.ace}%, relief ${res.map.gen.got} (${Math.round((Date.now() - t0) / 1000)}s)`);
-        } else if (!res.map) {
-            tried.push([row[0], res.why]);
-            console.log(`✗ ${row[0]} — ${res.why}`);
-        }
+/* Three worlds are worked at once, but kept in the pool's order, so a batch
+   is the same however long each world takes (and whether it came from the
+   cache). A map's lean is the next one the batch needs when its world's turn
+   comes, as if the worlds were done one at a time. A world started early is
+   started on the lean it would get if every world still in hand before it
+   failed, which most do; if one of them makes a map instead, the world is
+   done again on the right lean. Until batch 2's speed work the lean was
+   taken when a world started, so which world got which lean depended on
+   which finished first, and a faster run made a different batch. */
+const inHand = new Map();
+let startAt = 0;
+const begin = (k) => {
+    const li = made.length % LEAN.length, t0 = Date.now();
+    inHand.set(k, forgeOne(pool[k], li).then((res) => ({ res, li, t0 }), (e) => ({ res: { why: 'error: ' + String(e.message || e).slice(0, 120), log: [] }, li, t0 })));
+};
+for (let at = 0; made.length < COUNT && at < pool.length; at++) {
+    while (startAt < pool.length && startAt < at + 3) begin(startAt++);
+    const row = pool[at];
+    let { res, li, t0 } = await inHand.get(at);
+    inHand.delete(at);
+    if (li !== made.length % LEAN.length) { t0 = Date.now(); res = await forgeOne(row, made.length % LEAN.length); }
+    (res.log || []).forEach((l) => console.log(l));
+    if (res.map) {
+        res.map.id = 'b' + BATCH + '-' + String(made.length + 1).padStart(2, '0');
+        made.push(res.map);
+        console.log(`✓ ${res.map.id} ${row[0]} — par ${res.map.par}, bot ${res.map.metrics.bot}, ace ${res.map.metrics.ace}%, relief ${res.map.gen.got} (${Math.round((Date.now() - t0) / 1000)}s)`);
+    } else {
+        tried.push([row[0], res.why]);
+        console.log(`✗ ${row[0]} — ${res.why}`);
     }
 }
-await Promise.all([worker(), worker(), worker()]);
-await browser.close();
+// Worlds started past the last one needed are let finish, and not counted.
+await Promise.all(inHand.values());
+if (browser) await (await browser).close();
 idle.forEach((w) => w.terminate());
 
 made.sort((a, b) => a.id.localeCompare(b.id));
@@ -372,4 +429,5 @@ window.G3.FORGE = ${JSON.stringify({ batch: BATCH, recipe: RECIPE, maps: made, p
 const dest = one('--out', join(js, 'forge-maps.js'));
 writeFileSync(dest, out);
 console.log(`wrote ${dest}: batch ${BATCH}, ${made.length} maps (${tried.length} worlds passed over)`);
+console.log(`browser: ${stats.sampled} worlds sampled (load ${Math.round(stats.load / 1000)}s, ground ${Math.round(stats.ground / 1000)}s, stood ${Math.round(stats.stood / 1000)}s, summed over pages), ${stats.cached} from the cache; ${Math.round((Date.now() - T0) / 1000)}s in all`);
 }

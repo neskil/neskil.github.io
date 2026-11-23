@@ -4699,10 +4699,11 @@ hole in each world). `tools/forge.mjs`:
    game in headless Chromium, by borrowing the `carnival` tour hole's page
    and swapping its world with a request intercept, so nothing on disk
    changes. The world's scale comes from `backdrop.mjs → autoScale`'s rule
-   (how fast and how high its flight goes). Then the ground
-   (`G3.backdrop.groundAt`) is read over a rectangle of the hole's own units
-   ahead of the flight: five points along it and three headings at each
-   (straight on, and half a radian either side). Each patch is also drawn
+   (how fast and how high its flight goes). Then the ground is read over a
+   rectangle of the hole's own units ahead of the flight: five points along
+   it and three headings at each (straight on, and half a radian either
+   side), from one render of the patch (see **Speed** below; it keeps the
+   rules of `G3.backdrop.groundAt`, which used to be called per cell). Each patch is also drawn
    from straight above, orthographic, and its depth read back: `stood` is
    the height of whatever stands on each cell (see **Clutter** below).
 2. **Choose.** Each patch is baked into golf units (`recipe.smooth` passes
@@ -4773,27 +4774,73 @@ covered. That is stricter than the owner's
 play may bear out: where a turned-down map is rated well with no `clip`,
 loosen `stand`, `lane` or `bump` rather than keep the rule.
 
-**Speed.** Pinning and vetting is tens of thousands of simulated shots in
-plain JavaScript, and until batch 2 it ran on the one thread that also
-drove the browser. It now runs on a pool of worker threads (`forge.mjs` run
-as a worker loads the game's modules itself), one per core less one
-(`--threads`). That is not where the time goes, though: a dry run of three
-worlds took six minutes, of which the shots were under a minute. The rest is
-the browser loading each world on SwiftShader and probing its ground, a
-raycast per cell of fifteen patches against meshes with no spatial index.
-That is the part to make faster next (one depth render per patch, as
-`stood` already does, rather than a raycast per cell), and it needs care,
-because the ray's rules for what counts as ground (`groundUnder`) would
-have to be kept.
+**Speed.** A world used to take four minutes, nearly all of it the ground:
+`groundAt` once per cell, a raycast against meshes with no spatial index, for
+fifteen patches of 1,400 to 3,000 cells (storm-savanna: 234 s of ground, 8 s
+of `stood`, 6 s to load). What changed, in the order it paid:
+
+- **The ground is one render per patch** (`forge-sample.mjs → rendered`):
+  the world drawn from straight above, orthographic, one pixel a cell centred
+  on it, each fragment writing its world height to a float target, the depth
+  test keeping the nearest. `groundUnder`'s rules are kept by what is drawn
+  and what is discarded: only meshes that are not skinned, instanced, hidden,
+  `BackSide`, depth-less transparent or under 30 in bounding radius; faces as
+  the ray finds them (front only, or both for `DoubleSide`), a back face or one
+  whose normal points less than 0.3 up discarded, so what is under it shows,
+  as the ray `continue`s; the camera at the flight's height, where the ray
+  starts. Under a second a world instead of minutes. `--ground both` checks it
+  cell by cell against the raycast: over five worlds and twenty patches all
+  but about one cell in a hundred agree within 0.002 golf units, and the
+  larger misses are cells lying exactly on a triangle's edge, which the ray
+  counts and the rasteriser does not. `--ground ray` is the old way.
+- **The samples are kept on disk** (`~/.cache/loft-links-forge`, outside the
+  repo; `--cache <dir>`, `--no-cache`). Only `W`, `L`, `back`, `d`, `ahead`
+  and `scaleK` change what is sampled, so each world is sampled once at the
+  longest `L` any lean asks for and cropped to each lean's, under a key of
+  those numbers and the source of `backdrop.mjs` and `forge-sample.mjs`. A
+  second batch, or a recipe move, starts no browser for a world seen before.
+  The one thing a crop can change is `stood`, whose camera sits `CEIL` over
+  the highest ground of the whole sample rather than of the crop: a canopy
+  between the two heights now counts. No dry run showed it.
+- **The pinning and vetting run on worker threads** (`forge.mjs` run as a
+  worker loads the game's modules itself), one per core less one
+  (`--threads`). Those tens of thousands of simulated shots are most of a
+  world's time now.
+- **A batch comes out the same however fast its worlds go.** Three worlds
+  are worked at once but committed in the pool's order, and a map's lean is
+  the next one the batch needs when its world's turn comes, as if they were
+  done one at a time. A world started early takes the lean it would get if
+  every world still in hand before it failed, which most do; when one makes a
+  map instead, it is done again on the right lean. Until this, the lean was
+  taken when a world *started*, so it depended on which world finished first:
+  the first cached run made a different batch from the same samples, and the
+  leans were not even covered (one dry batch had 18/0.96 twice and missed
+  others).
+
+Dry runs of three worlds on a four-core box, old against new: 3 min 25 s →
+45 s (storm-savanna, still-on-the-sprue, glass-painted-fleet), 4 min 8 s →
+1 min 14 s (chambered-sun, flinching-forest, the-fire-comes-round, `L` 32).
+Each made the same maps: the same patch, anchor, tee, cup, par and metrics,
+the grid within 0.012 golf units. A full dry batch of twelve took 18 to 19½
+minutes from nothing (three runs). It tried 85 worlds to find twelve, where
+batch 1 took 48, because the clutter rules turn more down; on the raycast
+that is about two hours. From the cache the same batch took about four
+minutes, all of it shots, and the two cached runs and a fresh one made the
+same twelve maps. What is left in the browser
+is each world's own build (4 to 10 s alone, about 20 s with three pages on
+four cores) and `stood` (1 to 11 s). Loading less was measured and did not pay:
+blocking fonts, analytics and every other host, the lowest quality tier and
+`G3.backdrop.hurry()` each moved a load by less than the noise between runs.
 
 ```sh
 python3 -m http.server 8899                                # repo root
-node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js, ~40 min
+node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js
 node golf3d/tools/forge.mjs --batch 2 --recipe '{"relief":1.2,"smooth":3}'
 node golf3d/tools/forge.mjs --batch 2 --keep b2-01,b2-04   # keep these, forge the rest
 node golf3d/tools/forge.mjs --batch 2 --count 2 --out /tmp/try.js   # a dry run
 node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
 node golf3d/tools/forge-sample.mjs still-on-the-sprue --u 0.35 --turn -0.5 --d 0.5 --map   # what stands on one
+node golf3d/tools/forge-sample.mjs storm-savanna --d 0.5 --ground both    # the render against the raycast
 ```
 
 **The holes** are data in `js/forge-maps.js` (generated: the grid, the
