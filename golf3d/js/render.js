@@ -5236,7 +5236,54 @@
         }
     }
 
+    /* A pond on a world's own ground (`w.grid`: the baked grid of a forged
+       or sculpted hole, forge.js). The world draws its ground, so there is
+       nothing to hold the water in and nothing to stand a box in: what is
+       drawn is the surface alone, cut to the waterline — every cell's two
+       triangles clipped to where the ground is under the water, the edge
+       found along each side by where the height crosses the level. So the
+       pond is the shape of its hollow, as the ball finds it (physics drowns
+       only where the ground is under the level), and not the rectangle that
+       bounds it (the owner's first look at one: a box of water standing in
+       front of the tee). */
+    function addPondOnGrid(group, w, theme) {
+        var G = w.grid, pos = [], i, k;
+        function corner(ci, ck) {
+            var x = G.x0 + ci * G.d, z = G.z0 + ck * G.d;
+            return [x, z, w.y - G.h[ck * G.nx + ci]];
+        }
+        function clip(tri) {
+            var out = [], j, a, b, t;
+            for (j = 0; j < 3; j++) {
+                a = tri[j]; b = tri[(j + 1) % 3];
+                if (a[2] > 0) out.push(a);
+                if ((a[2] > 0) !== (b[2] > 0)) {
+                    t = a[2] / (a[2] - b[2]);
+                    out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0]);
+                }
+            }
+            for (j = 1; j + 1 < out.length; j++) {
+                pos.push(out[0][0], w.y, out[0][1], out[j + 1][0], w.y, out[j + 1][1], out[j][0], w.y, out[j][1]);
+            }
+        }
+        for (k = 0; k < G.nz - 1; k++) for (i = 0; i < G.nx - 1; i++) {
+            var cx = G.x0 + (i + 0.5) * G.d, cz = G.z0 + (k + 0.5) * G.d;
+            if (cx < w.x - G.d || cx > w.x + w.w + G.d || cz < w.z - G.d || cz > w.z + w.d + G.d) continue;
+            var a = corner(i, k), b = corner(i + 1, k), c = corner(i + 1, k + 1), d = corner(i, k + 1);
+            if (a[2] <= 0 && b[2] <= 0 && c[2] <= 0 && d[2] <= 0) continue;
+            clip([a, b, c]); clip([a, c, d]);
+        }
+        if (!pos.length) return;
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        var mesh = new THREE.Mesh(geo, waterMaterial(theme, { alpha: 0.8 }));
+        // A hair over the level, so it does not fight the world's ground at the shore.
+        mesh.position.y = 0.01;
+        group.add(mesh);
+    }
+
     function addWater(group, w, theme) {
+        if (w.grid) { addPondOnGrid(group, w, theme); return; }
         /* A box rather than a plane: the pads reach down to the surrounding
            ground, so a pond between two of them is a filled channel, and a
            sheet floating in the gap would read as a decal. Only the top face
@@ -9364,7 +9411,28 @@
         };
     }
 
+    /* Where the top of the flag is on the screen, in the canvas's CSS
+       pixels, for game.js's pin tag (the owner, on the forge's maps:
+       "couldn't see where the hole was … show where the flag is by some
+       means"). `ahead` is false when it is behind the camera; then x, y are
+       the direction to it, mirrored, so an arrow at the edge still points
+       the right way round. Null before a hole is built. */
+    var _pinPt = null;
+    function pinScreen() {
+        if (!R.pin || !R.camera || !R.renderer) return null;
+        if (!_pinPt) _pinPt = new THREE.Vector3();
+        var el = R.renderer.domElement, w = el.clientWidth, h = el.clientHeight;
+        _pinPt.set(0, 2.25, 0);
+        R.pin.localToWorld(_pinPt);
+        var dist = R.camera.position.distanceTo(_pinPt);
+        _pinPt.project(R.camera);
+        var ahead = _pinPt.z < 1;
+        var nx = ahead ? _pinPt.x : -_pinPt.x, ny = ahead ? _pinPt.y : -_pinPt.y;
+        return { x: (nx + 1) / 2 * w, y: (1 - ny) / 2 * h, w: w, h: h, ahead: ahead, dist: dist };
+    }
+
     G3.render = {
+        pinScreen: pinScreen,
         setBallColour: setBallColour,
         setBallStyle: setBallStyle,
         createBallPreview: createBallPreview,

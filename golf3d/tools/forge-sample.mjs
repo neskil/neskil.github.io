@@ -147,7 +147,7 @@ export async function samplePatches(browser, world, recipe) {
 if (import.meta.url === 'file://' + process.argv[1]) {
     const world = process.argv[2], one = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
     const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-    const r = await samplePatches(b, world, { us: one('--u', '0.3,0.5,0.7').split(',').map(Number), turns: one('--turn', '0').split(',').map(Number), ahead: 3, W: 16, L: +one('--L', 24), back: 3, d: +one('--d', 1), scaleK: 1 });
+    const r = await samplePatches(b, world, { us: one('--u', '0.3,0.5,0.7').split(',').map(Number), turns: one('--turn', '0').split(',').map(Number), ahead: 3, W: +one('--W', 16), L: +one('--L', 24), back: 3, d: +one('--d', 1), scaleK: 1 });
     await b.close();
     if (r.error) { console.log(r.error); process.exit(1); }
     console.log(world, 'scale', r.scale.toFixed(2));

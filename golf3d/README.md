@@ -57,7 +57,7 @@ them.
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/forge.js`, `js/forge-maps.js` | [The forge](#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode): new tour holes made by `tools/forge.mjs` from Portals worlds' own ground (`forge-maps.js`, generated), built and kept here with the owner's verdicts on them (localStorage, dev mode). Loaded after `endless.js`. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-three holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-four holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -4791,10 +4791,80 @@ python3 -m http.server 8899                                # repo root
 node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js, ~40 min
 node golf3d/tools/forge.mjs --batch 2 --recipe '{"relief":1.2,"smooth":3}'
 node golf3d/tools/forge.mjs --batch 2 --keep b2-01,b2-04   # keep these, forge the rest
+node golf3d/tools/forge.mjs --batch 3 --first a,b --skip c,d   # these worlds first; never those
 node golf3d/tools/forge.mjs --batch 2 --count 2 --out /tmp/try.js   # a dry run
 node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
 node golf3d/tools/forge-sample.mjs still-on-the-sprue --u 0.35 --turn -0.5 --d 0.5 --map   # what stands on one
 ```
+
+**Batch 2: the recipe after batch 1's verdicts** (v1.212.0). Batch 1 came
+back one keep, six "keep if fixed" and three drops, and every one of the ten
+was rated difficulty 1. Nine said `short`, eight `flat`, and the notes said the
+same thing five times over: "great potential for long game", "have some
+hazard so it's some kind of challenge / strategy", "the sprites of the sides
+could be out of bounds". The keep (b1-03, Storm over the Savanna) had the
+most relief of the batch (2.36) and the drops were the flattest (b1-04
+0.07 slope, b1-08). So:
+
+- **Long-game holes.** `long: true`: the full bag, par by length (`parFor`:
+  under 28 units a three, under 60 a four), a six-unit green. `L` 24 → 56 and
+  `W` 16 → 24, sampled a unit apart instead of half (so a patch costs what it
+  did). `relief` 1.6 → 3, `reliefMin` 0.5 → 1.2, `reliefMax` 4.5 → 8. A long
+  cup is chosen for the perfect bot one under par and for `risk`, not for
+  an ace share.
+- **Hazards.** `pond` (0.08): the lowest part of the patch, off the tee and
+  the green, is flooded at one level (`ponds()`), and only when there is a
+  hollow lower than the tee to flood. `outs`: whatever of the world's stands
+  on the hole is out of bounds where a ball *stops* (`hole.outGrid`,
+  `physics.outCell`): it may be flown or rolled across, as a white stake
+  may, but a ball resting in a trunk is played again. `risk` (0.25): the
+  share of tee shots fanned ±30° round the line that should end wet or out.
+  On a long hole the line itself may cross the world's things (it is flown
+  over them); the tee and the green must be clear.
+- **The tee moves.** It was always at the patch's origin, the point ahead of
+  the flight; Sea of Wax had a hull standing there on every patch. Now it is
+  the first clear spot across the near end.
+- **`turnCost`** (0.6 a radian): both batch-1 `camera` complaints were on
+  turned patches, so a patch off the flight's heading pays for it.
+- **`smoothHard`** (8): a world whose every patch is too steep at two passes
+  is baked once more at eight before it is passed over (Sea of Wax, rated
+  "bumpy … great potential").
+- `bump` 0.1 → 0.4 because it is in raw units and scales with `d`².
+
+The six "keep if fixed" worlds were forged first (`--first`) and the three
+drops never again (`--skip`): flinching-forest, sea-sets-in-shade and
+the-fire-comes-round came back as long holes; wind-draws-the-namib,
+fireworks-under-the-wash and glass-painted-fleet found no patch steep enough
+and smooth enough at that length. A pond is drawn to its waterline on the
+grid, not as the box a drawn hole's water is (`render.js → addPondOnGrid`).
+
+**Finishing by hand** (`tools/forge-finish.mjs`, the owner: "there is going
+to have to be some manual work and looping based on my feedback, but the
+more tools you build to make that loop efficient is good"). The forge gets a
+hole most of the way; what a verdict asks for after that is nearly always a
+move of the tee, the cup or the water. This does those moves on a forged
+map's own grid, levels the new green into it, floods the hollows to a
+level, measures the result as the forge does (the bot five times, the ace
+share from the tee, the share of tee shots wet or out, the vet), prints a
+plan of it, and with `--tour <id>` writes the grid into `tour-ground.js` and
+prints the `PLACES` entry and the pads for `portals.js`. No browser: a few
+seconds a try, so a cup can be walked round a slope until the numbers are
+right. The Rain Pond was made with it:
+
+```sh
+node golf3d/tools/forge-finish.mjs b1-03 --map                       # as forged: bot 1, the cup on the basin floor
+node golf3d/tools/forge-finish.mjs b1-03 --cup -4,15 --pond 0.5 --green 1.5   # 31% of tee shots wet
+node golf3d/tools/forge-finish.mjs b1-03 --cup -4,15 --pond 0.5 --green 1.5 --tour savanna
+node golf3d/tools/forge-finish.mjs b2-04 --from js/forge-maps.js --pond auto
+```
+
+**Where the flag is.** Nothing is painted on a sculpted hole with its world
+on screen, and a flagstick forty units off in a busy world is a hair (batch
+1: `edges` twice, and "show where the flag is by some means"). On those holes
+a brass tag stands over the flag with the distance on it, and waits at the
+screen's edge pointing when the flag is out of view (`game.js →
+syncPinTag`, `render.pinScreen`). Close to the flag, with it in view, the
+tag goes.
 
 **The holes** are data in `js/forge-maps.js` (generated: the grid, the
 `place.at` anchor, tee, cup, par, `gen`, `metrics`), built by `js/forge.js`

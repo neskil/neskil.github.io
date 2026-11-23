@@ -45,13 +45,33 @@ const BATCH = +one('--batch', 1), COUNT = +one('--count', 12), SEED = +one('--se
    go in), `scaleK` (multiplies the world's own scale: bigger is a smaller
    hole in the world). */
 const RECIPE = Object.assign({
-    relief: 1.6, reliefMin: 0.5, reliefMax: 4.5, maxSlope: 0.55, smooth: 2,
-    L: 24, W: 16, back: 3, d: 0.5, ahead: 3, ace: 0.003, scaleK: 1, strip: 4,
+    // Batch 2 (from batch 1's feedback, README → "The forge", Batch 2): every
+    // map of ten was rated difficulty 1 and nine `short`, five asked for
+    // "the long game" and two for a hazard. So the holes are long-game holes
+    // now (`long`: the full bag, par by length), three times the length and
+    // half as wide again, sampled a unit apart (the cost of a patch stays
+    // what it was), with twice the relief.
+    relief: 3, reliefMin: 1.2, reliefMax: 8, maxSlope: 0.55, smooth: 2,
+    L: 56, W: 24, back: 3, d: 1, ahead: 3, ace: 0.003, scaleK: 1, strip: 5,
+    long: true,
     // Clutter (since batch 2): `stand` is how tall a thing standing on the
     // ground may be (golf units) before it counts, `bump` how far the raw
     // ground may stand off its own smoothing, and `lane` how wide either side
     // of the tee-to-cup line has to be clear of both. See `clutter()`.
-    stand: 0.15, bump: 0.1, lane: 1.5
+    // `bump` is in raw golf units, and scales with the square of `d`: 0.1 was
+    // set at d 0.5, so 0.4 at d 1.
+    stand: 0.15, bump: 0.4, lane: 1.2,
+    // Hazards (batch 2: "have some hazard … so it's some kind of challenge /
+    // strategy", "the sprites of the sides could be out of bounds"):
+    // `pond` is the share of the patch flooded in its hollows (`ponds()`);
+    // `outs` makes whatever of the world's stands on the hole off the line
+    // out of bounds, so a ball that stops among the trees is replayed rather
+    // than rolled through them; `risk` is the share of tee shots fanned
+    // round the line that should end wet or out — the hazards in play.
+    pond: 0.08, outs: true, risk: 0.25, smoothHard: 8,
+    // `turnCost`: a patch off the flight's heading pays this per radian
+    // (batch 1's `camera` issues were both on turned patches).
+    turnCost: 0.6
 }, JSON.parse(one('--recipe', '{}')));
 // …and how each map of the batch leans off it, so a verdict can be read
 // against a setting: four lengths, three reliefs.
@@ -61,6 +81,12 @@ const LEAN = [
     { L: 0.75, relief: 1 }, { L: 1, relief: 1.5 }, { L: 1.25, relief: 0.6 },
     { L: 1, relief: 1 }, { L: 0.75, relief: 1.5 }, { L: 1.25, relief: 1 }
 ];
+// Par by length for a long-game hole (CONFIG.CLUBS: a driver runs about
+// forty units), as the drawn long courses have it.
+function parFor(tee, cup) {
+    const d = Math.hypot(cup.x - tee.x, cup.z - tee.z);
+    return d < 28 ? 3 : d < 60 ? 4 : 5;
+}
 
 // The game's own modules, for building and measuring the holes.
 const ctx = { console, Math, performance: { now: () => Date.now() }, localStorage: null };
@@ -96,7 +122,7 @@ function bake(q, r) {
     let h = raw;
     for (let n = 0; n < r.smooth; n++) h = blur(h, q.nx, q.nz);
     const cl = clutter(q, raw, r);
-    return { h, y0: lo - 0.1 * q.scale, clutter: cl.mask, covered: cl.covered };
+    return { h, y0: lo - 0.1 * q.scale, clutter: cl.mask, standing: cl.standing, covered: cl.covered };
 }
 /* Where the ball would roll through the world's things. Two kinds, and the
    ground probe sees neither as an obstacle — the ball can hit nothing of the
@@ -119,8 +145,9 @@ function clutter(q, raw, r) {
     for (let n = 0; n < 2; n++) sm = blur(sm, q.nx, q.nz);
     const stood = q.stood ? q.stood.filter((x) => x >= r.stand).length : 0;
     const covered = stood > raw.length / 2;
-    const mask = Uint8Array.from(raw, (x, k) => ((!covered && q.stood && q.stood[k] >= r.stand) || Math.abs(x - sm[k]) >= r.bump) ? 1 : 0);
-    return { mask, covered };
+    const standing = Uint8Array.from(raw, (x, k) => (!covered && q.stood && q.stood[k] >= r.stand) ? 1 : 0);
+    const mask = Uint8Array.from(raw, (x, k) => (standing[k] || Math.abs(x - sm[k]) >= r.bump) ? 1 : 0);
+    return { mask, standing, covered };
 }
 // Is the way from tee to cup clear: the lane along the line, the tee's pad and the green?
 function clearLine(mask, g, tee, cup, r) {
@@ -129,8 +156,12 @@ function clearLine(mask, g, tee, cup, r) {
         if (!mask[k * g.nx + i]) continue;
         const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
         const t = Math.max(0, Math.min(1, ((x - tee.x) * ax + (z - tee.z) * az) / L2));
-        if (Math.hypot(x - tee.x - ax * t, z - tee.z - az * t) <= r.lane) return false;
-        if (Math.hypot(x - cup.x, z - cup.z) <= 2.6 || Math.hypot(x - tee.x, z - tee.z) <= 1.6) return false;
+        /* A long hole is played over the world's things, not along the
+           floor between them (batch 2: Flinching Forest has a tree within a
+           unit of every straight forty-unit line), and they are out of
+           bounds there (`outs`): only its tee and its green must be clear. */
+        if (!r.long && Math.hypot(x - tee.x - ax * t, z - tee.z - az * t) <= r.lane) return false;
+        if (Math.hypot(x - cup.x, z - cup.z) <= (r.long ? 2.2 : 2.6) || Math.hypot(x - tee.x, z - tee.z) <= (r.long ? 1.2 : 1.6)) return false;
     }
     return true;
 }
@@ -158,20 +189,78 @@ function heightAt(h, g, gx, gz) {
 }
 const round = (h, p) => Array.from(h, (x) => +x.toFixed(p));
 
+/* Water in the hollows (batch 2). The lowest `share` of the patch is
+   flooded, at one level, so long as the tee and the green stay dry with a
+   margin round them and the hollow is deep enough to read as water (a
+   fifth of a unit). The water is one rectangle over every flooded cell at
+   that level: the ball drowns only where the ground is under it, so a dry
+   rise inside the rectangle stays dry, and on the world the plane shows
+   only where its ground dips below it — a pond, not a sheet. */
+function ponds(h, g, tee, cup, share, greenR) {
+    if (!share) return null;
+    const keep = [], low = [];
+    for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+        const x = g.x0 + i * g.d, z = g.z0 + k * g.d, v = h[k * g.nx + i];
+        if (Math.hypot(x - tee.x, z - tee.z) < 4 || Math.hypot(x - cup.x, z - cup.z) < greenR + 2.5) keep.push(v);
+        else low.push(v);
+    }
+    if (!low.length) return null;
+    low.sort((a, b) => a - b);
+    let lvl = low[Math.min(low.length - 1, Math.floor(h.length * share))];
+    lvl = Math.min(lvl, Math.min(...keep) - 0.15);
+    if (lvl - low[0] < 0.2) return null;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, n = 0;
+    for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+        if (h[k * g.nx + i] >= lvl) continue;
+        const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); n++;
+    }
+    if (n < 6) return null;
+    const e = g.d / 2;
+    return { rect: [+(x0 - e).toFixed(2), +(z0 - e).toFixed(2), +(x1 - x0 + 2 * e).toFixed(2), +(z1 - z0 + 2 * e).toFixed(2), +lvl.toFixed(3)], cells: n };
+}
+// The world's things off the line, as out-of-bounds cells (sparse indices into the grid).
+function outsOf(standing, g, tee, cup, greenR) {
+    if (!standing) return [];
+    const out = [];
+    for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+        if (!standing[k * g.nx + i]) continue;
+        const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
+        if (Math.hypot(x - tee.x, z - tee.z) < 1.2 || Math.hypot(x - cup.x, z - cup.z) < 2.2) continue;
+        out.push(k * g.nx + i);
+    }
+    return out;
+}
+
 /* ── pinning it ───────────────────────────────────────────────────── */
 
-function strips(tee, cup, w) {
+function strips(tee, cup, w, gr) {
+    gr = gr || 1.3;
     // One strip from the tee half way, one from there to short of the green:
     // two rectangles, which the paint (render.js decals, six at most) draws.
     const mx = (tee.x + cup.x) / 2, mz = (tee.z + cup.z) / 2, half = w / 2;
     const a = [Math.min(tee.x, mx) - half, tee.z + 1, Math.max(tee.x, mx) + half, mz];
-    const b = [Math.min(mx, cup.x) - half, mz, Math.max(mx, cup.x) + half, cup.z - 1.4];
+    const b = [Math.min(mx, cup.x) - half, mz, Math.max(mx, cup.x) + half, cup.z - gr - 0.1];
     return [a, b].filter((r) => r[3] - r[1] > 0.5).map((r) => r.map((x) => +x.toFixed(2)));
 }
 function measure(map) {
     const h = G3.forge.holeOf(map), bag = G3.bagFor(h);
     const bot = G3.bot.play(h, 10, bag);
     if (!bot.sunk) return null;
+    if (map.long) {
+        // A long hole is not aced; what it has to have is hazards in play.
+        // `risk`: tee shots with every club at three weights, fanned 30°
+        // either side of the line, that end in the water or out.
+        const bear = Math.atan2(map.cup.x - map.tee.x, map.cup.z - map.tee.z);
+        let n = 0, lost = 0;
+        for (const club of bag) for (let a = -30; a <= 30; a += 6) for (const k of [0.6, 0.8, 1]) {
+            const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + C.BALL_R }, 0);
+            if (!P.launch(w, bear + a * DEG, club.power * k, club.loft, club.bite)) continue;
+            P.settle(w); n++;
+            if (w.splash || w.out) lost++;
+        }
+        return { bot: bot.strokes, share: 0, risk: n ? lost / n : 0, straight: false, hole: h };
+    }
     const bear = Math.atan2(map.cup.x - map.tee.x, map.cup.z - map.tee.z) / DEG;
     const s = G3.lab.sweep(h, { step: 4, weights: 10, moments: [0], from: bear - 60, to: bear + 60 });
     // The sweep covered a third of the compass; the share is of what it played.
@@ -211,19 +300,49 @@ function vet(map) {
 
 function pin(q, base, r) {
     const g = { x0: q.x0, z0: q.z0, d: q.d, nx: q.nx, nz: q.nz };
-    const tee = { x: 0, z: 0 };
+    /* The tee: the patch's origin unless something of the world's stands
+       there (batch 2: Sea of Wax has a hull over it on every patch), then the
+       first clear spot across the near end. */
+    let tee = { x: 0, z: 0 };
+    if (base.clutter) {
+        const clear = (tx) => { for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) if (base.clutter[k * g.nx + i] && Math.hypot(g.x0 + i * g.d - tx, g.z0 + k * g.d) <= 1.6) return false; return true; };
+        const tx = [0, -3, 3, -6, 6, -9, 9].filter((x) => Math.abs(x) <= r.W / 2 - 2).find(clear);
+        if (tx !== undefined) tee = { x: tx, z: 0 };
+    }
     const teed = level(base.h, g, tee.x, tee.z, 1.2, 2.2);
+    // A long hole's green is a long-game green, six units across.
+    const gr = r.long ? 3 : 1.3, step = Math.max(1.5, r.L / 16);
     let best = null;
-    for (let z = r.L * 0.55; z <= r.L * 0.92; z += 1.5) {
-        for (let x = -(r.W / 2 - 3); x <= r.W / 2 - 3 + 1e-6; x += 1.5) {
+    const why = { line: 0, bot: 0, par: 0 };
+    for (let z = r.L * 0.55; z <= r.L * 0.92; z += step) {
+        for (let x = -(r.W / 2 - gr - 2); x <= r.W / 2 - gr - 2 + 1e-6; x += step) {
             const cup = { x: +x.toFixed(2), z: +z.toFixed(2) };
-            if (base.clutter && !clearLine(base.clutter, g, tee, cup, r)) continue;
-            const h = level(teed, g, x, z, 1.6, 3.2);
+            if (base.clutter && !clearLine(base.clutter, g, tee, cup, r)) {
+                why.line++;
+                continue;
+            }
+            const h = level(teed, g, x, z, gr + 0.3, gr + 2.2);
             const map = {
-                id: 'probe', title: 'probe', world: q.world, u: q.u, par: 3, bag: 'loft',
-                grid: Object.assign({}, g, { h: round(h, 3) }), tee, cup, strips: strips(tee, cup, r.strip)
+                id: 'probe', title: 'probe', world: q.world, u: q.u, par: r.long ? parFor(tee, cup) : 3,
+                bag: r.long ? 'long' : 'loft', grid: Object.assign({}, g, { h: round(h, 3) }), tee, cup,
+                strips: strips(tee, cup, r.strip, gr)
             };
+            if (r.long) { map.long = true; map.green = gr; }
+            const pond = ponds(h, g, tee, cup, r.pond, gr);
+            if (pond) map.water = [pond.rect];
+            const outs = r.outs ? outsOf(base.standing, g, tee, cup, gr) : [];
+            if (outs.length) map.outs = outs;
             const m = measure(map);
+            if (r.long) {
+                // The perfect bot one under par (a birdie for a perfect
+                // round, as on the drawn long courses), and the hazards in
+                // play near the recipe's share. Ties to the middle.
+                if (!m) { why.bot++; continue; }
+                if (m.bot > map.par) { why.par++; continue; }
+                const sc = Math.abs(m.bot - (map.par - 1)) + 3 * Math.abs(m.risk - r.risk) + 0.1 * Math.abs(x) / (r.W / 2);
+                if (!best || sc < best.sc) best = { sc, map, m };
+                continue;
+            }
             if (!m || m.bot > 3) continue;
             // Nearest the recipe's ace share, on a log scale; a putt at the
             // flag that drops is a hole with nothing to read, so it pays.
@@ -234,6 +353,7 @@ function pin(q, base, r) {
             if (!best || sc < best.sc) best = { sc, map, m };
         }
     }
+    if (!best && process.env.FORGE_DEBUG) console.log(`  ${q.world} u${q.u} t${q.turn}: no pin — line blocked ${why.line}, bot never holed ${why.bot}, over par ${why.par}; ${base.standing ? base.standing.reduce((a, x) => a + x, 0) : 0} cells standing, ${base.clutter.reduce((a, x) => a + x, 0)} cluttered`);
     return best;
 }
 
@@ -252,7 +372,7 @@ function pinAndVet(cands, r) {
         if (!p) continue;
         const v = vet(p.map);
         if (!v.ok) { log.push(`vet failed (${v.moving} shots never stop, ${v.stuck} spots no shot leaves) — next patch`); continue; }
-        return { i: cands.indexOf(c), map: p.map, m: { bot: p.m.bot, share: p.m.share, straight: p.m.straight }, log };
+        return { i: cands.indexOf(c), map: p.map, m: { bot: p.m.bot, share: p.m.share, straight: p.m.straight, risk: p.m.risk }, log };
     }
     return { i: -1, log };
 }
@@ -281,6 +401,14 @@ let pool = G3.PORTAL_INDEX.filter((row) => !tourWorlds.has(row[0]) && !/\bspace\
 const R = rng(SEED);
 pool = pool.map((row) => [R(), row]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
 if (one('--worlds')) { const want = one('--worlds').split(','); pool = want.map((id) => G3.PORTAL_INDEX.find((row) => row[0] === id)).filter(Boolean); }
+/* --first a,b: these worlds before the rest (batch 2: the six batch 1 rated
+   "keep if fixed", forged again with the new recipe); --skip a,b: never these
+   (the ones it dropped). */
+if (one('--skip')) { const no = new Set(one('--skip').split(',')); pool = pool.filter((row) => !no.has(row[0])); }
+if (one('--first')) {
+    const want = one('--first').split(','), set = new Set(want);
+    pool = want.map((id) => G3.PORTAL_INDEX.find((row) => row[0] === id)).filter(Boolean).concat(pool.filter((row) => !set.has(row[0])));
+}
 
 const require = createRequire('/opt/');
 const { chromium } = require('playwright');
@@ -309,15 +437,25 @@ async function forgeOne(row) {
     });
     if (s.error) return { why: 'load: ' + s.error };
     // Every patch baked and scored; the ones that pass are tried for a pin, best first.
+    /* Every patch baked and scored. A world whose every patch is too
+       steep is baked once more with `smoothHard` passes before it is passed
+       over (batch 2: Sea of Wax, the batch-1 map rated "bumpy, great
+       potential", has slopes of 1 to 3 on a long patch at two passes). */
     const scored = [];
-    for (const q of s.patches) {
-        q.world = row[0];
-        const b = bake(q, r);
-        if (!b) continue;
-        const rel = relief(b.h), sl = steepest(b.h, q.nx, q.nz, q.d);
-        if (rel < r.reliefMin || rel > r.reliefMax || sl > r.maxSlope) continue;
-        if ((q.flightY - b.y0) / q.scale < 2) continue;
-        scored.push({ q, b, rel, sl, sc: Math.abs(Math.log(rel / r.relief)) + sl });
+    for (const passes of [r.smooth, r.smoothHard || 0]) {
+        if (!passes || scored.length) continue;
+        const rr = Object.assign({}, r, { smooth: passes });
+        for (const q of s.patches) {
+            q.world = row[0];
+            const b = bake(q, rr);
+            if (process.env.FORGE_DEBUG && !b) console.log(`  ${row[0]} u${q.u} t${q.turn}: holes in the ground (${q.h.filter((x) => x === null).length}/${q.h.length})`);
+            if (!b) continue;
+            const rel = relief(b.h), sl = steepest(b.h, q.nx, q.nz, q.d);
+            if (process.env.FORGE_DEBUG) console.log(`  ${row[0]} u${q.u} t${q.turn} ×${passes}: relief ${rel.toFixed(2)} slope ${sl.toFixed(2)} flight ${((q.flightY - b.y0) / q.scale).toFixed(1)} scale ${q.scale.toFixed(2)}`);
+            if (rel < r.reliefMin || rel > r.reliefMax || sl > r.maxSlope) continue;
+            if ((q.flightY - b.y0) / q.scale < 2) continue;
+            scored.push({ q, b, rel, sl, smooth: passes, sc: Math.abs(Math.log(rel / r.relief)) + sl + (r.turnCost || 0) * Math.abs(q.turn) });
+        }
     }
     if (!scored.length) return { why: 'no patch: ' + s.patches.length + ' sampled, none with relief ' + r.reliefMin + '–' + r.reliefMax + ' and slope ≤ ' + r.maxSlope };
     scored.sort((a, b) => a.sc - b.sc);
@@ -328,15 +466,19 @@ async function forgeOne(row) {
         const idx = made.length + 1, id = 'b' + BATCH + '-' + String(idx).padStart(2, '0');
         map.id = id;
         map.title = row[1];
-        map.par = p.m.bot <= 2 ? 3 : 4;
+        if (!map.long) map.par = p.m.bot <= 2 ? 3 : 4;
         map.at = { x: +q.ox.toFixed(2), z: +q.oz.toFixed(2), y: +c.b.y0.toFixed(2), yaw: +q.yaw.toFixed(4), scale: +q.scale.toFixed(3) };
         map.u = q.u;
         // `clutter`: cells of the patch with something on them (off the line
         // of play, which is clear) — so a `clip` verdict can be read against
         // it; `covered`: the patch is under a ceiling (see `clutter()`).
-        map.gen = { L: r.L, relief: r.relief, got: +c.rel.toFixed(2), slope: +c.sl.toFixed(2), u: q.u, turn: q.turn, scale: +q.scale.toFixed(2), smooth: r.smooth, clutter: c.b.clutter.reduce((a, x) => a + x, 0) };
+        map.gen = { L: r.L, relief: r.relief, got: +c.rel.toFixed(2), slope: +c.sl.toFixed(2), u: q.u, turn: q.turn, scale: +q.scale.toFixed(2), smooth: c.smooth, clutter: c.b.clutter.reduce((a, x) => a + x, 0) };
         if (c.b.covered) map.gen.covered = true;
+        if (map.long) map.gen.long = true;
+        if (map.water) map.gen.pond = map.water[0][4];
+        if (map.outs) map.gen.outs = map.outs.length;
         map.metrics = { bot: p.m.bot, ace: +(p.m.share * 100).toFixed(3), straight: p.m.straight };
+        if (map.long) map.metrics.risk = +(p.m.risk * 100).toFixed(1);
         return { map };
     }
     return { why: 'no pin: ' + scored.length + ' patches passed, no cup with a clear line that the bot holes in three' };
@@ -349,7 +491,7 @@ async function worker() {
         const res = await forgeOne(row);
         if (res.map && made.length < COUNT) {
             made.push(res.map);
-            console.log(`✓ ${res.map.id} ${row[0]} — par ${res.map.par}, bot ${res.map.metrics.bot}, ace ${res.map.metrics.ace}%, relief ${res.map.gen.got} (${Math.round((Date.now() - t0) / 1000)}s)`);
+            console.log(`✓ ${res.map.id} ${row[0]} — par ${res.map.par}, bot ${res.map.metrics.bot}, ace ${res.map.metrics.ace}%, risk ${res.map.metrics.risk}%, relief ${res.map.gen.got}, pond ${res.map.gen.pond}, outs ${res.map.gen.outs} (${Math.round((Date.now() - t0) / 1000)}s)`);
         } else if (!res.map) {
             tried.push([row[0], res.why]);
             console.log(`✗ ${row[0]} — ${res.why}`);

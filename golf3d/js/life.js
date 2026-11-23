@@ -354,6 +354,10 @@ window.G3 = window.G3 || {};
         for (i = 0; i < w.length; i++) {
             var p = w[i];
             if (p.w < 3 || p.d < 3) continue;
+            // A pond on a world's ground is the shape of its hollow, not of
+            // its rectangle, and a figure of eight round the rectangle's
+            // middle paddles over dry land (render.js → addPondOnGrid).
+            if (p.grid) continue;
             for (k = 0; k < 2; k++) {
                 var d = new THREE.Group();
                 var drake = k === 0;

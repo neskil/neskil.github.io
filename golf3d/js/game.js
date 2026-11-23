@@ -3542,6 +3542,41 @@
        are one string compare away from being free, so that is what they are. */
     var lastDistance = null;
 
+    /* The pin tag. A hole laid on a world's own ground has nothing painted
+       on it — the world is the course, and the hole is the cup and the flag
+       (render.js, v1.183.0) — and in a busy world a flagstick forty units
+       off is a hair among a thousand things. Every forge map but one in
+       batch 1 that was rated `edges` or asked to "show where the flag is" was
+       one of these. So on them a small brass plate stands over the flag,
+       with the distance on it, and when the flag is off the screen it waits
+       at the edge pointing the way. Near the flag, with the flag in view, it
+       goes: the flag is plain to see by then. */
+    var pinTag = null, pinTagOn = false;
+    function sculptedHole(h) {
+        if (h._sculpted === undefined) h._sculpted = !!(h.portal && h.pads.some(function (p) { return p.ghost; }));
+        return h._sculpted;
+    }
+    function syncPinTag() {
+        if (!pinTag) pinTag = { el: $('pin-tag'), dist: $('pin-tag-dist'), text: null };
+        if (!pinTag.el) return;
+        var hole = state && state.course && !state.course.isRange && state.course.holes[state.holeIndex];
+        var p = hole && sculptedHole(hole) && !state.world.sunk && R.pinScreen ? R.pinScreen() : null;
+        var show = !!p && !(p.ahead && p.dist < 14 && p.x > 0 && p.x < p.w && p.y > 0 && p.y < p.h);
+        if (show !== pinTagOn) { pinTagOn = show; pinTag.el.hidden = !show; }
+        if (!show) return;
+        var b = state.world.ball, text = G3.distance.toFlag(Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z), hole);
+        if (text !== pinTag.text) { pinTag.text = text; pinTag.dist.textContent = text; }
+        var tw = pinTag.el.offsetWidth || 60, th = pinTag.el.offsetHeight || 20, m = 10;
+        // The tag sits over the point, its arrow on it; clamped inside the screen.
+        var tx = p.x - tw / 2, ty = p.y - th - 8;
+        var cx = Math.max(m, Math.min(p.w - tw - m, tx)), cy = Math.max(m + 56, Math.min(p.h - th - m - 120, ty));
+        if (!p.ahead) cy = p.h - th - m - 120;
+        var dx = p.x - (cx + tw / 2), dy = p.y - (cy + th), turn = 0;
+        if (!p.ahead || Math.abs(cx - tx) > 1 || Math.abs(cy - ty) > 1) turn = Math.atan2(-dx, dy) * 180 / Math.PI;
+        pinTag.el.style.transform = 'translate(' + Math.round(cx) + 'px,' + Math.round(cy) + 'px)';
+        pinTag.el.style.setProperty('--pin-turn', Math.round(turn) + 'deg');
+    }
+
     function syncDistance() {
         var hole = state.course.holes[state.holeIndex], b = state.world.ball, cup = hole.cup;
         var d = Math.hypot(cup.x - b.x, cup.z - b.z);
@@ -7606,6 +7641,7 @@
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
         R.frame(dt, state.world, intent);
+        syncPinTag();
         if (!loaderGone) {
             /* The world renderer, made while the loader still covers the
                page (backdrop.mjs → warm): it would be made a moment later

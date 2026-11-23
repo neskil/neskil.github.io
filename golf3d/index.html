@@ -174,7 +174,7 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">A World Tour of twenty-three holes in twenty worlds, beside fifteen courses of every kind of golf.</p>
+                <p class="tagline">A World Tour of twenty-four holes in twenty-one worlds, beside fifteen courses of every kind of golf.</p>
             </div>
 
             <!-- Six figures on one line is a paragraph; the four that change
@@ -691,6 +691,9 @@
             </div>
 
             <div class="toast" id="toast"></div>
+            <!-- Where the flag is, on a hole laid on a world's own ground
+                 (game.js → syncPinTag): over the pin, or at the edge pointing. -->
+            <div class="pin-tag" id="pin-tag" aria-hidden="true" hidden><span class="pin-tag-flag">⚑</span><span class="pin-tag-dist" id="pin-tag-dist"></span></div>
             <div class="grav-warn" id="grav-warn" aria-live="polite" hidden></div>
 
             <!-- The first-time coach (game.js "the tutorial"): one step at a
