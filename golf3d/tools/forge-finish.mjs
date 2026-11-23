@@ -11,6 +11,7 @@
 //   node golf3d/tools/forge-finish.mjs b1-03 --cup 3,14 --pond auto --green 1.6
 //   node golf3d/tools/forge-finish.mjs b1-03 … --tour savanna        # …and write the grid to tour-ground.js
 //   node golf3d/tools/forge-finish.mjs b2-04 --from /tmp/batch2.js   # a map from another batch file
+//   node golf3d/tools/forge-finish.mjs b2-04 --pond auto --write    # …and save it back into the batch
 //
 // Options: --tee x,z  --cup x,z  --green r (half-size of the green inlay)
 //   --pond <level>|auto|none  --par n  --long (the full bag)  --map (a plan)
@@ -144,6 +145,20 @@ if (args.includes('--map')) {
         }
         console.log((z => z.toFixed(1).padStart(6))(g.z0 + k * g.d) + ' ' + row);
     }
+}
+
+/* --write: the finished map back into the batch file it came from
+   (forge-maps.js, or --from), in its place. It is a new map with a new
+   rating key (forge.js → keyFor), so it comes back unrated. */
+if (args.includes('--write')) {
+    const f = one('--from') || join(js, 'forge-maps.js'), text = readFileSync(f, 'utf8');
+    const m = text.match(/window\.G3\.FORGE = (\{[\s\S]*\});\s*$/);
+    if (!m) { console.error('no window.G3.FORGE in ' + f); process.exit(1); }
+    const data = JSON.parse(m[1]), at = data.maps.findIndex((x) => x.id === map.id);
+    map.finished = (map.finished || []).concat([args.filter((a) => a !== '--write' && a !== '--map').join(' ')]);
+    data.maps[at] = map;
+    writeFileSync(f, text.slice(0, m.index) + 'window.G3.FORGE = ' + JSON.stringify(data) + ';\n');
+    console.log(`wrote ${map.id} back into ${f} (finished by hand: ${map.finished.join(' | ')})`);
 }
 
 const tour = one('--tour');

@@ -7473,7 +7473,7 @@
                drop and the safe way is from the right, with the slope to
                putt back across. Cairns mark the edge.
 
-               The owner, on it (v1.212.0): "remove the out of bounds … make
+               The owner, on it (v1.214.0): "remove the out of bounds … make
                the pit to the right have some water so you get back if you
                miss". So there are no stakes on the lip any more — the scrub is
                in play to its end — and the drop is a tarn: a ball over the edge

@@ -29,7 +29,7 @@ keyed `1:<id>`.
 
 | Issue | Means | Move |
 | --- | --- | --- |
-| `edges` | couldn't see where the hole was | the hole needs marking (nothing is painted on a sculpted world). Since v1.212.0 a pin tag points at the flag (README → "Where the flag is"); if it still comes back, the next step is a kerb, posts or a painted edge — a code change, not a recipe number |
+| `edges` | couldn't see where the hole was | the hole needs marking (nothing is painted on a sculpted world). Since v1.214.0 a pin tag points at the flag (README → "Where the flag is"); if it still comes back, the next step is a kerb, posts or a painted edge — a code change, not a recipe number |
 | `bumpy` | ground too bumpy | `smooth` up, `maxSlope` down |
 | `flat` | too flat, boring | `relief` up, `reliefMin` up |
 | `long` / `short` | length | `L` down / up |

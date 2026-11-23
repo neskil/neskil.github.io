@@ -4797,7 +4797,7 @@ node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
 node golf3d/tools/forge-sample.mjs still-on-the-sprue --u 0.35 --turn -0.5 --d 0.5 --map   # what stands on one
 ```
 
-**Batch 2: the recipe after batch 1's verdicts** (v1.212.0). Batch 1 came
+**Batch 2: the recipe after batch 1's verdicts** (v1.214.0). Batch 1 came
 back one keep, six "keep if fixed" and three drops, and every one of the ten
 was rated difficulty 1. Nine said `short`, eight `flat`, and the notes said the
 same thing five times over: "great potential for long game", "have some

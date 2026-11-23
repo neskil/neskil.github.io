@@ -45,7 +45,7 @@ screenshots. His standing asks, each quoted from a message:
 | The Iron River (`ironriver`), The Nave (`nave`) | sculpted | Not played since the merge was rebuilt (v1.157.0). The fairway paint reads as a grey road on the forge. |
 | The Fairy Ring, The Orrery, Three Doors Down, The Three-Body Problem, Deck to Deck, The Forge | placed | Never commented on. Each should be measured with `tools/tee-sweep.mjs` for the Marble Run's fault (every cell the same). `spore-rain` gives almost no ground to `world-ground.mjs`, even with `--any`. |
 | Five new worlds (below) | placed | A single pass, written and measured but **never looked at on a phone**. |
-| The Rain Pond (`savanna`) | sculpted, forged | The first forge keep (batch 1, b1-03: "look 5/5 … easy, too short … have some hazard"). Finished by hand with `tools/forge-finish.mjs` (v1.212.0): cup up the slope at (−4, 15), a pond in the basin between drawn to its waterline. **Not yet seen.** |
+| The Rain Pond (`savanna`) | sculpted, forged | The first forge keep (batch 1, b1-03: "look 5/5 … easy, too short … have some hazard"). Finished by hand with `tools/forge-finish.mjs` (v1.214.0): cup up the slope at (−4, 15), a pond in the basin between drawn to its waterline. **Not yet seen.** |
 
 ## How a hole and its world are joined — the three attempts
 
@@ -102,11 +102,11 @@ from upstream release s8f into `vendor/portals/src/` unmodified, list it in
 `js/portals.js`, and a `SCENES` alias in `js/worlds.js` (the fallback set
 piece — a test insists on one).
 
-## From the forge's feedback (batch 1, v1.212.0)
+## From the forge's feedback (batch 1, v1.214.0)
 
 - **Knife Edge** (`alpine:4`, "remove the out of bounds no? Polish the decor a
   bit and make the pit to the right have some water so you get back if you
-  miss", `clip`): done in v1.212.0 — stakes off the lip, a lake on the valley
+  miss", `clip`): done in v1.214.0 — stakes off the lip, a lake on the valley
   floor under the west edge, two outcrops and more firs. The lake is a
   rectangle and its corners show from the hero view; a natural shore would
   need ground in the pit to carve a `mere` into. The `clip` was not found:
