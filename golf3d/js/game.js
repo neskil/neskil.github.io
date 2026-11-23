@@ -3670,7 +3670,7 @@
         var tw = pinTag.el.offsetWidth || 60, th = pinTag.el.offsetHeight || 20, m = 10;
         // The tag sits over the point, its arrow on it; clamped inside the screen.
         var tx = p.x - tw / 2, ty = p.y - th - 8;
-        var cx = Math.max(m, Math.min(p.w - tw - m, tx)), cy = Math.max(m + 56, Math.min(p.h - th - m - 120, ty));
+        var cx = Math.max(m, Math.min(p.w - tw - m, tx)), cy = Math.max(m + 84, Math.min(p.h - th - m - 120, ty));
         if (!p.ahead) cy = p.h - th - m - 120;
         var dx = p.x - (cx + tw / 2), dy = p.y - (cy + th), turn = 0;
         if (!p.ahead || Math.abs(cx - tx) > 1 || Math.abs(cy - ty) > 1) turn = Math.atan2(-dx, dy) * 180 / Math.PI;

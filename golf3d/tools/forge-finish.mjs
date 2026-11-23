@@ -14,7 +14,8 @@
 //   node golf3d/tools/forge-finish.mjs b2-04 --pond auto --write    # …and save it back into the batch
 //
 // Options: --tee x,z  --cup x,z  --green r (half-size of the green inlay)
-//   --pond <level>|auto|none  --par n  --long (the full bag)  --map (a plan)
+//   --pond <level>|auto|none  --box x0,z0,x1,z1 (flood only inside it)
+//   --par n  --long (the full bag)  --map (a plan)  --write (back into the batch)
 // Prints the bot's strokes, the ace share from the tee, the share of tee
 // shots that end wet or out, and the vet (forge.mjs → vet). With --tour it
 // also prints the hole for portals.js. No browser, no server: a few seconds.
@@ -83,15 +84,18 @@ else if (pond) {
         low.sort((a, b) => a - b);
         lvl = low[Math.floor(low.length * 0.1)];
     }
+    // --box x0,z0,x1,z1: flood only inside it (a hollow by the tee left dry).
+    const box = one('--box') ? one('--box').split(',').map(Number) : null;
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, n = 0;
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
         if (g.h[k * g.nx + i] >= lvl) continue;
         const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
+        if (box && (x < box[0] || z < box[1] || x > box[2] || z > box[3])) continue;
         x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); n++;
     }
     const e = g.d / 2;
     if (n) map.water = [[+(x0 - e).toFixed(2), +(z0 - e).toFixed(2), +(x1 - x0 + 2 * e).toFixed(2), +(z1 - z0 + 2 * e).toFixed(2), +lvl.toFixed(3)]];
-    const wet = (p) => at(g.h, p.x, p.z) < lvl + 0.15;
+    const wet = (p) => at(g.h, p.x, p.z) < lvl + 0.15 && (!box || (p.x >= box[0] - 2 && p.z >= box[1] - 2 && p.x <= box[2] + 2 && p.z <= box[3] + 2));
     console.log(`pond at ${lvl.toFixed(3)}: ${n} cells${wet(map.tee) ? ' — THE TEE IS AT THE WATERLINE' : ''}${wet(map.cup) ? ' — THE GREEN IS AT THE WATERLINE' : ''}`);
 }
 

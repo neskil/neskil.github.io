@@ -4838,6 +4838,17 @@ fireworks-under-the-wash and glass-painted-fleet found no patch steep enough
 and smooth enough at that length. A pond is drawn to its waterline on the
 grid, not as the box a drawn hole's water is (`render.js → addPondOnGrid`).
 
+Batch 2 took 62 worlds for 12 maps (about two hours on this box, most of it
+the browser): the long patch is much pickier than the short one, nearly
+every world turned down for slope or for too little relief. Four of twelve
+came back with a pond and ten with the world's things out; the share of tee
+shots in trouble ran from 3% (Ahead of the Fire, Red Sails) to 42% (the
+forest). Red Sails at Sunrise is played on the world's own sea surface,
+which the owner should rule on.
+
+The `b1-03` lines below were run while batch 1 was `js/forge-maps.js`; to
+run them now, `--from` that file out of git (`git show d4fd537:golf3d/js/forge-maps.js`).
+
 **Finishing by hand** (`tools/forge-finish.mjs`, the owner: "there is going
 to have to be some manual work and looping based on my feedback, but the
 more tools you build to make that loop efficient is good"). The forge gets a
