@@ -1,7 +1,7 @@
 # Forge feedback — what to do with it
 
 For Claude, when the owner pastes a block starting `FORGE FEEDBACK`. It is
-copied out of Loft Links (☰ → Dev mode → New maps → Copy feedback) from their
+copied out of Loft Links (☰ → Dev mode → New maps or Played maps → Copy) from their
 phone, where they played the forge's batch of new holes and rated each one, and
 possibly some released holes too. The technique, the recipe and the tools are
 in [README.md → "The forge"](README.md#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode).
@@ -38,6 +38,11 @@ b1-03 · <title> · <world> · par 3 · gen {L, relief, got, slope, u, turn, sca
   is `courseById(course).holes[n]`, e.g. `world-maelstrom:0`): treat them as
   bug reports and design notes on those holes, the way HANDOFF.md's list is.
 - `(older)` lines are earlier batches still in their browser.
+- Lines may end with play stats (`played 3 · best 2 (-1) · avg 2.7 · gave up 1 ·
+  cards 4,2,x`): what they actually scored there, across every play.
+- A copy carries only notes not sent before (the header says how many were
+  left out); a forge map already sent shows as `(sent already: <verdict>)`.
+  Don't treat a missing note as a change of mind.
 
 ## What to do
 

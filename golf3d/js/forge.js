@@ -19,7 +19,10 @@
      G3.forge.byId(id)
      G3.forge.dev()           is dev mode on (game.js owns the switch)
      G3.forge.notes()/note()  the verdicts (localStorage)
-     G3.forge.exportText()    everything, as text to paste */
+     G3.forge.exportText()    the new notes, as text to paste ({ all: true } for every one)
+     G3.forge.markSent(keys)  what Copy does to what it copied
+     G3.forge.logPlay()/stats()  play stats per map, under the notes' keys
+     G3.forge.catalogue()     every map there is: the batch, the tour, the courses */
 (function (G3) {
     'use strict';
 
@@ -176,46 +179,160 @@
     ];
     var VERDICTS = [['keep', 'Keep'], ['fix', 'Keep if fixed'], ['drop', 'Drop']];
 
-    function exportText() {
-        var all = notes(), L = maps(), lines = [];
+    /* ── play stats (the owner: "keep track of play stats") ──────────
+
+       Every hole finished on this device, forge map or released, under the
+       same key its verdict is kept under: how often, how it went, when. The
+       save (scoring.js) already counts plays and a best for released holes,
+       so a hole played before this log existed still shows; the log adds
+       the forge's maps, gave-ups, an average and the last few cards. */
+    var LOG_KEY = 'loftLinks.playLog';
+    var KEEP = 12;
+    function playLog() { return load(LOG_KEY, {}) || {}; }
+    function logPlay(key, strokes, par, pickedUp, meta) {
+        if (!key) return null;
+        var all = playLog(), r = all[key] || { plays: 0, holed: 0, gaveUp: 0, total: 0, best: null, last: [] };
+        r.plays++;
+        if (pickedUp) r.gaveUp++;
+        else {
+            r.holed++; r.total += strokes;
+            if (r.best === null || strokes < r.best) r.best = strokes;
+        }
+        r.last = (r.last || []).concat([pickedUp ? 'x' : strokes]).slice(-KEEP);
+        r.par = par; r.at = new Date().toISOString();
+        if (meta) { r.title = meta.title; r.where = meta.where; }
+        all[key] = r;
+        store(LOG_KEY, all);
+        return r;
+    }
+    function clearLog() { store(LOG_KEY, {}); }
+    // The log's record for a key, folded with what the save knows about a released hole.
+    function stats(key, save) {
+        var r = playLog()[key] || null, out = r ? {
+            plays: r.plays, holed: r.holed, gaveUp: r.gaveUp, best: r.best, last: r.last || [], at: r.at || null,
+            avg: r.holed ? r.total / r.holed : null, par: r.par
+        } : { plays: 0, holed: 0, gaveUp: 0, best: null, last: [], at: null, avg: null };
+        if (key.indexOf('released:') === 0 && save && save.holes) {
+            var h = save.holes[key.slice(9)];
+            if (h) {
+                if ((h.plays || 0) > out.plays) out.plays = h.plays;
+                if (typeof h.best === 'number' && (out.best === null || h.best < out.best)) out.best = h.best;
+                out.stars = h.stars || 0;
+            }
+        }
+        return out;
+    }
+    function statText(s, par) {
+        if (!s || !s.plays) return '';
+        par = par || s.par;
+        var bits = ['played ' + s.plays];
+        if (s.best !== null) bits.push('best ' + s.best + (par ? ' (' + (s.best - par === 0 ? 'E' : (s.best > par ? '+' : '') + (s.best - par)) + ')' : ''));
+        if (s.avg !== null) bits.push('avg ' + (Math.round(s.avg * 10) / 10));
+        if (s.gaveUp) bits.push('gave up ' + s.gaveUp);
+        if (s.last && s.last.length > 1) bits.push('cards ' + s.last.join(','));
+        return bits.join(' · ');
+    }
+
+    /* ── every map there is, for the dev panel's list ───────────────────
+
+       The forge's batch, the World Tour's holes and every course hole, each
+       with the key its notes and stats live under, where to play it and the
+       hole itself for the plan. Endless is not here: it is made up as it is
+       played, so there is no map to come back to. */
+    var CAT = null;
+    function catalogue() {
+        if (CAT) return CAT;
+        var out = [];
+        maps().forEach(function (w, i) {
+            out.push({ key: keyOf(w.id), kind: 'forge', group: 'New maps', label: w.title, where: w.id + ' \u00B7 ' + w.map.world,
+                par: w.map.par, play: ['forge', i], hole: w.hole, theme: w.theme, forge: w, ref: w.id });
+        });
+        ((PW && PW.WORLDS) || []).forEach(function (w) {
+            out.push({ key: 'released:world-' + w.id + ':0', kind: 'tour', group: 'World Tour', label: w.title,
+                where: w.world, par: w.hole.par, play: ['world-' + w.id, 0], hole: w.hole, theme: w.theme,
+                ref: 'world-' + w.id + ':0' });
+        });
+        (G3.COURSES || []).forEach(function (c) {
+            c.holes.forEach(function (h, i) {
+                out.push({ key: 'released:' + c.id + ':' + i, kind: 'course', group: c.name, label: h.name || ('Hole ' + (i + 1)),
+                    where: c.name + ' · hole ' + (i + 1), par: h.par, play: [c.id, i], hole: h,
+                    theme: h.theme || (c.themes && c.themes[i]) || c.theme, ref: c.id + ':' + i });
+            });
+        });
+        CAT = out;
+        return out;
+    }
+    function entry(key) {
+        var L = catalogue();
+        for (var i = 0; i < L.length; i++) if (L[i].key === key) return L[i];
+        return null;
+    }
+
+    /* ── sent (the owner: "mark feedback as sent, automatic when you copy
+       it") ── a note copied out carries `sent`; saving it again (a re-rate)
+       writes a fresh note without one, so it is new again. The copy is of
+       the new notes only, unless asked for all of them. */
+    function unsent() {
+        var all = notes();
+        return Object.keys(all).filter(function (k) { return !all[k].sent; });
+    }
+    function markSent(keys) {
+        var all = notes(), at = new Date().toISOString();
+        (keys || []).forEach(function (k) { if (all[k]) all[k].sent = at; });
+        store(NOTES_KEY, all);
+    }
+
+    function line(n) {
+        return n.verdict + ' · fun ' + n.fun + '/5 · difficulty ' + n.difficulty + ' · look ' + n.look + '/5' +
+            (n.strokes ? ' · ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
+            (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') +
+            (n.note ? ' · note: ' + n.note.replace(/\s+/g, ' ') : '');
+    }
+
+    /* The paste for Claude. `opts.all` repeats notes already sent; without
+       it only the new ones go, and the forge's batch is still listed in full
+       (a map already sent says so) so the batch reads whole. Returns the
+       text; `exportFor` also returns the keys it carried, to mark sent. */
+    function exportFor(opts) {
+        var everything = !!(opts && opts.all), save = opts && opts.save;
+        var all = notes(), L = maps(), lines = [], keys = [];
+        function want(k) { return all[k] && (everything || !all[k].sent); }
+        function stat(k, par) { var t = statText(stats(k, save), par); return t ? ' · ' + t : ''; }
+        var sentBefore = Object.keys(all).filter(function (k) { return all[k].sent; }).length;
         // The first lines are for Claude, so the paste is the whole prompt.
-        lines.push('FORGE FEEDBACK \u00B7 Loft Links \u00B7 batch ' + DATA.batch + ' \u00B7 build v' + (G3.VERSION || '?'));
-        lines.push('Claude: this is my feedback on the forge\u2019s new maps (and maybe released ones). Read golf3d/FORGE-FEEDBACK.md in neskil/neskil.github.io and follow it: sum it up, move keeps into the World Tour, adjust the recipe, forge the next batch and ship it to master.');
+        lines.push('FORGE FEEDBACK · Loft Links · batch ' + DATA.batch + ' · build v' + (G3.VERSION || '?') +
+            (everything ? ' · everything' : sentBefore ? ' · new since last copy (' + sentBefore + ' sent before, not repeated)' : ''));
+        lines.push('Claude: this is my feedback on the forge’s new maps (and maybe released ones). Read golf3d/FORGE-FEEDBACK.md in neskil/neskil.github.io and follow it: sum it up, move keeps into the World Tour, adjust the recipe, forge the next batch and ship it to master.');
         lines.push('recipe ' + JSON.stringify(DATA.recipe || {}));
         L.forEach(function (w) {
-            var n = all[keyOf(w.id)];
-            var m = w.map;
+            var k = keyOf(w.id), n = all[k], m = w.map;
             var head = w.id + ' · ' + w.title + ' · ' + m.world + ' · par ' + m.par +
                 ' · gen ' + JSON.stringify(m.gen || {});
-            if (!n) { lines.push(head + ' · (not rated)'); return; }
-            lines.push(head + ' · ' + n.verdict + ' · fun ' + n.fun + '/5 · difficulty ' + n.difficulty +
-                ' · look ' + n.look + '/5' + (n.strokes ? ' · ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
-                (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') +
-                (n.note ? ' · note: ' + n.note.replace(/\s+/g, ' ') : ''));
+            if (!n) { lines.push(head + ' · (not rated)' + stat(k, m.par)); return; }
+            if (!want(k)) { lines.push(head + ' · (sent already: ' + n.verdict + ')'); return; }
+            keys.push(k);
+            lines.push(head + ' · ' + line(n) + stat(k, m.par));
         });
-        function line(n) {
-            return n.verdict + ' \u00B7 fun ' + n.fun + '/5 \u00B7 difficulty ' + n.difficulty + ' \u00B7 look ' + n.look + '/5' +
-                (n.strokes ? ' \u00B7 ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
-                (n.issues && n.issues.length ? ' \u00B7 issues ' + n.issues.join(',') : '') +
-                (n.note ? ' \u00B7 note: ' + n.note.replace(/\s+/g, ' ') : '');
-        }
-        var rel = released();
+        var rel = released().filter(want);
         if (rel.length) {
             lines.push('RELEASED MAPS');
             rel.forEach(function (k) {
                 var n = all[k];
-                lines.push(k.slice(9) + ' \u00B7 ' + (n.title || '?') + ' \u00B7 ' + (n.where || '?') + ' \u00B7 par ' + (n.par || '?') + ' \u00B7 ' + line(n));
+                keys.push(k);
+                lines.push(k.slice(9) + ' · ' + (n.title || '?') + ' · ' + (n.where || '?') + ' · par ' + (n.par || '?') + ' · ' + line(n) + stat(k, n.par));
             });
         }
         // Earlier batches' notes still in the browser, so nothing is lost.
         Object.keys(all).forEach(function (k) {
-            if (k.indexOf(DATA.batch + ':') === 0 || k.indexOf('released:') === 0) return;
+            if (k.indexOf(DATA.batch + ':') === 0 || k.indexOf('released:') === 0 || !want(k)) return;
             var n = all[k];
+            keys.push(k);
             lines.push('(older) ' + k + ' · ' + n.verdict + ' · fun ' + n.fun + ' · difficulty ' + n.difficulty + ' · look ' + n.look +
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') + (n.note ? ' · note: ' + n.note : ''));
         });
-        return lines.join('\n');
+        return { text: lines.join('\n'), keys: keys };
     }
+    function exportText(opts) { return exportFor(opts).text; }
 
     G3.forge = {
         DATA: DATA, ISSUES: ISSUES, VERDICTS: VERDICTS,
@@ -224,7 +341,9 @@
         notes: notes, noteFor: noteFor, note: note, clear: clear, nextUnrated: nextUnrated,
         keyOf: keyOf, releasedKey: releasedKey, noteAt: noteAt, noteKey: noteKey,
         rateAll: rateAll, setRateAll: setRateAll, released: released,
-        exportText: exportText,
+        exportText: exportText, exportFor: exportFor, unsent: unsent, markSent: markSent,
+        playLog: playLog, logPlay: logPlay, clearLog: clearLog, stats: stats, statText: statText,
+        catalogue: catalogue, entry: entry,
         course: function () { var L = maps(); return L.length ? course(L, 'forge', 'New maps · batch ' + DATA.batch) : null; }
     };
 

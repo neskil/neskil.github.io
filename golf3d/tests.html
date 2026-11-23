@@ -5968,6 +5968,32 @@
                 rk === 'released:world-maelstrom:0' && F.noteAt(rk).verdict === 'drop' && F.released().length === 1 &&
                 t2.indexOf("RELEASED MAPS") > 0 && t2.indexOf("FORGE-FEEDBACK.md") > 0 && t2.indexOf('world-maelstrom:0 \u00B7 The Maelstrom') > 0 && t2.indexOf('released note') > 0 &&
                 t2.indexOf('(older) released') < 0 && F.nextUnrated() === (L.length > 1 ? 1 : -1));
+            // Copy marks what it carried as sent; the next copy has only what is new, and a re-rate is new again.
+            var first = F.exportFor({});
+            F.markSent(first.keys);
+            var again = F.exportFor({}), every = F.exportFor({ all: true });
+            assert('copying marks the notes sent, and the next copy carries only what is new (or everything, asked)',
+                first.keys.length === 2 && F.unsent().length === 0 && again.keys.length === 0 && again.text.indexOf('released note') < 0 &&
+                again.text.indexOf('sent already') > 0 && every.keys.length === 2 && every.text.indexOf('released note') > 0);
+            F.noteKey(rk, { verdict: 'fix', fun: 3, difficulty: 4, look: 4, issues: [], note: 'second look' });
+            assert('…and a re-rated note is new again', F.unsent().length === 1 && F.exportFor({}).text.indexOf('second look') > 0);
+            // Play stats: kept per map under the notes' key, folded into the export.
+            var keptLog = null;
+            try { keptLog = localStorage.getItem('loftLinks.playLog'); } catch (e) { /* none */ }
+            F.clearLog();
+            F.logPlay(rk, 4, 3, false); F.logPlay(rk, 2, 3, false); F.logPlay(rk, 6, 3, true);
+            var st = F.stats(rk, { holes: { 'world-maelstrom:0': { plays: 1, best: 3, stars: 2 } } });
+            assert('play stats count plays, the best, an average and gave-ups, and outrank an older save',
+                st.plays === 3 && st.holed === 2 && st.gaveUp === 1 && st.best === 2 && st.avg === 3 && st.last.join() === '4,2,x' &&
+                F.exportFor({ all: true }).text.indexOf('played 3 \u00B7 best 2 (-1) \u00B7 avg 3 \u00B7 gave up 1') > 0);
+            var cat = F.catalogue(), keys = {};
+            cat.forEach(function (e) { keys[e.key] = true; });
+            assert('the catalogue holds every map — the batch, every tour hole and every course hole — once each',
+                Object.keys(keys).length === cat.length && cat.length === L.length + G3.portals.WORLDS.length +
+                    G3.COURSES.reduce(function (n, c) { return n + c.holes.length; }, 0) && !!F.entry(rk) && cat.every(function (e) {
+                        return e.hole && e.par && G3.courseById(e.play[0]).holes[e.play[1]] === e.hole;
+                    }));
+            try { if (keptLog === null) localStorage.removeItem('loftLinks.playLog'); else localStorage.setItem('loftLinks.playLog', keptLog); } catch (e) { /* none */ }
             try { if (kept === null) localStorage.removeItem('loftLinks.forgeNotes'); else localStorage.setItem('loftLinks.forgeNotes', kept); } catch (e) { /* none */ }
         })();
 
