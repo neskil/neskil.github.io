@@ -4718,7 +4718,9 @@ hole in each world). `tools/forge.mjs`:
    playing out of every spot a ball came to rest. A map where a ball never
    stops, or with a spot no shot leaves, is thrown out and the next patch
    tried. That check was added after batch 1's first steep map
-   (comet-over-the-lake-town) had balls balanced on the patch's edge.
+   (comet-over-the-lake-town) had balls balanced on the patch's edge;
+   it was dropped, and cloudburst-local was dropped after a look (its ground was a train's
+   roof), so batch 1 shipped as ten maps from 48 worlds tried.
 5. The batch's maps lean off the recipe on purpose: four lengths × three
    reliefs (`LEAN`). Each map records the settings it was made with (`gen`)
    and its numbers (`metrics`), so a verdict can be read against a setting.
@@ -4757,7 +4759,9 @@ with **Rate released maps too** switched on it is put up after every hole.
 The export lists these under RELEASED MAPS.
 
 **The loop.** He plays the batch, copies the feedback and pastes it to
-Claude. Claude reads verdicts and issues against `gen` and moves the recipe:
+Claude. The copied text starts with a line telling Claude to read
+[FORGE-FEEDBACK.md](FORGE-FEEDBACK.md), which says how to read the block and
+what to do with it, so the paste is the whole prompt. Claude reads verdicts and issues against `gen` and moves the recipe:
 lots of `bumpy` means more `smooth` and a lower `maxSlope`; `flat` means a
 higher `relief`; `long` or `short` moves `L`; `edges` means the hole needs
 marking, since nothing is painted on a sculpted world and its edges cannot

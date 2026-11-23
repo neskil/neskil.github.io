@@ -5966,7 +5966,7 @@
             var t2 = F.exportText();
             assert('…and a released hole\'s verdict is kept under its home and listed as released',
                 rk === 'released:world-maelstrom:0' && F.noteAt(rk).verdict === 'drop' && F.released().length === 1 &&
-                t2.indexOf('RELEASED MAPS') > 0 && t2.indexOf('world-maelstrom:0 \u00B7 The Maelstrom') > 0 && t2.indexOf('released note') > 0 &&
+                t2.indexOf("RELEASED MAPS") > 0 && t2.indexOf("FORGE-FEEDBACK.md") > 0 && t2.indexOf('world-maelstrom:0 \u00B7 The Maelstrom') > 0 && t2.indexOf('released note') > 0 &&
                 t2.indexOf('(older) released') < 0 && F.nextUnrated() === (L.length > 1 ? 1 : -1));
             try { if (kept === null) localStorage.removeItem('loftLinks.forgeNotes'); else localStorage.setItem('loftLinks.forgeNotes', kept); } catch (e) { /* none */ }
         })();

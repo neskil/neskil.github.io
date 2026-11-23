@@ -178,7 +178,10 @@
 
     function exportText() {
         var all = notes(), L = maps(), lines = [];
-        lines.push('FORGE FEEDBACK · batch ' + DATA.batch + ' · recipe ' + JSON.stringify(DATA.recipe || {}));
+        // The first lines are for Claude, so the paste is the whole prompt.
+        lines.push('FORGE FEEDBACK \u00B7 Loft Links \u00B7 batch ' + DATA.batch + ' \u00B7 build v' + (G3.VERSION || '?'));
+        lines.push('Claude: this is my feedback on the forge\u2019s new maps (and maybe released ones). Read golf3d/FORGE-FEEDBACK.md in neskil/neskil.github.io and follow it: sum it up, move keeps into the World Tour, adjust the recipe, forge the next batch and ship it to master.');
+        lines.push('recipe ' + JSON.stringify(DATA.recipe || {}));
         L.forEach(function (w) {
             var n = all[keyOf(w.id)];
             var m = w.map;
