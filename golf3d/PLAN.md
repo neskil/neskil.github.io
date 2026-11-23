@@ -300,6 +300,62 @@ Done:
 
 ---
 
+## The forge, faster — handed over (v1.211.1)
+
+The owner's ask: make `tools/forge.mjs` faster, in a session of its own. The
+forge itself is README → "The forge"; this is only the open work.
+
+**Where the time goes** (measured, v1.210.1): a dry run of three worlds took
+six minutes, and the simulated shots (pin and vet, now on worker threads)
+were under a minute of it. The rest is the browser, in
+`tools/forge-sample.mjs`: loading each world through the game on SwiftShader,
+then `G3.backdrop.groundAt` once per cell, a raycast per cell of fifteen
+patches (1,400 to 2,200 cells each at `d` 0.5) against meshes with no spatial
+index. Time those two phases separately first; nothing below is worth
+building before it is known which one dominates.
+
+In order of payoff:
+
+1. **Cache the samples on disk.** Most recipe moves (`relief`, `reliefMin`,
+   `reliefMax`, `maxSlope`, `smooth`, `ace`, `stand`, `bump`, `lane`,
+   `strip`) do not need a world reloaded: they act on a patch already
+   sampled. Only `W`, `L`, `back`, `d`, `ahead` and `scaleK` change what is
+   sampled. Sample each world once at the longest `L` any lean asks for
+   (`RECIPE.L × 1.25`) and crop per lean; key the cache by world and those
+   six numbers plus the game version of `backdrop.mjs`; keep it outside the
+   repo (or gitignored). A batch, or a second try at one, then skips the
+   browser for every world already seen.
+2. **Ground from one depth render per patch, not a raycast per cell.**
+   `stood` (forge-sample.mjs) already draws the world from straight above,
+   orthographic, and reads the depth back. The ground can come the same way,
+   if it keeps `backdrop.mjs → groundUnder`'s rules for what ground is:
+   - skinned and instanced meshes, and any mesh with a bounding radius under
+     30 (world scale), are not ground: hide them for the render;
+   - `BackSide` materials, and transparent ones that write no depth, are not
+     ground;
+   - a face whose normal points less than 0.3 up is passed through to what is
+     under it (the ray `continue`s): an override material that `discard`s
+     those fragments does the same;
+   - the ray starts at the flight's height: the camera's near plane goes
+     there.
+   Then check it against the raycast on a few worlds, cell by cell, before
+   trusting it. Resolution is one or two pixels a cell, as `stood` uses.
+3. **Load less.** While sampling nothing is looked at: the lowest quality
+   tier (`G3.backdrop.setQuality`), and the page's audio, fonts and anything
+   else the ground does not need held back with `page.route`. Measure that
+   each one helps.
+4. **Coarse, then fine.** Fifteen patches are sampled at full resolution and
+   at most three are pinned. Sample all fifteen at `d` 1 to score relief and
+   slope, then only the best three or four at 0.5. (Moot if 2 lands, since a
+   render costs the same at either.)
+
+Done means: the same worlds give the same maps (check a dry run with
+`--out` against `js/forge-maps.js`'s batch for two or three worlds: same
+patch, tee and cup, or a stated reason why not), the README's "Speed"
+paragraph says what the time is now, and this entry moves to "Done".
+Nothing here touches the game, so no version bump unless a game file
+changes.
+
 ## New surfaces and hazards — the owner's ask (v1.186.0)
 
 The owner, the same day the belts started moving: "think of new kinds of
