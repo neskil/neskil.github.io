@@ -1,12 +1,12 @@
 # Forge feedback — what to do with it
 
 For Claude, when the owner pastes a block starting `FORGE FEEDBACK`. It is
-copied out of Loft Links (☰ → Dev mode → New maps → Copy feedback) from his
-phone, where he played the forge's batch of new holes and rated each one, and
+copied out of Loft Links (☰ → Dev mode → New maps → Copy feedback) from their
+phone, where they played the forge's batch of new holes and rated each one, and
 possibly some released holes too. The technique, the recipe and the tools are
 in [README.md → "The forge"](README.md#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode).
 Read that first, and `golf3d/CLAUDE.md` for how work ships (merged to
-`master` and pushed: he can only see what is live).
+`master` and pushed: they can only see what is live).
 
 ## Reading the block
 
@@ -37,11 +37,11 @@ b1-03 · <title> · <world> · par 3 · gen {L, relief, got, slope, u, turn, sca
 - `RELEASED MAPS` lines rate holes already in the game (`released:<course>:<n>`
   is `courseById(course).holes[n]`, e.g. `world-maelstrom:0`): treat them as
   bug reports and design notes on those holes, the way HANDOFF.md's list is.
-- `(older)` lines are earlier batches still in his browser.
+- `(older)` lines are earlier batches still in their browser.
 
 ## What to do
 
-1. **Sum it up for him first**: what he liked and why, what failed, which
+1. **Sum it up for them first**: what they liked and why, what failed, which
    recipe settings (`gen`) the keeps and drops share. Two or three lines a
    map at most.
 2. **Keeps** → the World Tour: the map's `grid` into `js/tour-ground.js`

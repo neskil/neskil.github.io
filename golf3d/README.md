@@ -4692,7 +4692,7 @@ GitHub Pages is static, so nothing is sent anywhere: the verdicts stay in
 `localStorage` until **Copy feedback** puts them on the clipboard to paste
 into a Claude chat.
 
-**The technique: fit the world's shape** (his choice over placing a mini
+**The technique: fit the world's shape** (the owner's choice over placing a mini
 hole in each world). `tools/forge.mjs`:
 
 1. **Sample** (`tools/forge-sample.mjs`). Each world is loaded through the
@@ -4752,7 +4752,7 @@ Looks out of five, any of a dozen issue chips (`G3.forge.ISSUES`, each
 named for the part of the recipe it would move) and a line of the owner's
 own. The strokes taken are filled in.
 
-**Released holes too** (his follow-up). In dev mode, the same form rates
+**Released holes too** (the owner's follow-up). In dev mode, the same form rates
 any World Tour or course hole, keyed by its home (`released:<course>:<n>`,
 from `holeRef`). It is always reachable from "Rate … now" in the panel, and
 with **Rate released maps too** switched on it is put up after every hole.
