@@ -6601,6 +6601,13 @@ and course after course, at the cost of the session's records — and
 [demo mode](#demo-mode-the-game-playing-itself) instead, which any of the above
 ends.
 
+On a phone, **back** (the button or the edge swipe) shuts whatever is open —
+a dialog, the ☰ panel, the club picker, the map — one layer at a time, the
+same layer <kbd>Esc</kbd> would, and leaves the site only once nothing is open.
+The course list the game opens on is the exception: back from it leaves, as
+from any page just arrived on. How the history entry is kept is at the site
+(`game.js → syncBack`).
+
 ### Under a thumb
 
 Everything above is a mouse's account of it. A finger is a blunter instrument
