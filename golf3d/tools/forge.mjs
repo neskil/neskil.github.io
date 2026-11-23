@@ -232,10 +232,10 @@ function pin(q, base, r) {
 
    Pinning and vetting a patch is some tens of thousands of simulated shots,
    all plain JavaScript, and it used to run on the one thread that also
-   drives the browser — three worlds "at a time" queued for a single core,
-   about three minutes a world. Now each patch's pin-and-vet goes to a pool
-   of threads (this same file, run as a worker: it loads the game's modules
-   on its own), one per core but the one the browser needs. */
+   drives the browser. Now each patch's pin-and-vet goes to a pool of
+   threads (this same file, run as a worker: it loads the game's modules on
+   its own), one per core less one. Most of a world's time is still the
+   browser's, loading and probing it (README → "The forge", Speed). */
 function pinAndVet(cands, r) {
     const log = [];
     for (const c of cands) {

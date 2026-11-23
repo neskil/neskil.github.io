@@ -4765,10 +4765,16 @@ it about the hole.
 
 **Speed.** Pinning and vetting is tens of thousands of simulated shots in
 plain JavaScript, and until batch 2 it ran on the one thread that also
-drove the browser, so the "three worlds at a time" queued for one core,
-about three minutes a world. Each patch's pin-and-vet now runs on a pool of
-worker threads (`forge.mjs` run as a worker loads the game's modules
-itself), one per core less the one the browser needs (`--threads`).
+drove the browser. It now runs on a pool of worker threads (`forge.mjs` run
+as a worker loads the game's modules itself), one per core less one
+(`--threads`). That is not where the time goes, though: a dry run of three
+worlds took six minutes, of which the shots were under a minute. The rest is
+the browser loading each world on SwiftShader and probing its ground, a
+raycast per cell of fifteen patches against meshes with no spatial index.
+That is the part to make faster next (one depth render per patch, as
+`stood` already does, rather than a raycast per cell), and it needs care,
+because the ray's rules for what counts as ground (`groundUnder`) would
+have to be kept.
 
 ```sh
 python3 -m http.server 8899                                # repo root
