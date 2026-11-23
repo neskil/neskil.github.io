@@ -3780,7 +3780,7 @@
             }
         }
         var k = warpScale(wr);
-        R.ball.scale.setScalar(Math.max(1e-3, k));
+        R.ball.scale.setScalar(Math.max(1e-3, k) * R.look);   // and its drawn size (`lookFor`)
         R.ball.visible = k > 0.01;
     }
 
@@ -7346,16 +7346,41 @@
     var _seat = { px: 0, py: 0, pz: 0, tx: 0, ty: 0, tz: 0 };
     var _wind = { x: 0.4, z: 0.9, speed: 0.5 };
 
+    /* How big the ball, the club at it and the seat behind them are drawn,
+       as a share of the physics' sizes: CONFIG.LONG_LOOK says why. 1 on a mini
+       golf lane, a tour hole and the green; MIN out on a long hole, eased
+       between by the ball's distance from the cup so neither the ball nor the
+       camera ever jumps. */
+    function lookT(hole, ball) {
+        if (!hole || !hole.longGame || !ball || !hole.cup) return 0;
+        // Not in a Portals world: a tour hole (or anything else hung on one)
+        // is fitted to it, seat and all.
+        if (hole.place || hole.worldId || hole.inWorld) return 0;
+        var L = C.LONG_LOOK;
+        var d = Math.sqrt((ball.x - hole.cup.x) * (ball.x - hole.cup.x) + (ball.z - hole.cup.z) * (ball.z - hole.cup.z));
+        var t = Math.max(0, Math.min(1, (d - L.NEAR) / (L.FAR - L.NEAR)));
+        return t * t * (3 - 2 * t);
+    }
+    function lookFor(hole, ball) { return 1 + (C.LONG_LOOK.MIN - 1) * lookT(hole, ball); }
+    /* The seat comes in by a little less than the ball shrinks (SEAT), so the
+       ball and the club take a little less of the screen than on a lane and
+       the course a little more. */
+    function seatLook(hole, ball) { return 1 + (C.LONG_LOOK.SEAT - 1) * lookT(hole, ball); }
+    R.look = 1;
+
     function rollBall(pos) {
         var dx = pos.x - R.lastBall.x, dz = pos.z - R.lastBall.z;
         var d = Math.hypot(dx, dz);
+        var s = R.look = lookFor(R.hole, pos);
         // A unit in a frame is not a roll, it is a pipe: the ball crossing the
         // hole to the sky portal, unseen, would otherwise spin fifty turns.
         if (d > 1e-5 && d < 1) {
-            R.ball.rotateOnWorldAxis(_axis.set(dz / d, 0, -dx / d), d / C.BALL_R);
+            R.ball.rotateOnWorldAxis(_axis.set(dz / d, 0, -dx / d), d / (C.BALL_R * s));
         }
         R.lastBall.set(pos.x, pos.y, pos.z);
-        R.ball.position.set(pos.x, pos.y, pos.z);
+        // Drawn smaller, it sits on the ground the physics' ball sits on.
+        R.ball.scale.setScalar(s);
+        R.ball.position.set(pos.x, pos.y - C.BALL_R * (1 - s), pos.z);
     }
 
     /* The aiming furniture: a wedge on the ground pointing where the ball will
@@ -7663,8 +7688,11 @@
                 a[i * 3 + 2] = b.z + dirZ * sx + pz * sz;
             }
             var w = halfW * 2.4;
-            put(0, 0, -w); put(1, 0, w); put(2, arrowLen, w);
-            put(3, 0, -w); put(4, arrowLen, w); put(5, arrowLen, -w);
+            /* Drawn at the ball's size (`lookFor`); the shader is handed the
+               unscaled numbers, so its chevrons shrink with the strip. */
+            var lk = R.look, wl = w * lk, ll = arrowLen * lk;
+            put(0, 0, -wl); put(1, 0, wl); put(2, ll, wl);
+            put(3, 0, -wl); put(4, ll, wl); put(5, ll, -wl);
             var u = R.arrow.material.uniforms;
             u.len.value = arrowLen; u.halfW.value = w; u.time.value = R.clock;
             R.arrow.geometry.attributes.position.needsUpdate = true;
@@ -7901,7 +7929,7 @@
                there is between seeing less of the hole and seeing all of it as
                a smudge on the horizon. Less of it, then; the zoom is a scroll
                away for anyone who wants the rest. */
-            dist = (c.dist + c.speedPull) * 1.25;
+            dist = (c.dist + c.speedPull) * 1.25 * seatLook(hole, ball);
             var sideV = R.camera.fov * Math.PI / 360;
             var sideH = Math.atan(Math.tan(sideV) * R.camera.aspect);
             var lead = Math.min(9, Math.max(3.5,
@@ -7935,7 +7963,8 @@
             /* Two things move the camera besides the player: it flinches when
                the ball is struck, and it drifts back as the ball gets quick, so
                a hard shot feels quick rather than merely distant. */
-            dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
+            var look = seatLook(hole, ball);
+            dist = (c.dist + c.speedPull - c.kick * C.KICK * 4) * look;
             /* Lifted by the hill in front of it, if there is one. See
                CONFIG.AIM_LOOK for why: a seat that looks a little over the
                ball is looking straight into the slope on a hole that climbs,
@@ -7945,7 +7974,7 @@
                                            ball.z + Math.cos(yaw) * C.AIM_LOOK);
             var rise = ahead ? Math.max(0, ahead.y - ball.y) : 0;
             tx = ball.x;
-            ty = ball.y + 0.35 + Math.min(rise, C.AIM_RISE) * C.AIM_TILT;
+            ty = ball.y + 0.35 * look + Math.min(rise, C.AIM_RISE) * C.AIM_TILT;
             tz = ball.z;
             var back = dist * Math.cos(c.pitch);
             px = ball.x - Math.sin(yaw) * back;
@@ -9008,7 +9037,9 @@
         var tailed = !world.warping || P.warpPhase(world.warping).phase === 'drop';
         if (world.moving && speed > 1.2 && tailed) {
             R.trailOn = true;
-            pushTrail(world.ball.x, world.ball.y, world.ball.z);
+            // As wide as the ball is drawn (`lookFor`), and through its middle.
+            R.trail.material.size = (R.glow ? 0.24 : 0.13) * R.look;
+            pushTrail(world.ball.x, R.ball.position.y, world.ball.z);
         } else if (R.trailOn) {
             R.trailOn = false;
             clearTrail();
@@ -9090,7 +9121,7 @@
             G3.bag.update(dt, R.camera, R.camera.aspect);
             // And the club in hand, behind the ball (bag.js `address`).
             G3.bag.addressUpdate(dt, !!(aim && aim.show && !world.moving && !world.sunk) &&
-                !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo' && R.cam.mode !== 'flight', world.ball, aim ? aim.yaw : 0, R.camera);
+                !R.fly && !R.dive && !R.lap && !R.replay && R.cam.mode !== 'demo' && R.cam.mode !== 'flight', world.ball, aim ? aim.yaw : 0, R.camera, R.look);
             var open01 = G3.bag.state.open01;
             if (R.fx && open01 > 0.002) front = { k: open01, dim: BACK_DIM, layer: G3.bag.LAYER, lights: passLights };
             /* And the course's own light goes down as the clubs come out.
