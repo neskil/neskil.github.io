@@ -253,11 +253,16 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   **The Knuckles** (`pins`, `country-of-pins`): four ridges of pins across
   the board, a level valley between each pair; the flag is in the third
   valley, from 80% of a mallet (0.29%). `u` is pinned at 0.5 on all three.
-  **Not yet seen by him.**
+  **Not yet seen by the owner.**
 - **The forge** (v1.210.0): new tour holes made by a tool from Portals
   worlds' own ground, played and rated in dev mode (☰ → Dev mode → New
   maps), with released holes rateable the same way. README → "The forge"
   has the technique, the recipe and the loop. **The owner's first batch of
-  verdicts is the next input**: when he pastes the FORGE FEEDBACK text, read
-  it against each map's `gen`, move `RECIPE` in `tools/forge.mjs` (or pass
-  `--recipe`), forge `--batch 2`, and move every `keep` into the tour.
+  verdicts is the next input**: when the owner pastes the FORGE FEEDBACK
+  text, read it against each map's `gen`, move `RECIPE` in
+  `tools/forge.mjs` (or pass `--recipe`), forge `--batch 2`, and move every
+  `keep` into the tour. v1.211.1, while batch 1 was being played: the forge
+  turns down any line with the world's things on it (README → "Clutter";
+  it would have turned down six of batch 1's ten, so read the `clip`
+  verdicts against that), and from batch 2 a rating is keyed by the map's
+  content, so a changed map is a new one.

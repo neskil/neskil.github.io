@@ -4702,7 +4702,9 @@ hole in each world). `tools/forge.mjs`:
    (how fast and how high its flight goes). Then the ground
    (`G3.backdrop.groundAt`) is read over a rectangle of the hole's own units
    ahead of the flight: five points along it and three headings at each
-   (straight on, and half a radian either side).
+   (straight on, and half a radian either side). Each patch is also drawn
+   from straight above, orthographic, and its depth read back: `stood` is
+   the height of whatever stands on each cell (see **Clutter** below).
 2. **Choose.** Each patch is baked into golf units (`recipe.smooth` passes
    of a 3×3 blur). It is turned down if it has holes in the ground, relief
    outside `reliefMin`–`reliefMax`, any cell steeper than `maxSlope`, or a
@@ -4713,7 +4715,10 @@ hole in each world). `tools/forge.mjs`:
    `G3.forge.holeOf` (the same code the game builds it with) and played: the
    bot must hole out in three. A narrowed `G3.lab.sweep` gives the ace
    share, and the site nearest `recipe.ace` wins, with a straight drop
-   counting against it.
+   counting against it. A site whose line from the tee has clutter on it is
+   never tried. Between equal sites the one nearer the middle wins: batch 1
+   had no tie-break, so wherever no site could be aced the first one tried
+   won, which was the far left edge, on six maps of ten.
 4. **Vet.** Tee shots over every line, weight and club, then a try at
    playing out of every spot a ball came to rest. A map where a ball never
    stops, or with a spot no shot leaves, is thrown out and the next patch
@@ -4724,13 +4729,71 @@ hole in each world). `tools/forge.mjs`:
 5. The batch's maps lean off the recipe on purpose: four lengths × three
    reliefs (`LEAN`). Each map records the settings it was made with (`gen`)
    and its numbers (`metrics`), so a verdict can be read against a setting.
+   Since batch 2 that includes `gen.clutter`, the count of cells with
+   something on them off the line.
+
+**Clutter** (added while batch 1 was being played). The ball hits nothing of
+a world's; whatever stands on the hole is drawn there and rolled through.
+Batch 1 showed both ways a forged hole gets that wrong, and the ground probe
+could see neither:
+
+- **b1-10's rods** are small separate meshes, and `groundAt` skips anything
+  small or instanced, deliberately, so that a lantern is not taken for
+  ground. `forge-sample.mjs` now draws the world from straight above over
+  each patch (an orthographic camera `CEIL` = 5 units over its highest
+  ground, so a canopy higher than that hides nothing) and reads the depth
+  back. It needs the world's scene and renderer, which `backdrop.mjs` keeps
+  to itself, so the sampler's page is served a copy of `backdrop.mjs` that
+  hands them over (a request intercept again; nothing on disk changes).
+  A cell counts if something stands `recipe.stand` (0.15) over the ground.
+- **b1-07's "planks"** are the fishing beach's log rollers, laid down the
+  launch lane in the same mesh as the sand (`glass-painted-fleet.js`, "log
+  rollers down the launch lanes"). They are not raycast misses: they are
+  part of a mesh big enough to be ground, so the probe read them as ground,
+  the bake blurred them away and the sculpt pressed only their tops. They
+  come out of the raw sample as bumps far sharper than land: a cell counts
+  if its raw height stands `recipe.bump` (0.1) off its own two-pass
+  smoothing. Natural ground keeps within a few hundredths (the 95th
+  percentile is 0.002 to 0.04 over four batch-1 patches); the rollers
+  stand 0.1 to 0.34 off it.
+
+A patch more than half covered is under a ceiling, not cluttered. b1-06
+is played under the water of Fireworks Under the Wash, whose surface stood
+over 471 of its 476 cells. Such a patch is marked `gen.covered` and judged
+on its bumps alone: whatever stands under a ceiling cannot be seen from
+above.
+
+`pin` then turns down any cup whose line from the tee has a counted cell
+within `recipe.lane` (1.5) of it, or within the tee's pad or the green.
+Run over batch 1's own patches and lines, the rule would have turned down
+six of ten: b1-10 (26 cells of rods on the line), b1-07 (12 of rollers,
+9 of other things standing), b1-01 (34 of trees), b1-02 (56), b1-08 (2)
+and b1-05 (one bump). b1-03, b1-04 and b1-09 were clear, and b1-06 is
+covered. That is stricter than the owner's
+play may bear out: where a turned-down map is rated well with no `clip`,
+loosen `stand`, `lane` or `bump` rather than keep the rule.
+
+**Speed.** Pinning and vetting is tens of thousands of simulated shots in
+plain JavaScript, and until batch 2 it ran on the one thread that also
+drove the browser. It now runs on a pool of worker threads (`forge.mjs` run
+as a worker loads the game's modules itself), one per core less one
+(`--threads`). That is not where the time goes, though: a dry run of three
+worlds took six minutes, of which the shots were under a minute. The rest is
+the browser loading each world on SwiftShader and probing its ground, a
+raycast per cell of fifteen patches against meshes with no spatial index.
+That is the part to make faster next (one depth render per patch, as
+`stood` already does, rather than a raycast per cell), and it needs care,
+because the ray's rules for what counts as ground (`groundUnder`) would
+have to be kept.
 
 ```sh
 python3 -m http.server 8899                                # repo root
 node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js, ~40 min
 node golf3d/tools/forge.mjs --batch 2 --recipe '{"relief":1.2,"smooth":3}'
 node golf3d/tools/forge.mjs --batch 2 --keep b2-01,b2-04   # keep these, forge the rest
+node golf3d/tools/forge.mjs --batch 2 --count 2 --out /tmp/try.js   # a dry run
 node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
+node golf3d/tools/forge-sample.mjs still-on-the-sprue --u 0.35 --turn -0.5 --d 0.5 --map   # what stands on one
 ```
 
 **The holes** are data in `js/forge-maps.js` (generated: the grid, the
@@ -4751,6 +4814,14 @@ form asks for a verdict (Keep / Keep if fixed / Drop), Fun, Difficulty and
 Looks out of five, any of a dozen issue chips (`G3.forge.ISSUES`, each
 named for the part of the recipe it would move) and a line of the owner's
 own. The strokes taken are filled in.
+
+**A changed map is a new map** (the owner: "give the maps a new id when you
+update them"). A verdict is stored under a key made from what the map is,
+`forge:` and a hash of its world, anchor, tee, cup, par, bag, strips and
+grid (`G3.forge.keyFor`), not under its batch and number. So a map fixed
+by hand or re-forged starts unrated, and a batch renumbered by `--keep`
+does not move a verdict onto another map. Batch 1 was already being rated
+under `1:<id>` when this went in, and keeps that key.
 
 **Released holes too** (the owner's follow-up). In dev mode, the same form rates
 any World Tour or course hole, keyed by its home (`released:<course>:<n>`,
@@ -4783,7 +4854,7 @@ saying so. **Copy all** repeats everything. Re-rating a note writes a fresh
 one without the stamp, so it is new again. The text is shown in the panel as
 well, for a phone that refuses the clipboard.
 
-**The loop.** He plays the batch, copies the feedback and pastes it to
+**The loop.** The owner plays the batch, copies the feedback and pastes it to
 Claude. The copied text starts with a line telling Claude to read
 [FORGE-FEEDBACK.md](FORGE-FEEDBACK.md), which says how to read the block and
 what to do with it, so the paste is the whole prompt. Claude reads verdicts and issues against `gen` and moves the recipe:

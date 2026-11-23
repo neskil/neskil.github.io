@@ -16,6 +16,12 @@ One line per map:
 b1-03 · <title> · <world> · par 3 · gen {L, relief, got, slope, u, turn, scale, smooth} · <verdict> · fun 4/5 · difficulty 2 · look 3/5 · took 3 (par 3) · issues edges,bumpy · note: …
 ```
 
+From batch 2 on the id is followed by the map's rating key, e.g.
+`b2-03 [forge:1x9k2ab]`: a hash of everything the map is, so a map that has
+changed since it was rated is a different map with a different key, and a
+rating is always about the version that was played. Batch 1's maps are
+keyed `1:<id>`.
+
 - **verdict**: `keep` (move it into the World Tour), `fix` (keep it, but the
   issues and note say what is wrong), `drop`.
 - **fun / look**: 1–5. **difficulty**: 1 too easy … 3 right … 5 too hard.
@@ -28,7 +34,7 @@ b1-03 · <title> · <world> · par 3 · gen {L, relief, got, slope, u, turn, sca
 | `flat` | too flat, boring | `relief` up, `reliefMin` up |
 | `long` / `short` | length | `L` down / up |
 | `hard` / `easy` | difficulty | `ace` up / down (target ace share), `L`, `relief` |
-| `clip` | clipping or floating | a sculpt or anchor fault: look at that world live (`?course=forge-<id>&live=1`) |
+| `clip` | clipping or floating | the world's things on the hole, which the ball rolls through: compare with `gen.clutter` (batch 2 on), raise or lower `stand`, `bump`, `lane` (README → "Clutter"). Otherwise a sculpt or anchor fault: look at that world live (`?course=forge-<id>&live=1`) |
 | `stuck` | ball got stuck | a vetting gap: run the stuck sweep on that map and tighten `vet()` |
 | `camera` | bad view | the tee's heading (`turn`) or `ahead`; perhaps prefer `turn: 0` |
 | `ugly` | paint looked wrong | the palette (`themeFor` in `js/forge.js`) |

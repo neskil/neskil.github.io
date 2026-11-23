@@ -5995,6 +5995,17 @@
                     }));
             try { if (keptLog === null) localStorage.removeItem('loftLinks.playLog'); else localStorage.setItem('loftLinks.playLog', keptLog); } catch (e) { /* none */ }
             try { if (kept === null) localStorage.removeItem('loftLinks.forgeNotes'); else localStorage.setItem('loftLinks.forgeNotes', kept); } catch (e) { /* none */ }
+            // A map that changes is a new map: its rating key is made from
+            // what it is, so an old verdict never lands on a changed or
+            // renumbered map. Batch 1 keeps the key it was rated under.
+            if (L.length) {
+                var m0 = L[0].map, k2 = F.keyFor(m0, 2), moved = JSON.parse(JSON.stringify(m0)), renamed = JSON.parse(JSON.stringify(m0));
+                moved.grid.h[0] += 0.01;
+                renamed.id = 'b2-99';
+                assert('a changed map gets a new rating key, a renumbered one keeps it, and batch 1 keeps its own',
+                    /^forge:/.test(k2) && F.keyFor(moved, 2) !== k2 && F.keyFor(renamed, 2) === k2 &&
+                    F.keyFor(m0, 1) === '1:' + m0.id && (F.DATA.batch !== 1 || F.keyOf(m0.id) === '1:' + m0.id));
+            }
         })();
 
         section('PORTALS');
