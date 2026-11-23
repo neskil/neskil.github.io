@@ -1419,11 +1419,19 @@
             var ok = r.opts.some(function (o) { return o[0] === raw[r.key]; });
             out[r.key] = ok ? raw[r.key] : C.SWIPE.DEFAULT[r.key];
         });
+        /* The whole set is saved whenever any one row is touched, so a
+           stored `pad` was usually never chosen at all — it was the old
+           centre default riding along with a change to the line or the
+           timing. Only a pad somebody picked (on the lane's ⇆, or its row
+           here) outlives a change of default. */
+        out.padPicked = raw.padPicked === true;
+        if (!out.padPicked) out.pad = C.SWIPE.DEFAULT.pad;
         return out;
     })();
 
     function setTune(key, value) {
         tune[key] = value;
+        if (key === 'pad') tune.padPicked = true;
         SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
         if ((key === 'hand' || key === 'club') && G3.bag && G3.bag.address) G3.bag.address.setHand(clubRight());
@@ -1477,6 +1485,19 @@
             row.appendChild(seg);
             box.appendChild(row);
         });
+    }
+
+    /* The ⇆ on the lane: the pad's three places in turn, so where it can go
+       is found on the lane itself rather than only in the Swing panel. */
+    var PAD_NEXT = { right: 'centre', centre: 'left', left: 'right' };
+    var PAD_SAY = { left: 'Pad: left', centre: 'Pad: middle', right: 'Pad: right' };
+    var padSaid = 0;
+    function movePad() {
+        setTune('pad', PAD_NEXT[tune.pad] || 'right');
+        var b = $('swipe-move');
+        b.textContent = '\u21C6 ' + PAD_SAY[tune.pad];
+        clearTimeout(padSaid);
+        padSaid = setTimeout(function () { b.textContent = '\u21C6 Move'; }, 1600);
     }
 
     function syncTune() {
@@ -1646,6 +1667,7 @@
             lane.style.left = '';
             lane.style.width = laneWidth(stage, top, height) || '';
         }
+        lane.classList.toggle('pad-left', pad === 'left');
         lane.style.top = top + 'px';
         lane.style.height = height + 'px';
         if (!swipe) drawSwipe();
@@ -8912,6 +8934,9 @@
             pressArc();
         });
         $('needle').addEventListener('pointerdown', pressNeedle);
+        // Taken before the lane sees it, so moving the pad is not a swing.
+        $('swipe-move').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        $('swipe-move').addEventListener('click', function (e) { e.stopPropagation(); movePad(); });
         $('swipe').addEventListener('pointerdown', onSwipeDown);
         // The swing card is read, then tapped away (showSwingCard). Taken here
         // so the tap does not also land on the course and turn the aim.

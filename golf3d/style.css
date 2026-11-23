@@ -4172,6 +4172,27 @@ body.compact-ui .picker { padding-top: 52px; }
     pointer-events: none;
 }
 .swipe-cue[hidden] { display: none; }
+/* The ⇆ in the pad's bottom corner on the side of the screen's middle, which
+   says the pad can move and moves it (game.js `movePad`). Out of the way of
+   the pull, which runs down the middle; put away while one is held. */
+.swipe-move {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--ov-bg);
+    border: 1px solid var(--ov-border);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.8;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.swipe.pad-left .swipe-move { left: auto; right: 6px; }
+.swipe.held .swipe-move { display: none; }
 /* Nor while the picker is up: the lane is a panel up the middle of the stage,
    which is where the row comes out, and it is drawn over the canvas — so it
    sat across the clubs and took the taps meant for them. You cannot swing a
