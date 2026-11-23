@@ -17,7 +17,7 @@
 
      G3.forge.maps()          the batch, built: [{ id, title, world, hole, place, map }]
      G3.forge.byId(id)
-     G3.forge.dev()/setDev()  the dev mode switch (localStorage)
+     G3.forge.dev()           is dev mode on (game.js owns the switch)
      G3.forge.notes()/note()  the verdicts (localStorage)
      G3.forge.exportText()    everything, as text to paste */
 (function (G3) {
@@ -25,7 +25,8 @@
 
     var A = G3.authoring, PW = G3.portals;
     var DATA = G3.FORGE || { batch: 0, recipe: {}, maps: [] };
-    var DEV_KEY = 'loftLinks.devMode';
+    // The game's own dev mode (game.js → setDev), which the ☰ menu's Dev mode chip switches.
+    var DEV_KEY = (G3.CONFIG && G3.CONFIG.DEV_KEY) || 'loftLinks.dev';
     var NOTES_KEY = 'loftLinks.forgeNotes';
 
     // A palette for a world with no tour hole: Endless's stand-in for it,
@@ -111,8 +112,7 @@
     }
     function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* private window */ } }
 
-    function dev() { return load(DEV_KEY, false) === true; }
-    function setDev(on) { store(DEV_KEY, !!on); }
+    function dev() { try { return localStorage.getItem(DEV_KEY) === '1'; } catch (e) { return false; } }
 
     // { '<batch>:<id>': { verdict, fun, difficulty, look, issues[], note, strokes, at } }
     function notes() { return load(NOTES_KEY, {}) || {}; }
@@ -126,6 +126,29 @@
         return n;
     }
     function clear() { store(NOTES_KEY, {}); }
+
+    /* Released holes (the owner: "also support doing this feedback for
+       already released maps"): the same form on any tour or course hole in
+       dev mode, keyed by the hole's home — `released:<course>:<n>`, from
+       game.js → holeRef — so a hole is the same hole wherever it is met. The
+       note carries its own title, place and par for the export. */
+    var RATE_ALL_KEY = 'loftLinks.rateAll';
+    function releasedKey(ref) { return 'released:' + ref.id + ':' + ref.index; }
+    function noteAt(key) { return notes()[key] || null; }
+    function noteKey(key, n) {
+        var all = notes();
+        n.at = n.at || new Date().toISOString();
+        all[key] = n;
+        store(NOTES_KEY, all);
+        return n;
+    }
+    // Ask after every released hole too, not only the forge's (off until switched on).
+    function rateAll() { return load(RATE_ALL_KEY, false) === true; }
+    function setRateAll(on) { store(RATE_ALL_KEY, !!on); }
+    function released() {
+        var all = notes();
+        return Object.keys(all).filter(function (k) { return k.indexOf('released:') === 0; });
+    }
 
     // The first map of the batch with no verdict yet, or -1.
     function nextUnrated() {
@@ -155,7 +178,10 @@
 
     function exportText() {
         var all = notes(), L = maps(), lines = [];
-        lines.push('FORGE FEEDBACK · batch ' + DATA.batch + ' · recipe ' + JSON.stringify(DATA.recipe || {}));
+        // The first lines are for Claude, so the paste is the whole prompt.
+        lines.push('FORGE FEEDBACK \u00B7 Loft Links \u00B7 batch ' + DATA.batch + ' \u00B7 build v' + (G3.VERSION || '?'));
+        lines.push('Claude: this is my feedback on the forge\u2019s new maps (and maybe released ones). Read golf3d/FORGE-FEEDBACK.md in neskil/neskil.github.io and follow it: sum it up, move keeps into the World Tour, adjust the recipe, forge the next batch and ship it to master.');
+        lines.push('recipe ' + JSON.stringify(DATA.recipe || {}));
         L.forEach(function (w) {
             var n = all[keyOf(w.id)];
             var m = w.map;
@@ -163,13 +189,27 @@
                 ' · gen ' + JSON.stringify(m.gen || {});
             if (!n) { lines.push(head + ' · (not rated)'); return; }
             lines.push(head + ' · ' + n.verdict + ' · fun ' + n.fun + '/5 · difficulty ' + n.difficulty +
-                ' · look ' + n.look + '/5' + (n.strokes ? ' · took ' + n.strokes : '') +
+                ' · look ' + n.look + '/5' + (n.strokes ? ' · ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') +
                 (n.note ? ' · note: ' + n.note.replace(/\s+/g, ' ') : ''));
         });
+        function line(n) {
+            return n.verdict + ' \u00B7 fun ' + n.fun + '/5 \u00B7 difficulty ' + n.difficulty + ' \u00B7 look ' + n.look + '/5' +
+                (n.strokes ? ' \u00B7 ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
+                (n.issues && n.issues.length ? ' \u00B7 issues ' + n.issues.join(',') : '') +
+                (n.note ? ' \u00B7 note: ' + n.note.replace(/\s+/g, ' ') : '');
+        }
+        var rel = released();
+        if (rel.length) {
+            lines.push('RELEASED MAPS');
+            rel.forEach(function (k) {
+                var n = all[k];
+                lines.push(k.slice(9) + ' \u00B7 ' + (n.title || '?') + ' \u00B7 ' + (n.where || '?') + ' \u00B7 par ' + (n.par || '?') + ' \u00B7 ' + line(n));
+            });
+        }
         // Earlier batches' notes still in the browser, so nothing is lost.
         Object.keys(all).forEach(function (k) {
-            if (k.indexOf(DATA.batch + ':') === 0) return;
+            if (k.indexOf(DATA.batch + ':') === 0 || k.indexOf('released:') === 0) return;
             var n = all[k];
             lines.push('(older) ' + k + ' · ' + n.verdict + ' · fun ' + n.fun + ' · difficulty ' + n.difficulty + ' · look ' + n.look +
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') + (n.note ? ' · note: ' + n.note : ''));
@@ -180,8 +220,10 @@
     G3.forge = {
         DATA: DATA, ISSUES: ISSUES, VERDICTS: VERDICTS,
         maps: maps, byId: byId, holeOf: holeOf,
-        dev: dev, setDev: setDev,
+        dev: dev,
         notes: notes, noteFor: noteFor, note: note, clear: clear, nextUnrated: nextUnrated,
+        keyOf: keyOf, releasedKey: releasedKey, noteAt: noteAt, noteKey: noteKey,
+        rateAll: rateAll, setRateAll: setRateAll, released: released,
         exportText: exportText,
         course: function () { var L = maps(); return L.length ? course(L, 'forge', 'New maps · batch ' + DATA.batch) : null; }
     };

@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.209.0">
+    <link rel="stylesheet" href="style.css?v=1.210.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -219,6 +219,8 @@
                         <button class="chip" id="btn-courses" title="Pick a course"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-flag"/></svg></span> <span class="tm-lbl">Courses<span class="tm-sub">World Tour · Endless · fifteen courses</span></span></button>
                         <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span> <span class="tm-lbl"><span class="chip-text">Restart </span>Hole</span></button>
                         <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span> <span class="tm-lbl">Scorecard</span></button>
+                        <!-- Dev mode only: the forge's batch of unapproved maps (forge.js). -->
+                        <button class="chip" id="btn-forge" title="New maps to play and rate (dev mode)" hidden><span class="tm-ico" aria-hidden="true">🧪</span> <span class="tm-lbl">New maps<span class="tm-sub" id="forge-sub">not approved yet</span></span></button>
                     </div>
                     <div class="tm-quick">
                         <button class="chip" id="btn-range" title="Driving range practice (T)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-bucket"/></svg></span><span class="chip-text tm-lbl"> Range<span class="tm-sub">practice</span></span></button>
@@ -249,6 +251,9 @@
                     <div class="tm-group" id="tm-about" data-group>
                         <p class="tm-about">Loft Links, by Niklas Billgren. The tour's worlds are from <a href="https://github.com/emollick/ai-portals" target="_blank" rel="noopener">Portals</a> by Ethan Mollick, CC BY-NC-SA 4.0.</p>
                     </div>
+                    <!-- The last thing in the menu: the game's dev mode, which used to
+                         be five taps on About. On, it shows New maps above. -->
+                    <button class="chip tm-dev" id="btn-dev" title="Dev mode: new unapproved maps and free Pro Shop unlocks" aria-pressed="false"><span class="tm-fico" aria-hidden="true">🛠</span> <span>Dev mode</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
                         aria-expanded="false" aria-controls="topbar-menu">☰</button>
@@ -893,7 +898,7 @@
             <div class="about-head" id="about-head">
                 <div class="about-title-row">
                     <h2 id="about-title">About Loft Links</h2>
-                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.209.0</button>
+                    <button type="button" class="about-ver" id="about-ver" title="Loft Links build">v1.210.0</button>
                     <span class="dev-pill" id="about-dev-pill" hidden>DEV MODE</span>
                 </div>
             </div>
@@ -1131,6 +1136,54 @@
         </div>
     </div>
 
+    <!-- The forge (dev mode): this batch of unapproved maps, played in
+         order, and what has been said about each. forge.js keeps the
+         verdicts; Copy feedback puts them on the clipboard for Claude. -->
+    <div class="modal" id="forge">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="forge-title">
+            <h2 id="forge-title">New maps</h2>
+            <p class="sub" id="forge-lede">Made by the forge on each world's own ground. Play them in order and rate each one; then copy your feedback and paste it to Claude. Released holes can be rated the same way.</p>
+            <div class="forge-actions">
+                <button type="button" class="primary" id="forge-play">Play next unrated</button>
+                <button type="button" id="forge-rate-now" hidden>Rate this map now</button>
+            </div>
+            <ol class="forge-list" id="forge-list"></ol>
+            <!-- Released holes get the same form: always from "Rate … now"
+                 above while one is being played, and after every hole of
+                 any tour or course with this on. -->
+            <button type="button" class="forge-all" id="forge-all" aria-pressed="false">
+                <span><b>Rate released maps too</b><span class="forge-all-sub">Ask after every World Tour and course hole · <span id="forge-all-n">none rated yet</span></span></span>
+                <span class="forge-all-pip" aria-hidden="true"></span>
+            </button>
+            <textarea class="forge-export" id="forge-export" readonly hidden aria-label="Your feedback, to copy"></textarea>
+            <div class="modal-actions">
+                <button type="button" id="forge-clear">Clear ratings</button>
+                <button type="button" id="forge-copy">Copy feedback</button>
+                <button type="button" class="primary" id="forge-close">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- After each forge map: a quick verdict, three ratings, what was wrong
+         and a line of your own. -->
+    <div class="modal" id="forge-form">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="ff-title">
+            <h2 id="ff-title">Rate this map</h2>
+            <p class="sub" id="ff-sub">—</p>
+            <div class="ff-row" role="radiogroup" aria-label="Verdict" id="ff-verdict"></div>
+            <div class="ff-scale"><span class="ff-label">Fun</span><div class="ff-row" role="radiogroup" aria-label="Fun" id="ff-fun"></div></div>
+            <div class="ff-scale"><span class="ff-label">Difficulty <i>easy → hard</i></span><div class="ff-row" role="radiogroup" aria-label="Difficulty" id="ff-diff"></div></div>
+            <div class="ff-scale"><span class="ff-label">Looks / fits the world</span><div class="ff-row" role="radiogroup" aria-label="Looks" id="ff-look"></div></div>
+            <div class="ff-label">Anything wrong (or right)?</div>
+            <div class="ff-chips" id="ff-issues"></div>
+            <input type="text" class="ff-note" id="ff-note" maxlength="240" placeholder="A line of your own (optional)">
+            <div class="modal-actions">
+                <button type="button" id="ff-later">Later</button>
+                <button type="button" class="primary" id="ff-save">Save &amp; next</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="achievements">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="ach-title">
             <div class="shop-head">
@@ -1250,45 +1303,47 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.209.0"></script>
-    <script src="js/balls.js?v=1.209.0"></script>
-    <script src="js/celebrate.js?v=1.209.0"></script>
-    <script src="js/themes.js?v=1.209.0"></script>
-    <script src="js/physics.js?v=1.209.0"></script>
-    <script src="js/courses.js?v=1.209.0"></script>
-    <script src="js/tour-ground.js?v=1.209.0"></script>
-    <script src="js/portals.js?v=1.209.0"></script>
-    <script src="js/portal-worlds.js?v=1.209.0"></script>
-    <script src="js/endless.js?v=1.209.0"></script>
-    <script src="js/audit.js?v=1.209.0"></script>
-    <script src="js/custom.js?v=1.209.0"></script>
-    <script src="js/scoring.js?v=1.209.0"></script>
-    <script src="js/swing.js?v=1.209.0"></script>
-    <script src="js/school.js?v=1.209.0"></script>
-    <script src="js/audio.js?v=1.209.0"></script>
-    <script src="js/music.js?v=1.209.0"></script>
-    <script src="js/bag.js?v=1.209.0"></script>
-    <script src="js/textures.js?v=1.209.0"></script>
-    <script src="js/shaders.js?v=1.209.0"></script>
-    <script src="js/postfx.js?v=1.209.0"></script>
-    <script src="js/weather.js?v=1.209.0"></script>
-    <script src="js/flyover.js?v=1.209.0"></script>
-    <script src="js/replay.js?v=1.209.0"></script>
-    <script src="js/bot.js?v=1.209.0"></script>
-    <script src="js/models.js?v=1.209.0"></script>
-    <script src="js/life.js?v=1.209.0"></script>
-    <script src="js/worlds.js?v=1.209.0"></script>
-    <script src="js/sandfx.js?v=1.209.0"></script>
-    <script src="js/render.js?v=1.209.0"></script>
-    <script src="js/minimap.js?v=1.209.0"></script>
-    <script src="js/debug.js?v=1.209.0"></script>
-    <script src="js/game.js?v=1.209.0"></script>
+    <script src="js/config.js?v=1.210.0"></script>
+    <script src="js/balls.js?v=1.210.0"></script>
+    <script src="js/celebrate.js?v=1.210.0"></script>
+    <script src="js/themes.js?v=1.210.0"></script>
+    <script src="js/physics.js?v=1.210.0"></script>
+    <script src="js/courses.js?v=1.210.0"></script>
+    <script src="js/tour-ground.js?v=1.210.0"></script>
+    <script src="js/portals.js?v=1.210.0"></script>
+    <script src="js/portal-worlds.js?v=1.210.0"></script>
+    <script src="js/endless.js?v=1.210.0"></script>
+    <script src="js/forge-maps.js?v=1.210.0"></script>
+    <script src="js/forge.js?v=1.210.0"></script>
+    <script src="js/audit.js?v=1.210.0"></script>
+    <script src="js/custom.js?v=1.210.0"></script>
+    <script src="js/scoring.js?v=1.210.0"></script>
+    <script src="js/swing.js?v=1.210.0"></script>
+    <script src="js/school.js?v=1.210.0"></script>
+    <script src="js/audio.js?v=1.210.0"></script>
+    <script src="js/music.js?v=1.210.0"></script>
+    <script src="js/bag.js?v=1.210.0"></script>
+    <script src="js/textures.js?v=1.210.0"></script>
+    <script src="js/shaders.js?v=1.210.0"></script>
+    <script src="js/postfx.js?v=1.210.0"></script>
+    <script src="js/weather.js?v=1.210.0"></script>
+    <script src="js/flyover.js?v=1.210.0"></script>
+    <script src="js/replay.js?v=1.210.0"></script>
+    <script src="js/bot.js?v=1.210.0"></script>
+    <script src="js/models.js?v=1.210.0"></script>
+    <script src="js/life.js?v=1.210.0"></script>
+    <script src="js/worlds.js?v=1.210.0"></script>
+    <script src="js/sandfx.js?v=1.210.0"></script>
+    <script src="js/render.js?v=1.210.0"></script>
+    <script src="js/minimap.js?v=1.210.0"></script>
+    <script src="js/debug.js?v=1.210.0"></script>
+    <script src="js/game.js?v=1.210.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.209.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.210.0"></script>
 </body>
 </html>
