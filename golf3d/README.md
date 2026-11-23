@@ -4790,9 +4790,11 @@ of `stood`, 6 s to load). What changed, in the order it paid:
   as the ray `continue`s; the camera at the flight's height, where the ray
   starts. Under a second a world instead of minutes. `--ground both` checks it
   cell by cell against the raycast: over five worlds and twenty patches all
-  but about one cell in a hundred agree within 0.002 golf units, and the
-  larger misses are cells lying exactly on a triangle's edge, which the ray
-  counts and the rasteriser does not. `--ground ray` is the old way.
+  but a few cells in a hundred agree within 0.002 golf units (on a slope the
+  pixel's sample point sits a hair, about 2% of a cell, off the ray's), and
+  every larger miss looked at was a cell within that hair of a mesh's edge,
+  a box's rim over a drop or a seam between two triangles, which the render
+  and the ray fall either side of. `--ground ray` is the old way.
 - **The samples are kept on disk** (`~/.cache/loft-links-forge`, outside the
   repo; `--cache <dir>`, `--no-cache`). Only `W`, `L`, `back`, `d`, `ahead`
   and `scaleK` change what is sampled, so each world is sampled once at the
@@ -4821,7 +4823,9 @@ Dry runs of three worlds on a four-core box, old against new: 3 min 25 s →
 45 s (storm-savanna, still-on-the-sprue, glass-painted-fleet), 4 min 8 s →
 1 min 14 s (chambered-sun, flinching-forest, the-fire-comes-round, `L` 32).
 Each made the same maps: the same patch, anchor, tee, cup, par and metrics,
-the grid within 0.012 golf units. A full dry batch of twelve took 18 to 19½
+the grid within 0.012 golf units. So did the twelve worlds of the batch below,
+forged one at a time by the old code and the new: eleven maps the same (grids
+within 0.013) and the twelfth world passed over by both. A full dry batch of twelve took 18 to 19½
 minutes from nothing (three runs). It tried 85 worlds to find twelve, where
 batch 1 took 48, because the clutter rules turn more down; on the raycast
 that is about two hours. From the cache the same batch took about four

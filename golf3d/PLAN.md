@@ -899,9 +899,9 @@ Kept short, and only where it explains a constraint above.
   pool's order, where the lean used to depend on which finished first. Two
   things worth keeping. **The render keeps
   groundUnder's rules by what it draws and what it discards**, and it is
-  checked with `forge-sample.mjs --ground both`; the cells where the two differ
-  are a cell lying exactly on a triangle's edge, where the ray counts the edge
-  and the rasteriser does not. **Loading less did not pay**: blocking fonts,
+  checked with `forge-sample.mjs --ground both`; where the two differ by more
+  than a few thousandths, the cell lies within a hair of a mesh's edge (a
+  box's rim, a seam), which the pixel and the ray can fall either side of. **Loading less did not pay**: blocking fonts,
   analytics and every other host, the low quality tier and `hurry()` each
   moved a world's load by less than the noise between runs (it is the
   world's own build), so none went in. Coarse-then-fine was moot once a
