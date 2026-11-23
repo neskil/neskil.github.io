@@ -4757,11 +4757,21 @@ could see neither:
   percentile is 0.002 to 0.04 over four batch-1 patches); the rollers
   stand 0.1 to 0.34 off it.
 
+A patch more than half covered is under a ceiling, not cluttered. b1-06
+is played under the water of Fireworks Under the Wash, whose surface stood
+over 471 of its 476 cells. Such a patch is marked `gen.covered` and judged
+on its bumps alone: whatever stands under a ceiling cannot be seen from
+above.
+
 `pin` then turns down any cup whose line from the tee has a counted cell
 within `recipe.lane` (1.5) of it, or within the tee's pad or the green.
-What that would have said about batch 1: b1-10 and b1-07 have clutter on
-the line; b1-01 (a forest, 209 cells with trees) and b1-08 (60 cells) have
-it about the hole.
+Run over batch 1's own patches and lines, the rule would have turned down
+six of ten: b1-10 (26 cells of rods on the line), b1-07 (12 of rollers,
+9 of other things standing), b1-01 (34 of trees), b1-02 (56), b1-08 (2)
+and b1-05 (one bump). b1-03, b1-04 and b1-09 were clear, and b1-06 is
+covered. That is stricter than the owner's
+play may bear out: where a turned-down map is rated well with no `clip`,
+loosen `stand`, `lane` or `bump` rather than keep the rule.
 
 **Speed.** Pinning and vetting is tens of thousands of simulated shots in
 plain JavaScript, and until batch 2 it ran on the one thread that also
@@ -4804,6 +4814,14 @@ form asks for a verdict (Keep / Keep if fixed / Drop), Fun, Difficulty and
 Looks out of five, any of a dozen issue chips (`G3.forge.ISSUES`, each
 named for the part of the recipe it would move) and a line of the owner's
 own. The strokes taken are filled in.
+
+**A changed map is a new map** (the owner: "give the maps a new id when you
+update them"). A verdict is stored under a key made from what the map is,
+`forge:` and a hash of its world, anchor, tee, cup, par, bag, strips and
+grid (`G3.forge.keyFor`), not under its batch and number. So a map fixed
+by hand or re-forged starts unrated, and a batch renumbered by `--keep`
+does not move a verdict onto another map. Batch 1 was already being rated
+under `1:<id>` when this went in, and keeps that key.
 
 **Released holes too** (the owner's follow-up). In dev mode, the same form rates
 any World Tour or course hole, keyed by its home (`released:<course>:<n>`,

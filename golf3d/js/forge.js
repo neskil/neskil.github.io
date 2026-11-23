@@ -114,9 +114,31 @@
 
     function dev() { try { return localStorage.getItem(DEV_KEY) === '1'; } catch (e) { return false; } }
 
-    // { '<batch>:<id>': { verdict, fun, difficulty, look, issues[], note, strokes, at } }
+    /* Which rating belongs to which map. A map is rated under a key made from
+       what it *is* — its world, anchor, tee, cup, par, bag, strips and every
+       height of its ground — so a map that changes in any way (fixed by
+       hand, re-forged, renumbered when a batch is kept in part) is a new map
+       with no rating, and an old rating never lands on it (the owner: "give
+       the maps a new id when you update them"). The key is `forge:` and a
+       hash of that, and the export prints it beside the map's name.
+       Batch 1 shipped keyed by `<batch>:<id>` and was rated under it while
+       this was written, so batch 1 keeps that. */
+    function hashOf(str) {
+        var h = 2166136261;
+        for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return (h >>> 0).toString(36);
+    }
+    function keyFor(m, batch) {
+        if (batch === 1) return '1:' + m.id;
+        return 'forge:' + hashOf(JSON.stringify([m.world, m.u, m.at, m.tee, m.cup, m.par, m.bag, m.strips, m.grid]));
+    }
+    var KEYS = null;
+    function keyOf(id) {
+        if (!KEYS) { KEYS = {}; DATA.maps.forEach(function (m) { KEYS[m.id] = keyFor(m, DATA.batch); }); }
+        return KEYS[id] || DATA.batch + ':' + id;
+    }
+    // { '<key>': { verdict, fun, difficulty, look, issues[], note, strokes, at } }
     function notes() { return load(NOTES_KEY, {}) || {}; }
-    function keyOf(id) { return DATA.batch + ':' + id; }
     function noteFor(id) { return notes()[keyOf(id)] || null; }
     function note(id, n) {
         var all = notes();
@@ -185,7 +207,7 @@
         L.forEach(function (w) {
             var n = all[keyOf(w.id)];
             var m = w.map;
-            var head = w.id + ' · ' + w.title + ' · ' + m.world + ' · par ' + m.par +
+            var head = w.id + (keyOf(w.id).indexOf('forge:') === 0 ? ' [' + keyOf(w.id) + ']' : '') + ' · ' + w.title + ' · ' + m.world + ' · par ' + m.par +
                 ' · gen ' + JSON.stringify(m.gen || {});
             if (!n) { lines.push(head + ' · (not rated)'); return; }
             lines.push(head + ' · ' + n.verdict + ' · fun ' + n.fun + '/5 · difficulty ' + n.difficulty +
@@ -208,8 +230,10 @@
             });
         }
         // Earlier batches' notes still in the browser, so nothing is lost.
+        var mine = {};
+        L.forEach(function (w) { mine[keyOf(w.id)] = true; });
         Object.keys(all).forEach(function (k) {
-            if (k.indexOf(DATA.batch + ':') === 0 || k.indexOf('released:') === 0) return;
+            if (mine[k] || k.indexOf('released:') === 0) return;
             var n = all[k];
             lines.push('(older) ' + k + ' · ' + n.verdict + ' · fun ' + n.fun + ' · difficulty ' + n.difficulty + ' · look ' + n.look +
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') + (n.note ? ' · note: ' + n.note : ''));
@@ -222,7 +246,7 @@
         maps: maps, byId: byId, holeOf: holeOf,
         dev: dev,
         notes: notes, noteFor: noteFor, note: note, clear: clear, nextUnrated: nextUnrated,
-        keyOf: keyOf, releasedKey: releasedKey, noteAt: noteAt, noteKey: noteKey,
+        keyOf: keyOf, keyFor: keyFor, releasedKey: releasedKey, noteAt: noteAt, noteKey: noteKey,
         rateAll: rateAll, setRateAll: setRateAll, released: released,
         exportText: exportText,
         course: function () { var L = maps(); return L.length ? course(L, 'forge', 'New maps · batch ' + DATA.batch) : null; }

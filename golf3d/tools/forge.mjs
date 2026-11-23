@@ -95,7 +95,8 @@ function bake(q, r) {
     const raw = Float64Array.from(q.h, (x) => ((x === null ? lo : x) - lo) / q.scale + 0.1);
     let h = raw;
     for (let n = 0; n < r.smooth; n++) h = blur(h, q.nx, q.nz);
-    return { h, y0: lo - 0.1 * q.scale, clutter: clutter(q, raw, r) };
+    const cl = clutter(q, raw, r);
+    return { h, y0: lo - 0.1 * q.scale, clutter: cl.mask, covered: cl.covered };
 }
 /* Where the ball would roll through the world's things. Two kinds, and the
    ground probe sees neither as an obstacle — the ball can hit nothing of the
@@ -107,11 +108,19 @@ function bake(q, r) {
      as the sand. They come out of the sample as bumps far sharper than land
      is — the raw height standing `bump` off its own two-pass smoothing,
      where natural ground keeps within a few hundredths.
-   1 marks a cell with either; a cup is never pinned with one on its line. */
+   1 marks a cell with either; a cup is never pinned with one on its line.
+   A patch more than half covered is under a ceiling, not cluttered: b1-06
+   is played under the water of Fireworks Under the Wash, and from above
+   its surface stood over 471 cells of 476. Whatever stands under a ceiling
+   cannot be seen from above anyway, so such a patch is marked `covered`
+   and judged on its bumps alone. */
 function clutter(q, raw, r) {
     let sm = raw;
     for (let n = 0; n < 2; n++) sm = blur(sm, q.nx, q.nz);
-    return Uint8Array.from(raw, (x, k) => ((q.stood && q.stood[k] >= r.stand) || Math.abs(x - sm[k]) >= r.bump) ? 1 : 0);
+    const stood = q.stood ? q.stood.filter((x) => x >= r.stand).length : 0;
+    const covered = stood > raw.length / 2;
+    const mask = Uint8Array.from(raw, (x, k) => ((!covered && q.stood && q.stood[k] >= r.stand) || Math.abs(x - sm[k]) >= r.bump) ? 1 : 0);
+    return { mask, covered };
 }
 // Is the way from tee to cup clear: the lane along the line, the tee's pad and the green?
 function clearLine(mask, g, tee, cup, r) {
@@ -323,8 +332,10 @@ async function forgeOne(row) {
         map.at = { x: +q.ox.toFixed(2), z: +q.oz.toFixed(2), y: +c.b.y0.toFixed(2), yaw: +q.yaw.toFixed(4), scale: +q.scale.toFixed(3) };
         map.u = q.u;
         // `clutter`: cells of the patch with something on them (off the line
-        // of play, which is clear) — so a `clip` verdict can be read against it.
+        // of play, which is clear) — so a `clip` verdict can be read against
+        // it; `covered`: the patch is under a ceiling (see `clutter()`).
         map.gen = { L: r.L, relief: r.relief, got: +c.rel.toFixed(2), slope: +c.sl.toFixed(2), u: q.u, turn: q.turn, scale: +q.scale.toFixed(2), smooth: r.smooth, clutter: c.b.clutter.reduce((a, x) => a + x, 0) };
+        if (c.b.covered) map.gen.covered = true;
         map.metrics = { bot: p.m.bot, ace: +(p.m.share * 100).toFixed(3), straight: p.m.straight };
         return { map };
     }

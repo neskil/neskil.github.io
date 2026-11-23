@@ -16,6 +16,12 @@ One line per map:
 b1-03 · <title> · <world> · par 3 · gen {L, relief, got, slope, u, turn, scale, smooth} · <verdict> · fun 4/5 · difficulty 2 · look 3/5 · took 3 (par 3) · issues edges,bumpy · note: …
 ```
 
+From batch 2 on the id is followed by the map's rating key, e.g.
+`b2-03 [forge:1x9k2ab]`: a hash of everything the map is, so a map that has
+changed since it was rated is a different map with a different key, and a
+rating is always about the version that was played. Batch 1's maps are
+keyed `1:<id>`.
+
 - **verdict**: `keep` (move it into the World Tour), `fix` (keep it, but the
   issues and note say what is wrong), `drop`.
 - **fun / look**: 1–5. **difficulty**: 1 too easy … 3 right … 5 too hard.
