@@ -133,7 +133,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "scale": 1.8}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "scale": 1.8}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -1016,6 +1016,44 @@
         })
     });
 
+    /* The first hole the forge made that the owner kept (batch 1, b1-03:
+       "look 5/5 … easy, too short … have some hazard so it's some kind of
+       challenge / strategy"). The ground is Storm over the Savanna's own,
+       read and baked by tools/forge.mjs: the tee is in a shallow basin, the
+       country climbs away to the right and the back. Finished by hand with
+       tools/forge-finish.mjs: the forge's cup was ten units out on the floor
+       of the basin, where a putt rolled in; it is up on the slope at the
+       back left now, and the rain has filled the basin between. The line is
+       over the water and has to hold a green on a hill, short of which
+       everything runs back into the pond; the dry way is right, up the
+       slope and down on to the green, and it costs a stroke. Off screen it
+       borrows the cloud armada's set piece: it is the storm's world. */
+    add({
+        id: 'savanna', title: 'The Rain Pond', world: 'Storm over the Savanna', kind: 'wild', tier: 2,
+        caption: 'A par three on the savanna\'s own ground, over a pond the storm has filled, to a green up the hill.',
+        theme: 'savanna',
+        hole: (function () {
+            var G = (G3.TOUR_GROUND || {}).savanna, field = G ? [{ grid: G }] : [];
+            function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
+            var ground = on(pad(-8, -3, 16, 21, 0, 'fairway'));
+            ground.ghost = true;
+            return world({
+                name: 'The Rain Pond', par: 3, bag: LOFT,
+                blurb: 'The storm has filled the hollow between you and the hill. Carry it and hold the green on the slope \u2014 short runs back into the water. Or go right, up the hill, and come down on it.',
+                pads: [
+                    ground,
+                    on(pad(-1, -1, 2, 2, 0, 'fairway'), true),
+                    on(pad(-4, 1, 6, 6.5, 0, 'fairway'), true),
+                    on(pad(-6, 7.5, 6, 5.9, 0, 'fairway'), true),
+                    on(pad(-5.5, 13.5, 3, 3, 0, 'green'), true)
+                ],
+                // Drawn to its waterline on the grid (render.js → addPondOnGrid).
+                water: G ? [Object.assign(A.rect(-8.25, 2.25, 6, 9.5, 0.5), { grid: G })] : [],
+                tee: { x: 0, z: 0 }, cup: { x: -4, z: 15 }
+            });
+        })()
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -1026,6 +1064,17 @@
     /* ── the palettes ───────────────────────────────────────────────────── */
 
     var THEMES = {
+        /* The forge's palette for this world (forge.js → themeFor: the
+           paper-river stand-in), with the grass turned from its teal to the
+           savanna's dry gold and the water to the storm's slate. */
+        savanna: {
+            sky: [0x7fb6d8, 0xe9f4e2], fog: 0xd8eed8,
+            sun: 0xfff5dc, sunPos: [8, 12, -5], ambient: 0xa8d0b8, ambientI: 0.75,
+            grass: ['#a08f3e', '#8f7f36'], rail: 0xf3e9d2,
+            birds: false,
+            surroundY: -6, surround: 'floor', floor: '#8a7a4a',
+            water: 0x4a6a78, side: '#c9b98a'
+        },
         breakfast: {
             sky: [0xf2c98a, 0xfff1d6], fog: 0xfff1d6,
             sun: 0xfff0cf, sunPos: [10, 13, -6], ambient: 0xf6d9b0, ambientI: 0.7,

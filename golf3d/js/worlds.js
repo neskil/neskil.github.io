@@ -481,6 +481,8 @@
     SCENES.pyramid = SCENES.stairs; SCENES.drydock = SCENES.threebody;
     // …and the three of v1.209.0.
     SCENES.maelstrom = SCENES.abyss; SCENES.globe = SCENES.carnival; SCENES.pins = SCENES.threebody;
+    // …and the first the forge made (v1.214.0): a storm over the savanna, so clouds.
+    SCENES.savanna = SCENES.clouds;
 
     G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 

@@ -848,6 +848,20 @@
         return true;
     }
 
+    /* …or among a world's own things: a forged hole (forge.js) marks the
+       cells of its grid where something of the world's stands, off the line
+       of play — a tree, a rod, a hull — and a ball may roll through one but
+       may not stop in it, because it would be resting inside a trunk.
+       `hole.outGrid` is `{ x0, z0, d, nx, nz, on }`, `on` keyed by cell
+       index; a cell is the square of side `d` round its grid point. */
+    function outCell(hole, x, z) {
+        var g = hole.outGrid;
+        if (!g) return false;
+        var i = Math.round((x - g.x0) / g.d), k = Math.round((z - g.z0) / g.d);
+        if (i < 0 || k < 0 || i >= g.nx || k >= g.nz) return false;
+        return !!g.on[k * g.nx + i];
+    }
+
     // The boundary as a list, whatever it was authored as. The renderer walks
     // it to plant the stakes and the hole's bounds are its extent.
     function fenceRects(hole) {
@@ -863,7 +877,7 @@
            floor of Redstone's canyon, far below everything that is played) is
            somewhere a ball can be seen to land and may never be played from. */
         var lie = surfaceUnder(world.hole, b.x, b.z, b.y + C.STEP_UP);
-        if (!outOfBounds(world.hole, b.x, b.z) && !(lie && lie.pad.oob)) return;
+        if (!outOfBounds(world.hole, b.x, b.z) && !(lie && lie.pad.oob) && !outCell(world.hole, b.x, b.z)) return;
         world.out = true;
         events.out = true;
     }
@@ -2644,7 +2658,7 @@
         gravityOf: gravityOf,
         padGrad: padGrad,
         slopeAt: slopeAt,
-        outOfBounds: outOfBounds,
+        outOfBounds: outOfBounds, outCell: outCell,
         fenceRects: fenceRects,
         warpUnder: warpUnder,
         warpPoint: warpPoint,

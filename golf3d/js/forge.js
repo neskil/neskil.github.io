@@ -66,13 +66,30 @@
         ground.field = field; ground.ghost = true;
         var pads = [ground, on(A.pad(m.tee.x - 1, m.tee.z - 1, 2, 2, 0, 'fairway'))];
         (m.strips || []).forEach(function (r) { pads.push(on(A.pad(r[0], r[1], r[2] - r[0], r[3] - r[1], 0, 'fairway'))); });
-        pads.push(on(A.pad(m.cup.x - 1.3, m.cup.z - 1.3, 2.6, 2.6, 0, 'green')));
+        var gr = m.green || 1.3;
+        pads.push(on(A.pad(m.cup.x - gr, m.cup.z - gr, 2 * gr, 2 * gr, 0, 'green')));
+        // `long` (batch 2 on): a long-game hole, the full bag (no `bag` at all).
         var bags = { roll: ['putter', 'mallet'], loft: ['putter', 'mallet', 'chipper', 'wedge'] };
-        return PW.world({
-            name: m.title, par: m.par, bag: bags[m.bag] || bags.loft,
-            blurb: m.blurb || 'A hole the forge laid on this world’s own ground. Not approved yet: play it and say what you think.',
-            pads: pads, tee: { x: m.tee.x, z: m.tee.z }, cup: { x: m.cup.x, z: m.cup.z }
+        var said = [];
+        if (m.water) said.push('water lies in the hollows');
+        if (m.outs) said.push('the world’s own things are out of bounds: a ball that stops among them is played again');
+        var h = PW.world({
+            name: m.title, par: m.par, long: !!m.long, bag: m.long ? undefined : (bags[m.bag] || bags.loft),
+            blurb: m.blurb || ('A hole the forge laid on this world’s own ground' + (said.length ? '; ' + said.join(', and ') : '') +
+                '. Not approved yet: play it and say what you think.'),
+            pads: pads, tee: { x: m.tee.x, z: m.tee.z }, cup: { x: m.cup.x, z: m.cup.z },
+            // A pond in the grid's hollows: drawn to its waterline (render.js → addPondOnGrid).
+            water: (m.water || []).map(function (w) { var r = A.rect(w[0], w[1], w[2], w[3], w[4]); r.grid = G; return r; })
         });
+        // The world's things off the line (forge.mjs → outsOf): grid cells a
+        // ball may cross and may not stop in (physics.markOutOfBounds).
+        if (m.outs && m.outs.length) h.outGrid = outGrid(G, m.outs);
+        return h;
+    }
+    function outGrid(G, cells) {
+        var on = {};
+        cells.forEach(function (k) { on[k] = 1; });
+        return { x0: G.x0, z0: G.z0, d: G.d, nx: G.nx, nz: G.nz, on: on, n: cells.length };
     }
 
     var BUILT = null;
@@ -360,7 +377,7 @@
 
     G3.forge = {
         DATA: DATA, ISSUES: ISSUES, VERDICTS: VERDICTS,
-        maps: maps, byId: byId, holeOf: holeOf,
+        maps: maps, byId: byId, holeOf: holeOf, outGrid: outGrid,
         dev: dev,
         notes: notes, noteFor: noteFor, note: note, clear: clear, nextUnrated: nextUnrated,
         keyOf: keyOf, keyFor: keyFor, releasedKey: releasedKey, noteAt: noteAt, noteKey: noteKey,

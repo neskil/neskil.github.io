@@ -7471,7 +7471,15 @@
                shot on the hole. The
                green is out on the west edge, so the short way in is along the
                drop and the safe way is from the right, with the slope to
-               putt back across. Cairns mark the edge. */
+               putt back across. Cairns mark the edge.
+
+               The owner, on it (v1.214.0): "remove the out of bounds … make
+               the pit to the right have some water so you get back if you
+               miss". So there are no stakes on the lip any more — the scrub is
+               in play to its end — and the drop is a tarn: a ball over the edge
+               falls to the lake on the valley floor and is dropped back,
+               where it used to fall out of the world. Two outcrops on the lip
+               and firs up the crest are the polish. */
             var land = commons(0, [
                 [{ d: 6, y: 7.5 },     [4, rgh], [10, fwy], [10, rgh]],
                 [{ d: 17, sz: -0.06 }, [3, rgh], [10, fwy], [11, rgh]],
@@ -7489,11 +7497,16 @@
                     granite(28, 35, 5, 16, 13.5, { wild: 0.1 }),
                     inlay(g, 6.2, 61, 4.2, grn, 4.0)
                 ]),
-                fence: land.fence,
+                // The property runs over the lip to the far shore of the tarn.
+                fence: { x: land.fence.x - 34, z: land.fence.z - 16, w: land.fence.w + 34, d: land.fence.d + 32 },
+                water: [rect(-34, -16, 32.5, 102, -5.25)],
                 decor: [cairn(-0.8, 14), cairn(-0.7, 33), cairn(-0.9, 52, { scale: 1.2 })],
                 extra: [].concat(
                     forest(30, 62, 4, 5, 6, 9741, { fir: true }),
-                    crags(21, 27, 1.6, 4, 9743, { s: 1.2, h: 0.9 })
+                    forest(29, 12, 3, 4, 5, 9745, { fir: true }),
+                    crags(21, 27, 1.6, 4, 9743, { s: 1.2, h: 0.9 }),
+                    crags(-0.9, 23, 0.5, 2, 9747, { s: 0.7, h: 0.5 }),
+                    crags(-0.9, 43, 0.5, 2, 9749, { s: 0.8, h: 0.6 })
                 ),
                 tee: { x: 9, z: 2 }, cup: { x: 6, z: 61.5 }
             });

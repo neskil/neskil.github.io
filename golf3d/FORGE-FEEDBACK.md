@@ -29,7 +29,7 @@ keyed `1:<id>`.
 
 | Issue | Means | Move |
 | --- | --- | --- |
-| `edges` | couldn't see where the hole was | the hole needs marking (nothing is painted on a sculpted world): a kerb, posts or a painted edge — a code change, not a recipe number |
+| `edges` | couldn't see where the hole was | the hole needs marking (nothing is painted on a sculpted world). Since v1.214.0 a pin tag points at the flag (README → "Where the flag is"); if it still comes back, the next step is a kerb, posts or a painted edge — a code change, not a recipe number |
 | `bumpy` | ground too bumpy | `smooth` up, `maxSlope` down |
 | `flat` | too flat, boring | `relief` up, `reliefMin` up |
 | `long` / `short` | length | `L` down / up |
@@ -55,13 +55,20 @@ keyed `1:<id>`.
 1. **Sum it up for them first**: what they liked and why, what failed, which
    recipe settings (`gen`) the keeps and drops share. Two or three lines a
    map at most.
-2. **Keeps** → the World Tour: the map's `grid` into `js/tour-ground.js`
+2. **Keeps** → the World Tour. A keep's note usually still asks for
+   something; do it first with `tools/forge-finish.mjs` (README → "Finishing
+   by hand": move the cup or tee, flood a hollow, measure), whose `--tour
+   <id>` writes the grid and prints the place and pads. Then: the map's `grid` into `js/tour-ground.js`
    (`G3.TOUR_GROUND['<id>']`), a `PLACES` entry (`world`, `u`, `at`, `reach`)
    and a hole in `js/portals.js` built like The Nave (a `ghost` pad on the
    grid, inlays), a palette in `THEMES` and a `SCENES` alias in
    `js/worlds.js`. Give it a real name and blurb, and run `tools/portal-check.mjs`.
-3. **Fix** → do what the note says to that map (by hand in the grid, or
-   re-forge that world with `--worlds <id>` and a nudged recipe), then keep it.
+3. **Fix** → do what the note says to that map: by hand with
+   `tools/forge-finish.mjs` when it is the cup, the tee or water, or re-forge
+   that world (`--first <ids>` puts it at the head of the next batch) when it
+   is the length or the ground. A fixed map is a new map with a new key, so it
+   comes back in the next batch to be rated again rather than going straight
+   into the tour.
 4. **Move the recipe** by what the issues say (table above), in `RECIPE` in
    `tools/forge.mjs`, and write down in README → "The forge" what changed and
    why. Code changes (marking edges, the camera) are fine too.

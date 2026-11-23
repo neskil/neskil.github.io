@@ -349,6 +349,13 @@ In order of payoff:
    slope, then only the best three or four at 0.5. (Moot if 2 lands, since a
    render costs the same at either.)
 
+**Moved under this since it was written** (v1.214.0, batch 2): the recipe's
+defaults are long holes now — `d` 1, `L` 56, `W` 24 — so a patch is about
+1,500 cells at `d` 1, not 1,400–2,200 at 0.5, and `forgeOne` bakes a world
+twice when every patch is too steep (`smoothHard`), which a sample cache
+makes free. `pin` also picks a tee and runs a hazard fan (`risk`) per cup.
+`js/forge-maps.js` is batch 2: compare a dry run against that.
+
 Done means: the same worlds give the same maps (check a dry run with
 `--out` against `js/forge-maps.js`'s batch for two or three worlds: same
 patch, tee and cup, or a stated reason why not), the README's "Speed"

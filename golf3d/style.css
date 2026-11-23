@@ -1722,6 +1722,47 @@ body.demo .stage .replay-tag { display: none; }
    club in hand, and a message long enough to wrap came out through the back of
    its own box and across both of them. The offset moves with the view row,
    because that row is the tallest thing above it and it folds. */
+/* The pin tag (game.js → syncPinTag): a small brass plate over the flag on
+   a hole laid on a world's own ground, where nothing is painted and a busy
+   world swallows a flagstick at forty units. Off the screen it waits at the
+   edge, its point turned towards the flag. */
+.pin-tag {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 4;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.45rem 0.15rem 0.35rem;
+    border-radius: 4px;
+    background: var(--ov-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+    box-shadow: var(--ov-shadow);
+    transition: opacity 0.25s;
+}
+.pin-tag[hidden] { display: none; }
+.pin-tag::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    margin-left: -5px;
+    border: 5px solid transparent;
+    border-bottom: 0;
+    border-top-color: var(--accent);
+    transform: rotate(var(--pin-turn, 0deg));
+    transform-origin: 50% -9px;
+}
+.pin-tag-flag { font-size: 0.85rem; }
+.pin-tag-dist { color: var(--ink); }
+
 .toast {
     position: absolute;
     left: 50%;

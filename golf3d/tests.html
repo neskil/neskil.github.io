@@ -5931,6 +5931,34 @@
         /* ── the portal worlds ─────────────────────────────────────────── */
 
         section('FORGE');
+        /* Batch 2's rules, on a map made up here so they hold whatever batch
+           is on disk: a long map is played with the full bag; a pond in the
+           grid's hollow drowns a ball only where the ground is under its
+           level; the world's things are out where a ball stops, not where it
+           crosses. */
+        (function () {
+            var F = G3.forge, nx = 21, nz = 41, hh = [], i, k;
+            for (k = 0; k < nz; k++) for (i = 0; i < nx; i++) {
+                // Flat at 1, with a bowl to 0.4 round (5, 15).
+                var r = Math.hypot(i - 15, k - 18);
+                hh.push(r < 4 ? 0.4 + 0.6 * r / 4 : 1);
+            }
+            var m = { id: 'test', title: 'Test', world: 'storm-savanna', u: 0.5, par: 4, long: true, green: 3,
+                grid: { x0: -10, z0: -3, d: 1, nx: nx, nz: nz, h: hh }, tee: { x: 0, z: 0 }, cup: { x: 0, z: 32 },
+                strips: [], water: [[1, 11, 8, 8, 0.7]], outs: [(10 + 3) * nx + (-6 + 10)] };
+            var h = F.holeOf(m), bag = G3.bagFor(h);
+            assert('a long forge map is played with the full bag', !h.mini && bag.length === C.CLUBS.length, bag.map(function (c) { return c.id; }).join(','));
+            assert('…its pond carries the grid, to be drawn to its waterline', h.water.length === 1 && h.water[0].grid === m.grid && h.water[0].y === 0.7);
+            function stopAt(x, z) {
+                var w = P.createWorld(h, { x: x, z: z, y: P.surfaceTop(h, x, z).y + C.BALL_R }, 0);
+                P.settle(w); return w;
+            }
+            var wet = stopAt(5, 15), dry = stopAt(1.5, 11.5);
+            assert('…the pond drowns a ball in its hollow, not on the dry corner of its rectangle', wet.splash && !dry.splash && !dry.out);
+            var o = stopAt(-6, 10), by = stopAt(-4, 10);
+            assert('…a ball that stops among the world\'s things is out, and one beside them is not',
+                o.out && !by.out && P.outCell(h, -6, 10) && !P.outCell(h, -4, 10) && !P.outCell(h, -60, 10));
+        })();
         /* The forge's batch (forge-maps.js, made by tools/forge.mjs) is
            played in dev mode only, but each map is still a hole somebody
            plays: on the ground, a cup that is level, and one the bot holes. */
