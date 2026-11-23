@@ -31,6 +31,8 @@
     <script src="js/portals.js"></script>
     <script src="js/portal-worlds.js"></script>
     <script src="js/endless.js"></script>
+    <script src="js/forge-maps.js"></script>
+    <script src="js/forge.js"></script>
     <script src="js/custom.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/scoring.js"></script>
@@ -5927,6 +5929,39 @@
         })();
 
         /* ── the portal worlds ─────────────────────────────────────────── */
+
+        section('FORGE');
+        /* The forge's batch (forge-maps.js, made by tools/forge.mjs) is
+           played in dev mode only, but each map is still a hole somebody
+           plays: on the ground, a cup that is level, and one the bot holes. */
+        (function () {
+            var F = G3.forge, L = F ? F.maps() : [];
+            assert('the forge has a batch to play', !!F && L.length >= 1 && F.DATA.batch >= 0, L.length + ' maps');
+            L.forEach(function (w) {
+                var h = w.hole, tee = P.surfaceTop(h, h.tee.x, h.tee.z), cup = P.surfaceTop(h, h.cup.x, h.cup.z);
+                assert(w.id + ': built on its baked ground, in its world', h.pads[0].ghost && h.pads[0].field[0].grid === w.map.grid &&
+                    !!w.place.at && w.place.world === w.map.world && !!G3.THEMES[w.theme] && !!tee && !!cup);
+                var flat = cup && Math.abs(P.surfaceTop(h, h.cup.x + 0.3, h.cup.z).y - P.surfaceTop(h, h.cup.x - 0.3, h.cup.z).y) < 0.02 &&
+                    Math.abs(P.surfaceTop(h, h.cup.x, h.cup.z + 0.3).y - P.surfaceTop(h, h.cup.x, h.cup.z - 0.3).y) < 0.02;
+                assert(w.id + ': its cup is cut into level ground', flat);
+                var r = G3.bot.play(h, 10, G3.bagFor(h));
+                assert(w.id + ': the bot holes it within two over par', r.sunk && r.strokes <= h.par + 2, r.strokes + ' on a par ' + h.par);
+            });
+            var c = G3.courseById('forge');
+            assert('…the batch is one course in order, and each map one on its own',
+                c.isForge && c.holes.length === L.length && (!L.length || G3.courseById('forge-' + L[0].id).holes[0] === L[0].hole));
+            // The verdicts round-trip through localStorage and come out in the export.
+            var kept = null;
+            try { kept = localStorage.getItem('loftLinks.forgeNotes'); } catch (e) { /* none */ }
+            F.clear();
+            F.note(L[0].id, { verdict: 'keep', fun: 4, difficulty: 2, look: 5, issues: ['edges', 'nice-spot'], note: 'test note' });
+            var back = F.noteFor(L[0].id), text = F.exportText();
+            assert('a verdict is kept and the export carries every map, rated or not',
+                back && back.verdict === 'keep' && back.issues.length === 2 && F.nextUnrated() === (L.length > 1 ? 1 : -1) &&
+                text.indexOf(L[0].id) > 0 && text.indexOf('test note') > 0 && text.indexOf('edges,nice-spot') > 0 &&
+                L.every(function (w) { return text.indexOf(w.id) > 0; }));
+            try { if (kept === null) localStorage.removeItem('loftLinks.forgeNotes'); else localStorage.setItem('loftLinks.forgeNotes', kept); } catch (e) { /* none */ }
+        })();
 
         section('PORTALS');
         (function () {

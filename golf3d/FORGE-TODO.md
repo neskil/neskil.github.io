@@ -122,9 +122,14 @@ them into the World Tour (`portals.js`, a `PLACES` entry, its grid into
 
 ## State at the time of writing
 
-- Done: `tools/forge.mjs` (written, first run pending), `tools/forge-sample.mjs` (tried on glider-country, hill-of-round-doors,
-  chinar-water-terraces: works; relief ranges 0 to 6.7 golf units),
-  `js/forge.js` (untested).
-- Not done: everything from step 3 on.
-- `master` is at v1.209.0 (three new tour holes, shipped earlier in the same
-  session); the forge should go out as v1.210.0 or past whatever `master` has.
+- Done: `tools/forge-sample.mjs`, `tools/forge.mjs` (batch 1 forged: 12
+  maps from 48 worlds tried, in `js/forge-maps.js`), `js/forge.js` (loaded
+  in `index.html` and `tests.html`, after `endless.js`), the UI in
+  `game.js`/`index.html`/`style.css` (Dev mode chip last in ☰, New maps chip,
+  `#forge` panel, `#forge-form`, the `nextHole` hook, forge rounds not
+  recorded), a FORGE section in `tests.html` (green). Driven headless: the
+  switch, the panel, the form, save, Copy — all work.
+- Not done: vet the 12 maps (stuck sweep, look at each live), docs (README
+  "The forge", HANDOFF), version bump, merge.
+- `master` is at v1.209.0 plus the WIP merge; the forge ships as v1.210.0 or
+  past whatever `master` has.

@@ -17,7 +17,7 @@
 
      G3.forge.maps()          the batch, built: [{ id, title, world, hole, place, map }]
      G3.forge.byId(id)
-     G3.forge.dev()/setDev()  the dev mode switch (localStorage)
+     G3.forge.dev()           is dev mode on (game.js owns the switch)
      G3.forge.notes()/note()  the verdicts (localStorage)
      G3.forge.exportText()    everything, as text to paste */
 (function (G3) {
@@ -25,7 +25,8 @@
 
     var A = G3.authoring, PW = G3.portals;
     var DATA = G3.FORGE || { batch: 0, recipe: {}, maps: [] };
-    var DEV_KEY = 'loftLinks.devMode';
+    // The game's own dev mode (game.js → setDev), which the ☰ menu's Dev mode chip switches.
+    var DEV_KEY = (G3.CONFIG && G3.CONFIG.DEV_KEY) || 'loftLinks.dev';
     var NOTES_KEY = 'loftLinks.forgeNotes';
 
     // A palette for a world with no tour hole: Endless's stand-in for it,
@@ -111,8 +112,7 @@
     }
     function store(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* private window */ } }
 
-    function dev() { return load(DEV_KEY, false) === true; }
-    function setDev(on) { store(DEV_KEY, !!on); }
+    function dev() { try { return localStorage.getItem(DEV_KEY) === '1'; } catch (e) { return false; } }
 
     // { '<batch>:<id>': { verdict, fun, difficulty, look, issues[], note, strokes, at } }
     function notes() { return load(NOTES_KEY, {}) || {}; }
@@ -163,7 +163,7 @@
                 ' · gen ' + JSON.stringify(m.gen || {});
             if (!n) { lines.push(head + ' · (not rated)'); return; }
             lines.push(head + ' · ' + n.verdict + ' · fun ' + n.fun + '/5 · difficulty ' + n.difficulty +
-                ' · look ' + n.look + '/5' + (n.strokes ? ' · took ' + n.strokes : '') +
+                ' · look ' + n.look + '/5' + (n.strokes ? ' · ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') +
                 (n.note ? ' · note: ' + n.note.replace(/\s+/g, ' ') : ''));
         });
@@ -180,7 +180,7 @@
     G3.forge = {
         DATA: DATA, ISSUES: ISSUES, VERDICTS: VERDICTS,
         maps: maps, byId: byId, holeOf: holeOf,
-        dev: dev, setDev: setDev,
+        dev: dev,
         notes: notes, noteFor: noteFor, note: note, clear: clear, nextUnrated: nextUnrated,
         exportText: exportText,
         course: function () { var L = maps(); return L.length ? course(L, 'forge', 'New maps · batch ' + DATA.batch) : null; }
