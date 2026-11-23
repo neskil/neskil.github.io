@@ -4932,6 +4932,50 @@ node golf3d/tools/forge-finish.mjs b1-03 --cup -4,15 --pond 0.5 --green 1.5 --to
 node golf3d/tools/forge-finish.mjs b2-04 --from js/forge-maps.js --pond auto
 ```
 
+**Round two of finishing** (v1.216.0, while the owner rated batch 2). The
+three batch-1 worlds batch 2 could not forge, and b1-09's "wrong spot?",
+were done by hand and added to the end of the batch (b2-13 to b2-16), so
+nothing already rated moved. What it took, now in the tools:
+
+- **`us` in the recipe** (`--recipe '{"us":[0.5]}'`): only those points along
+  the flight. Ahead of the Fire was forged at 0.65, in the planet's night;
+  at 0.5 the fire lights it (b2-16).
+- **`--dig x,z,r,depth[;…]`**: a cosine basin pressed into flat ground and
+  flooded, for a world with no hollow (the Namib's pan, b2-13). Keep it
+  shallow: the world is pressed to the grid only at its mesh's vertices, and
+  a coarse floor has few inside a basin, so a deep dig is a bowl the ball
+  rolls into on sand that looks flat. Half a unit is about the most that
+  reads; `forge-sculpt.mjs` says how far it parted.
+- **`--box x0,z0,x1,z1`**: flood only inside it, so a pond is kept off a
+  hollow by the tee; a box edge across low ground draws as a ruled shore,
+  so put the edges where the ground rises.
+- **`--out-box …`**: cells out of bounds by hand, for something the forge
+  read as ground and the sculpt could not press (b2-07's quay).
+- **`--palette '{…}'`**: colours over the forge's stand-in (`m.palette`,
+  forge.js → `themeFor`), seen whenever the world is off. b2-16's is the
+  fire's: night sky, peat-dark ground, water turned to lava.
+- **A finished map's key** (forge.js → `keyFor`) also hashes its water, outs
+  and green, since a pond added by hand changes nothing the key looked at
+  before; maps without `finished` keep their keys.
+
+**Does the world follow the grid?** (`tools/forge-sculpt.mjs`, for `clip`
+and b1-02's "the ground doesn't follow the geometry"). It loads each map
+live and reads the world's drawn ground back at every cell of the grid the
+ball rolls on. Batch 2 runs a median of about 0.01 golf units and a 90th
+percentile of 0.04; Sea of Wax is 0.008 / 0.043 / 0.12 at worst, so on its
+batch-2 grid what is seen is what is played. Two faults it found: b2-07 had
+a quay standing 4.5 units over the played ground down one side, with the
+green against it (made out of bounds, the cup moved); and a 1.2-unit dig
+on b2-13 did not show in the world at all (dug again at 0.45). The ray
+starts three units over the hole's top, because from higher it meets a
+canopy (b2-12's bamboo read 11 units off).
+
+```sh
+node golf3d/tools/forge-sculpt.mjs all                 # the batch: median / 90% / worst
+node golf3d/tools/forge-sculpt.mjs b2-07 --map         # . close, o within 0.2, + world above, - below
+node golf3d/tools/forge-finish.mjs b2-13 --dig "2,15,6.5,0.45;-4.5,26,4,0.45" --write
+```
+
 **Where the flag is.** Nothing is painted on a sculpted hole with its world
 on screen, and a flagstick forty units off in a busy world is a hair (batch
 1: `edges` twice, and "show where the flag is by some means"). On those holes

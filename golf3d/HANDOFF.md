@@ -112,17 +112,27 @@ piece — a test insists on one).
   need ground in the pit to carve a `mere` into. The `clip` was not found:
   the cairns are decor the ball rolls through, which may be it.
 - **Wind Draws the Namib** (b1-05): "Animation for this world is off.
-  Everything is standing still and some dirt is flying." Not looked at. Many
-  Portals worlds animate along their flight (`u`), and a hole pins `u`; if
-  that is it, it is the world's design, not a fault here. Look live
-  (`?course=forge-<id>&live=1`) before deciding.
-- **Ahead of the Fire** (b1-09): "interesting world but wrong spot? And told
-  short?" — re-forged in batch 2 as a long hole; watch the verdict.
-- **Sea of Wax** (b1-02): "the ground doesn't follow the geometry". At a
-  scale near 1 the world's bumps are finer than the grid and the bake blurs
-  them, so the ball rolls on smoother ground than is drawn. Batch 2 bakes it
-  at `smoothHard` and a unit grid, which makes that worse to the eye; if it
-  comes back `clip`, sample it at d 0.5 and smooth once.
+  Everything is standing still and some dirt is flying." Looked at
+  (v1.216.0): the world is choreographed to its flight — its source says
+  "Beats (keyed to u)", and the gemsbok, the ostriches and the stroke head
+  are placed by `u` — so a hole, which pins `u`, freezes them, and only what
+  runs on the clock (the blown sand) moves. Not a fault here. It could be
+  given life by feeding `update()` a `u` that drifts a little round the
+  hole's (backdrop.mjs, where `uNow` is passed), but then the herd runs
+  through the hole; a design call for the owner. Re-forged as b2-13, long,
+  with two shallow ponds dug in its pan.
+- **Ahead of the Fire** (b1-09): "interesting world but wrong spot?",
+  `ugly`. Batch 2's b2-03 is at `u` 0.65, in the planet's night. b2-16 is the
+  same world at 0.5, lit by the fire, with a lava lake down one side and a
+  fire palette for when the world is off (v1.216.0).
+- **Sea of Wax** (b1-02): "the ground doesn't follow the geometry".
+  Measured on batch 2's b2-02 with `tools/forge-sculpt.mjs`: the world's
+  ground is within 0.04 of the played ground on nine cells in ten, 0.12 at
+  worst. What did not follow in batch 1 was most likely the wax's own sharp
+  ridges, not ground; they are out of bounds where a ball stops now.
+- **Fireworks in Wax and Ink, The Fleet Under Glass** (b1-06, b1-07): no
+  long patch at batch 2's relief floor; forged with `reliefMin` 0.6 as b2-15
+  and b2-14.
 
 ## The owner's ideas waiting their turn
 

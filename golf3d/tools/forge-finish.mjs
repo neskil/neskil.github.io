@@ -15,7 +15,8 @@
 //
 // Options: --tee x,z  --cup x,z  --green r (half-size of the green inlay)
 //   --pond <level>|auto|none  --box x0,z0,x1,z1 (flood only inside it)
-//   --par n  --long (the full bag)  --map (a plan)  --write (back into the batch)
+//   --dig x,z,r,depth[;…] (press a basin into flat ground, and flood it)
+//   --out-box x0,z0,x1,z1[;…] (cells out of bounds)  --palette '{json}' (colours over the stand-in)  --par n  --long (the full bag)  --map (a plan)  --write (back into the batch)
 // Prints the bot's strokes, the ace share from the tee, the share of tee
 // shots that end wet or out, and the vet (forge.mjs → vet). With --tour it
 // also prints the hole for portals.js. No browser, no server: a few seconds.
@@ -69,9 +70,48 @@ if (tee || cup) {
         .filter((r) => r[3] - r[1] > 0.5).map((r) => r.map((x) => +x.toFixed(2)));
 }
 if (one('--par')) map.par = +one('--par');
+/* --out-box x0,z0,x1,z1[;…]: every cell in it out of bounds, off the tee and
+   the green — for something of the world's the forge read as ground and the
+   sculpt could not press (forge-sculpt.mjs shows it as `+`), so the ball
+   would roll through it (b2-07's quay). */
+if (one('--out-box')) {
+    const on = new Set(map.outs || []);
+    for (const bx of one('--out-box').split(';').map((b) => b.split(',').map(Number))) {
+        for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+            const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
+            if (x < bx[0] || z < bx[1] || x > bx[2] || z > bx[3]) continue;
+            if (Math.hypot(x - map.tee.x, z - map.tee.z) < 1.2 || Math.hypot(x - map.cup.x, z - map.cup.z) < gr + 0.5) continue;
+            on.add(k * g.nx + i);
+        }
+    }
+    map.outs = [...on].sort((a, b) => a - b);
+    console.log(`${map.outs.length} cells out of bounds`);
+}
+// --palette '{"grass":["#3a2a22","#33241d"],"water":16738842}': colours over the forge's stand-in (forge.js → themeFor).
+if (one('--palette')) map.palette = JSON.parse(one('--palette'));
 
+/* --dig x,z,r,depth[;x,z,r,depth…]: a basin pressed into the ground, smooth
+   (a cosine bowl), for a flat world with no hollow of its own to flood — the
+   world's ground is sculpted to the grid (backdrop.mjs), so it dips too.
+   With no --pond, the water stands a quarter of a unit under the basin's
+   lowest rim and only inside it. */
+let pond = one('--pond');
+if (one('--dig')) {
+    const digs = one('--dig').split(';').map((d) => d.split(',').map(Number));
+    let rim = Infinity, bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+    for (const [dx, dz, r, depth] of digs) {
+        for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+            const x = g.x0 + i * g.d, z = g.z0 + k * g.d, q = Math.hypot(x - dx, z - dz);
+            if (q > r * 1.15 && q < r * 1.35) rim = Math.min(rim, g.h[k * g.nx + i]);
+            if (q >= r) continue;
+            g.h[k * g.nx + i] = +(g.h[k * g.nx + i] - depth * 0.5 * (1 + Math.cos(Math.PI * q / r))).toFixed(3);
+        }
+        bx0 = Math.min(bx0, dx - r); bz0 = Math.min(bz0, dz - r); bx1 = Math.max(bx1, dx + r); bz1 = Math.max(bz1, dz + r);
+    }
+    if (!pond) { pond = String(+(rim - 0.25).toFixed(3)); if (!one('--box')) args.push('--box', [bx0, bz0, bx1, bz1].join(',')); }
+    console.log(`dug ${digs.length} basin${digs.length > 1 ? 's' : ''}; the rim is at ${rim.toFixed(3)}`);
+}
 // Water: a level, or `auto` (the lowest tenth of the ground, kept off the tee and the green).
-const pond = one('--pond');
 if (pond === 'none') delete map.water;
 else if (pond) {
     let lvl = +pond;
