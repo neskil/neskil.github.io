@@ -254,3 +254,10 @@ not have. Designs first; what was actually built is in `js/portals.js`.
   the board, a level valley between each pair; the flag is in the third
   valley, from 80% of a mallet (0.29%). `u` is pinned at 0.5 on all three.
   **Not yet seen by him.**
+- **The forge** (v1.210.0): new tour holes made by a tool from Portals
+  worlds' own ground, played and rated in dev mode (☰ → Dev mode → New
+  maps), with released holes rateable the same way. README → "The forge"
+  has the technique, the recipe and the loop. **The owner's first batch of
+  verdicts is the next input**: when he pastes the FORGE FEEDBACK text, read
+  it against each map's `gen`, move `RECIPE` in `tools/forge.mjs` (or pass
+  `--recipe`), forge `--batch 2`, and move every `keep` into the tour.

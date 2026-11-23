@@ -3077,8 +3077,9 @@
     function nextHole() {
         endWait = 0;
         // A forge map is not left without a verdict (dev mode; forge.js).
-        var fw = state && state.course && state.course.isForge ? forgeHere() : null;
-        if (fw && !G3.forge.noteFor(fw.id) && !auto) { hideBanner(); openForgeForm(nextHole); return; }
+        // …nor, with "ask after every hole" on, a released one (dev mode).
+        var rt = !auto && !multi() && G3.forge ? rateTarget() : null;
+        if (rt && !G3.forge.noteAt(rt.key) && (rt.forge || G3.forge.rateAll())) { hideBanner(); openForgeForm(nextHole); return; }
         hideBanner();
         // Pass and play: the same hole again for whoever has not played it,
         // and only then on — with player one teeing off first.
@@ -5150,13 +5151,28 @@
         var c = state && state.course, h = c && c.holes[state.holeIndex];
         return h && h.forge && G3.forge ? G3.forge.byId(h.forge) : null;
     }
+    /* What the form would rate here: the forge map, or (dev mode) any
+       released hole of a tour or a course — not Endless's, which are made up
+       as they are played, nor the range. */
+    function rateTarget() {
+        if (!state || !state.course || !G3.forge) return null;
+        var w = forgeHere(), c = state.course, h = c.holes[state.holeIndex];
+        if (w) return { key: G3.forge.keyOf(w.id), forge: w, label: w.id + ': ' + w.title, par: w.map.par };
+        if (!dev || !h || c.isEndless || c.isRange || c.isChallenge) return null;
+        var ref = holeRef(state.holeIndex);
+        if (!ref || !ref.id) return null;
+        var home = G3.courseById(ref.id);
+        return { key: G3.forge.releasedKey(ref), label: h.name || ('Hole ' + (ref.index + 1)), par: h.par,
+            where: h.inWorld || (home && home.name) || ref.id };
+    }
     function syncForgeChip() {
         var b = $('btn-forge');
         if (!b) return;
-        b.hidden = !forgeOn();
+        b.hidden = !(dev && G3.forge);
         if (b.hidden || !G3.forge) return;
         var L = G3.forge.maps(), done = L.filter(function (w) { return G3.forge.noteFor(w.id); }).length;
-        if ($('forge-sub')) $('forge-sub').textContent = 'batch ' + G3.forge.DATA.batch + ' \u00B7 ' + done + ' of ' + L.length + ' rated';
+        if ($('forge-sub')) $('forge-sub').textContent = 'batch ' + G3.forge.DATA.batch + ' \u00B7 ' + done + ' of ' + L.length + ' rated' +
+            (G3.forge.released().length ? ' \u00B7 ' + G3.forge.released().length + ' released' : '');
     }
     function openForge() {
         if (!G3.forge) return;
@@ -5176,7 +5192,14 @@
         var nx = G3.forge.nextUnrated();
         $('forge-play').textContent = nx < 0 ? 'All rated \u2014 copy your feedback' : 'Play next unrated (' + (nx + 1) + ')';
         $('forge-play').disabled = nx < 0;
-        $('forge-rate-now').hidden = !here;
+        var tgt = rateTarget();
+        $('forge-rate-now').hidden = !tgt;
+        if (tgt) $('forge-rate-now').textContent = (G3.forge.noteAt(tgt.key) ? 'Re-rate ' : 'Rate ') + (tgt.forge ? 'this map' : '\u201C' + tgt.label + '\u201D') + ' now';
+        var ra = G3.forge.rateAll();
+        $('forge-all').classList.toggle('on', ra);
+        $('forge-all').setAttribute('aria-pressed', ra ? 'true' : 'false');
+        $('forge-all-n').textContent = G3.forge.released().length ? G3.forge.released().length + ' rated so far' : 'none rated yet';
+        $('forge-play').hidden = !L.length;
         $('forge-export').hidden = true;
         $('forge').className = 'modal show';
     }
@@ -5226,15 +5249,16 @@
         });
         $('ff-save').disabled = !FF.verdict;
     }
+    var ffTarget = null;
     function openForgeForm(then) {
-        var w = forgeHere();
-        if (!w) return false;
+        var t = rateTarget(), w = t && t.forge;
+        if (!t) return false;
         closeForge(); closeTopMenu();
-        ffThen = then || null;
-        var old = G3.forge.noteFor(w.id), holed = state.phase === 'holed' || state.phase === 'finished';
+        ffThen = then || null; ffTarget = t;
+        var old = G3.forge.noteAt(t.key), holed = state.phase === 'holed' || state.phase === 'finished';
         var strokes = holed ? state.scores[state.holeIndex] : null;
         FF = old ? JSON.parse(JSON.stringify(old)) : { verdict: null, fun: 3, difficulty: 3, look: 3, issues: [], note: '' };
-        FF.strokes = strokes ? strokes + ' (par ' + w.map.par + ')' : (holed ? FF.strokes : 'gave up after ' + state.strokes);
+        FF.strokes = strokes ? strokes + ' (par ' + t.par + ')' : (holed ? FF.strokes : 'gave up after ' + state.strokes);
         var sc = [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']];
         ffButtons($('ff-verdict'), G3.forge.VERDICTS, 'verdict');
         ffButtons($('ff-fun'), sc, 'fun');
@@ -5242,18 +5266,22 @@
         ffButtons($('ff-look'), sc, 'look');
         ffButtons($('ff-issues'), G3.forge.ISSUES, 'issues', true);
         $('ff-note').value = FF.note || '';
-        $('ff-title').textContent = 'Rate ' + w.id + ': ' + w.title;
-        $('ff-sub').textContent = (strokes ? 'You took ' + strokes + ' on a par ' + w.map.par + '. ' : '') + 'Map ' + (state.holeIndex + 1) + ' of ' + state.course.holes.length + ' in this batch.';
+        $('ff-title').textContent = 'Rate ' + t.label;
+        $('ff-sub').textContent = (strokes ? 'You took ' + strokes + ' on a par ' + t.par + '. ' : '') +
+            (w ? 'Map ' + (state.holeIndex + 1) + ' of ' + state.course.holes.length + ' in this batch.' : 'A released hole \u00B7 ' + t.where + '.');
         ffPaint();
         $('forge-form').className = 'modal show';
         return true;
     }
     function saveForgeForm() {
-        var w = forgeHere();
-        if (!w || !FF || !FF.verdict) return;
+        var t = ffTarget;
+        if (!t || !FF || !FF.verdict) return;
         FF.note = $('ff-note').value.trim();
-        G3.forge.note(w.id, { verdict: FF.verdict, fun: +FF.fun, difficulty: +FF.difficulty, look: +FF.look,
-            issues: FF.issues.slice(), note: FF.note, strokes: FF.strokes });
+        var n = { verdict: FF.verdict, fun: +FF.fun, difficulty: +FF.difficulty, look: +FF.look,
+            issues: FF.issues.slice(), note: FF.note, strokes: FF.strokes };
+        if (!t.forge) { n.title = t.label; n.where = t.where; n.par = t.par; }
+        G3.forge.noteKey(t.key, n);
+        ffTarget = null;
         $('forge-form').className = 'modal';
         syncForgeChip();
         var then = ffThen; ffThen = null;
@@ -8451,6 +8479,7 @@
             $('forge-close').addEventListener('click', closeForge);
             $('forge-play').addEventListener('click', function () { var i = G3.forge.nextUnrated(); if (i >= 0) playForge(i); });
             $('forge-rate-now').addEventListener('click', function () { openForgeForm(null); });
+            $('forge-all').addEventListener('click', function () { G3.forge.setRateAll(!G3.forge.rateAll()); openForge(); });
             $('forge-copy').addEventListener('click', copyForge);
             $('forge-clear').addEventListener('click', function () {
                 if (!window.confirm('Clear every rating saved in this browser? Copy them first if you have not.')) return;

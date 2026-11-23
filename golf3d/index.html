@@ -1142,12 +1142,19 @@
     <div class="modal" id="forge">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="forge-title">
             <h2 id="forge-title">New maps</h2>
-            <p class="sub" id="forge-lede">Made by the forge on each world's own ground. Play them in order and rate each one; then copy your feedback and paste it to Claude.</p>
+            <p class="sub" id="forge-lede">Made by the forge on each world's own ground. Play them in order and rate each one; then copy your feedback and paste it to Claude. Released holes can be rated the same way.</p>
             <div class="forge-actions">
                 <button type="button" class="primary" id="forge-play">Play next unrated</button>
                 <button type="button" id="forge-rate-now" hidden>Rate this map now</button>
             </div>
             <ol class="forge-list" id="forge-list"></ol>
+            <!-- Released holes get the same form: always from "Rate … now"
+                 above while one is being played, and after every hole of
+                 any tour or course with this on. -->
+            <button type="button" class="forge-all" id="forge-all" aria-pressed="false">
+                <span><b>Rate released maps too</b><span class="forge-all-sub">Ask after every World Tour and course hole · <span id="forge-all-n">none rated yet</span></span></span>
+                <span class="forge-all-pip" aria-hidden="true"></span>
+            </button>
             <textarea class="forge-export" id="forge-export" readonly hidden aria-label="Your feedback, to copy"></textarea>
             <div class="modal-actions">
                 <button type="button" id="forge-clear">Clear ratings</button>

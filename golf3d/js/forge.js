@@ -127,6 +127,29 @@
     }
     function clear() { store(NOTES_KEY, {}); }
 
+    /* Released holes (the owner: "also support doing this feedback for
+       already released maps"): the same form on any tour or course hole in
+       dev mode, keyed by the hole's home — `released:<course>:<n>`, from
+       game.js → holeRef — so a hole is the same hole wherever it is met. The
+       note carries its own title, place and par for the export. */
+    var RATE_ALL_KEY = 'loftLinks.rateAll';
+    function releasedKey(ref) { return 'released:' + ref.id + ':' + ref.index; }
+    function noteAt(key) { return notes()[key] || null; }
+    function noteKey(key, n) {
+        var all = notes();
+        n.at = n.at || new Date().toISOString();
+        all[key] = n;
+        store(NOTES_KEY, all);
+        return n;
+    }
+    // Ask after every released hole too, not only the forge's (off until switched on).
+    function rateAll() { return load(RATE_ALL_KEY, false) === true; }
+    function setRateAll(on) { store(RATE_ALL_KEY, !!on); }
+    function released() {
+        var all = notes();
+        return Object.keys(all).filter(function (k) { return k.indexOf('released:') === 0; });
+    }
+
     // The first map of the batch with no verdict yet, or -1.
     function nextUnrated() {
         var L = maps();
@@ -167,9 +190,23 @@
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') +
                 (n.note ? ' · note: ' + n.note.replace(/\s+/g, ' ') : ''));
         });
+        function line(n) {
+            return n.verdict + ' \u00B7 fun ' + n.fun + '/5 \u00B7 difficulty ' + n.difficulty + ' \u00B7 look ' + n.look + '/5' +
+                (n.strokes ? ' \u00B7 ' + (/^gave/.test(n.strokes) ? n.strokes : 'took ' + n.strokes) : '') +
+                (n.issues && n.issues.length ? ' \u00B7 issues ' + n.issues.join(',') : '') +
+                (n.note ? ' \u00B7 note: ' + n.note.replace(/\s+/g, ' ') : '');
+        }
+        var rel = released();
+        if (rel.length) {
+            lines.push('RELEASED MAPS');
+            rel.forEach(function (k) {
+                var n = all[k];
+                lines.push(k.slice(9) + ' \u00B7 ' + (n.title || '?') + ' \u00B7 ' + (n.where || '?') + ' \u00B7 par ' + (n.par || '?') + ' \u00B7 ' + line(n));
+            });
+        }
         // Earlier batches' notes still in the browser, so nothing is lost.
         Object.keys(all).forEach(function (k) {
-            if (k.indexOf(DATA.batch + ':') === 0) return;
+            if (k.indexOf(DATA.batch + ':') === 0 || k.indexOf('released:') === 0) return;
             var n = all[k];
             lines.push('(older) ' + k + ' · ' + n.verdict + ' · fun ' + n.fun + ' · difficulty ' + n.difficulty + ' · look ' + n.look +
                 (n.issues && n.issues.length ? ' · issues ' + n.issues.join(',') : '') + (n.note ? ' · note: ' + n.note : ''));
@@ -182,6 +219,8 @@
         maps: maps, byId: byId, holeOf: holeOf,
         dev: dev,
         notes: notes, noteFor: noteFor, note: note, clear: clear, nextUnrated: nextUnrated,
+        keyOf: keyOf, releasedKey: releasedKey, noteAt: noteAt, noteKey: noteKey,
+        rateAll: rateAll, setRateAll: setRateAll, released: released,
         exportText: exportText,
         course: function () { var L = maps(); return L.length ? course(L, 'forge', 'New maps · batch ' + DATA.batch) : null; }
     };

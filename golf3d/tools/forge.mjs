@@ -4,6 +4,7 @@
 //   node golf3d/tools/forge.mjs --batch 1                 # 12 maps → js/forge-maps.js
 //   node golf3d/tools/forge.mjs --batch 2 --count 12 --seed 7 --recipe '{"relief":1.2}'
 //   node golf3d/tools/forge.mjs --batch 1 --worlds a,b,c  # these worlds, in this order
+//   node golf3d/tools/forge.mjs --batch 1 --keep b1-01,b1-02 # keep these, forge the rest
 //
 // Needs the local server on 8899 (python3 -m http.server 8899 from the repo
 // root). About a minute a world on SwiftShader, three at a time.
@@ -56,7 +57,7 @@ const LEAN = [
 const ctx = { console, Math, performance: { now: () => Date.now() }, localStorage: null };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['config.js', 'themes.js', 'physics.js', 'courses.js', 'tour-ground.js', 'portals.js', 'portal-worlds.js', 'endless.js', 'swing.js', 'bot.js', 'lab.js', 'forge.js']) {
+for (const f of ['config.js', 'themes.js', 'physics.js', 'courses.js', 'tour-ground.js', 'portals.js', 'portal-worlds.js', 'endless.js', 'swing.js', 'bot.js', 'lab.js', 'forge-maps.js', 'forge.js']) {
     vm.runInContext(readFileSync(join(js, f), 'utf8'), ctx, { filename: f });
 }
 const G3 = ctx.G3, P = G3.physics, C = G3.CONFIG, DEG = Math.PI / 180;
@@ -133,6 +134,34 @@ function measure(map) {
     if (!tee || !cup) return null;
     return { bot: bot.strokes, share, straight: !!straight, hole: h };
 }
+/* The last check before a map is kept, the one that found b1-05's fault in
+   batch 1: tee shots over every line and weight (every 10°, ten weights,
+   every club), then from every spot a ball came to rest, does some shot
+   get it out? A ball that never stops, or a spot no shot leaves, is a map
+   that is broken whatever its numbers say. */
+function vet(map) {
+    const h = G3.forge.holeOf(map), bag = G3.bagFor(h), rests = new Map();
+    let n = 0, moving = 0;
+    for (const club of bag) for (let a = 0; a < 360; a += 10) for (let k = 1; k <= 10; k++) {
+        const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + C.BALL_R }, 0);
+        if (!P.launch(w, a * DEG, club.power * k / 10, club.loft, club.bite)) continue;
+        P.settle(w); n++;
+        if (w.sunk || w.splash || w.out) continue;
+        if (w.moving) moving++;
+        const key = Math.round(w.ball.x * 2) + ',' + Math.round(w.ball.z * 2);
+        if (!rests.has(key)) rests.set(key, { x: w.ball.x, y: w.ball.y, z: w.ball.z });
+    }
+    let stuck = 0;
+    for (const r of rests.values()) {
+        let ok = false;
+        out: for (const club of bag) for (let a = 0; a < 360; a += 20) for (let k = 2; k <= 10; k += 4) {
+            if (P.escapes(h, r, 0, a * DEG, club.power * k / 10, club.loft, club.bite)) { ok = true; break out; }
+        }
+        if (!ok) stuck++;
+    }
+    return { ok: moving === 0 && stuck === 0, moving, stuck, n };
+}
+
 function pin(q, base, r) {
     const g = { x0: q.x0, z0: q.z0, d: q.d, nx: q.nx, nz: q.nz };
     const tee = { x: 0, z: 0 };
@@ -169,6 +198,18 @@ const require = createRequire('/opt/');
 const { chromium } = require('playwright');
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const made = [], tried = [];
+/* --keep b1-01,b1-02,…: those maps of the batch on disk are carried over as
+   they are (renumbered in order at the end), and neither their worlds nor
+   the worlds that batch passed over are tried again. */
+if (one('--keep')) {
+    const keep = one('--keep').split(','), old = G3.FORGE || { maps: [] };
+    old.maps.filter((m) => keep.includes(m.id)).forEach((m) => made.push(m));
+    // Batch 1 was written before `passed` was kept: read it off the file's head.
+    if (!old.passed) { const m = readFileSync(join(js, 'forge-maps.js'), 'utf8').match(/passed over: ([^.]*)\./); old.passed = m ? m[1].split(/,\s*/) : []; }
+    const skip = new Set(made.map((m) => m.world).concat(old.passed || []));
+    pool = pool.filter((row) => !skip.has(row[0]));
+    (old.passed || []).forEach((w) => tried.push([w, 'passed over in the batch kept from']));
+}
 let next = 0;
 
 async function forgeOne(row) {
@@ -195,6 +236,8 @@ async function forgeOne(row) {
     for (const c of scored.slice(0, 3)) {
         const p = pin(c.q, c.b, r);
         if (!p) continue;
+        const v = vet(p.map);
+        if (!v.ok) { console.log(`  ${row[0]}: vet failed (${v.moving} shots never stop, ${v.stuck} spots no shot leaves) — next patch`); continue; }
         const q = c.q, map = p.map;
         const idx = made.length + 1, id = 'b' + BATCH + '-' + String(idx).padStart(2, '0');
         map.id = id;
@@ -233,7 +276,7 @@ const out = `/* The forge's batch ${BATCH}: holes laid by tools/forge.mjs on Por
    do not edit by hand — run the tool again. Recipe: ${JSON.stringify(RECIPE)}.
    Worlds tried and passed over: ${tried.map((t) => t[0]).join(', ') || 'none'}. */
 window.G3 = window.G3 || {};
-window.G3.FORGE = ${JSON.stringify({ batch: BATCH, recipe: RECIPE, maps: made })};
+window.G3.FORGE = ${JSON.stringify({ batch: BATCH, recipe: RECIPE, maps: made, passed: tried.map((t) => t[0]) })};
 `;
 writeFileSync(join(js, 'forge-maps.js'), out);
 console.log(`wrote js/forge-maps.js: batch ${BATCH}, ${made.length} maps (${tried.length} worlds passed over)`);

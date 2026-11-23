@@ -129,7 +129,16 @@ them into the World Tour (`portals.js`, a `PLACES` entry, its grid into
   `#forge` panel, `#forge-form`, the `nextHole` hook, forge rounds not
   recorded), a FORGE section in `tests.html` (green). Driven headless: the
   switch, the panel, the form, save, Copy — all work.
-- Not done: vet the 12 maps (stuck sweep, look at each live), docs (README
-  "The forge", HANDOFF), version bump, merge.
+- Added on the owner's follow-up: **released maps can be rated too**
+  (`rateTarget()` in game.js, `released:<course>:<n>` keys in forge.js, a
+  "Rate released maps too" switch in the panel that asks after every hole,
+  a RELEASED MAPS section in the export). Tested in tests.html and driven
+  headless on The Maelstrom.
+- `tools/forge.mjs` now vets every map (`vet()`: shots that never stop, rest
+  spots no shot leaves); batch 1 is being re-forged with it (b1-05 failed it
+  the first time). `--keep` works now (it did not load forge-maps.js).
+- Docs written: README "The forge", a HANDOFF entry.
+- Not done: finish the vetted batch, look at each map live, version bump,
+  merge to master, delete this file.
 - `master` is at v1.209.0 plus the WIP merge; the forge ships as v1.210.0 or
   past whatever `master` has.

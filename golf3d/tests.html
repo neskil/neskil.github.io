@@ -5960,6 +5960,14 @@
                 back && back.verdict === 'keep' && back.issues.length === 2 && F.nextUnrated() === (L.length > 1 ? 1 : -1) &&
                 text.indexOf(L[0].id) > 0 && text.indexOf('test note') > 0 && text.indexOf('edges,nice-spot') > 0 &&
                 L.every(function (w) { return text.indexOf(w.id) > 0; }));
+            // A released hole is rated the same way, under its home, and has a section of its own in the export.
+            var rk = F.releasedKey({ id: 'world-maelstrom', index: 0 });
+            F.noteKey(rk, { verdict: 'drop', fun: 2, difficulty: 5, look: 4, issues: ['hard'], note: 'released note', title: 'The Maelstrom', where: 'Down the Maelstrom', par: 3 });
+            var t2 = F.exportText();
+            assert('…and a released hole\'s verdict is kept under its home and listed as released',
+                rk === 'released:world-maelstrom:0' && F.noteAt(rk).verdict === 'drop' && F.released().length === 1 &&
+                t2.indexOf('RELEASED MAPS') > 0 && t2.indexOf('world-maelstrom:0 \u00B7 The Maelstrom') > 0 && t2.indexOf('released note') > 0 &&
+                t2.indexOf('(older) released') < 0 && F.nextUnrated() === (L.length > 1 ? 1 : -1));
             try { if (kept === null) localStorage.removeItem('loftLinks.forgeNotes'); else localStorage.setItem('loftLinks.forgeNotes', kept); } catch (e) { /* none */ }
         })();
 

@@ -56,6 +56,7 @@ them.
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
+| `js/forge.js`, `js/forge-maps.js` | [The forge](#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode): new tour holes made by `tools/forge.mjs` from Portals worlds' own ground (`forge-maps.js`, generated), built and kept here with the owner's verdicts on them (localStorage, dev mode). Loaded after `endless.js`. |
 | `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-three holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
@@ -4680,6 +4681,89 @@ featured button beside Showcase and Challenge, and what it draws from is
 behind the ⚙ in the corner of its own tile, not a tab or a link on the start page. The tabs are one row of named chips
 that scrolls sideways on a phone. A bar under the title is every star there
 is; *Keep playing* is pinned to the bottom.
+
+## The forge: new tour holes made by a tool, and rated in dev mode
+
+The owner's ask (v1.210.0): a technique for making holes from Portals
+worlds in bulk, a dev mode where the unapproved ones live, played through
+in order with a quick form after each, and the answers saved in the browser
+and exported, so the technique can be adjusted from them batch by batch.
+GitHub Pages is static, so nothing is sent anywhere: the verdicts stay in
+`localStorage` until **Copy feedback** puts them on the clipboard to paste
+into a Claude chat.
+
+**The technique: fit the world's shape** (his choice over placing a mini
+hole in each world). `tools/forge.mjs`:
+
+1. **Sample** (`tools/forge-sample.mjs`). Each world is loaded through the
+   game in headless Chromium, by borrowing the `carnival` tour hole's page
+   and swapping its world with a request intercept, so nothing on disk
+   changes. The world's scale comes from `backdrop.mjs → autoScale`'s rule
+   (how fast and how high its flight goes). Then the ground
+   (`G3.backdrop.groundAt`) is read over a rectangle of the hole's own units
+   ahead of the flight: five points along it and three headings at each
+   (straight on, and half a radian either side).
+2. **Choose.** Each patch is baked into golf units (`recipe.smooth` passes
+   of a 3×3 blur). It is turned down if it has holes in the ground, relief
+   outside `reliefMin`–`reliefMax`, any cell steeper than `maxSlope`, or a
+   flight less than two units over the tee. Of the rest, the patch with
+   relief nearest `recipe.relief` wins.
+3. **Pin.** The tee is levelled at the near end. Every cup site in the far
+   part of the patch is levelled into a green, built with
+   `G3.forge.holeOf` (the same code the game builds it with) and played: the
+   bot must hole out in three. A narrowed `G3.lab.sweep` gives the ace
+   share, and the site nearest `recipe.ace` wins, with a straight drop
+   counting against it.
+4. **Vet.** Tee shots over every line, weight and club, then a try at
+   playing out of every spot a ball came to rest. A map where a ball never
+   stops, or with a spot no shot leaves, is thrown out and the next patch
+   tried. That check was added after batch 1's first steep map
+   (comet-over-the-lake-town) had balls balanced on the patch's edge.
+5. The batch's maps lean off the recipe on purpose: four lengths × three
+   reliefs (`LEAN`). Each map records the settings it was made with (`gen`)
+   and its numbers (`metrics`), so a verdict can be read against a setting.
+
+```sh
+python3 -m http.server 8899                                # repo root
+node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forge-maps.js, ~40 min
+node golf3d/tools/forge.mjs --batch 2 --recipe '{"relief":1.2,"smooth":3}'
+node golf3d/tools/forge.mjs --batch 2 --keep b2-01,b2-04   # keep these, forge the rest
+node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
+```
+
+**The holes** are data in `js/forge-maps.js` (generated: the grid, the
+`place.at` anchor, tee, cup, par, `gen`, `metrics`), built by `js/forge.js`
+the way the hand-made sculpted holes are: one `ghost` fairway pad carrying
+the grid, inlays for tee, strips and green, and the backdrop sculpts the
+world to the grid. Palettes are Endless's stand-in for the world, with grass
+turned to the world's own hue. `courseById('forge')` is the batch in order,
+and `forge-<id>` is one map. Forge rounds write no records.
+
+**In the game.** The last chip in ☰ is **Dev mode**, the game's existing
+dev mode (it was five taps on About; it also gives the free Pro Shop
+unlocks). With it on, a **New maps** chip shows. Its panel lists the batch
+with each map's verdict, and has **Play next unrated**, **Rate … now** for
+the hole being played, **Copy feedback** and **Clear ratings**. A forge
+map is not left without a verdict: `nextHole` puts up the form first. The
+form asks for a verdict (Keep / Keep if fixed / Drop), Fun, Difficulty and
+Looks out of five, any of a dozen issue chips (`G3.forge.ISSUES`, each
+named for the part of the recipe it would move) and a line of the owner's
+own. The strokes taken are filled in.
+
+**Released holes too** (his follow-up). In dev mode, the same form rates
+any World Tour or course hole, keyed by its home (`released:<course>:<n>`,
+from `holeRef`). It is always reachable from "Rate … now" in the panel, and
+with **Rate released maps too** switched on it is put up after every hole.
+The export lists these under RELEASED MAPS.
+
+**The loop.** He plays the batch, copies the feedback and pastes it to
+Claude. Claude reads verdicts and issues against `gen` and moves the recipe:
+lots of `bumpy` means more `smooth` and a lower `maxSlope`; `flat` means a
+higher `relief`; `long` or `short` moves `L`; `edges` means the hole needs
+marking, since nothing is painted on a sculpted world and its edges cannot
+be seen. Then Claude forges the next batch. A `keep` moves into the World
+Tour: its grid into `tour-ground.js`, a `PLACES` entry and a hole in
+`portals.js`.
 
 ## Endless: mini golf through every world
 
