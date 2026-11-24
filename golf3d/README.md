@@ -6214,7 +6214,7 @@ the simulation has never heard of any of this.
 ### The long game is drawn at its own scale
 
 The long game is the mini golf physics at about a fifth of a real course's
-size, read as `LONG_M` metres to the unit — and until v1.216.0 it was drawn at
+size, read as `LONG_M` metres to the unit — and until v1.217.0 it was drawn at
 mini golf sizes too: a ball nearly two metres across in the course's own
 metres, a driver bigger than the cart parked behind it, and a camera standing
 over the whole thing like a model on a table (the owner: "scale is a bit off…

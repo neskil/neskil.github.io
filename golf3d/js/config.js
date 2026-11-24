@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.216.0';
+G3.VERSION = '1.217.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1368,7 +1368,7 @@ G3.CONFIG.LONG_M = 5.5;
    are the mini golf sizes on a long hole too — the physics is the same
    physics — so beside a course read at LONG_M metres to the unit the ball was
    nearly two metres across, and the cart parked behind it a toy next to the
-   driver (the owner, v1.216.0: "scale is a bit off… perhaps long game and
+   driver (the owner, v1.217.0: "scale is a bit off… perhaps long game and
    mini golf have to use different scale"). So on a long hole the ball, the
    club in hand and the camera's seat behind them are all drawn at MIN of
    themselves (render.js `lookFor`), and the seat comes in to SEAT of its
