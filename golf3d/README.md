@@ -57,7 +57,7 @@ them.
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/forge.js`, `js/forge-maps.js` | [The forge](#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode): new tour holes made by `tools/forge.mjs` from Portals worlds' own ground (`forge-maps.js`, generated), built and kept here with the owner's verdicts on them (localStorage, dev mode). Loaded after `endless.js`. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-four holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-five holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -4875,6 +4875,7 @@ node golf3d/tools/forge.mjs --batch 2                      # 12 maps → js/forg
 node golf3d/tools/forge.mjs --batch 2 --recipe '{"relief":1.2,"smooth":3}'
 node golf3d/tools/forge.mjs --batch 2 --keep b2-01,b2-04   # keep these, forge the rest
 node golf3d/tools/forge.mjs --batch 3 --first a,b --skip c,d   # these worlds first; never those
+node golf3d/tools/forge.mjs --batch 4 --with /tmp/fix.js:b3-02 --keep b3-09,b3-10 --count 14   # a fix first, two carried over last
 node golf3d/tools/forge.mjs --batch 2 --count 2 --out /tmp/try.js   # a dry run
 node golf3d/tools/forge-sample.mjs hill-of-round-doors     # one world's patches
 node golf3d/tools/forge-sample.mjs still-on-the-sprue --u 0.35 --turn -0.5 --d 0.5 --map   # what stands on one
@@ -5026,6 +5027,74 @@ last fixes were, as a map added to the end of batch 2 so nothing in it moved:
 --recipe '{"L":75,"relief":4}'`, a par 4 of 49 units the bot holes in two)
 with its cup moved by hand against the pond's shore (`--cup 1,46.5`).
 `forge-sculpt` reads it at a median of 0.007, the worst cell 0.21.
+
+**Batch 3: the recipe after batch 2's verdicts** (v1.221.0). Five of
+seventeen came back rated, b2-01 to b2-05, in order; twelve were not played.
+One keep (b2-03, Ahead of the Fire), two fixes (b2-02 Sea of Wax, "nice map,
+could be good if longer", fun 4 and look 4; b2-04 Redwood Dawn, "move hole
+better place"), two drops rated 1/1/1 (b2-01 the forest, b2-05 the erg).
+Four of five said `short` — on maps 42 and 56 long, never on the 70 —
+every one was difficulty 1 or 2, and three said `camera`. What the keeps and
+drops share: the keep had relief 1.55, a steepest cell of 0.19 and nothing of
+the world's on it; the drops were the flattest patch of the batch (the
+forest: steepest cell 0.05, 268 cells of trees out, eight strokes and a
+give-up on a par four) and the steepest (the erg: relief 7.47, slope 0.53).
+So:
+
+- **`camera` was a bug, not a recipe number.** v1.219.0's lift over a bank
+  behind the ball (`render.js → sightLift`, for the Snow Globe) asked the
+  sight line for 1.1 units of clearance all the way to the ball, which it
+  ends a third of a unit over: the sample next to the ball was always short,
+  its shortfall was divided by a ninth, and every follow seat on every hole
+  went up 1.7 units — the long game's, closer in, about five (Coral Keys'
+  first tee looked sixty degrees down). Only ground standing above the ball
+  counts now; the Snow Globe's seat is the same to the centimetre. And on a
+  long hole the follow seat looks `LONG_SEAT.LEAD` units down the line from a
+  pitch lowered by `DROP`, eased in by the ball's distance from the cup
+  (none inside `NEAR`, so a putt is unchanged): from the tee a fifty-unit
+  hole shows the flag and the world, not the turf at the ball's feet.
+- **`L` 56 → 70** (the leans are 52, 70 and 88; past 60 units is a par 5),
+  **`risk` 0.25 → 0.35**, **`reliefMax` 8 → 6**, **`maxSlope` 0.55 → 0.5**.
+- **`minSlope` 0.12**: a patch whose steepest cell is flatter than that is
+  turned down (batch 1's drops were its flattest too).
+- **`clutterCost` 2**: a patch pays twice the share of its cells with the
+  world's things on them when patches are ranked (the keep had none).
+- **`longClear` 0.45**: both `clip` maps had the world's things on the line
+  where a ball comes down and runs. A long hole's line may still be flown
+  over the world's things for its first 45%; past that its lane must be
+  clear, as a short hole's is.
+
+The keep went into the tour as **Before the Fire** (`fire`) with its cup
+moved back for `short` (`forge-finish b2-03 --cup -3,50 --tour fire`: 38 →
+50 units, on the foot of the left bank). The fixes come back in batch 3 to
+be rated again: Redwood Dawn's cup moved by hand behind its band of trunks
+to a par four of forty (`--cup 2,40 --par 4`; `forge-finish` now says when a
+moved cup has the world's things on its green), and Sea of Wax forged again
+at seventy on the same spot (`--worlds sea-sets-in-shade --recipe
+'{"us":[0.8],"L":93}'`, lean 0 being three quarters of `L`). The twelve
+unplayed maps of batch 2 are carried over as they were (`--keep`, the same
+maps under the same keys), after the new ones, so what is played first is
+what the new recipe made.
+
+The batch: `--batch 3 --with <batch 2 file>:b2-04,<sea file>:b3-01 --keep
+b2-06,…,b2-17 --count 20 --skip flinching-forest,singing-erg,sea-sets-in-shade,redwood-dawn,the-fire-comes-round`.
+Six new maps from 58 worlds sampled (sixteen minutes from nothing; four
+from the cache): b3-03 to b3-08, three par fours on the 52 and 88 leans, a
+par five of 61 units (glowwood), two with a pond. The new recipe is much
+pickier — of the worlds turned down, nearly all were cliffs (a steepest cell
+of 1.5 to 50) or dead flat (0.00) — and `risk` came out at 4 to 29% against
+the 35% asked: on a long patch the hazards are where the world put them. All
+eight new or fixed maps were loaded live: `forge-sculpt` reads them at a
+median of 0.003 to 0.022, one cell of glowwood 3.5 off by the tee and away
+from the line, and every tee opens on the flag. b3-03, The Turning Night, is
+played through a field of wheat that stands under `stand`, so it may come
+back `clip`; if it does, `stand` comes down.
+
+Adding a hole to the tour moves the shuffled pool (`tourWorlds` is taken out
+before the shuffle), so a re-run after one deals other worlds: the first run
+of this batch made three-avenues-under-the-floor and towers-over-the-old-city
+where the second made the-turning-night and house-of-four-seasons. The file
+is the second run, which is what the repository reproduces now.
 
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop

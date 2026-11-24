@@ -84,3 +84,9 @@ the recipe by, and forging replaces `js/forge-maps.js`, so the unplayed batch
 would go with it. Keep the batch; do the released-map notes; a `fix` that is a
 re-forge goes on the end of the batch as the next id (README → "Batch 2's
 copy"), and say plainly that the batch is still waiting.
+
+**When only part of it was played** (batch 2's second copy, v1.221.0: five
+of seventeen rated, the first five): move the recipe by those, and forge the
+next batch with the unplayed maps carried over by `--keep` — the same maps
+under the same keys, so nothing waiting to be rated is lost — after the new
+ones, so the new recipe is what is played first (README → "Batch 3").

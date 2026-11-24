@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.220.0';
+G3.VERSION = '1.221.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1409,6 +1409,14 @@ G3.CONFIG.HANG = { AIR: 0.6, LAND: 0.45 };
    the eye climbs RISE of the ball's height and looks up at the rest; EASE is
    the per-second easing base it follows that on. */
 G3.CONFIG.LONG_CAM = { RISE: 0.3, EASE: 0.002 };
+
+/* The follow seat on a long hole, far from the green (render.js `seatLead`):
+   it looks LEAD units down the line instead of at the ball, with its pitch
+   lowered by DROP of itself, so the tee shows the hole and the horizon rather
+   than the turf at the ball's feet (the owner, v1.221.0: "why does the
+   starting camera look into the ground?"). Full beyond FAR units of the cup,
+   none inside NEAR, so a putt is the seat it always was. */
+G3.CONFIG.LONG_SEAT = { LEAD: 10, DROP: 0.3, NEAR: 10, FAR: 24 };
 
 /* The tracer (render.js `stepTracer`): the long game's flight drawn as a line
    from the strike to the first landing. MAX points at least STEP apart; half

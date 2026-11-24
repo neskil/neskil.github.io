@@ -483,6 +483,8 @@
     SCENES.maelstrom = SCENES.abyss; SCENES.globe = SCENES.carnival; SCENES.pins = SCENES.threebody;
     // …and the first the forge made (v1.214.0): a storm over the savanna, so clouds.
     SCENES.savanna = SCENES.clouds;
+    // …and the second (v1.221.0): Echronedal's night, so Great A'Tuin's stars, as its forged map had.
+    SCENES.fire = SCENES.turtle;
 
     G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 
