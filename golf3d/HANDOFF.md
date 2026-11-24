@@ -134,6 +134,44 @@ piece — a test insists on one).
   long patch at batch 2's relief floor; forged with `reliefMin` 0.6 as b2-15
   and b2-14.
 
+## From the forge's feedback (batch 2 copy, v1.218.0)
+
+A **Copy all** with none of batch 2 played: no recipe move and no batch 3
+(README → "The forge", "Batch 2's copy"). The released-hole lines:
+
+- **The Maelstrom** (`maelstrom`, fix, fun 1, "weird physics. It got stuck in
+  orbit around black whole", gave up): fixed — the swirl's push could pay for
+  the friction of a ball going round at 3.5 for ever; past six seconds it now
+  cannot (README → "…and nothing goes round it for ever"). Still open, both his:
+  - "would be cool if the minimal moved in the world": read as the deck
+    riding down the maelstrom with the world, the way Endless's holes drift
+    (`place.drift`, endless.js). A tour hole is pinned to one `u` on purpose;
+    a design call, and the physics would have to be held still while the
+    picture moves.
+  - "the scaling is wrong here when I move camera it's weird": not found
+    here. From the zoomed-out seat the world's galleons sail through the deck
+    and are smaller than it (scale 1.8); a re-anchor live also put the deck
+    13 units lower than the boot did (`G3.backdrop.debug().anchor`: height
+    18.8 against 3), so the ground search over moving water is not stable.
+    Ask him which: the ships against the deck, or the world sliding as the
+    camera turns. A screenshot would settle it.
+- **The Snow Globe** (`globe`, keep, `edges,bumpy,clip`, "Can't see whole for
+  the flag"): the follow seat looked at the ball through the glass bank behind
+  the tee; it is lifted over it now (README → "The three cameras", `sightLift`).
+  `bumpy` and `clip` not looked into: the bank is a `channel`, and the firs are
+  decor the ball rolls through, which is probably the clip.
+- **The Rain Pond** (`savanna`, fix, fun 1, "To small field for play and to
+  little challenge", 8 on a par 3, gave up once): re-forged long as **b2-17**,
+  added to the end of batch 2 to be rated before the tour hole is replaced.
+  If it is kept, it replaces `savanna`'s grid and place.
+- **The Stepped Side** (`pyramid`, keep, "A little weird tl chest with
+  club"): not understood. From the tee the next course of stone is a wall at
+  about chest height straight ahead of the ball and club; perhaps that. Ask.
+- **The Iron River** ("Good example", look 5, difficulty 4), **The Orrery**,
+  **The Ait** (`whinstone:4`): keeps, nothing asked. The Iron River is the
+  model he points at: a sculpted hole with a hazard all the way down it.
+- **Knife Edge** (`alpine:4`): the same note as batch 1's, done in v1.214.0.
+
 ## The owner's ideas waiting their turn
 
 Both done in v1.162.0 (see "After the handoff was written" below and README

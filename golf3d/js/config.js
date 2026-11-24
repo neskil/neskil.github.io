@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.217.0';
+G3.VERSION = '1.218.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -839,6 +839,11 @@ G3.CONFIG = {
     SIM_DT: 1 / 120,
     MAX_SUBSTEPS: 32,
     MAX_SHOT_SECONDS: 22,
+    /* Seconds into a shot before a whirlpool's push is capped
+       (physics.js → wellPull, SWIRL_CAP): every shot that is played on The
+       Maelstrom is over by then, and only a ball the current has taken
+       round is still moving. */
+    SWIRL_WAIT: 6,
 
     OOB_Y: -6,            // fall past this and the shot is lost
     WATER_PENALTY: 1,

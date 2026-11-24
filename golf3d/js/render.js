@@ -7819,6 +7819,29 @@
        Fills the object it is handed: {px,py,pz} for the eye, {tx,ty,tz} for
        what it is looking at. No smoothing — that is the caller's, because the
        flyover does its own. */
+    /* …and lifted over the bank behind it, if there is one. The Snow
+       Globe's tee is at the foot of the glass, which curves up behind it
+       to a rail at 1.8: the seat, nine units back and four up, looked at
+       the ball through the bank, and the whole picture under the firs was
+       a white wall (the owner: "can't see the hole for the flag", `edges`,
+       v1.218.0). So the line from the seat to what it looks at is sampled
+       over the ground, and the seat goes up by as much as it takes for
+       that line to clear the ground under it by SIGHT_CLEAR (a rail's
+       height and a little). On the holes with nothing behind the ball
+       higher than the ball, which is nearly all of them, it is zero. */
+    var SIGHT_CLEAR = 1.1;
+    function sightLift(hole, tx, ty, tz, px, py, pz) {
+        var lift = 0, i, s, g, need;
+        for (i = 1; i <= 8; i++) {
+            s = i / 9;
+            g = P.surfaceTop(hole, tx + (px - tx) * s, tz + (pz - tz) * s);
+            if (!g) continue;
+            need = g.y + SIGHT_CLEAR - (ty + (py - ty) * s);
+            if (need > 0) lift = Math.max(lift, need / s);
+        }
+        return Math.min(lift, 8);
+    }
+
     function seatFor(hole, ball, out) {
         var c = R.cam;
         var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
@@ -7980,6 +8003,7 @@
             px = ball.x - Math.sin(yaw) * back;
             py = ball.y + dist * Math.sin(c.pitch);
             pz = ball.z - Math.cos(yaw) * back;
+            py += sightLift(hole, tx, ty, tz, px, py, pz);
         }
 
         out.px = px; out.py = py; out.pz = pz;

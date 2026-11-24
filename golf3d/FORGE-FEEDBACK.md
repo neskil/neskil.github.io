@@ -77,3 +77,10 @@ keyed `1:<id>`.
    at each map live, run the suites, bump the version, merge to `master`, push.
 6. **Released-map notes**: fix what is broken, and add what is a design
    question to HANDOFF.md.
+
+**When the batch comes back unplayed** (every forge line `(not rated)`, no
+play stats, as batch 2's first copy did in v1.218.0): there is nothing to move
+the recipe by, and forging replaces `js/forge-maps.js`, so the unplayed batch
+would go with it. Keep the batch; do the released-map notes; a `fix` that is a
+re-forge goes on the end of the batch as the next id (README → "Batch 2's
+copy"), and say plainly that the batch is still waiting.
