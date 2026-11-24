@@ -414,6 +414,24 @@
                 var rest = shootFrom(wp, { x: 16, z: 12 }, 0, 0.5);
                 assert('…so a ball outside it comes to rest', !rest.out && !rest.moving &&
                     Math.hypot(rest.ball.x - 10, rest.ball.z - 12) > 4.8, 'at ' + rest.ball.x.toFixed(2) + ',' + rest.ball.z.toFixed(2));
+
+                /* The owner's ball "got stuck in orbit round the black hole":
+                   a soft tee putt straight at the eye of The Maelstrom went
+                   round at 3.5 for ever, the swirl's push paying exactly for
+                   the friction (v1.219.0). Every shot ends now; this one
+                   was the first of them a sweep found. */
+                var mh = G3.portals.WORLDS.filter(function (x) { return x.id === 'maelstrom'; })[0].hole;
+                var mput = G3.bagFor(mh).filter(function (c) { return c.id === 'putter'; })[0];
+                var stuckN = 0, slowest = 0, yaw, k, mw, t;
+                for (yaw = -20; yaw <= 20; yaw += 20) for (k = 3; k <= 6; k++) {
+                    mw = P.createWorld(mh, { x: mh.tee.x, z: mh.tee.z, y: mh.tee.y + C.BALL_R }, 0);
+                    P.launch(mw, yaw * Math.PI / 180, mput.power * k / 10, mput.loft, mput.bite);
+                    for (t = 0; t < 30 && !P.done(mw); t += 1 / 120) P.advance(mw, 1 / 120);
+                    if (!P.done(mw)) stuckN++;
+                    slowest = Math.max(slowest, t);
+                }
+                assert('no ball goes round The Maelstrom for ever', stuckN === 0 && slowest < C.MAX_SHOT_SECONDS,
+                    stuckN + ' still going after 30 s; the slowest took ' + slowest.toFixed(1) + ' s');
             })();
 
             /* A curved rail is chords (courses.arc), each turned to the

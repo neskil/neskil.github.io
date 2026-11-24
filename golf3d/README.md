@@ -1869,6 +1869,21 @@ drained it and then be drawn down. `wellReach` draws the disc out to
 `reach` when a well has one, and the theme paints it foam and deep water
 (`wellHot`, `wellCool`).
 
+**…and nothing goes round it for ever** (v1.219.0). A push that pushed
+whatever the ball was doing could hold one going round at the radius where the
+pull is just what a circle needs, the push paying for the friction: the owner's
+ball "got stuck in orbit round the black hole", and a sweep of 11,160 shots
+over the deck found one in twelve still going round at 3.5 after a minute (no
+shot in the game is timed out). So once a shot is `C.SWIRL_WAIT` (6 s) old,
+the push fades out as the ball's speed round the eye comes up to `SWIRL_CAP`
+(0.4) of the speed that circle needs: a ball going round is too slow to stay up
+and the water takes it down. Every shot in that sweep is over by 6.8 s now;
+the ace share and window (`portal-check`: 0.042%, mallet 4–8° at 55–100%) are
+unchanged, because every shot that is played is over before the wait. Capping
+the push from the strike was tried first and closed the ace line (the ace putt
+is a quick one going with the current); tilting the current inward only made
+the orbit smaller and quicker.
+
 And one that is about drawing rather than physics: **the ground under
 machinery is kept flat**, the same way it is under the tee and the cup
 (`courses.machineKeeps`). A launch pad is an inlay, an inlay wins a *tie* in
@@ -4998,6 +5013,20 @@ world to the grid. Palettes are Endless's stand-in for the world, with grass
 turned to the world's own hue. `courseById('forge')` is the batch in order,
 and `forge-<id>` is one map. Forge rounds write no records.
 
+**Batch 2's copy** (v1.219.0) came back with none of batch 2 rated or
+played: all sixteen `(not rated)`, no play stats. Its notes were on released
+holes (eight lines, one of them Knife Edge's batch-1 note again, since the copy
+was **Copy all**). So the recipe did not move, there being nothing to read a
+setting against, and no batch 3 was forged: forging replaces
+`js/forge-maps.js`, and a batch nobody has played would have gone with it.
+The one forge-shaped note, The Rain Pond's "too small field for play and too
+little challenge" (8 on a par 3, and one give-up), was done the way batch 1's
+last fixes were, as a map added to the end of batch 2 so nothing in it moved:
+**b2-17**, storm-savanna forged long (`--first storm-savanna --count 1
+--recipe '{"L":75,"relief":4}'`, a par 4 of 49 units the bot holes in two)
+with its cup moved by hand against the pond's shore (`--cup 1,46.5`).
+`forge-sculpt` reads it at a median of 0.007, the worst cell 0.21.
+
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
 unlocks). Off, a tap turns it on; on, it reads **Dev menu** with the build
@@ -6167,7 +6196,14 @@ between — and each of them is turned, in place, by the
 round from it the player has walked, and `updateCamera` is where the two meet.
 
 - **Follow**, behind the ball and down the shot. The one you play from, and the
-  one a new hole always starts in.
+  one a new hole always starts in. It is lifted over ground behind the ball
+  (`render.js → sightLift`, v1.219.0): the line from the seat to what it looks
+  at is sampled over the ground and the seat goes up until that line clears
+  it by `SIGHT_CLEAR` (1.1, a rail and a little). The Snow Globe's tee is at
+  the foot of the glass, and from nine units back the seat looked at the ball
+  through the bank, the picture under the firs a white wall ("can't see the
+  hole for the flag", `edges`). Where nothing behind the ball is higher than
+  the ball, which is nearly every hole, it is zero.
 - **Side on**, square across the shot and low — about fourteen degrees above
   it, and the seat where the dial starts from a quarter turn rather than none. This game has a third axis and a bag of clubs with lofts in it, and from
   behind the ball the *height* of a shot is the one thing you cannot read: a

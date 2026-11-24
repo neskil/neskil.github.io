@@ -1550,6 +1550,7 @@
                 v: w.ride.v, base: w.ride.base } : null,
             loopFor: w.loopFor || 0,
             fall: w.fall,
+            age: w.age || 0,
             overCup: w.overCup
         };
     }
@@ -1663,6 +1664,7 @@
         world.ride = null;
         world.fall = null;
         world.loopFor = 0;
+        world.age = 0;
         world.firstLand = null;
         world.carry = 0;
         world.lift = topped ? 0 : liftFor(world.hole, l);
@@ -2002,8 +2004,8 @@
        the shot is replayed from where it was played, a stroke down). It is a
        horizontal force only: what holds the ball on the ground is still the
        ground, and gravity is still down. */
-    var _well = { x: 0, z: 0 };
-    function wellPull(hole, x, z) {
+    var _well = { x: 0, z: 0 }, SWIRL_CAP = 0.4;
+    function wellPull(hole, x, z, vx, vz) {
         _well.x = 0; _well.z = 0;
         var ws = hole.wells, i, w, dx, dz, q, k;
         if (!ws) return _well;
@@ -2029,6 +2031,27 @@
                above (+x to +z). */
             if (w.swirl) {
                 k = fade * w.swirl / (q + w.core * w.core);
+                /* But not for ever. A push that went on whatever the ball
+                   was doing could hold one going round at the radius where
+                   the pull is just what a circle needs, the push paying for
+                   the friction: the owner's ball "got stuck in orbit round
+                   the black hole" (v1.219.0), one tee putt in twelve going
+                   round at 3.5 for ever, and no shot in the game is timed
+                   out. So once a shot is C.SWIRL_WAIT old (the callers pass
+                   the velocity only then) the push fades out as the ball's
+                   speed round the eye comes up to SWIRL_CAP of the speed that
+                   circle would need: a ball going round is too slow to stay
+                   up, and the water takes it in and down. Every shot that is
+                   played is over long before the wait (the ace share and its
+                   window are unchanged); what is still moving then is a ball
+                   the current has taken. */
+                if (vx !== undefined && q > 1e-6) {
+                    var r = Math.sqrt(q), sg = w.swirl > 0 ? 1 : -1;
+                    var cap = SWIRL_CAP * Math.sqrt(fade * w.pull / (q + w.core * w.core) * r);
+                    var vt = sg * (vx * dz - vz * dx) / r;
+                    var f = cap > 1e-6 ? (cap - vt) / (0.25 * cap) : 0;
+                    k *= f <= 0 ? 0 : f >= 1 ? 1 : f;
+                }
                 _well.x += k * dz; _well.z -= k * dx;
             }
         }
@@ -2201,7 +2224,7 @@
                     b.vz += pad.push.z * dt;
                 }
                 if (hole.wells) {
-                    var wp = wellPull(hole, b.x, b.z);
+                    var wp = world.age > C.SWIRL_WAIT ? wellPull(hole, b.x, b.z, b.vx, b.vz) : wellPull(hole, b.x, b.z);
                     b.vx += wp.x * dt;
                     b.vz += wp.z * dt;
                 }
@@ -2318,7 +2341,7 @@
             if (world.lift) carryFlight(world, dt);
             b.vy -= grav * dt;
             if (hole.wells) {
-                var wa = wellPull(hole, b.x, b.z);
+                var wa = world.age > C.SWIRL_WAIT ? wellPull(hole, b.x, b.z, b.vx, b.vz) : wellPull(hole, b.x, b.z);
                 b.vx += wa.x * dt;
                 b.vz += wa.z * dt;
             }
@@ -2514,6 +2537,7 @@
     function advance(world, dt, events) {
         events = events || {};
         if (world.sunk || world.splash || world.out) return events;
+        world.age = (world.age || 0) + dt;
 
         var steps = Math.min(
             C.MAX_SUBSTEPS,
