@@ -7646,6 +7646,21 @@
     var SIM_STEP = 1 / 60;
     var simAcc = 0;
 
+    /* How fast the shot's clock runs against the wall clock: CONFIG.HANG's
+       AIR from the strike of a long-game shot to its first landing, eased back
+       to 1 over LAND seconds of the wall clock after it, and 1 everywhere else.
+       Down at once, never up at once — a ball that sped up the instant it
+       touched the grass would look like it had been kicked. */
+    var hangK = 1;
+    function hangRate(dt) {
+        var w = state.world, H = C.HANG;
+        // Up, and not yet down: a putt never lands, and must not hang.
+        var air = w.moving && !w.grounded && !w.firstLand && !w.warping && !w.ride && G3.drawnLong(w.hole);
+        if (air) hangK = Math.min(hangK, H.AIR);
+        else hangK = Math.min(1, hangK + dt * (1 - H.AIR) / H.LAND);
+        return hangK;
+    }
+
     function loop(now) {
         raf = requestAnimationFrame(loop);
         var raw = (now - last) / 1000;
@@ -7694,8 +7709,12 @@
                over frames are carried, so the ball still runs at real speed on
                a screen of any refresh rate. */
             var ev;
+            // The long game's hang (CONFIG.HANG): the shot's own clock, slower
+            // in the air. The bot's steps stay 1/60 of *its* clock, so the
+            // shot it planned is still the shot it gets.
+            var sdt = dt * hangRate(dt);
             if (sim) {
-                simAcc = Math.min(simAcc + dt, 0.25);
+                simAcc = Math.min(simAcc + sdt, 0.25);
                 while (simAcc >= SIM_STEP && state.phase === 'rolling') {
                     simAcc -= SIM_STEP;
                     ev = P.advance(state.world, SIM_STEP, {});
@@ -7705,13 +7724,14 @@
                 }
                 syncDistance();
             } else {
-                ev = P.advance(state.world, dt, {});
+                ev = P.advance(state.world, sdt, {});
                 if (tape) G3.replay.record(tape, state.world, ev);
                 handleEvents(ev);
                 syncDistance();
                 if (P.done(state.world)) endShot();
             }
         } else {
+            hangK = 1;   // each shot starts on the wall clock (hangRate)
             tickGate(dt);
             tickArc(dt);
             tickNeedle(dt);
