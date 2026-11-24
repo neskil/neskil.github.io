@@ -697,7 +697,7 @@
 
     function buildClub(club, M) {
         var g = new THREE.Group();
-        var len = LENGTHS[club.id] || 0.95;
+        var len = (LENGTHS[club.id] || 0.95) * (_forBall ? BALL_SHAFT : 1);
 
         var fullGeo = taperedShaft(len, len);
         var stubLen = Math.min(len, STUB);
@@ -3712,7 +3712,13 @@
        camera every frame (`backMax`). The finish is ahead of the ball, where
        there is all the room in the world. */
     var BALL_M = 0.02135;        // a golf ball's radius, metres
-    var HANDS = 0.55;            // head to the point the club turns about, metres
+    /* The club at the ball is drawn shorter than it is in the bag. At real
+       length, seven and a half times life size, the shaft ran from the ball
+       up past the top of a phone's screen — the grip lost behind the HUD —
+       and the owner found it too long (v1.220.1). The head stays life size
+       to the ball; only the shaft is cut. */
+    var BALL_SHAFT = 0.8;
+    var HANDS = 0.55 * BALL_SHAFT;   // head to the point the club turns about, metres
     var SWING_BACK = 1.35, SWING_FINISH = 1.75;      // a whole turn each way, radians
     var AD = {
         root: null, sh: null, slot: null,
