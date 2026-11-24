@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.221.0';
+G3.VERSION = '1.221.1';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1415,8 +1415,16 @@ G3.CONFIG.LONG_CAM = { RISE: 0.3, EASE: 0.002 };
    lowered by DROP of itself, so the tee shows the hole and the horizon rather
    than the turf at the ball's feet (the owner, v1.221.0: "why does the
    starting camera look into the ground?"). Full beyond FAR units of the cup,
-   none inside NEAR, so a putt is the seat it always was. */
-G3.CONFIG.LONG_SEAT = { LEAD: 10, DROP: 0.3, NEAR: 10, FAR: 24 };
+   none inside NEAR, so a putt is the seat it always was.
+
+   Both are zero since v1.221.1. What looked into the ground was sightLift
+   standing every seat up (fixed on the same commit, render.js); with that
+   gone the seat was already at its normal pitch, and the lead on top of it
+   dropped the ball to the bottom of the screen, under the swing guide, with
+   the camera low behind it (the owner: "starting camera is now a bit weird?
+   To far behind the ball"). Kept as knobs, not code, in case a little lead
+   is wanted back. */
+G3.CONFIG.LONG_SEAT = { LEAD: 0, DROP: 0, NEAR: 10, FAR: 24 };
 
 /* The tracer (render.js `stepTracer`): the long game's flight drawn as a line
    from the strike to the first landing. MAX points at least STEP apart; half
