@@ -70,6 +70,13 @@ if (tee || cup) {
         .filter((r) => r[3] - r[1] > 0.5).map((r) => r.map((x) => +x.toFixed(2)));
 }
 if (one('--par')) map.par = +one('--par');
+/* A cup moved among the world's things: the forge never pins one with
+   anything standing within 2.2 of it (forge.mjs → clearLine), because the
+   ball would roll through a trunk on the green. Said rather than mended. */
+if (cup && map.outs) {
+    const near = map.outs.filter((c) => Math.hypot(g.x0 + (c % g.nx) * g.d - cup.x, g.z0 + Math.floor(c / g.nx) * g.d - cup.z) < 2.2).length;
+    if (near) console.log(`THE GREEN HAS ${near} CELLS OF THE WORLD'S THINGS WITHIN 2.2 OF THE CUP — move it`);
+}
 /* --out-box x0,z0,x1,z1[;…]: every cell in it out of bounds, off the tee and
    the green — for something of the world's the forge read as ground and the
    sculpt could not press (forge-sculpt.mjs shows it as `+`), so the ball

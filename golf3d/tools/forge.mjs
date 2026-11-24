@@ -52,8 +52,8 @@ const RECIPE = Object.assign({
     // now (`long`: the full bag, par by length), three times the length and
     // half as wide again, sampled a unit apart (the cost of a patch stays
     // what it was), with twice the relief.
-    relief: 3, reliefMin: 1.2, reliefMax: 8, maxSlope: 0.55, smooth: 2,
-    L: 56, W: 24, back: 3, d: 1, ahead: 3, ace: 0.003, scaleK: 1, strip: 5,
+    relief: 3, reliefMin: 1.2, reliefMax: 6, maxSlope: 0.5, smooth: 2,
+    L: 70, W: 24, back: 3, d: 1, ahead: 3, ace: 0.003, scaleK: 1, strip: 5,
     long: true,
     // Clutter (since batch 2): `stand` is how tall a thing standing on the
     // ground may be (golf units) before it counts, `bump` how far the raw
@@ -69,10 +69,23 @@ const RECIPE = Object.assign({
     // out of bounds, so a ball that stops among the trees is replayed rather
     // than rolled through them; `risk` is the share of tee shots fanned
     // round the line that should end wet or out — the hazards in play.
-    pond: 0.08, outs: true, risk: 0.25, smoothHard: 8,
+    pond: 0.08, outs: true, risk: 0.35, smoothHard: 8,
     // `turnCost`: a patch off the flight's heading pays this per radian
     // (batch 1's `camera` issues were both on turned patches).
-    turnCost: 0.6
+    turnCost: 0.6,
+    // Batch 3 (from batch 2's verdicts, README → "The forge", Batch 3): four
+    // of the five rated said `short` (L 42 and 56), every one was rated
+    // difficulty 1 or 2, and the two drops were the flattest patch (the
+    // forest, steepest cell 0.05, 268 cells of trees out) and the steepest
+    // (the erg, relief 7.47). So `L` 56 → 70, `risk` 0.25 → 0.35,
+    // `reliefMax` 8 → 6, `maxSlope` 0.55 → 0.5, and two new numbers:
+    // `minSlope`, the steepest cell a patch must at least have (batch 1's
+    // drops were its flattest too), and `clutterCost`, what a patch pays per
+    // share of its cells with the world's things on them (the keep had
+    // none). `longClear`: both `clip` maps had the world's things on the
+    // line where a ball comes down and runs, so past that share of the way
+    // to the cup a long hole's lane must be clear as a short one's is.
+    minSlope: 0.12, clutterCost: 2, longClear: 0.45
 }, JSON.parse(one('--recipe', '{}')));
 // …and how each map of the batch leans off it, so a verdict can be read
 // against a setting: four lengths, three reliefs.
@@ -161,7 +174,7 @@ function clearLine(mask, g, tee, cup, r) {
            floor between them (batch 2: Flinching Forest has a tree within a
            unit of every straight forty-unit line), and they are out of
            bounds there (`outs`): only its tee and its green must be clear. */
-        if (!r.long && Math.hypot(x - tee.x - ax * t, z - tee.z - az * t) <= r.lane) return false;
+        if ((!r.long || t >= (r.longClear || 1)) && Math.hypot(x - tee.x - ax * t, z - tee.z - az * t) <= r.lane) return false;
         if (Math.hypot(x - cup.x, z - cup.z) <= (r.long ? 2.2 : 2.6) || Math.hypot(x - tee.x, z - tee.z) <= (r.long ? 1.2 : 1.6)) return false;
     }
     return true;
@@ -419,12 +432,30 @@ const { chromium } = require('playwright');
 let browser = null;
 const launch = () => browser || (browser = chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }));
 const made = [], tried = [];
-/* --keep b1-01,b1-02,…: those maps of the batch on disk are carried over as
-   they are (renumbered in order at the end), and neither their worlds nor
-   the worlds that batch passed over are tried again. */
+/* --with <file>:<id>[,<file>:<id>…]: maps out of other batch files — a fix
+   finished by hand (forge-finish --write) or a world forged alone with its
+   own recipe — at the head of the batch, in that order; their worlds are not
+   forged again. --keep b1-01,b1-02,…: those maps of the batch on disk are
+   carried over as they are, after the ones forged now (since batch 3: the new
+   recipe is what is played first), and neither their worlds nor the worlds
+   that batch passed over are tried again. Either way a map keeps its rating
+   key (forge.js → keyFor), which does not read its id. */
+const rank = new Map();
+if (one('--with')) {
+    for (const ref of one('--with').split(',')) {
+        const at = ref.lastIndexOf(':'), f = ref.slice(0, at), id = ref.slice(at + 1);
+        const data = JSON.parse(readFileSync(f, 'utf8').match(/window\.G3\.FORGE = (\{[\s\S]*\});\s*$/)[1]);
+        const m = data.maps.find((x) => x.id === id);
+        if (!m) throw new Error('--with: no map ' + id + ' in ' + f);
+        rank.set(m, rank.size);
+        made.push(m);
+    }
+    const skip = new Set(made.map((m) => m.world));
+    pool = pool.filter((row) => !skip.has(row[0]));
+}
 if (one('--keep')) {
     const keep = one('--keep').split(','), old = G3.FORGE || { maps: [] };
-    old.maps.filter((m) => keep.includes(m.id)).forEach((m) => made.push(m));
+    old.maps.filter((m) => keep.includes(m.id)).forEach((m) => { rank.set(m, 1e6 + rank.size); made.push(m); });
     // Batch 1 was written before `passed` was kept: read it off the file's head.
     if (!old.passed) { const m = readFileSync(join(js, 'forge-maps.js'), 'utf8').match(/passed over: ([^.]*)\./); old.passed = m ? m[1].split(/,\s*/) : []; }
     const skip = new Set(made.map((m) => m.world).concat(old.passed || []));
@@ -495,12 +526,13 @@ async function forgeOne(row, li) {
             if (!b) continue;
             const rel = relief(b.h), sl = steepest(b.h, q.nx, q.nz, q.d);
             if (process.env.FORGE_DEBUG) console.log(`  ${row[0]} u${q.u} t${q.turn} ×${passes}: relief ${rel.toFixed(2)} slope ${sl.toFixed(2)} flight ${((q.flightY - b.y0) / q.scale).toFixed(1)} scale ${q.scale.toFixed(2)}`);
-            if (rel < r.reliefMin || rel > r.reliefMax || sl > r.maxSlope) continue;
+            if (rel < r.reliefMin || rel > r.reliefMax || sl > r.maxSlope || sl < (r.minSlope || 0)) continue;
             if ((q.flightY - b.y0) / q.scale < 2) continue;
-            scored.push({ q, b, rel, sl, smooth: passes, sc: Math.abs(Math.log(rel / r.relief)) + sl + (r.turnCost || 0) * Math.abs(q.turn) });
+            const busy = b.covered ? 0 : b.clutter.reduce((a, x) => a + x, 0) / b.clutter.length;
+            scored.push({ q, b, rel, sl, smooth: passes, sc: Math.abs(Math.log(rel / r.relief)) + sl + (r.turnCost || 0) * Math.abs(q.turn) + (r.clutterCost || 0) * busy });
         }
     }
-    if (!scored.length) return { why: 'no patch: ' + s.patches.length + ' sampled, none with relief ' + r.reliefMin + '–' + r.reliefMax + ' and slope ≤ ' + r.maxSlope };
+    if (!scored.length) return { why: 'no patch: ' + s.patches.length + ' sampled, none with relief ' + r.reliefMin + '–' + r.reliefMax + ' and slope ' + (r.minSlope || 0) + '–' + r.maxSlope };
     scored.sort((a, b) => a.sc - b.sc);
     const top = scored.slice(0, 3), got = await onThread({ cands: top.map((c) => ({ q: c.q, b: c.b })), r });
     const log = got.log.map((l) => `  ${row[0]}: ${l}`);
@@ -534,10 +566,10 @@ async function forgeOne(row, li) {
    done again on the right lean. Until batch 2's speed work the lean was
    taken when a world started, so which world got which lean depended on
    which finished first, and a faster run made a different batch. */
-const inHand = new Map();
+const inHand = new Map(), PRE = made.length;
 let startAt = 0;
 const begin = (k) => {
-    const li = made.length % LEAN.length, t0 = Date.now();
+    const li = (made.length - PRE) % LEAN.length, t0 = Date.now();
     inHand.set(k, forgeOne(pool[k], li).then((res) => ({ res, li, t0 }), (e) => ({ res: { why: 'error: ' + String(e.message || e).slice(0, 120), log: [] }, li, t0 })));
 };
 for (let at = 0; made.length < COUNT && at < pool.length; at++) {
@@ -545,7 +577,7 @@ for (let at = 0; made.length < COUNT && at < pool.length; at++) {
     const row = pool[at];
     let { res, li, t0 } = await inHand.get(at);
     inHand.delete(at);
-    if (li !== made.length % LEAN.length) { t0 = Date.now(); res = await forgeOne(row, made.length % LEAN.length); }
+    if (li !== (made.length - PRE) % LEAN.length) { t0 = Date.now(); res = await forgeOne(row, (made.length - PRE) % LEAN.length); }
     (res.log || []).forEach((l) => console.log(l));
     if (res.map) {
         res.map.id = 'b' + BATCH + '-' + String(made.length + 1).padStart(2, '0');
@@ -561,7 +593,10 @@ await Promise.all(inHand.values());
 if (browser) await (await browser).close();
 idle.forEach((w) => w.terminate());
 
-made.sort((a, b) => a.id.localeCompare(b.id));
+// The maps --with names first, then the ones forged now in the order they
+// were made, then the ones --keep carried over.
+made.forEach((m, i) => { if (!rank.has(m)) rank.set(m, 1e3 + i); });
+made.sort((a, b) => rank.get(a) - rank.get(b));
 made.forEach((m, i) => { m.id = 'b' + BATCH + '-' + String(i + 1).padStart(2, '0'); });
 const out = `/* The forge's batch ${BATCH}: holes laid by tools/forge.mjs on Portals worlds'
    own ground, not approved yet (dev mode → New maps, js/forge.js). Generated:

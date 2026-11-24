@@ -7569,6 +7569,17 @@
        ball and the club take a little less of the screen than on a lane and
        the course a little more. */
     function seatLook(hole, ball) { return 1 + (C.LONG_LOOK.SEAT - 1) * lookT(hole, ball); }
+    /* How far the follow seat leads down the line (CONFIG.LONG_SEAT): 0 on
+       anything but the long game and near the cup, 1 far from it. Drawn long
+       holes and the ones hung in a world alike: it is a question of how much
+       hole there is in front of the ball, not of the scale it is drawn at. */
+    function seatLead(hole, ball) {
+        if (!hole || !hole.longGame || !hole.cup || !ball) return 0;
+        var L = C.LONG_SEAT;
+        var d = Math.sqrt((ball.x - hole.cup.x) * (ball.x - hole.cup.x) + (ball.z - hole.cup.z) * (ball.z - hole.cup.z));
+        var t = Math.max(0, Math.min(1, (d - L.NEAR) / (L.FAR - L.NEAR)));
+        return t * t * (3 - 2 * t);
+    }
     R.look = 1;
 
     function rollBall(pos) {
@@ -8031,14 +8042,23 @@
        over the ground, and the seat goes up by as much as it takes for
        that line to clear the ground under it by SIGHT_CLEAR (a rail's
        height and a little). On the holes with nothing behind the ball
-       higher than the ball, which is nearly all of them, it is zero. */
+       higher than the ball, which is nearly all of them, it is zero.
+
+       Only ground standing above the ball counts. As first written every
+       sample did, and the line ends a third of a unit over the turf at the
+       ball, so the sample next to it was always short and its shortfall was
+       divided by 1/9: every seat on every hole went up 1.7 units, and the
+       long game's, which is closer in, about five (Coral Keys' tee looked
+       sixty degrees down; the owner, v1.221.0: "why does the starting camera
+       look into the ground?"). A bank behind the ball is above it; level
+       ground, or ground falling away behind the tee, is not. */
     var SIGHT_CLEAR = 1.1;
-    function sightLift(hole, tx, ty, tz, px, py, pz) {
+    function sightLift(hole, ball, tx, ty, tz, px, py, pz) {
         var lift = 0, i, s, g, need;
         for (i = 1; i <= 8; i++) {
             s = i / 9;
             g = P.surfaceTop(hole, tx + (px - tx) * s, tz + (pz - tz) * s);
-            if (!g) continue;
+            if (!g || g.y <= ball.y) continue;
             need = g.y + SIGHT_CLEAR - (ty + (py - ty) * s);
             if (need > 0) lift = Math.max(lift, need / s);
         }
@@ -8199,19 +8219,34 @@
             var ahead = P.surfaceTop(hole, ball.x + Math.sin(yaw) * C.AIM_LOOK,
                                            ball.z + Math.cos(yaw) * C.AIM_LOOK);
             var rise = ahead ? Math.max(0, ahead.y - ball.y) : 0;
-            tx = ball.x;
-            ty = ball.y + 0.35 * look + Math.min(rise, C.AIM_RISE) * C.AIM_TILT;
-            tz = ball.z;
-            var back = dist * Math.cos(c.pitch);
+            /* …and on a long hole, far from the green, it looks down the
+               line rather than at the ball, from a little lower (the owner,
+               v1.221.0, on three forged holes: "why does the starting camera
+               look into the ground?" — at nine back and four up, looking at
+               the ball, a fifty-unit hole was a frame of turf with the
+               horizon at its top edge). Eased in by the ball's distance from
+               the cup, so a putt, and every mini hole, is the seat it was. */
+            var lead = seatLead(hole, ball), LS = C.LONG_SEAT;
+            var pitch = c.pitch * (1 - LS.DROP * lead);
+            var by = ball.y + 0.35 * look + Math.min(rise, C.AIM_RISE) * C.AIM_TILT;
+            tx = ball.x + Math.sin(yaw) * LS.LEAD * look * lead;
+            ty = by;
+            tz = ball.z + Math.cos(yaw) * LS.LEAD * look * lead;
+            // Never a point under the hill it is looking at: sightLift would
+            // stand the seat on its head to see over it.
+            var there = lead > 0 ? P.surfaceTop(hole, tx, tz) : null;
+            if (there) ty = Math.max(ty, there.y + 0.35 * look);
+            var back = dist * Math.cos(pitch);
             px = ball.x - Math.sin(yaw) * back;
             // Held under a long shot rather than riding up with it (watchAir).
-            py = ball.y + dist * Math.sin(c.pitch) - (R.airDrop || 0);
+            py = ball.y + dist * Math.sin(pitch) - (R.airDrop || 0);
             pz = ball.z - Math.cos(yaw) * back;
             if (R.airDrop > 0) {
                 var under = P.surfaceTop(hole, px, pz);
                 if (under && py < under.y + C.LAUNCH_CAM.CLEAR) py = under.y + C.LAUNCH_CAM.CLEAR;
             }
-            py += sightLift(hole, tx, ty, tz, px, py, pz);
+            // The ball has to be seen over a bank behind it: the line to it, not to the lead.
+            py += sightLift(hole, ball, ball.x, by, ball.z, px, py, pz);
         }
 
         out.px = px; out.py = py; out.pz = pz;
