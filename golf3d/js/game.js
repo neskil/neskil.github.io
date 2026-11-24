@@ -3110,7 +3110,7 @@
         // A forge map is not left without a verdict (dev mode; forge.js).
         // …nor, with "ask after every hole" on, a released one (dev mode).
         var rt = !auto && !multi() && G3.forge ? rateTarget() : null;
-        if (rt && !G3.forge.noteAt(rt.key) && (rt.forge || G3.forge.rateAll())) { hideBanner(); openForgeForm(nextHole); return; }
+        if (rt && !G3.forge.noteAt(rt.key) && !ffSkipped[rt.key] && (rt.forge || G3.forge.rateAll())) { hideBanner(); openForgeForm(nextHole); return; }
         hideBanner();
         // Pass and play: the same hole again for whoever has not played it,
         // and only then on — with player one teeing off first.
@@ -5329,6 +5329,7 @@
        Claude, who forges the next batch from it. */
     var FF = null;          // the form's answers while it is open
     var ffThen = null;      // what Save does after saving (go on to the next hole)
+    var ffSkipped = {};     // maps put off with Later this visit (ffLater)
     function forgeOn() { return !!(dev && G3.forge && G3.forge.maps().length); }
     function forgeHere() {
         var c = state && state.course, h = c && c.holes[state.holeIndex];
@@ -5671,9 +5672,19 @@
         $('forge-form').className = 'modal show';
         return true;
     }
+    /* Later puts the form off, not the hole: the walk on to the next one
+       goes ahead and this map is not asked about again this visit. It used
+       to drop the walk with the form, and since the score banner had already
+       gone the player was left on a holed green with nothing to press (the
+       owner, v1.221.1: "if you press later for review you don't go to next
+       map"). */
     function ffLater() {
-        $('forge-form').className = 'modal'; ffThen = null;
-        if (ffBack) { ffBack = false; openDev(); }
+        $('forge-form').className = 'modal';
+        var then = ffThen; ffThen = null;
+        if (ffTarget && then) ffSkipped[ffTarget.key] = true;
+        ffTarget = null;
+        if (ffBack) { ffBack = false; openDev(); return; }
+        if (then) then();
     }
     function saveForgeForm() {
         var t = ffTarget;
