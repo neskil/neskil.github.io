@@ -8637,6 +8637,7 @@
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
         stepWipe(dt);
+        R.camGap = Infinity;   // camSettled(): set below, only on the plain seat
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
@@ -8690,7 +8691,21 @@
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
         R.camera.updateMatrixWorld();
+        /* How far the eye still has to travel to the seat, as a share of the
+           seat's own reach — so the same reading means "arrived" on a putting
+           green and on a par 5. A carried camera (loop, pipe) is never
+           settled: the seat it is easing to is not the address. */
+        if (!R.loopCam && !R.warpCam && !R.wipe) {
+            var reach = Math.hypot(px - tx, py - ty, pz - tz) || 1;
+            R.camGap = (R.smooth.pos.distanceTo(_camPos.set(px, py, pz)) +
+                R.smooth.target.distanceTo(_camTarget.set(tx, ty, tz))) / reach;
+        }
     }
+
+    /* Has the camera come to rest on the seat? game.js's pin tag waits for it
+       (the owner, v1.217.1: "should spawn after you settle on the tee … remove
+       after you fire and in transitions"). */
+    function camSettled() { return R.camGap < 0.04; }
 
     /* The launch (CONFIG.LAUNCH_CAM). A strike is noticed as the ball
        starting to move from rest — frame() does that, so game.js has nothing
@@ -9464,6 +9479,7 @@
 
     G3.render = {
         pinScreen: pinScreen,
+        camSettled: camSettled,
         setBallColour: setBallColour,
         setBallStyle: setBallStyle,
         createBallPreview: createBallPreview,
