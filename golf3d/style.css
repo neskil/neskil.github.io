@@ -1751,6 +1751,11 @@ body.demo .stage .replay-tag { display: none; }
     transition: opacity 0.25s;
 }
 .pin-tag[hidden] { display: none; }
+/* It arrives once the camera has (game.js → pinTagSettled), so it fades in
+   rather than popping. Opacity only: the transform is game.js's, inline. */
+.pin-tag:not([hidden]) { animation: pin-tag-in 0.35s ease-out; }
+@keyframes pin-tag-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pin-tag:not([hidden]) { animation: none; } }
 .pin-tag::after {
     content: '';
     position: absolute;

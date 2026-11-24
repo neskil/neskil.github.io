@@ -3677,8 +3677,25 @@
        one of these. So on them a small brass plate stands over the flag,
        with the distance on it, and when the flag is off the screen it waits
        at the edge pointing the way. Near the flag, with the flag in view, it
-       goes: the flag is plain to see by then. */
-    var pinTag = null, pinTagOn = false;
+       goes: the flag is plain to see by then.
+
+       And only once the player is standing over the ball with the camera
+       come to rest on the address (the owner: "should spawn after you settle
+       on the tee, not all the time. Remove after you fire and in
+       transitions"). It was up through the flyover, over the wipe, and
+       chasing the flag across the screen while the ball flew. The latch
+       opens when the camera arrives (R.camSettled) and stays open while the
+       player turns the aim — the camera swinging round with it is not a
+       transition — and closes the moment the stroke is struck, the flyover
+       or a dive starts, or the portal shuts. */
+    var pinTag = null, pinTagOn = false, pinTagReady = false;
+    function pinTagSettled() {
+        var calm = state.phase === 'aim' && !state.world.moving && !R.flying() && !R.diving() &&
+            !R.wipe() && !(R.replaying && R.replaying()) && !document.body.classList.contains('portal-shut');
+        if (!calm) pinTagReady = false;
+        else if (!pinTagReady && R.camSettled && R.camSettled()) pinTagReady = true;
+        return pinTagReady;
+    }
     function sculptedHole(h) {
         if (h._sculpted === undefined) h._sculpted = !!(h.portal && h.pads.some(function (p) { return p.ghost; }));
         return h._sculpted;
@@ -3687,7 +3704,7 @@
         if (!pinTag) pinTag = { el: $('pin-tag'), dist: $('pin-tag-dist'), text: null };
         if (!pinTag.el) return;
         var hole = state && state.course && !state.course.isRange && state.course.holes[state.holeIndex];
-        var p = hole && sculptedHole(hole) && !state.world.sunk && R.pinScreen ? R.pinScreen() : null;
+        var p = hole && sculptedHole(hole) && !state.world.sunk && pinTagSettled() && R.pinScreen ? R.pinScreen() : null;
         var show = !!p && !(p.ahead && p.dist < 14 && p.x > 0 && p.x < p.w && p.y > 0 && p.y < p.h);
         if (show !== pinTagOn) { pinTagOn = show; pinTag.el.hidden = !show; }
         if (!show) return;

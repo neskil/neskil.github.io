@@ -853,7 +853,12 @@ G3.CONFIG = {
        and sounds like while you are winding it up and after you let go. */
     OVERSWING: 0.85,      // past this fraction the meter turns and the arrow reddens
     KICK: 0.55,           // camera punch on impact, in units of pull-back
-    TRAIL: 56,            // ball trail samples
+    TRAIL: 56,            // ball trail samples (a ring; enough for LIFE at 30+ fps)
+    /* The speed streak behind a moving ball (render.js → buildTrail). Half
+       its width at the head, in ball radii, narrowing to nothing over LIFE
+       seconds; brightness rises with the ball's speed to full at FULL_SPEED,
+       never below SLOW. */
+    TRAIL_LOOK: { LIFE: 0.4, WIDTH: 0.7, GLOW_WIDTH: 1.0, FULL_SPEED: 9, SLOW: 0.3 },
 
     /* The launch, as the camera tells it (render.js `launchLag`, v1.185.0).
        A camera that is glued to the ball cannot say how fast it left: the

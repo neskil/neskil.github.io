@@ -502,46 +502,117 @@
         }
     }
 
-    /* A tail of where the ball has just been. Additive blending and a colour
-       that darkens with age does the fading for us — per-point alpha would want
-       a custom shader, and this reads the same. */
+    /* A tail of where the ball has just been: a speed streak, not a string
+       of beads (the owner, v1.218.0: "fix the dots be more like a speed
+       trail"). It was one soft sprite per frame, so a drive — several units
+       a frame — left them strung out a ball-length apart along the whole of
+       its flight. Now the samples are joined into one ribbon, turned to face
+       the camera at every sample, as wide as the ball at the head and
+       narrowing to nothing behind it, and fading with *time* rather than
+       sample count, so it is the same length of streak on a phone at 30 fps
+       as at 60 and a slow putt leaves a short smear where a drive leaves a
+       long one. Additive blending and a colour that darkens with age still do
+       the fading; across its width the soft dot texture gives it a soft edge.
+
+       Built once with the course and always in the scene — collapsed off the
+       world when idle — so its program is compiled up front rather than on
+       the first strike (shader-tests → "Nothing is compiled while a hole is
+       played"). */
     function buildTrail() {
-        var n = C.TRAIL;
+        var n = C.TRAIL, i;
         var g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.Float32BufferAttribute(new Array(n * 3).fill(-9999), 3));
-        g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), 3));
-        R.trail = new THREE.Points(g, new THREE.PointsMaterial({
-            size: 0.13, map: TX.dot, transparent: true, depthWrite: false,
+        var uv = new Float32Array(n * 4), idx = [];
+        for (i = 0; i < n; i++) { uv[i * 4] = 0.5; uv[i * 4 + 1] = 0; uv[i * 4 + 2] = 0.5; uv[i * 4 + 3] = 1; }
+        for (i = 0; i < n - 1; i++) {
+            var v = i * 2;
+            idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+        }
+        g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 6).fill(-9999), 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 6), 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setIndex(idx);
+        g.setDrawRange(0, 6);   // one triangle pair, off the world: see clearTrail
+        R.trail = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+            map: TX.dot, transparent: true, depthWrite: false, side: THREE.DoubleSide,
             blending: THREE.AdditiveBlending, vertexColors: true
         }));
         R.trail.frustumCulled = false;
+        R.trail.renderOrder = 2;
+        // The samples, newest first once read round from trailAt: where, when
+        // (R.clock), and how fast the ball was going there.
+        R.trailPts = new Float32Array(n * 3);
+        R.trailT = new Float64Array(n);
+        R.trailV = new Float32Array(n);
+        R.trailN = 0;
         R.trailAt = 0;
         R.trailOn = false;
+        R.trailW = 1;
         R.scene.add(R.trail);
     }
 
-    function pushTrail(x, y, z) {
+    var _tA = null, _tB = null, _tC = null;
+    function pushTrail(x, y, z, speed) {
+        var n = C.TRAIL, T = C.TRAIL_LOOK;
+        R.trailAt = (R.trailAt + 1) % n;
+        var j = R.trailAt * 3;
+        R.trailPts[j] = x; R.trailPts[j + 1] = y; R.trailPts[j + 2] = z;
+        R.trailT[R.trailAt] = R.clock;
+        R.trailV[R.trailAt] = speed;
+        if (R.trailN < n) R.trailN++;
+        drawTrail(T);
+    }
+
+    /* The ribbon, rebuilt from the samples for this frame's camera. */
+    function drawTrail(T) {
+        if (!_tA) { _tA = new THREE.Vector3(); _tB = new THREE.Vector3(); _tC = new THREE.Vector3(); }
+        var n = C.TRAIL, pts = R.trailPts, cam = R.camera.position;
         var pos = R.trail.geometry.attributes.position.array;
         var col = R.trail.geometry.attributes.color.array;
-        var n = C.TRAIL, i, age, f;
-        R.trailAt = (R.trailAt + 1) % n;
-        pos[R.trailAt * 3] = x; pos[R.trailAt * 3 + 1] = y; pos[R.trailAt * 3 + 2] = z;
-        for (i = 0; i < n; i++) {
-            age = (R.trailAt - i + n) % n;          // 0 = newest
-            f = Math.max(0, 1 - age / n);
-            f = f * f * 0.75;
+        var half = (R.glow ? T.GLOW_WIDTH : T.WIDTH) * C.BALL_R * R.trailW;
+        var m = 0, k, s, sp, sn, f, w, c;
+        for (k = 0; k < R.trailN; k++) {
+            s = (R.trailAt - k + n) % n;
+            f = 1 - (R.clock - R.trailT[s]) / T.LIFE;
+            if (f <= 0) break;
+            // Along the ribbon: from the next-older sample to the next-newer.
+            sp = (s - 1 + n) % n;                   // older
+            sn = k > 0 ? (s + 1) % n : s;           // newer (the head has none)
+            if (k + 1 >= R.trailN) sp = s;
+            _tA.set(pts[sn * 3] - pts[sp * 3], pts[sn * 3 + 1] - pts[sp * 3 + 1], pts[sn * 3 + 2] - pts[sp * 3 + 2]);
+            _tB.set(cam.x - pts[s * 3], cam.y - pts[s * 3 + 1], cam.z - pts[s * 3 + 2]);
+            _tC.crossVectors(_tA, _tB);
+            var len = _tC.length();
+            if (len < 1e-6) _tC.set(0, 0, 0); else _tC.multiplyScalar(1 / len);
+            // A putt is a fainter smear than a drive.
+            var strength = Math.min(1, Math.max(T.SLOW, R.trailV[s] / T.FULL_SPEED));
+            w = half * f;
+            c = f * f * strength;
+            var o = m * 6;
+            pos[o] = pts[s * 3] + _tC.x * w; pos[o + 1] = pts[s * 3 + 1] + _tC.y * w; pos[o + 2] = pts[s * 3 + 2] + _tC.z * w;
+            pos[o + 3] = pts[s * 3] - _tC.x * w; pos[o + 4] = pts[s * 3 + 1] - _tC.y * w; pos[o + 5] = pts[s * 3 + 2] - _tC.z * w;
             // White on a course, neon magenta in the grid world.
-            if (R.glow) { col[i * 3] = f * 1.2; col[i * 3 + 1] = f * 0.25; col[i * 3 + 2] = f * 1.1; }
-            else { col[i * 3] = f; col[i * 3 + 1] = f * 1.05; col[i * 3 + 2] = f * 0.9; }
+            if (R.glow) { col[o] = col[o + 3] = c * 1.2; col[o + 1] = col[o + 4] = c * 0.25; col[o + 2] = col[o + 5] = c * 1.1; }
+            else { col[o] = col[o + 3] = c * 0.9; col[o + 1] = col[o + 4] = c * 0.95; col[o + 2] = col[o + 5] = c * 0.85; }
+            m++;
         }
+        if (m < 2) { parkTrail(); return; }
+        R.trail.geometry.setDrawRange(0, (m - 1) * 6);
         R.trail.geometry.attributes.position.needsUpdate = true;
         R.trail.geometry.attributes.color.needsUpdate = true;
     }
 
+    /* Idle, it is still one triangle pair, parked far off the world — never
+       an empty draw, which could leave its program uncompiled until the first
+       strike of the round. */
     function clearTrail() {
+        R.trailN = 0;
+        parkTrail();
+    }
+    function parkTrail() {
         var pos = R.trail.geometry.attributes.position.array, i;
-        for (i = 0; i < pos.length; i++) pos[i] = -9999;
+        for (i = 0; i < 12; i++) pos[i] = -9999;
         R.trail.geometry.attributes.position.needsUpdate = true;
+        R.trail.geometry.setDrawRange(0, 6);
     }
 
     function buildParticles() {
@@ -6557,7 +6628,6 @@
         // The grid world's effects switch on with the theme (see hitAt), and
         // its tail is drawn larger, because it is a light and not a smudge.
         R.glow = !!theme.glow;
-        R.trail.material.size = R.glow ? 0.24 : 0.13;
         // The marks on the machinery, after the ground they are drawn on.
         for (i = 0; i < hole.pads.length; i++) {
             if (hole.pads[i].push) addBelt(g, hole.pads[i], theme);
@@ -8661,6 +8731,7 @@
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
         seatFor(hole, ball, _seat);
         stepWipe(dt);
+        R.camGap = Infinity;   // camSettled(): set below, only on the plain seat
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
@@ -8714,7 +8785,21 @@
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
         R.camera.updateMatrixWorld();
+        /* How far the eye still has to travel to the seat, as a share of the
+           seat's own reach — so the same reading means "arrived" on a putting
+           green and on a par 5. A carried camera (loop, pipe) is never
+           settled: the seat it is easing to is not the address. */
+        if (!R.loopCam && !R.warpCam && !R.wipe) {
+            var reach = Math.hypot(px - tx, py - ty, pz - tz) || 1;
+            R.camGap = (R.smooth.pos.distanceTo(_camPos.set(px, py, pz)) +
+                R.smooth.target.distanceTo(_camTarget.set(tx, ty, tz))) / reach;
+        }
     }
+
+    /* Has the camera come to rest on the seat? game.js's pin tag waits for it
+       (the owner, v1.217.1: "should spawn after you settle on the tee … remove
+       after you fire and in transitions"). */
+    function camSettled() { return R.camGap < 0.04; }
 
     /* The launch (CONFIG.LAUNCH_CAM). A strike is noticed as the ball
        starting to move from rest — frame() does that, so game.js has nothing
@@ -9062,11 +9147,13 @@
         if (world.moving && speed > 1.2 && tailed) {
             R.trailOn = true;
             // As wide as the ball is drawn (`lookFor`), and through its middle.
-            R.trail.material.size = (R.glow ? 0.24 : 0.13) * R.look;
-            pushTrail(world.ball.x, R.ball.position.y, world.ball.z);
+            R.trailW = R.look;
+            pushTrail(world.ball.x, R.ball.position.y, world.ball.z, speed);
         } else if (R.trailOn) {
-            R.trailOn = false;
-            clearTrail();
+            // The streak does not vanish when the ball stops: it runs out
+            // behind it, the same fade it had while moving.
+            if (R.trailN > 1) drawTrail(C.TRAIL_LOOK);
+            if (R.trailN < 2 || R.clock - R.trailT[R.trailAt] > C.TRAIL_LOOK.LIFE) { R.trailOn = false; clearTrail(); }
         }
         // On glass the ball leaves a wake behind it (stepWake).
         if (R.glow) stepWake(world, speed);
@@ -9488,6 +9575,7 @@
 
     G3.render = {
         pinScreen: pinScreen,
+        camSettled: camSettled,
         setBallColour: setBallColour,
         setBallStyle: setBallStyle,
         createBallPreview: createBallPreview,
