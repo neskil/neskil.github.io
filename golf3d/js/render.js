@@ -163,6 +163,7 @@
         buildAim();
         buildMarkers();
         buildTrail();
+        buildTracer();
         buildParticles();
         buildCelebration();
         if (G3.sandfx) G3.sandfx.build(R.scene);
@@ -613,6 +614,137 @@
         for (i = 0; i < 12; i++) pos[i] = -9999;
         R.trail.geometry.attributes.position.needsUpdate = true;
         R.trail.geometry.setDrawRange(0, 6);
+    }
+
+    /* The tracer (CONFIG.TRACER): the long game's flight drawn as one line,
+       from the strike to where it first comes down, the way a broadcast draws
+       a drive. The streak above is a tail a fraction of a second long, which
+       on a lane is the shot and on a long hole the last few metres of it — and the
+       shape of a flight (how high, where it turned over, whether it bent) is
+       the thing a long shot is played for and the one thing it never showed.
+
+       A ribbon turned to face the camera every frame, never thinner than
+       PX pixels however far off it is, so a drive that has gone a long way
+       is still a line and not a hair. It stays drawn while the ball runs out
+       and fades once it has stopped. Built with the hole's other furniture
+       and drawn from the first frame (a degenerate pair when there is no
+       shot), so its program is compiled with the hole, never mid-shot. */
+    function buildTracer() {
+        var n = C.TRACER.MAX, i, a, idx = [];
+        var g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 6), 3));
+        g.setAttribute('alpha', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 1));
+        for (i = 0; i < n - 1; i++) { a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+        g.setIndex(idx);
+        R.tracer = new THREE.Mesh(g, new THREE.ShaderMaterial({
+            uniforms: { col: { value: new THREE.Color(C.TRACER.COLOR) }, fade: { value: 0 } },
+            vertexShader: [
+                'attribute float alpha; varying float vA;',
+                'void main() { vA = alpha; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform vec3 col; uniform float fade; varying float vA;',
+                'void main() { gl_FragColor = vec4(col, vA * fade); }'
+            ].join('\n'),
+            transparent: true, depthWrite: false, side: THREE.DoubleSide
+        }));
+        R.tracer.frustumCulled = false;
+        R.tracer.renderOrder = 2;
+        R.tracerPts = [];
+        R.tracerOn = false;     // recording: the ball is up
+        R.tracerHold = 0;       // seconds the ball has been at rest since
+        clearTracer();
+        R.scene.add(R.tracer);
+    }
+
+    function clearTracer() {
+        if (!R.tracer) return;
+        R.tracerPts.length = 0;
+        R.tracerOn = false;
+        R.tracer.material.uniforms.fade.value = 0;
+        R.tracer.geometry.setDrawRange(0, 6);
+    }
+
+    /* Once a frame: start a line at a lofted strike on a long hole, add to
+       it while the ball is up, and fade it once the ball has stopped. */
+    function stepTracer(dt, world) {
+        var T = C.TRACER, pts = R.tracerPts, b = R.ball.position, last;
+        if (!G3.drawnLong(world.hole) || world.warping || world.ride) {
+            if (pts.length) clearTracer();
+            return;
+        }
+        if (world.moving && !R.tracerOn && !world.firstLand && !world.grounded &&
+            (!pts.length || R.tracerHold > 0 || !R.wasMoving)) {
+            pts.length = 0;
+            pts.push(world.origin.x, b.y, world.origin.z);
+            R.tracerOn = true;
+        }
+        if (R.tracerOn) {
+            last = pts.length - 3;
+            var dx = b.x - pts[last], dy = b.y - pts[last + 1], dz = b.z - pts[last + 2];
+            if (dx * dx + dy * dy + dz * dz > T.STEP * T.STEP && pts.length < T.MAX * 3 - 3) pts.push(b.x, b.y, b.z);
+            if (world.firstLand || !world.moving) {
+                // To where it came down, at the height the ball is drawn at.
+                var fl = world.firstLand;
+                if (fl) pts.push(fl.x, fl.y - C.BALL_R * (1 - R.look), fl.z);
+                R.tracerOn = false;
+            }
+        }
+        if (!pts.length) return;
+        // Held while the ball is going anywhere; faded after it stops.
+        var u = R.tracer.material.uniforms.fade;
+        if (world.moving) { R.tracerHold = 0; u.value = 1; }
+        else {
+            /* Where it stopped, and gone if the ball is put anywhere else: a
+               drop after a splash is a ball back on the tee with the line it
+               just flew standing out of it. */
+            if (!R.tracerHold) R.tracerRest = { x: b.x, z: b.z };
+            else if (Math.abs(b.x - R.tracerRest.x) + Math.abs(b.z - R.tracerRest.z) > 0.05) { clearTracer(); return; }
+            R.tracerHold += dt;
+            u.value = 1 - smooth01((R.tracerHold - T.HOLD) / T.FADE);
+            if (u.value <= 0) { clearTracer(); return; }
+        }
+        drawTracer(R.tracerOn ? b : null);
+    }
+
+    var _trA = new THREE.Vector3(), _trT = new THREE.Vector3(), _trV = new THREE.Vector3();
+    function drawTracer(head) {
+        var T = C.TRACER, pts = R.tracerPts, cam = R.camera;
+        var n = pts.length / 3 + (head ? 1 : 0), i, j, k;
+        if (n < 2) { R.tracer.geometry.setDrawRange(0, 6); return; }
+        var pos = R.tracer.geometry.attributes.position.array;
+        var al = R.tracer.geometry.attributes.alpha.array;
+        var perPx = 2 * Math.tan(cam.fov * Math.PI / 360) / Math.max(1, R.renderer.domElement.clientHeight || 600);
+        function at(m, out) {
+            if (m >= pts.length / 3) return out.copy(head);
+            return out.set(pts[m * 3], pts[m * 3 + 1], pts[m * 3 + 2]);
+        }
+        for (i = 0; i < n; i++) {
+            at(i, _trA);
+            at(Math.min(n - 1, i + 1), _trT);
+            at(Math.max(0, i - 1), _trV);
+            _trT.sub(_trV);                                  // along the line
+            _trV.copy(cam.position).sub(_trA);               // towards the eye
+            var dist = _trV.length();
+            _trT.cross(_trV);                                // across it, as seen
+            var len = _trT.length();
+            if (len < 1e-6) _trT.set(0, 1, 0); else _trT.multiplyScalar(1 / len);
+            var half = Math.min(T.MAX_W, Math.max(T.W, T.PX * perPx * dist));
+            // The far end tapers in, and the line comes up out of the turf at
+            // the strike rather than starting at full strength.
+            var s = i / (n - 1);
+            var w = half * (head ? Math.min(1, (1 - s) * 6 + 0.25) : 1);
+            j = i * 6; k = i * 2;
+            pos[j] = _trA.x + _trT.x * w; pos[j + 1] = _trA.y + _trT.y * w; pos[j + 2] = _trA.z + _trT.z * w;
+            pos[j + 3] = _trA.x - _trT.x * w; pos[j + 4] = _trA.y - _trT.y * w; pos[j + 5] = _trA.z - _trT.z * w;
+            /* And it goes out near the lens: a flight that has passed over the
+               eye, or a line from the ball the camera is standing over, is a
+               beam across the picture rather than a line in it. */
+            al[k] = al[k + 1] = T.ALPHA * Math.min(1, 0.35 + s * 2.2) * smooth01((dist - T.NEAR) / T.NEAR);
+        }
+        R.tracer.geometry.attributes.position.needsUpdate = true;
+        R.tracer.geometry.attributes.alpha.needsUpdate = true;
+        R.tracer.geometry.setDrawRange(0, (n - 1) * 6);
     }
 
     function buildParticles() {
@@ -6710,9 +6842,11 @@
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         R.launch = null;
+        R.airDrop = 0;
         R.blurK = 0;
         R.blurPrev = null;
         clearTrail();
+        clearTracer();
         // The last hole's furrows and craters were in the last hole's sand.
         if (G3.sandfx) G3.sandfx.clear();
         // A hole changed with a ball inside a pipe would leave it shrunk.
@@ -7422,10 +7556,9 @@
        between by the ball's distance from the cup so neither the ball nor the
        camera ever jumps. */
     function lookT(hole, ball) {
-        if (!hole || !hole.longGame || !ball || !hole.cup) return 0;
         // Not in a Portals world: a tour hole (or anything else hung on one)
-        // is fitted to it, seat and all.
-        if (hole.place || hole.worldId || hole.inWorld) return 0;
+        // is fitted to it, seat and all (`G3.drawnLong`).
+        if (!G3.drawnLong(hole) || !ball || !hole.cup) return 0;
         var L = C.LONG_LOOK;
         var d = Math.sqrt((ball.x - hole.cup.x) * (ball.x - hole.cup.x) + (ball.z - hole.cup.z) * (ball.z - hole.cup.z));
         var t = Math.max(0, Math.min(1, (d - L.NEAR) / (L.FAR - L.NEAR)));
@@ -8071,8 +8204,13 @@
             tz = ball.z;
             var back = dist * Math.cos(c.pitch);
             px = ball.x - Math.sin(yaw) * back;
-            py = ball.y + dist * Math.sin(c.pitch);
+            // Held under a long shot rather than riding up with it (watchAir).
+            py = ball.y + dist * Math.sin(c.pitch) - (R.airDrop || 0);
             pz = ball.z - Math.cos(yaw) * back;
+            if (R.airDrop > 0) {
+                var under = P.surfaceTop(hole, px, pz);
+                if (under && py < under.y + C.LAUNCH_CAM.CLEAR) py = under.y + C.LAUNCH_CAM.CLEAR;
+            }
             py += sightLift(hole, tx, ty, tz, px, py, pz);
         }
 
@@ -8833,6 +8971,29 @@
         }
     }
 
+    /* The long game's flight, as the seat behind it tells it
+       (CONFIG.LONG_CAM). The follow seat is measured off the ball, so it went
+       up with a drive as far as the drive went up: the ball sat still in the
+       middle of the frame while the ground fell away under both, and the one
+       thing a long shot has that a putt does not — its height — never showed.
+       So while a long-game shot is up, the eye climbs only RISE of the ball's
+       height over the ground it left (or the ground under it, where that is
+       higher), and keeps looking at the ball: the camera tips back to watch it
+       go up against the sky and down again on to the fairway. `airDrop` is how
+       far below the seat the eye is held; it is 0 on the ground, so the seat
+       is the seat the moment the ball is down. */
+    function watchAir(world, dt) {
+        var want = 0, b = world.ball;
+        if (world.moving && !world.firstLand && !world.warping && !world.ride && G3.drawnLong(world.hole)) {
+            var g = P.surfaceTop(world.hole, b.x, b.z);
+            var floor = Math.max(world.origin.y, g ? g.y + C.BALL_R : -Infinity);
+            want = Math.max(0, b.y - floor) * (1 - C.LONG_CAM.RISE);
+        }
+        R.airDrop = R.airDrop || 0;
+        R.airDrop += (want - R.airDrop) * (1 - Math.pow(C.LONG_CAM.EASE, dt));
+        if (R.airDrop < 1e-3 && want === 0) R.airDrop = 0;
+    }
+
     /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
        where each pixel's bit of course was on the screen a frame ago, and
        for that it needs a depth it does not have — the scene buffer is
@@ -9144,6 +9305,7 @@
         // the hole from the mouth to the sky. It starts again at the portal,
         // so the drop leaves a streak.
         var tailed = !world.warping || P.warpPhase(world.warping).phase === 'drop';
+        stepTracer(dt, world);
         if (world.moving && speed > 1.2 && tailed) {
             R.trailOn = true;
             // As wide as the ball is drawn (`lookFor`), and through its middle.
@@ -9170,6 +9332,7 @@
         watchLoop(world, dt);
         watchWarp(world, dt);
         stepLaunch(dt, world, speed);
+        watchAir(world, dt);
         updateCamera(world.hole, world.ball, dt);
         motionBlur(dt, world, speed);
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());

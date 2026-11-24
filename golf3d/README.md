@@ -6272,6 +6272,41 @@ world, seat and all. The drawn ball is lowered by what it lost, so it sits on
 the ground the physics' ball sits on. Anything that sets the ball's scale
 (the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
 
+### The long game hangs, and draws its flight
+
+Drawn at its own scale, the long game's gravity is ten of the earth's: a full
+drive went three and a half units up and came down thirty-six units away in
+1.7 seconds, and was over before the eye had found it (the owner, v1.220.0:
+"long game feel needs to be improved … the flight path and such"). Three
+things answer it, and none of them is read by the simulation.
+
+- **The hang** (`CONFIG.HANG`, game.js `hangRate`). On a hole `G3.drawnLong`
+  says yes to, the shot's clock runs at `AIR` from the strike to the first
+  landing, so the drive is up for nearly three seconds, and comes back to the
+  wall clock over `LAND` seconds once it is down: the bounce and the run are
+  the pace the turf was tuned at. It is the same flight step for step — the
+  bot's fixed steps are steps of the shot's clock, so its planned shot is the
+  shot it gets — and the ace replay keeps the hang (replay.js `landTime`,
+  `rate`), so a holed drive plays back at the pace it was watched at.
+- **The tracer** (`CONFIG.TRACER`, render.js `stepTracer`). The speed streak
+  behind the ball is a fraction of a second long, which on a lane is the shot
+  and on a long hole the last few metres of it. So a long-game flight is also
+  drawn as one line from the strike to where it first comes down, a ribbon
+  turned to the camera every frame and never thinner than `PX` pixels however
+  far it has gone, faded out where it passes near the lens; it stays while the
+  ball runs out, fades once it has stopped, and goes at once if the ball is
+  dropped somewhere else. The streak still draws at the head of it. It is in
+  the scene from the hole's build with a degenerate pair in it, so its program
+  is never compiled mid-shot.
+- **The seat stays down** (`CONFIG.LONG_CAM`, render.js `watchAir`). The
+  follow seat is measured off the ball, so it went up with a drive exactly as
+  far as the drive did: the ball sat still in the middle of the frame and the
+  ground fell away under both. While a long shot is up the eye now climbs only
+  `RISE` of the ball's height over the ground it left (or the ground under it,
+  where that is higher), and keeps looking at the ball, so the camera tips back
+  to watch it climb against the sky and come down on to the fairway. It is 0 on
+  the ground, so the seat the intro hands off to is untouched.
+
 ### The fourth camera, which is not a seat
 
 A hole is a shape before it is a shot, and the one moment a player can be shown
