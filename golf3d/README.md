@@ -1869,7 +1869,7 @@ drained it and then be drawn down. `wellReach` draws the disc out to
 `reach` when a well has one, and the theme paints it foam and deep water
 (`wellHot`, `wellCool`).
 
-**…and nothing goes round it for ever** (v1.218.0). A push that pushed
+**…and nothing goes round it for ever** (v1.219.0). A push that pushed
 whatever the ball was doing could hold one going round at the radius where the
 pull is just what a circle needs, the push paying for the friction: the owner's
 ball "got stuck in orbit round the black hole", and a sweep of 11,160 shots
@@ -5013,7 +5013,7 @@ world to the grid. Palettes are Endless's stand-in for the world, with grass
 turned to the world's own hue. `courseById('forge')` is the batch in order,
 and `forge-<id>` is one map. Forge rounds write no records.
 
-**Batch 2's copy** (v1.218.0) came back with none of batch 2 rated or
+**Batch 2's copy** (v1.219.0) came back with none of batch 2 rated or
 played: all sixteen `(not rated)`, no play stats. Its notes were on released
 holes (eight lines, one of them Knife Edge's batch-1 note again, since the copy
 was **Copy all**). So the recipe did not move, there being nothing to read a
@@ -6197,7 +6197,7 @@ round from it the player has walked, and `updateCamera` is where the two meet.
 
 - **Follow**, behind the ball and down the shot. The one you play from, and the
   one a new hole always starts in. It is lifted over ground behind the ball
-  (`render.js → sightLift`, v1.218.0): the line from the seat to what it looks
+  (`render.js → sightLift`, v1.219.0): the line from the seat to what it looks
   at is sampled over the ground and the seat goes up until that line clears
   it by `SIGHT_CLEAR` (1.1, a rail and a little). The Snow Globe's tee is at
   the foot of the glass, and from nine units back the seat looked at the ball

@@ -2035,7 +2035,7 @@
                    was doing could hold one going round at the radius where
                    the pull is just what a circle needs, the push paying for
                    the friction: the owner's ball "got stuck in orbit round
-                   the black hole" (v1.218.0), one tee putt in twelve going
+                   the black hole" (v1.219.0), one tee putt in twelve going
                    round at 3.5 for ever, and no shot in the game is timed
                    out. So once a shot is C.SWIRL_WAIT old (the callers pass
                    the velocity only then) the push fades out as the ball's

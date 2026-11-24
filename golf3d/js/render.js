@@ -7894,7 +7894,7 @@
        to a rail at 1.8: the seat, nine units back and four up, looked at
        the ball through the bank, and the whole picture under the firs was
        a white wall (the owner: "can't see the hole for the flag", `edges`,
-       v1.218.0). So the line from the seat to what it looks at is sampled
+       v1.219.0). So the line from the seat to what it looks at is sampled
        over the ground, and the seat goes up by as much as it takes for
        that line to clear the ground under it by SIGHT_CLEAR (a rail's
        height and a little). On the holes with nothing behind the ball

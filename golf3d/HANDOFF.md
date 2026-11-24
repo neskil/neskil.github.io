@@ -134,7 +134,7 @@ piece — a test insists on one).
   long patch at batch 2's relief floor; forged with `reliefMin` 0.6 as b2-15
   and b2-14.
 
-## From the forge's feedback (batch 2 copy, v1.218.0)
+## From the forge's feedback (batch 2 copy, v1.219.0)
 
 A **Copy all** with none of batch 2 played: no recipe move and no batch 3
 (README → "The forge", "Batch 2's copy"). The released-hole lines:
