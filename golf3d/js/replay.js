@@ -110,21 +110,8 @@
 
     // Close the tape once the ball has gone in. Returns it, for chaining.
     function finish(tape) {
-        if (tape) {
-            tape.cutT = cutTime(tape);
-            tape.landT = landTime(tape);
-        }
+        if (tape) tape.cutT = cutTime(tape);
         return tape;
-    }
-
-    /* The first landing, in tape seconds, on a hole whose flight hangs
-       (CONFIG.HANG) — and 0 on any other, where nothing hangs. */
-    function landTime(tape) {
-        var f = tape.frames, i;
-        // A shot struck along the ground (a putt) never hung, whatever it fell off.
-        if (!G3.drawnLong(tape.hole) || !(f[0].vy > 0.01)) return 0;
-        for (i = 1; i < f.length; i++) if (f[i].ev & LAND) return f[i].t;
-        return 0;
     }
 
     /* The ball `t` seconds into the tape, into `out`, which is also returned:
@@ -172,17 +159,13 @@
        ball's distance rather than the clock, so a long putt and a dropped wedge
        both slow down for the same part of the picture. */
     function rate(tape, t, ball) {
-        var R = C.REPLAY, H = C.HANG;
-        /* The flight hangs here as it did live (game.js `hangRate`): AIR to
-           the first landing, then back to the tape's own pace over LAND. */
-        var hang = !tape.landT ? 1 : t < tape.landT ? H.AIR
-            : Math.min(1, H.AIR + (t - tape.landT) * (1 - H.AIR) / H.LAND);
-        if (t < tape.cutT) return hang;
+        var R = C.REPLAY;
+        if (t < tape.cutT) return 1;
         var cup = tape.hole.cup;
         var d = flat(ball.x - cup.x, ball.z - cup.z);
         var u = Math.max(0, Math.min(1, (R.SLOW_FROM - d) / (R.SLOW_FROM - R.SLOW_AT)));
         u = u * u * (3 - 2 * u);
-        return Math.min(hang, 1 + (R.SLOW - 1) * u);
+        return 1 + (R.SLOW - 1) * u;
     }
 
     /* Where the cup camera may stand, best first, for a ball arriving from

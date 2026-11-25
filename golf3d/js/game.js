@@ -3679,6 +3679,10 @@
        at the edge pointing the way. Near the flag, with the flag in view, it
        goes: the flag is plain to see by then.
 
+       The long game has it too (`G3.drawnLong`, v1.223.0): a flag forty
+       units down a fairway is the same hair, and the owner missed it there
+       ("missing the flag distance thing that exists in world portals").
+
        And only once the player is standing over the ball with the camera
        come to rest on the address (the owner: "should spawn after you settle
        on the tee, not all the time. Remove after you fire and in
@@ -3704,7 +3708,7 @@
         if (!pinTag) pinTag = { el: $('pin-tag'), dist: $('pin-tag-dist'), text: null };
         if (!pinTag.el) return;
         var hole = state && state.course && !state.course.isRange && state.course.holes[state.holeIndex];
-        var p = hole && sculptedHole(hole) && !state.world.sunk && pinTagSettled() && R.pinScreen ? R.pinScreen() : null;
+        var p = hole && (sculptedHole(hole) || G3.drawnLong(hole)) && !state.world.sunk && pinTagSettled() && R.pinScreen ? R.pinScreen() : null;
         var show = !!p && !(p.ahead && p.dist < 14 && p.x > 0 && p.x < p.w && p.y > 0 && p.y < p.h);
         if (show !== pinTagOn) { pinTagOn = show; pinTag.el.hidden = !show; }
         if (!show) return;
@@ -7674,21 +7678,6 @@
     var SIM_STEP = 1 / 60;
     var simAcc = 0;
 
-    /* How fast the shot's clock runs against the wall clock: CONFIG.HANG's
-       AIR from the strike of a long-game shot to its first landing, eased back
-       to 1 over LAND seconds of the wall clock after it, and 1 everywhere else.
-       Down at once, never up at once — a ball that sped up the instant it
-       touched the grass would look like it had been kicked. */
-    var hangK = 1;
-    function hangRate(dt) {
-        var w = state.world, H = C.HANG;
-        // Up, and not yet down: a putt never lands, and must not hang.
-        var air = w.moving && !w.grounded && !w.firstLand && !w.warping && !w.ride && G3.drawnLong(w.hole);
-        if (air) hangK = Math.min(hangK, H.AIR);
-        else hangK = Math.min(1, hangK + dt * (1 - H.AIR) / H.LAND);
-        return hangK;
-    }
-
     function loop(now) {
         raf = requestAnimationFrame(loop);
         var raw = (now - last) / 1000;
@@ -7737,12 +7726,8 @@
                over frames are carried, so the ball still runs at real speed on
                a screen of any refresh rate. */
             var ev;
-            // The long game's hang (CONFIG.HANG): the shot's own clock, slower
-            // in the air. The bot's steps stay 1/60 of *its* clock, so the
-            // shot it planned is still the shot it gets.
-            var sdt = dt * hangRate(dt);
             if (sim) {
-                simAcc = Math.min(simAcc + sdt, 0.25);
+                simAcc = Math.min(simAcc + dt, 0.25);
                 while (simAcc >= SIM_STEP && state.phase === 'rolling') {
                     simAcc -= SIM_STEP;
                     ev = P.advance(state.world, SIM_STEP, {});
@@ -7752,14 +7737,13 @@
                 }
                 syncDistance();
             } else {
-                ev = P.advance(state.world, sdt, {});
+                ev = P.advance(state.world, dt, {});
                 if (tape) G3.replay.record(tape, state.world, ev);
                 handleEvents(ev);
                 syncDistance();
                 if (P.done(state.world)) endShot();
             }
         } else {
-            hangK = 1;   // each shot starts on the wall clock (hangRate)
             tickGate(dt);
             tickArc(dt);
             tickNeedle(dt);

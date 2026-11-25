@@ -3715,9 +3715,10 @@
     /* The club at the ball is drawn shorter than it is in the bag. At real
        length, seven and a half times life size, the shaft ran from the ball
        up past the top of a phone's screen — the grip lost behind the HUD —
-       and the owner found it too long (v1.220.1). The head stays life size
-       to the ball; only the shaft is cut. */
-    var BALL_SHAFT = 0.8;
+       and the owner found it too long (v1.220.1: 0.8; v1.223.0: fifteen per
+       cent shorter again). The head stays life size to the ball; only the
+       shaft is cut. */
+    var BALL_SHAFT = 0.68;
     var HANDS = 0.55 * BALL_SHAFT;   // head to the point the club turns about, metres
     var SWING_BACK = 1.35, SWING_FINISH = 1.75;      // a whole turn each way, radians
     var AD = {

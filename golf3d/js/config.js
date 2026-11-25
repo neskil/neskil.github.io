@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.222.0';
+G3.VERSION = '1.223.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1392,19 +1392,6 @@ G3.CONFIG.LONG_M = 5.5;
    fitted to a world (`place`), seat and all. */
 G3.CONFIG.LONG_LOOK = { MIN: 0.4, SEAT: 0.5, NEAR: 4, FAR: 12 };
 
-/* …and what it does to the clock. Drawn at that scale, the mini golf
-   gravity is ten of the earth's: a full drive was up three and a half units
-   and down again in 1.7 seconds, the whole flight over before the eye had
-   found it (the owner, v1.220.0: "long game feel needs to be improved … the
-   flight path and such"). A ball that size, that high, hangs. So on a long
-   hole the shot is played at AIR of the clock from the strike to its first
-   landing — the drive in the air for nearly three seconds — and comes back to
-   the clock over LAND seconds once it is down, so the bounce and the run are
-   the pace they were tuned at. It is the same flight, step for step: the bot
-   and the card never see it, only how long it takes to watch. Not on a tour
-   hole, which is drawn at its world's scale (`G3.drawnLong`). */
-G3.CONFIG.HANG = { AIR: 0.6, LAND: 0.45 };
-
 /* The seat behind a long shot while it is up (render.js `watchAir`):
    the eye climbs RISE of the ball's height and looks up at the rest; EASE is
    the per-second easing base it follows that on. */
@@ -1434,8 +1421,8 @@ G3.CONFIG.LONG_SEAT = { LEAD: 0, DROP: 0, NEAR: 10, FAR: 24 };
 G3.CONFIG.TRACER = { MAX: 480, STEP: 0.12, PX: 1.6, W: 0.004, MAX_W: 0.45, NEAR: 2.5, ALPHA: 0.9,
     HOLD: 0.8, FADE: 1.2, COLOR: 0xfff1d0 };
 
-/* A long hole drawn at the long game's own scale: what LONG_LOOK and HANG
-   are for. A tour hole (or anything else hung in a Portals world) is fitted
+/* A long hole drawn at the long game's own scale: what LONG_LOOK, the
+   tracer and the low seat are for. A tour hole (or anything else hung in a Portals world) is fitted
    to that world, seat and all, and keeps the picture it was fitted with. */
 G3.drawnLong = function (hole) {
     return !!(hole && hole.longGame && !hole.place && !hole.worldId && !hole.inWorld);
