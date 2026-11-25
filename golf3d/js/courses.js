@@ -7174,7 +7174,12 @@
         (function () {
             var land = island(15, 39.5, 13, 39);
             var head = cliff(16, 3, 4.5, 3.6, 2.6, { sheer: true });
-            var shelf = cliff(8, 52, 7, 25, 1.4, { sheer: true });
+            /* 1.1 high, not 1.4 (v1.224.1). In the long game's air
+               (CONFIG.AIR) a low approach that meets the face comes to rest
+               on the beach against it, and from under a 1.4 face no club in
+               the bag got up — the perfect bot played ten strokes there and
+               never holed. At 1.1 the lob wedge clears it from the foot. */
+            var shelf = cliff(8, 52, 7, 25, 1.1, { sheer: true });
             return keys('The Shelf', 4, 'A shelf of turf above the beach, with the sea under its far edge. Drive up on to it for the open look, or stay low and pitch up.', [
                 land, head, shelf,
                 lay(head, 16, 3, 2.4, 2, 'fairway'),
