@@ -1000,6 +1000,6 @@ G3.backdrop = {
     ride(place) { if (!place || !place.ride || !cur || !cur.path) return null; return { u: Math.min(1, place.ride.d / cur.path.length), ready: !!(spare && place.next && spare.def.id === place.next), crossed: place.ride.crossed }; },
     DRIFT,
     // For placing a hole: what the world is and where the hole ended up in it.
-    debug() { return cur ? { auto: cur.autoScale || null, why: cur.autoWhy || null, id: cur.def.id, length: cur.path.length, duration: cur.duration, cam: cur.cam, anchor: cur.anchor && { u: cur.anchor.u, x: cur.anchor.x, y: cur.anchor.y, z: cur.anchor.z, ground: cur.anchor.ground, height: cur.anchor.height, step: cur.anchor.step, scale: cur.anchor.scale } } : null; }
+    debug() { return cur ? { auto: cur.autoScale || null, why: cur.autoWhy || null, id: cur.def.id, length: cur.path.length, duration: cur.duration, cam: cur.cam, anchor: cur.anchor && { u: cur.anchor.u, x: cur.anchor.x, y: cur.anchor.y, z: cur.anchor.z, ground: cur.anchor.ground, height: cur.anchor.height, step: cur.anchor.step, scale: cur.anchor.scale, turn: cur.anchor.turn, sx: cur.anchor.sx, sz: cur.anchor.sz } } : null; }
 };
 window.dispatchEvent(new Event('g3-backdrop'));

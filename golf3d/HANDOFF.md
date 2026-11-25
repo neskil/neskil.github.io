@@ -111,6 +111,15 @@ piece — a test insists on one).
   rectangle and its corners show from the hero view; a natural shore would
   need ground in the pit to carve a `mere` into. The `clip` was not found:
   the cairns are decor the ball rolls through, which may be it.
+  **v1.221.2:** both done. The pit has a floor now (out of play, Redstone's
+  way) with the tarn carved into it, its east side in under the cliff, so
+  the shore is a shore; and each cairn has a solid stone under it (kind
+  `unseen`, `courses.cairnStone`). The floor also brought back the bank the
+  hole had lost in v1.214.0: the skirt is traced out from the middle of the
+  property, which the wider fence had put over the pit, and a bearing with
+  no ground drops the whole skirt, so the slab had stood on sheer walls.
+  Human-check unchanged (2.75 on Knife Edge, 18.8 the course). **Not yet
+  seen by him.**
 - **Wind Draws the Namib** (b1-05): "Animation for this world is off.
   Everything is standing still and some dirt is flying." Looked at
   (v1.216.0): the world is choreographed to its flight — its source says
@@ -155,11 +164,22 @@ A **Copy all** with none of batch 2 played: no recipe move and no batch 3
     18.8 against 3), so the ground search over moving water is not stable.
     Ask him which: the ships against the deck, or the world sliding as the
     camera turns. A screenshot would settle it.
+    **v1.221.2:** the second is fixed — the deck is pinned to the boot's
+    placing (`place.at`, README → "A placed hole whose world's ground
+    moves"), and a re-anchor leaves it where it was. Every other searched
+    placing was booted and re-anchored twice the same way and none moved.
+    If he still finds it weird, it is the ships' scale. **Not yet seen.**
 - **The Snow Globe** (`globe`, keep, `edges,bumpy,clip`, "Can't see whole for
   the flag"): the follow seat looked at the ball through the glass bank behind
   the tee; it is lifted over it now (README → "The three cameras", `sightLift`).
   `bumpy` and `clip` not looked into: the bank is a `channel`, and the firs are
   decor the ball rolls through, which is probably the clip.
+  **v1.221.2:** the `clip` is fixed. A tree is solid at its trunk only, and a
+  fir's lowest skirt hangs 0.4–0.7 up and two to three trunks wide, so a
+  ball rolled past went in under the needles. Each fir now has an octagon
+  of `unseen` wall under its skirt (`portals.js → fir`); the three make one
+  clump across −20°…+20° from the tee, and the ace up the glass is as it
+  was (0.46%). `bumpy` is still not looked into. **Not yet seen.**
 - **The Rain Pond** (`savanna`, fix, fun 1, "To small field for play and to
   little challenge", 8 on a par 3, gave up once): re-forged long as **b2-17**,
   added to the end of batch 2 to be rated before the tour hole is replaced.
@@ -182,6 +202,9 @@ Both done in v1.162.0 (see "After the handoff was written" below and README
 1. Send him the five fixes above and wait for the phone.
 2. Sweep the six never-commented placed holes for a skill line; redesign any
    that is flat, one per merge, the way the Marble Run and Slack Water were.
+   (v1.221.2, `portal-check` over the whole tour: none of the six is flat.
+   Loop and Rink is the one out of its band — 0.99%, the straight mallet
+   drops — and his only word on it was "a little bugged".)
 3. A second world event — done in v1.203.0: Dry Dock's Moon launches when
    the ball drops (README → "A world can have an event"). More candidates on
    the world's clock: Île Flottante's cage cracking (the custard world's

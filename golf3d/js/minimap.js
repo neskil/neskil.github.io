@@ -333,7 +333,7 @@
                 continue;
             }
             // A slingshot is one triangle of rubber, drawn off its face.
-            if (wl.kind === 'slingback') continue;
+            if (wl.kind === 'slingback' || wl.kind === 'unseen') continue;
             if (wl.tri) {
                 g.fillStyle = '#f0f0f4';
                 g.beginPath();

@@ -6123,6 +6123,54 @@
                 assert(w.id + ': no wall stands in the cup', clear);
             });
 
+            /* An `unseen` wall is solid and drawn by nothing (render.addWall):
+               it is the part of something drawn as something else that the
+               ball meets — a fir's needles, a cairn. One that has wandered
+               off its picture is an invisible wall, so every one stands on a
+               tree or a cairn. */
+            (function () {
+                var stray = [], n = 0;
+                ALL.map(function (x) { return x.hole; }).concat(PW.WORLDS.map(function (w) { return w.hole; })).forEach(function (h) {
+                    h.walls.forEach(function (wl) {
+                        if (wl.kind !== 'unseen') return;
+                        n++;
+                        var cx = wl.x + wl.w / 2, cz = wl.z + wl.d / 2;
+                        var on = h.walls.some(function (t) {
+                            return t.kind === 'tree' && Math.hypot(t.x + t.w / 2 - cx, t.z + t.d / 2 - cz) < 0.05;
+                        }) || (h.decor || []).some(function (d) {
+                            return d.kind === 'cairn' && Math.hypot(d.x - cx, d.z - cz) < 0.05;
+                        });
+                        if (!on) stray.push(h.name);
+                    });
+                });
+                assert('every unseen wall stands under the fir or the cairn it is the solid part of', n >= 9 && !stray.length,
+                    n + ' unseen, astray on ' + stray.join(', '));
+                /* …and the globe's firs, rolled at from the tee across every
+                   line that meets them: no ball's middle comes within a
+                   trunk's width of a fir's, which is well in under its lowest
+                   skirt (render.addTree). With the needles taken out, three
+                   rolls in four went in under them. */
+                var globe = PW.byId('globe').hole, P0 = { x: globe.tee.x, z: globe.tee.z, y: globe.tee.y + C.BALL_R };
+                var firs = globe.walls.filter(function (t) { return t.kind === 'tree'; }).map(function (t) {
+                    return { x: t.x + t.w / 2, z: t.z + t.d / 2, r: t.w };
+                });
+                var club = G3.bagFor(globe).filter(function (c) { return c.id === 'mallet'; })[0], under = 0, a, k, i, wd;
+                function inFir(f) { return Math.hypot(wd.ball.x - f.x, wd.ball.z - f.z) < f.r; }
+                for (a = -24; a <= 24; a += 4) {
+                    for (k = 3; k <= 10; k += 1) {
+                        wd = P.createWorld(globe, P0, 0);
+                        P.launch(wd, a * Math.PI / 180, club.power * k / 10, club.loft, club.bite);
+                        for (i = 0; i < 40 * 120; i++) {
+                            P.advance(wd, 1 / 120);
+                            if (firs.some(inFir)) { under++; break; }
+                            if (P.done(wd)) break;
+                        }
+                    }
+                }
+                assert('the Snow Globe\'s firs are solid out to their needles: nothing rolled at them goes in under a skirt',
+                    firs.length === 3 && under === 0, under + ' did');
+            })();
+
             // And the bot holes every one, out of the bag the world hands out.
             PW.WORLDS.forEach(function (w) {
                 var r = G3.bot.play(w.hole, 10, G3.bagFor(w.hole));

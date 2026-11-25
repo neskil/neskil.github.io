@@ -1240,6 +1240,18 @@
        `w` wide off the lip it is placed on at height `y`. */
     function chalet(x, z, y, opts) { return decor('chalet', x, z, y, opts); }
     function cairn(x, z, y, opts) { return decor('cairn', x, z, y, opts); }
+    /* …and the stone a cairn is, to the ball. Decor is scenery and the ball
+       rolls through it, which on Knife Edge's lip was a ball going clean
+       through a pile of rocks (the owner's `clip`). This is the box under its
+       bottom stone (render.addAlpineProp: 0.84 across, four stones to about
+       1.3 up), kind 'unseen' because the cairn is the picture, and seated on
+       the ground the way a crag is. Put it in `extra` beside the cairn. */
+    function cairnStone(x, z, scale) {
+        var s = 0.66 * (scale || 1);
+        var w = wall(x - s / 2, z - s / 2, s, s, 1.3 * (scale || 1) + 0.3, { base: -0.3, kind: 'unseen' });
+        w.seat = 0.3;
+        return w;
+    }
     function lift(x, z, y, opts) { return decor('lift', x, z, y, opts); }
     function waterfall(x, z, y, opts) { return decor('waterfall', x, z, y, opts); }
     /* The arcade's own (Pinball Parlour): a city of lit towers standing on the
@@ -7490,23 +7502,38 @@
             ], { m: 12, w: 1.5 });
             var field = massif(30, 10, 5, 1.8, 5).concat([hill(19, 24, 2.6, 0.4), hill(17, 64, 3, -0.35)]);
             var g = shape(tilt(land.pads, 0.07, 0, 0, 0), field);
+            /* The valley floor under the drop, and the tarn laid into it.
+               v1.214.0 put a rectangle of water there with nothing round it,
+               and from the hero view it was a turquoise slab with square
+               corners beside the hole. Now the floor is ground, out of play
+               wherever it is (Redstone's canyon floor, `redrock`), a fifth
+               of a unit over the old water, and the tarn is a mere carved
+               into it whose east side runs in under the cliff: a ball over
+               the edge comes down in the tarn along the middle of the hole
+               and on the out-of-play shore at its ends, and either way is
+               played again. */
+            var pit = pad(-34, -12, 32.5, 92, -5.1, 'rough');
+            pit.oob = true;
+            var tarn = pond([pit], mere(-9, 34, 10.5, 40, 2.6, 9761));
             return alp({
                 name: 'Knife Edge', par: 4,
                 blurb: 'Down the crest of a ridge with the mountain falling away on one side, to a green out on the edge.',
                 pads: g.concat([
                     granite(28, 35, 5, 16, 13.5, { wild: 0.1 }),
-                    inlay(g, 6.2, 61, 4.2, grn, 4.0)
+                    inlay(g, 6.2, 61, 4.2, grn, 4.0),
+                    pit
                 ]),
                 // The property runs over the lip to the far shore of the tarn.
                 fence: { x: land.fence.x - 34, z: land.fence.z - 16, w: land.fence.w + 34, d: land.fence.d + 32 },
-                water: [rect(-34, -16, 32.5, 102, -5.25)],
+                water: [tarn],
                 decor: [cairn(-0.8, 14), cairn(-0.7, 33), cairn(-0.9, 52, { scale: 1.2 })],
                 extra: [].concat(
                     forest(30, 62, 4, 5, 6, 9741, { fir: true }),
                     forest(29, 12, 3, 4, 5, 9745, { fir: true }),
                     crags(21, 27, 1.6, 4, 9743, { s: 1.2, h: 0.9 }),
                     crags(-0.9, 23, 0.5, 2, 9747, { s: 0.7, h: 0.5 }),
-                    crags(-0.9, 43, 0.5, 2, 9749, { s: 0.8, h: 0.6 })
+                    crags(-0.9, 43, 0.5, 2, 9749, { s: 0.8, h: 0.6 }),
+                    [cairnStone(-0.8, 14), cairnStone(-0.7, 33), cairnStone(-0.9, 52, 1.2)]
                 ),
                 tee: { x: 9, z: 2 }, cup: { x: 6, z: 61.5 }
             });
