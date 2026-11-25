@@ -5924,32 +5924,12 @@
             assert('at the lip it is in slow motion',
                 approx(RE.rate(tape, len, { x: hole.cup.x, z: hole.cup.z }), RP.SLOW, 1e-9));
 
-            /* The long game's hang (CONFIG.HANG): a long shot's tape plays its
-               flight at AIR, as the live shot did, and its run at full speed;
-               a mini lane and a tour hole never hang. */
+            // The long game's scale (`G3.drawnLong`): tracer, low seat, pin tag.
             var longH = G3.courseById('parkland').holes[0];
             assert('a parkland hole is drawn at the long game\'s scale', G3.drawnLong(longH));
             assert('…a mini lane is not', !G3.drawnLong(hole));
             assert('…nor is a tour hole, which is fitted to its world',
                 G3.portals.WORLDS.every(function (w) { return !G3.drawnLong(w.hole); }));
-            var lw = P.createWorld(longH, { x: longH.tee.x, z: longH.tee.z, y: longH.tee.y + C.BALL_R }, 0);
-            // The 5 iron: the driver straight at the flag here finds the burn.
-            var drv = G3.bagFor(longH).filter(function (c) { return c.id === 'iron5'; })[0];
-            P.launch(lw, Math.atan2(longH.cup.x - longH.tee.x, longH.cup.z - longH.tee.z), drv.power, drv.loft, drv.bite);
-            var lt = RE.begin(lw, { yaw: 0, feel: 1 }), st = 0;
-            while (!P.done(lw) && st++ < 4000) RE.record(lt, lw, P.advance(lw, 1 / 60, {}));
-            RE.finish(lt);
-            assert('a long shot\'s tape knows when it first came down', lt.landT > 0.5, 'landT ' + lt.landT);
-            assert('…its flight plays at the hang', RE.rate(lt, lt.landT * 0.5, lw.ball) === C.HANG.AIR);
-            assert('…and its run at full speed again', lt.cutT <= lt.landT + C.HANG.LAND ||
-                RE.rate(lt, lt.landT + C.HANG.LAND, lw.ball) === 1);
-            assert('a mini lane\'s tape never hangs', !tape.landT);
-            var pw = P.createWorld(longH, { x: longH.cup.x, z: longH.cup.z - 3, y: longH.cup.y + C.BALL_R }, 0);
-            P.launch(pw, 0, 4, 0, 0);
-            var pt = RE.begin(pw, { yaw: 0, feel: 0.3 }); st = 0;
-            while (!P.done(pw) && st++ < 4000) RE.record(pt, pw, P.advance(pw, 1 / 60, {}));
-            RE.finish(pt);
-            assert('…nor does a putt on a long hole\'s green', !pt.landT);
 
             // The seats the cup camera may take.
             var seats = RE.seats(hole, { x: hole.cup.x, z: hole.cup.z - 3 }), allAt = true, allUp = true;

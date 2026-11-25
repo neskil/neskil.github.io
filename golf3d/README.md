@@ -5014,7 +5014,7 @@ on screen (since batch 4 the forge's maps are, `paint`: see below), and a flagst
 a brass tag stands over the flag with the distance on it, and waits at the
 screen's edge pointing when the flag is out of view (`game.js →
 syncPinTag`, `render.pinScreen`). Close to the flag, with it in view, the
-tag goes.
+tag goes. A long-game hole (`G3.drawnLong`) has it too, since v1.223.0.
 
 **The holes** are data in `js/forge-maps.js` (generated: the grid, the
 `place.at` anchor, tee, cup, par, `gen`, `metrics`), built by `js/forge.js`
@@ -6443,22 +6443,16 @@ world, seat and all. The drawn ball is lowered by what it lost, so it sits on
 the ground the physics' ball sits on. Anything that sets the ball's scale
 (the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
 
-### The long game hangs, and draws its flight
+### The long game draws its flight
 
 Drawn at its own scale, the long game's gravity is ten of the earth's: a full
 drive went three and a half units up and came down thirty-six units away in
 1.7 seconds, and was over before the eye had found it (the owner, v1.220.0:
-"long game feel needs to be improved … the flight path and such"). Three
-things answer it, and none of them is read by the simulation.
+"long game feel needs to be improved … the flight path and such"). Two
+things answer it, and neither is read by the simulation. (A third, a slower
+clock while the ball was up, went in with them and came out at v1.223.0: the
+owner, "the fake airtime is not feeling that good on the long game map".)
 
-- **The hang** (`CONFIG.HANG`, game.js `hangRate`). On a hole `G3.drawnLong`
-  says yes to, the shot's clock runs at `AIR` from the strike to the first
-  landing, so the drive is up for nearly three seconds, and comes back to the
-  wall clock over `LAND` seconds once it is down: the bounce and the run are
-  the pace the turf was tuned at. It is the same flight step for step — the
-  bot's fixed steps are steps of the shot's clock, so its planned shot is the
-  shot it gets — and the ace replay keeps the hang (replay.js `landTime`,
-  `rate`), so a holed drive plays back at the pace it was watched at.
 - **The tracer** (`CONFIG.TRACER`, render.js `stepTracer`). The speed streak
   behind the ball is a fraction of a second long, which on a lane is the shot
   and on a long hole the last few metres of it. So a long-game flight is also
