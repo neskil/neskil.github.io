@@ -192,6 +192,39 @@ A **Copy all** with none of batch 2 played: no recipe move and no batch 3
   model he points at: a sculpted hole with a hazard all the way down it.
 - **Knife Edge** (`alpine:4`): the same note as batch 1's, done in v1.214.0.
 
+## From the forge's feedback (batch 3, v1.222.0)
+
+Thirteen of batch 3's twenty rated (README → "The forge", "Batch 4" for the
+recipe). The released-hole lines:
+
+- **The Sugar Gate** (`table`, keep, fun 5, look 5: "One of the best
+  implemented maps so far. It uses the world['s] prioriters in a great way"):
+  nothing asked. With The Nave and The Iron River, the model: a hole whose
+  shape is the world's own things.
+- **The Nave** (`nave`, keep, fun 5, `edges`: "cool and unique, but a little
+  weird clipping on the camera sometimes"): not found or fixed. The kelp
+  cathedral's columns stand close round the hole, and the follow seat has no
+  test against the world's own meshes (only the hole's ground, `sightLift`),
+  so it can sit inside a column or a frond. The plate already drops world
+  geometry nearer than `pushNear`; a seat that pulls in towards the ball when
+  the world's depth at the screen's middle is nearer than the ball would be
+  the fix. Ask for a screenshot of where it happens.
+- **The Forge** (`forge`, keep, fun 4, difficulty 5, eight on the par three
+  and a give-up: "The bounce pad is too small and hard to hit … the scale of
+  the map is a bit off. [The world] should be smaller"): the pad 0.4 → 0.75
+  across (the ace share 0.29% → 0.51%), the world drawn at 2.3 rather than
+  1.8. "Would should be smaller" was read as *world*; if the hall now looks
+  too small round the hole, it was meant the other way: put 1.8 back and
+  shrink the hole instead. **Not yet seen.**
+- **Before the Fire** (`fire`, fix, fun 1, difficulty 1, `easy,flat`: "Cool
+  map but too straight and boring layout", a two on the par four): the tee
+  moved to the right of the valley (7, 1), the cup to (−4, 51), and two
+  basins dug and flooded — across the valley where a drive comes down, and
+  short and right of the green. The bot with hands (`human-check.mjs
+  world-fire`, which now takes a tour hole) averages 3.70 over twenty rounds
+  with cards from 2 to 6 and 0.35 balls a round wet; the old hole was a
+  straight drive and a putt. **Not yet seen.**
+
 ## The owner's ideas waiting their turn
 
 Both done in v1.162.0 (see "After the handoff was written" below and README

@@ -97,25 +97,34 @@ if (one('--out-box')) {
 // --palette '{"grass":["#3a2a22","#33241d"],"water":16738842}': colours over the forge's stand-in (forge.js → themeFor).
 if (one('--palette')) map.palette = JSON.parse(one('--palette'));
 
-/* --dig x,z,r,depth[;x,z,r,depth…]: a basin pressed into the ground, smooth
-   (a cosine bowl), for a flat world with no hollow of its own to flood — the
-   world's ground is sculpted to the grid (backdrop.mjs), so it dips too.
-   With no --pond, the water stands a quarter of a unit under the basin's
-   lowest rim and only inside it. */
+/* --dig x,z,r,depth[;x,z,r,depth…]: a basin pressed into the ground, for a
+   world with no hollow of its own to flood — the world's ground is sculpted
+   to the grid (backdrop.mjs), so it dips too. Since v1.222.0 its floor is
+   level (forge.mjs → basin): `depth` under the water at its middle, eased
+   back to the ground at its rim, so a basin on a slope holds a pond and not
+   a puddle at its low edge. With no --pond, the water stands a fifth of a
+   unit under the lowest rim of all the basins, and only inside them. */
 let pond = one('--pond');
 if (one('--dig')) {
     const digs = one('--dig').split(';').map((d) => d.split(',').map(Number));
     let rim = Infinity, bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
-    for (const [dx, dz, r, depth] of digs) {
+    for (const [dx, dz, r] of digs) {
         for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
-            const x = g.x0 + i * g.d, z = g.z0 + k * g.d, q = Math.hypot(x - dx, z - dz);
+            const q = Math.hypot(g.x0 + i * g.d - dx, g.z0 + k * g.d - dz);
             if (q > r * 1.15 && q < r * 1.35) rim = Math.min(rim, g.h[k * g.nx + i]);
-            if (q >= r) continue;
-            g.h[k * g.nx + i] = +(g.h[k * g.nx + i] - depth * 0.5 * (1 + Math.cos(Math.PI * q / r))).toFixed(3);
         }
         bx0 = Math.min(bx0, dx - r); bz0 = Math.min(bz0, dz - r); bx1 = Math.max(bx1, dx + r); bz1 = Math.max(bz1, dz + r);
     }
-    if (!pond) { pond = String(+(rim - 0.25).toFixed(3)); if (!one('--box')) args.push('--box', [bx0, bz0, bx1, bz1].join(',')); }
+    const lvl = one('--pond') && !isNaN(+one('--pond')) ? +one('--pond') : rim - 0.2;
+    for (const [dx, dz, r, depth] of digs) {
+        for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+            const q = Math.hypot(g.x0 + i * g.d - dx, g.z0 + k * g.d - dz) / r, c = k * g.nx + i;
+            if (q >= 1) continue;
+            const floor = lvl - depth * 0.5 * (1 + Math.cos(Math.PI * q)), e = Math.max(0, (q - 0.5) / 0.5), s = e * e * (3 - 2 * e);
+            if (g.h[c] > floor) g.h[c] = +Math.max(g.h[c] - 0.8, floor + (g.h[c] - floor) * s).toFixed(3);
+        }
+    }
+    if (!pond) { pond = String(+lvl.toFixed(3)); if (!one('--box')) args.push('--box', [bx0, bz0, bx1, bz1].join(',')); }
     console.log(`dug ${digs.length} basin${digs.length > 1 ? 's' : ''}; the rim is at ${rim.toFixed(3)}`);
 }
 // Water: a level, or `auto` (the lowest tenth of the ground, kept off the tee and the green).

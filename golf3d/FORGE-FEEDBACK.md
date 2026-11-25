@@ -29,12 +29,12 @@ keyed `1:<id>`.
 
 | Issue | Means | Move |
 | --- | --- | --- |
-| `edges` | couldn't see where the hole was | the hole needs marking (nothing is painted on a sculpted world). Since v1.214.0 a pin tag points at the flag (README → "Where the flag is"); if it still comes back, the next step is a kerb, posts or a painted edge — a code change, not a recipe number |
+| `edges` | couldn't see where the hole was | the hole needs marking. Since v1.214.0 a pin tag points at the flag (README → "Where the flag is"), and since v1.222.0 a forged map's tee, fairway and green are painted on the world (`paint`, README → "Batch 4"); if it still comes back, the next step is a kerb or posts — a code change, not a recipe number |
 | `bumpy` | ground too bumpy | `smooth` up, `maxSlope` down |
 | `flat` | too flat, boring | `relief` up, `reliefMin` up |
 | `long` / `short` | length | `L` down / up |
 | `hard` / `easy` | difficulty | `ace` up / down (target ace share), `L`, `relief` |
-| `clip` | clipping or floating | the world's things on the hole, which the ball rolls through: compare with `gen.clutter` (batch 2 on), raise or lower `stand`, `bump`, `lane` (README → "Clutter"). Otherwise a sculpt or anchor fault: `tools/forge-sculpt.mjs <id> --map` shows where the drawn ground leaves the played one, then look at that world live (`?course=forge-<id>&live=1`) |
+| `clip` | clipping or floating | the world's things on the hole, which the ball rolls through: compare with `gen.clutter` (batch 2 on), raise or lower `stand`, `bump`, `lane` (README → "Clutter"). Since batch 4 the middles of them are hard (`solid`, `gen.solid`): a `clip` there is a trunk struck where nothing is drawn, or a crown rolled through. Otherwise a sculpt or anchor fault: `tools/forge-sculpt.mjs <id> --map` shows where the drawn ground leaves the played one, then look at that world live (`?course=forge-<id>&live=1`) |
 | `stuck` | ball got stuck | a vetting gap: run the stuck sweep on that map and tighten `vet()` |
 | `camera` | bad view | the tee's heading (`turn`) or `ahead`; perhaps prefer `turn: 0` |
 | `ugly` | paint looked wrong | the palette (`themeFor` in `js/forge.js`) |

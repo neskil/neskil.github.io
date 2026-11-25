@@ -154,7 +154,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -607,7 +607,7 @@
 
     /* The forge, and the last of a journey that gets this far. A conveyor
        runs down the middle of the floor at a hammer that slides across it;
-       past the hammer is a launch pad the size of a hand, a low wall, a
+       past the hammer is a launch pad, a low wall, a
        river of iron, and the anvil, a bowl with the flag in it. A ball kept
        on the belt the whole way arrives fast, and if it rolls over the pad
        it is thrown over the wall and the iron and comes down in the bowl:
@@ -620,10 +620,18 @@
        only throws a ball up, so the carry was never there — and it was a par
        four the caddie played in two putts. Then, with the belt quicker, its
        walls funnelled every line on to the pad and it was a giveaway. The
-       walls are gone and the pad is small and a hand right of the middle. */
+       walls are gone and the pad is a hand right of the middle.
+
+       The owner, v1.222.0 (fun 4, difficulty 5, eight strokes and a give-up
+       on a par three): "the bounce pad is too small and hard to hit … the
+       scale of the map is a bit off, [the world] should be smaller". The pad
+       went from 0.4 to 0.75 across its middle (the ace share from the tee
+       0.29% → about 0.5%, an opener's), and the world is drawn at 2.3 golf
+       units a unit rather than 1.8 (PLACES), so the hall stands round the
+       hole rather than over it. */
     add({
         id: 'forge', title: 'The Forge', world: 'Black Glass and Lava', kind: 'bizarre', tier: 3,
-        caption: 'A conveyor at a hammer, a launch pad the size of a hand, a river of iron and an anvil with the flag in it.',
+        caption: 'A conveyor at a hammer, a launch pad past it, a river of iron and an anvil with the flag in it.',
         theme: 'forge',
         hole: world({
             name: 'The Forge', grounded: true, par: 3, bag: ROLL,
@@ -633,7 +641,7 @@
                 belt(1.5, 5, 3, 9, 0, 7),
                 pad(0, 5, 1.5, 9, 0, 'green'), pad(4.5, 5, 1.5, 9, 0, 'green'),
                 pad(0, 14, 6, 6, 0, 'green'),
-                sprung(3.4, 17, 0.4, 12.7),
+                sprung(3.4, 17, 0.75, 12.7),
                 (function () {
                     var p = disc(3, 26.6, 4.2, 1.2);
                     p.bumps = [channel(3, 26.6, 3.9, 2.0, 0.7)];
@@ -1082,10 +1090,18 @@
        four; it is at fifty now, on the foot of the left bank, so a second
        shot missed right runs down off the green into the valley. The
        camera half of the note was the seat (render.js → seatLead, and
-       sightLift's fix), not the hole. */
+       sightLift's fix), not the hole.
+
+       v1.222.0, the owner: "cool map but too straight and boring layout"
+       (fun 1, difficulty 1, a two on the par four). The tee is on the right
+       of the valley now (7, 1), so the line to the green runs across it,
+       and two basins are dug into the floor and flooded (forge-finish --dig,
+       level-floored): one across the valley where a drive comes down, the
+       other short and right of the green. Carry the first or play round it
+       on the right; the second takes a long second shot that drifts. */
     add({
         id: 'fire', title: 'Before the Fire', world: 'Ahead of the Fire', kind: 'alien', tier: 2,
-        caption: 'A par four up a valley on Echronedal\'s night side, with the Fire coming round behind the palace. The valley is the world\'s own.',
+        caption: 'A par four across a valley on Echronedal\'s night side, past two pools, with the Fire coming round behind the palace. The valley is the world\'s own.',
         theme: 'fire',
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).fire, field = G ? [{ grid: G }] : [];
@@ -1094,15 +1110,17 @@
             ground.ghost = true;
             return world({
                 name: 'Before the Fire', par: 4, long: true,
-                blurb: 'Up the valley in the dark, with the Fire on the horizon. The green sits on the foot of the bank on the left: hold it, or the second runs off it down into the valley.',
+                blurb: 'Across the valley in the dark, with the Fire on the horizon. A pool lies where a drive comes down: carry it or go round it on the right. The green is on the foot of the bank, with a second pool short and right of it.',
                 pads: [
                     ground,
-                    on(pad(-1, -1, 2, 2, 0, 'fairway'), true),
-                    on(pad(-4, 1, 6.5, 24, 0, 'fairway'), true),
-                    on(pad(-5.5, 25, 6.5, 21.9, 0, 'fairway'), true),
-                    on(pad(-6, 47, 6, 6, 0, 'green'), true)
+                    on(pad(6, 0, 2, 2, 0, 'fairway'), true),
+                    on(pad(-1, 2, 10.5, 24, 0, 'fairway'), true),
+                    on(pad(-6.5, 26, 10.5, 21.9, 0, 'fairway'), true),
+                    on(pad(-7, 48, 6, 6, 0, 'green'), true)
                 ],
-                tee: { x: 0, z: 0 }, cup: { x: -3, z: 50 }
+                // Drawn to its waterline on the grid (render.js → addPondOnGrid).
+                water: G ? [Object.assign(A.rect(-2.5, 27.5, 9, 20, -0.04), { grid: G })] : [],
+                tee: { x: 7, z: 1 }, cup: { x: -4, z: 51 }
             });
         })()
     });

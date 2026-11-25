@@ -862,6 +862,38 @@
         return !!g.on[k * g.nx + i];
     }
 
+    /* …and the trunks among them, which the ball hits (batch 3, the Tree
+       City: "the tree should have collision"). `hole.solidGrid` is the same
+       grid as `outGrid`, its `on` a height over the ground for each cell
+       that stands: the middle of each thing the world has standing on the
+       hole (forge.mjs → solidOf), so a crown is rolled under and a trunk is
+       struck. Each cell is a round post of half a cell, as tall as the thing
+       is, which gives a rail's bounce: a ball over the top flies on. Only the
+       cells round the ball are looked at, so a hole of four hundred costs
+       what a hole of four does. */
+    function collideSolid(world, events) {
+        var g = world.hole.solidGrid, b = world.ball, gi, gk, i, k, t, cx, cz, dx, dz, q, d, nx, nz, vn;
+        var rr = g.d / 2 + C.BALL_R;
+        gi = Math.round((b.x - g.x0) / g.d); gk = Math.round((b.z - g.z0) / g.d);
+        for (k = gk - 1; k <= gk + 1; k++) for (i = gi - 1; i <= gi + 1; i++) {
+            if (i < 0 || k < 0 || i >= g.nx || k >= g.nz) continue;
+            t = g.on[k * g.nx + i];
+            if (!t || b.y - C.BALL_R >= g.h[k * g.nx + i] + t) continue;
+            cx = g.x0 + i * g.d; cz = g.z0 + k * g.d;
+            dx = b.x - cx; dz = b.z - cz; q = dx * dx + dz * dz;
+            if (q >= rr * rr) continue;
+            d = Math.sqrt(q);
+            if (d > 1e-9) { nx = dx / d; nz = dz / d; } else { nx = 0; nz = -1; }
+            b.x = cx + nx * rr; b.z = cz + nz * rr;
+            vn = b.vx * nx + b.vz * nz;
+            if (vn < 0) {
+                b.vx -= (1 + C.RESTITUTION) * vn * nx;
+                b.vz -= (1 + C.RESTITUTION) * vn * nz;
+                events.bounce = true;
+            }
+        }
+    }
+
     // The boundary as a list, whatever it was authored as. The renderer walks
     // it to plant the stakes and the hole's bounds are its extent.
     function fenceRects(hole) {
@@ -2449,6 +2481,7 @@
         }
 
         collideWalls(world, dt, events);
+        if (hole.solidGrid) collideSolid(world, events);
 
         /* And the pipes, after the walls have had their say — a mouth set into
            the floor beside a rail should swallow the ball that has just come
