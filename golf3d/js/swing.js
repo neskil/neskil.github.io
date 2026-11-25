@@ -292,15 +292,17 @@
         var dir = bendOf(name);
         // The time it is in the air to bend in: the long clubs' lifted flight
         // hangs for longer than the arc's formula, and is flown to say so.
-        var t = hole && G3.physics ? G3.physics.hangTime(hole, out.power, out.loft)
+        // (In the long game's air, the ground it covers instead: bendTime.)
+        var t = hole && G3.physics ? G3.physics.bendTime(hole, out.power, out.loft)
             : 2 * out.power * Math.sin(out.loft) / (grav || C.GRAVITY);
         if (!dir || !(t > 0)) return out;
-        var spin = Math.min(S.SPIN_MAX, S.TURN / (C.SPIN_ACCEL * t));
+        var sacc = C.SPIN_ACCEL;
+        var spin = Math.min(S.SPIN_MAX, S.TURN / (sacc * t));
         // The start line is set for the shape that was asked for; what the
         // strike delivers is the bend. Early is left, as every miss is: it
         // over-turns a draw into a hook and stops a fade turning at all. Late
         // is right: the draw hangs out on its start line, the fade slices.
-        out.bend = -dir * spin * C.SPIN_ACCEL * t / 2;
+        out.bend = -dir * spin * sacc * t / 2;
         out.yaw += out.bend;
         out.spin += dir * spin * Math.max(0, 1 - dir * off * S.MISS_TURN);
         if (dir < 0) out.bite = Math.min(0.95, out.bite + S.FADE_BITE * (1 - Math.abs(off)));

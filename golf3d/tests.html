@@ -4661,6 +4661,53 @@
                         Math.abs(carry - c.carry) < 0.15 && Math.abs(w.ball.z - c.total) < 0.15,
                         carry.toFixed(2) + ' / ' + w.ball.z.toFixed(2));
                 });
+                /* The long game's air (CONFIG.AIR): on a long hole a lofted
+                   ball flies real air at LONG_M metres to the unit. A drive
+                   is up for seconds, not a second and a half; it tops out
+                   near thirty metres, lands far slower and steeper than it
+                   left, and still finishes about where its card says. The
+                   same swing on a mini fairway flies the mini flight. */
+                (function () {
+                    var longF = JSON.parse(JSON.stringify(field)); longF.longGame = true;
+                    function flight(f, cl, topped) {
+                        var w = P.createWorld(f, from, 0), top = 0, t = 0, i, v0, last = null;
+                        P.launch(w, 0, cl.power, cl.loft, cl.bite || 0, topped);
+                        v0 = Math.sqrt(w.ball.vx * w.ball.vx + w.ball.vy * w.ball.vy + w.ball.vz * w.ball.vz);
+                        for (i = 0; i < 6000 && !w.firstLand; i++) {
+                            last = { vy: w.ball.vy, vz: w.ball.vz };
+                            P.advance(w, C.SIM_DT, {});
+                            t += C.SIM_DT;
+                            if (w.ball.y > top) top = w.ball.y;
+                        }
+                        var vl = Math.sqrt(last.vy * last.vy + last.vz * last.vz);
+                        var carry = w.firstLand.z;
+                        P.settle(w);
+                        return { t: t, top: (top - from.y) * C.LONG_M, v0: v0, vl: vl,
+                            fall: Math.atan2(-last.vy, last.vz) * 180 / Math.PI, carry: carry, rest: w.ball.z };
+                    }
+                    var dr = club('driver'), la = flight(longF, dr), mi = flight(field, dr);
+                    assert('a long hole flies the long game\'s air, a mini fairway does not',
+                        P.airy(longF, dr.loft) && !P.airy(field, dr.loft) && !P.airy(longF, 0));
+                    assert('…nor does a tour hole, fitted to its world',
+                        G3.portals.WORLDS.every(function (wd) { return !P.airy(wd.hole, dr.loft); }));
+                    assert('a drive in the long game\'s air is up for five seconds or more',
+                        la.t > 5 && la.t < 8, la.t.toFixed(2) + ' s (mini flight ' + mi.t.toFixed(2) + ' s)');
+                    assert('…tops out between twenty-two and forty metres', la.top > 22 && la.top < 40, la.top.toFixed(1) + ' m');
+                    assert('…lands at under half the pace it left at', la.vl < 0.5 * la.v0,
+                        la.vl.toFixed(2) + ' against ' + la.v0.toFixed(2));
+                    assert('…and comes down steeper than 32°', la.fall > 32, la.fall.toFixed(0) + '°');
+                    assert('…for as long as hangTime says', Math.abs(P.hangTime(longF, dr.power, dr.loft) - la.t) < 0.05,
+                        P.hangTime(longF, dr.power, dr.loft).toFixed(3) + ' against ' + la.t.toFixed(3));
+                    assert('every full swing in the bag still finishes within a tenth of its card',
+                        C.CLUBS.filter(function (c) { return c.loft > 0; }).every(function (c) {
+                            var r = flight(longF, c);
+                            return Math.abs(r.rest - c.total) < 0.1 * c.total;
+                        }));
+                    var tp = flight(longF, dr, true);
+                    assert('a topped drive in the air is not lifted', tp.top < la.top * 0.5,
+                        tp.top.toFixed(1) + ' m against ' + la.top.toFixed(1) + ' m');
+                })();
+
                 /* Out of a bunker: no driver at all, the irons capped at
                    their `sand` fraction and below that untouched, the wedges
                    and the putter whole (physics.fromLie, game.syncLie). */

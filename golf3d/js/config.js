@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.223.0';
+G3.VERSION = '1.224.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1394,8 +1394,50 @@ G3.CONFIG.LONG_LOOK = { MIN: 0.4, SEAT: 0.5, NEAR: 4, FAR: 12 };
 
 /* The seat behind a long shot while it is up (render.js `watchAir`):
    the eye climbs RISE of the ball's height and looks up at the rest; EASE is
-   the per-second easing base it follows that on. */
-G3.CONFIG.LONG_CAM = { RISE: 0.3, EASE: 0.002 };
+   the per-second easing base it follows that on. RISE was 0.3 under a
+   nineteen-metre drive; in the long game's air (AIR) a drive tops out near
+   thirty, and at 0.3 the top of it was a picture of nothing but sky. */
+G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
+
+/* The long game's air (physics.airFlight), since v1.224.0. The long game
+   was the mini golf flight — eighteen units a second squared of gravity, no
+   drag, and a lift that does no work — which read as LONG_M metres to the
+   unit is ten g: a drive was up and down in 1.7 seconds and landed as fast as
+   it left, a real flight played three times over speed. Slowing the clock
+   down did not answer it (the owner: "the fake airtime is not feeling that
+   good … fix the physics for the long game"). So a lofted shot on a long hole
+   flies a real ball through real air, at LONG_M metres to the unit:
+
+     G      the earth's gravity, m/s²
+     K      ρ·A / 2m for a golf ball at sea level, per metre
+     CD     its drag coefficient; drag goes as the square of the speed
+     SPIN   backspin's lift wearing off, per second
+     VREF   sidespin's bend up here goes as the square of the speed, as
+            SPIN_ACCEL × spin × speed²/VREF: so it turns the ball by the
+            ground covered rather than the seconds, and a draw lands back on
+            its line however the drag slows it (physics.bendTime). 22 keeps
+            a drive's turn for a given spin about what it was
+     CLUBS  by loft, in degrees, read between the points: `v`, the launch
+            speed per unit of the club's power, and `cl`, the lift
+            coefficient its backspin gives
+
+   It flies from the strike through every hop until the ball is rolling;
+   the roll, the slopes and anything that leaves a ledge afterwards are the
+   ground's physics as they always were. The clubs are solved for the
+   distances they had (driver ≈ 230 m all told) with a real ball's apex
+   and hang: a drive tops out near thirty metres and is up for about six
+   seconds, and comes down steeply and slowly enough to stop. */
+G3.CONFIG.AIR = {
+    G: 9.81, K: 0.0191, CD: 0.24, SPIN: 0.04, VREF: 22,
+    CLUBS: [
+        { deg: 12, v: 0.479, cl: 0.24 },     // driver: 30 m up, 6.4 s, 210 m carry
+        { deg: 17, v: 0.441, cl: 0.295 },    // 5 iron: 18 m, 4.8 s
+        { deg: 22, v: 0.428, cl: 0.295 },    // 7 iron: 12 m, 3.7 s
+        { deg: 32, v: 0.378, cl: 0.295 },    // 9 iron: 13 m, 3.6 s
+        { deg: 45, v: 0.350, cl: 0.29 },     // pitch: 15 m, 3.7 s
+        { deg: 52, v: 0.355, cl: 0.14 }      // wedge: 20 m, 4.1 s
+    ]
+};
 
 /* The follow seat on a long hole, far from the green (render.js `seatLead`):
    it looks LEAD units down the line instead of at the ball, with its pitch

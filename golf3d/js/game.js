@@ -62,9 +62,11 @@
         for (i = 0; i < b.length; i++) {
             c = b[i];
             if (!c.carry || !c.total || c.id === skip) continue;
-            if (!best || Math.abs(c.total - d) < Math.abs(best.total - d)) best = c;
+            // The card as this hole flies it (lieCards: the long game's air).
+            var f = (state.lieCards && state.lieCards[c.id]) || c;
+            if (!best || Math.abs(f.total - d) < Math.abs(best.f.total - d)) best = { c: c, f: f };
         }
-        return best || state.club;
+        return best ? best.c : state.club;
     }
 
     /* The club for a mini tee that has to be chipped from. A hole flagged
@@ -689,8 +691,9 @@
         state.greenBag = null;
         gravityWarn(hole);
         state.lieBagFor = null;
-        state.lieCards = null;
-        if (G3.bag && G3.bag.setLie) G3.bag.setLie(null);
+        // On a long hole the cards are the long game's air (CONFIG.AIR).
+        state.lieCards = lieCards(state.bag, null, hole);
+        if (G3.bag && G3.bag.setLie) G3.bag.setLie(state.lieCards);
         if (G3.bag && G3.bag.setScale) G3.bag.setScale(G3.distance.scale(hole));
         if (state.bag.indexOf(state.club) < 0) {
             state.club = clubById(state.club ? state.club.id : C.DEFAULT_CLUB);
@@ -2222,14 +2225,14 @@
     // The flat-grass run at a power for the club in hand, capped by the lie.
     function laneRun(power) {
         var club = state.club, hole = state.world.hole;
-        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1);
+        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1, G3.drawnLong(hole));
         return runAt(t, Math.min(power, P.lieCeiling(club, lieKind())), club);
     }
 
     // The power whose run is `d` units, or -1 past the club's reach.
     function powerFor(d) {
         var club = state.club, hole = state.world.hole;
-        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1);
+        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1, G3.drawnLong(hole));
         var top = maxPower(club), cap = P.lieCeiling(club, lieKind());
         for (var i = 1; i <= RUN_STEPS; i++) {
             if (t[i] >= d) {
@@ -2804,7 +2807,7 @@
         state.greenBag = lieBag;
         state.lieBagFor = why;
         // The cards in the bag say what each club reaches from here.
-        state.lieCards = why === 'sand' ? lieCards(lieBag, kind) : null;
+        state.lieCards = why === 'sand' ? lieCards(lieBag, kind, hole) : lieCards(state.bag, null, hole);
         if (G3.bag && G3.bag.setLie) G3.bag.setLie(state.lieCards);
         if (G3.bag && G3.bag.setBag) G3.bag.setBag(bag());
         if (why === 'green' && state.club !== putter) {
@@ -2828,17 +2831,22 @@
        club's own card is — a full swing on a flat, windless fairway
        (tests.html, "what the card says"). Only for a club the lie caps;
        the rest keep their own card. Measured once a club and kept. */
+    /* And on a long hole every lofted club gets one, because its card in
+       config.js is the mini golf flight's and a long hole flies the long
+       game's air (CONFIG.AIR): the same full swing, a longer carry and a
+       shorter run. `kind` null is the fairway, uncapped. */
     var lieCardMemo = {};
-    function lieCards(clubs, kind) {
-        var out = null;
+    function lieCards(clubs, kind, hole) {
+        var out = null, air = G3.drawnLong(hole);
         clubs.forEach(function (club) {
-            var cap = P.lieCeiling(club, kind);
-            if (!(cap < club.power) || !club.total) return;
-            var key = club.id + '|' + kind;
+            var cap = kind ? P.lieCeiling(club, kind) : club.power;
+            if (!club.total || !(cap < club.power || (air && club.loft > 0))) return;
+            var key = club.id + '|' + kind + '|' + air;
             if (!lieCardMemo[key]) {
                 var field = {
                     pads: [G3.authoring.pad(-60, -10, 120, 160, 0, 'fairway', 0, 0)],
-                    water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 }
+                    water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 },
+                    longGame: air
                 };
                 var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
                 P.launch(w, 0, cap, club.loft, club.bite);
@@ -3774,12 +3782,13 @@
         return kind && kind !== 'sand' && C.FRICTION[kind] !== undefined ? kind : 'green';
     }
 
-    function runTable(club, kind, shape, gravity) {
-        var key = club.id + '|' + kind + '|' + shape + '|' + gravity;
+    // `air`: measured in the long game's air (CONFIG.AIR, G3.drawnLong).
+    function runTable(club, kind, shape, gravity, air) {
+        var key = club.id + '|' + kind + '|' + shape + '|' + gravity + '|' + !!air;
         if (runTables[key]) return runTables[key];
         var field = {
             pads: [G3.authoring.pad(-150, -20, 300, 320, 0, kind)],
-            water: [], walls: [], gravity: gravity,
+            water: [], walls: [], gravity: gravity, longGame: !!air,
             tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 1000, y: 0 }
         };
         var top = maxPower(club), out = [], i, p, s, w;
@@ -3813,10 +3822,10 @@
         // the readout says so rather than promising the fairway's distance.
         var cap = P.lieCeiling(club, lieKind());
         var capped = cap < club.power;
-        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, capped].join('|');
+        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, G3.drawnLong(hole), capped].join('|');
         if (key === lastRun) return;
         lastRun = key;
-        var t = runTable(club, kind, shapeNow(), hole.gravity || 1);
+        var t = runTable(club, kind, shapeNow(), hole.gravity || 1, G3.drawnLong(hole));
         $('power-dist').textContent = (capped ? 'sand: max ' : 'full ') +
             G3.distance.bandText(runAt(t, capped ? cap : club.power, club), hole);
     }

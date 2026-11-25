@@ -6443,6 +6443,38 @@ world, seat and all. The drawn ball is lowered by what it lost, so it sits on
 the ground the physics' ball sits on. Anything that sets the ball's scale
 (the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
 
+### The long game's air
+
+Read at `LONG_M` metres to the unit, the mini golf flight (eighteen units a
+second squared, no drag, a lift that does no work) was ten g: a drive went
+nineteen metres up and was down in 1.5 seconds, landing at the 130 m/s it left
+at — a real flight played three times over speed. Slowing the clock (v1.220.0)
+was not the answer; the owner, v1.224.0: "fix the physics for the long game
+… more better feel for the ball path".
+
+So on a hole `G3.drawnLong` says yes to, a lofted shot flies real air
+(`CONFIG.AIR`, physics.js `airStep`): the earth's gravity, drag as the square
+of the speed, and backspin's lift square to the velocity, also as its square,
+all at `LONG_M` metres to the unit. Each club's launch speed (`v`, per unit of
+its power) and lift (`cl`) are read by loft, solved so a full swing finishes
+where its card always said (driver ≈ 228 m) with a real ball's shape: the
+driver leaves at 63 m/s, tops out at thirty metres, is up for 6.4 seconds and
+lands at 29 m/s, 40° down; the irons top out at twelve to eighteen metres and
+the wedges at fifteen to twenty. The air lasts from the strike through every
+hop until the ball rolls; the roll, slopes, and anything leaving a ledge
+afterwards are the ground's physics as before. A tour or forge hole is fitted
+to its world and keeps the old flight.
+
+What it moved: the cards on a long hole are measured in the air (game.js
+`lieCards`, which the tee's `teeClub` reads), and so are the meter's run table
+and the aim line's distance marks (`runTable`'s `air`). Sidespin up here goes
+as the square of the speed too (`AIR.VREF`), so a shape turns the ball by the
+ground it covers rather than the seconds, and `physics.bendTime` hands swing.js
+that span — without it a draw, slowed by the drag, finished a unit past its
+line. The aim cone previews three times the seconds (the same ground), and the
+low seat climbs `LONG_CAM.RISE` 0.6 of the ball's height, since at 0.3 the top
+of a thirty-metre drive was all sky. tests.html → "The long game's air".
+
 ### The long game draws its flight
 
 Drawn at its own scale, the long game's gravity is ten of the earth's: a full
