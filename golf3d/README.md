@@ -4999,7 +4999,7 @@ node golf3d/tools/forge-finish.mjs b2-13 --dig "2,15,6.5,0.45;-4.5,26,4,0.45" --
 ```
 
 **Where the flag is.** Nothing is painted on a sculpted hole with its world
-on screen, and a flagstick forty units off in a busy world is a hair (batch
+on screen (since batch 4 the forge's maps are, `paint`: see below), and a flagstick forty units off in a busy world is a hair (batch
 1: `edges` twice, and "show where the flag is by some means"). On those holes
 a brass tag stands over the flag with the distance on it, and waits at the
 screen's edge pointing when the flag is out of view (`game.js →
@@ -5095,6 +5095,98 @@ before the shuffle), so a re-run after one deals other worlds: the first run
 of this batch made three-avenues-under-the-floor and towers-over-the-old-city
 where the second made the-turning-night and house-of-four-seasons. The file
 is the second run, which is what the repository reproduces now.
+
+**Batch 4: the recipe after batch 3's verdicts** (v1.222.0). Thirteen of
+twenty came back rated, b3-01 to b3-13: no keeps, seven fixes, six drops,
+and seven not played (b3-14 to b3-20, carried over again). Ten of the
+thirteen said `flat`, every one was difficulty 1 or 2, and the notes said
+what flat meant: "Need some obstacle or Hazard" (glowwood, fun 4), "Cool.
+But easy. The tree should have collision and sometimes perhaps paint [the]
+green" (the Tree City, fun 4), "These realistic maps must have some fairway
+and green to become good" (the moor), "Cool worlds but no challenge, just two
+strokes and nothing" (the House of Four Seasons, look 5). It was not height:
+the three maps with the most relief (4.7 to 5.5) were drops, two of them
+`flat` as well. The likes were the worlds (look 4 or 5 on six maps); what
+failed was that nothing on the hole asked anything. So, more hazard than
+height:
+
+- **Trunks** (`solid`, `forge.mjs → solidOf`, `physics.collideSolid`). What
+  stands on the hole was out of bounds where a ball stopped and was rolled
+  through; now the middle of each thing is hard. `stood` is the world seen
+  from above, so a tree is the round shadow of its crown, and struck there
+  the ball would bounce off air: only the cells within a cell of each
+  thing's deepest are made hard (its chessboard distance in from the nearest
+  clear cell; a thing two cells deep keeps only its middle), which is a trunk
+  under a crown, the spine of a wall, the whole of a rod. Each is a round
+  post half a cell across, as tall as the thing stands there, so a ball flown
+  over it goes on; nothing on the tee, the green or the strips is hard,
+  because the world clears its things off the strips and a trunk that is not
+  drawn must not be hit. The physics looks at the nine cells round the ball,
+  so four hundred trunks cost what four do.
+- **Paint** (`paint`, `render.js → placeDecals`). The tee, the strips and
+  the green are painted on the world's own picture again, the green a
+  lighter disc, the fairway mown: v1.183.0 took the paint off with the green
+  mesh, after a sheet "came and went" on a phone, but what came and went was
+  the veil meshes, rebuilt under a live world and not put away, and they are
+  put away every frame now. Only the forge's maps ask for it; the tour's
+  sculpted holes are as they were. A decal's corner is its fourth number
+  now, so the green is round. Two things the first look at it changed: the
+  colours are turf's own (`#4c8f3a`, the green `#6fbd4c`), not the stand-in
+  theme's grass, which is turned to the world's hue (purple in the Tree City,
+  slate by the ford), and they are mixed in after the plate undoes the
+  game's grade, which had washed them to grey; and only a pixel within 0.3
+  of the grid is painted, not 1.3, which painted a sauropod's legs and the
+  foot of every trunk (the world is pressed to the grid to a few hundredths).
+- **A dug pond** (`dig` 0.45, `digR` 4.5, `digPond`). Where the patch has no
+  hollow to flood, a basin is pressed in short of the green, or failing that
+  where a drive comes down, on the side the ground already falls to, and
+  flooded. The basin's floor is level now (`basin`, and `forge-finish --dig`
+  the same): pressed relative to the ground, as batch 3's digs were, a basin
+  on a slope was a tilted dish holding a puddle at its low edge — nine cells
+  on Before the Fire's valley, where the level floor holds seventy.
+- **Par is stricter** (`par`: a four from 34 units, a five from 72, where it
+  was 28 and 60). Batch 3's par fours were played in three and its par five
+  (glowwood, 61 units) in three, a drive and a drive: a forged hole is open
+  land twenty-four units wide with no rough.
+- **`reliefMin` 1.2 → 1.8, `minSlope` 0.12 → 0.2** (the flattest maps went:
+  0.67 to 1.32 of relief, a steepest cell of 0.14 to 0.16), **`risk` 0.35 →
+  0.45**.
+- `noEagle` was tried — no cup the perfect bot holes in two under par — and
+  turned down every cup of every world tried: the perfect bot chips in from
+  wherever its drive stops. It is in the recipe, off.
+
+The seven fixes were each forged again alone on the very patch they were
+rated on (`turns` in the recipe beside `us`, and `--lean n` for the length
+they had), so the trunks, the paint, a dug pond and the new par come to the
+place the owner liked: `--worlds <w> --count 1 --lean <n> --recipe
+'{"us":[u],"turns":[t],"reliefMin":0.5,"minSlope":0}'`. The Pop-Up Book
+(batch 2's, made before `longClear`) found no clear lane at that, and was
+forged with `"longClear":1`. They head the batch in the order the owner
+liked them best: glowwood, the Tree City, the House of Four Seasons, Sea of
+Wax, Red Sails, the moor, the Pop-Up Book.
+
+The batch: `--batch 4 --with <the seven fix files>:b4-01 --keep
+b3-14,…,b3-20 --count 21 --skip redwood-dawn,the-turning-night,sixty-fountains,monarch-sanctuary,harbour-of-one-lamp,whiplash-wind,flinching-forest,singing-erg,the-fire-comes-round`.
+Seven new maps from 76 worlds tried (seven minutes; 32 sampled, 57 from the
+cache), b4-08 to b4-14: four par fours and three par threes, every one with
+water — five of them dug — and trunks on all but one (8 to 174 cells).
+`risk` still comes out under what is asked,
+3 to 37% against 45%: it counts tee shots, and a pond dug short of the
+green is in play for the second. b4-14, A Great Huge Game of Chess, is a par
+three of 32 units the perfect bot aces; it has 37% of its tee shots in
+trouble. Batch 3's seven unplayed maps are carried over as they were,
+b4-15 to b4-21, with no trunks and no paint (their keys stay theirs).
+All fourteen new or fixed maps were loaded live and looked at from the tee
+(the paint is on every one). Sea of Wax's tee still stands among the wax's
+own shapes, which cut through the club in the tee view: if it comes back
+`clip` again, it is that world's ground, and it is time to drop it.
+
+**Released holes in this copy** (HANDOFF.md has the detail): The Forge's
+launch pad 0.4 → 0.75 and its world drawn smaller (scale 1.8 → 2.3); Before
+the Fire re-laid with the tee across the valley and two dug pools
+(`forge-finish b2-03 --from <batch 2 file> --tee 7,1 --cup -4,51 --dig
+"2,32,7,0.45;3,45,3.5,0.45" --tour fire`); The Nave's camera clipping noted,
+not fixed.
 
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop

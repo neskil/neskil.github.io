@@ -28,7 +28,7 @@ const js = join(dirname(fileURLToPath(import.meta.url)), '..', 'js');
 const ctx = { console, Math, performance: { now: () => Date.now() } };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['config.js', 'physics.js', 'courses.js', 'swing.js', 'bot.js']) {
+for (const f of ['config.js', 'physics.js', 'courses.js', 'tour-ground.js', 'portals.js', 'swing.js', 'bot.js']) {
     vm.runInContext(readFileSync(join(js, f), 'utf8'), ctx, { filename: f });
 }
 const G3 = ctx.G3;
@@ -41,7 +41,8 @@ const flag = (name, dflt) => {
 const flagged = new Set(['--rounds', '--hole', '--seed']);
 const named = args.filter((a, i) => !a.startsWith('--') && !flagged.has(args[i - 1]));
 const rounds = flag('rounds', 12), only = flag('hole', 0), seed0 = flag('seed', 1);
-const courses = G3.COURSES.filter((c) => named.length ? named.includes(c.id) : c.id === 'keys');
+// A World Tour hole by its course id too (world-fire, world-savanna), since v1.222.0.
+const courses = named.length ? named.map((id) => G3.COURSES.find((c) => c.id === id) || G3.courseById(id)).filter(Boolean) : G3.COURSES.filter((c) => c.id === 'keys');
 
 // mulberry32: small, seeded, and the same on every machine.
 function rng(seed) {

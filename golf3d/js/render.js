@@ -7001,12 +7001,30 @@
             R.placeDecals = null;
             place.grid = null; place.clear = [];
             var gp = (hole.pads || []).filter(function (p) { return p.ghost && p.field && p.field[0] && p.field[0].grid; })[0];
+            /* …except on a hole that asks for it (`hole.paint`, the forge's
+               maps from batch 4: "these realistic maps must have some
+               fairway and green to become good"). There the tee and the
+               strips are painted the world's own grass, mown, and the green
+               a lighter disc, into the world's picture: a change of colour
+               in its ground, never a sheet on it. What came and went on a
+               phone before v1.183.0 was the veils, rebuilt under a live
+               world and not put away; they are put away every frame now. */
+            /* Turf's own greens, not the stand-in theme's grass (which is
+               turned to the world's hue: purple in the Tree City, slate by
+               the ford), because what was asked for was a fairway and a
+               green. Mixed in after the plate undoes the game's grade, so
+               the grade lays on them as on any of this game's turf. */
+            var tint = hole.paint ? [new THREE.Color('#4c8f3a'), new THREE.Color('#6fbd4c')] : null, rects = [];
             if (gp) {
                 (hole.pads || []).forEach(function (p) {
                     if (p.ghost || !p.inlay || p.w === undefined) return;
                     place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
+                    if (!tint) return;
+                    var gn = p.kind === 'green', t = tint[gn ? 1 : 0], e = gn ? 0.3 : 0;
+                    rects.push([p.x - e, p.z - e, p.x + p.w + e, p.z + p.d + e, [t.r, t.g, t.b], gn ? p.w / 2 + e : 1.4]);
                 });
                 place.grid = gp.field[0].grid;
+                if (rects.length) R.placeDecals = { grid: place.grid, rects: rects.slice(0, 6), dirty: true };
             }
         }
         R.live = false;
@@ -7317,9 +7335,9 @@
                 u.gridBox.value.set(D.grid.x0, D.grid.z0, D.grid.d, 0);
                 u.gridN.value.set(D.grid.nx, D.grid.nz);
                 for (gi = 0; gi < 6; gi++) {
-                    var dr = D.rects[gi] || [0, 0, 0, 0, [0, 0, 0]];
+                    var dr = D.rects[gi] || [0, 0, 0, 0, [0, 0, 0], 1.4];
                     u.decal.value[gi].set(dr[0], dr[1], dr[2], dr[3]);
-                    u.decalTint.value[gi].set(dr[4][0], dr[4][1], dr[4][2]);
+                    u.decalTint.value[gi].set(dr[4][0], dr[4][1], dr[4][2], dr[5]);
                 }
             }
             for (var kq = 0; kq < 8; kq++) {
@@ -7387,7 +7405,7 @@
                 soft: { value: new THREE.Vector4() }, softY: { value: -1e9 }, pushNear: { value: 0 },
                 decalOn: { value: 0 },
                 decal: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
-                decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector3(); }) },
+                decalTint: { value: [0, 1, 2, 3, 4, 5].map(function () { return new THREE.Vector4(); }) },
                 gridTex: { value: null }, gridBox: { value: new THREE.Vector4(0, 0, 1, 0) }, gridN: { value: new THREE.Vector2(1, 1) },
                 gOn: { value: 0 }, gExp: { value: 1 }, gSat: { value: 1 }, gCon: { value: 1 },
                 gTint: { value: new THREE.Color(1, 1, 1) }, gLift: { value: new THREE.Color(0, 0, 0) }
@@ -7408,7 +7426,7 @@
                 'uniform float wNear, wFar, scale, pA, pB, softY, pushNear;',
                 'uniform mat4 camWorld; uniform vec4 keep[8]; uniform vec4 soft;',
                 'uniform float gOn, gExp, gSat, gCon; uniform vec3 gTint, gLift;',
-                'uniform float decalOn; uniform vec4 decal[6]; uniform vec3 decalTint[6];',
+                'uniform float decalOn; uniform vec4 decal[6]; uniform vec4 decalTint[6];',
                 'uniform sampler2D gridTex; uniform vec4 gridBox; uniform vec2 gridN;',
                 'varying vec2 vUv; varying vec3 vRay;',
                 // postfx.js's tone curve, backwards.
@@ -7438,6 +7456,7 @@
                 '    float minI = min(min(i00, i10), min(i01, i11)), maxI = max(max(i00, i10), max(i01, i11));',
                 '    float iz = minI > maxI * 0.8 ? mix(mix(i00, i10, df.x), mix(i01, i11, df.x), df.y) : inv(floor(vUv * size));',
                 '    float depth = 0.9999995;',
+                '    vec3 pc = vec3(0.0); float pa = 0.0;',
                 '    if (iz > 0.00002) {',
                 '        float z = 1.0 / iz;',
                 '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
@@ -7452,7 +7471,9 @@
                 // pokes above the tee pad unless pushed behind the course here.
                 // A riding hole pushes further: everything short of half the
                 // way to the ball (`pushNear`, set where the cut is).
-                '        if (decalOn < 0.5 && z < max(6.2, pushNear)) ours = true;',
+                // (It once held only while nothing was painted; v1.222.0 paints the
+                // forge's maps and keeps the push, as every sculpted hole has had it.)
+                '        if (z < max(6.2, pushNear)) ours = true;',
                 /* The mown ground of a sculpted hole is not a sheet laid on
                    the world: it is paint on the world's own picture. This
                    pixel of the world is at `at` in the hole's own
@@ -7467,16 +7488,22 @@
                 '            vec2 gq = (at.xz - gridBox.xy) / gridBox.z;',
                 '            if (gq.x > -0.5 && gq.y > -0.5 && gq.x < gridN.x - 0.5 && gq.y < gridN.y - 0.5) {',
                 '                float gh = texture2D(gridTex, (floor(gq + 0.5) + 0.5) / gridN).r;',
-                '                if (abs(at.y - gh) < 1.3) {',
+                // On the ground and nothing standing on it: the world is pressed to the
+                // grid to a few hundredths (forge-sculpt), and at 1.3 the paint climbed
+                // a sauropod's legs and the foot of every trunk.
+                '                if (abs(at.y - gh) < 0.3) {',
                 '                    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
                 '                    float wob = 0.4 * sin(at.x * 1.7 + at.z * 0.9) * sin(at.z * 1.3 - at.x * 0.6);',
                 '                    float stripe = 0.9 + 0.1 * smoothstep(-0.15, 0.15, sin(at.z * 2.1 + at.x * 0.35));',
                 '                    for (int j = 0; j < 6; j++) {',
                 '                        vec4 k = decal[j];',
-                '                        vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + 1.4;',
-                '                        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 1.4;',
+                // A rounded box, its corner the tint's fourth number: the green's is half its side, a disc.
+                '                        float rc = min(decalTint[j].w, 0.5 * min(k.z - k.x, k.w - k.y));',
+                '                        vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + rc;',
+                '                        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rc;',
                 '                        float a = (1.0 - smoothstep(-0.45, 0.4, d + wob)) * step(0.001, k.z - k.x);',
-                '                        c = mix(c, decalTint[j] * (0.5 + 0.8 * min(lum, 0.6)) * stripe, a * 0.9);',
+                '                        vec3 col = decalTint[j].rgb * (0.4 + 1.0 * min(lum, 0.6)) * stripe;',
+                '                        pc = pa < 0.001 ? col : mix(pc, col, a); pa = max(pa, a * 0.92);',
                 '                    }',
                 '                }',
                 '            }',
@@ -7498,6 +7525,7 @@
                 '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.93);',
                 '        c = unaces(c) / max(gExp, 0.05);',
                 '    }',
+                '    c = mix(c, pc, pa);',
                 '    gl_FragDepth = depth;',
                 '    gl_FragColor = vec4(c, 1.0);',
                 '    #include <encodings_fragment>',

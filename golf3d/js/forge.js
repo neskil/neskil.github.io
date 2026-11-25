@@ -78,6 +78,7 @@
         var bags = { roll: ['putter', 'mallet'], loft: ['putter', 'mallet', 'chipper', 'wedge'] };
         var said = [];
         if (m.water) said.push('water lies in the hollows');
+        if (m.solid) said.push('the trunks are hard');
         if (m.outs) said.push('the world’s own things are out of bounds: a ball that stops among them is played again');
         var h = PW.world({
             name: m.title, par: m.par, long: !!m.long, bag: m.long ? undefined : (bags[m.bag] || bags.loft),
@@ -90,7 +91,21 @@
         // The world's things off the line (forge.mjs → outsOf): grid cells a
         // ball may cross and may not stop in (physics.markOutOfBounds).
         if (m.outs && m.outs.length) h.outGrid = outGrid(G, m.outs);
+        /* …and the middles of them, which the ball strikes (batch 4 on:
+           forge.mjs → solidOf; physics.collideSolid): `solid` is
+           [cell, height over the ground] pairs. */
+        if (m.solid && m.solid.length) h.solidGrid = solidGrid(G, m.solid);
+        /* `paint` (batch 4 on, the owner: "these realistic maps must have
+           some fairway and green to become good"): the tee, the strips and
+           the green are painted on the world's own picture (render.js →
+           placeDecals), where since v1.183.0 nothing on a sculpted hole is. */
+        if (m.paint) h.paint = true;
         return h;
+    }
+    function solidGrid(G, pairs) {
+        var on = {};
+        pairs.forEach(function (p) { on[p[0]] = p[1]; });
+        return { x0: G.x0, z0: G.z0, d: G.d, nx: G.nx, nz: G.nz, h: G.h, on: on, n: pairs.length };
     }
     function outGrid(G, cells) {
         var on = {};
@@ -162,6 +177,8 @@
            out; so for those maps they count too. Maps without `finished`
            keep the key they were first rated under. */
         if (m.finished) what.push(m.finished, m.water || null, m.outs || null, m.green || null);
+        // Batch 4's trunks and paint change how a map plays and looks; maps without them keep their keys.
+        if (m.solid || m.paint) what.push(m.solid || null, !!m.paint);
         return 'forge:' + hashOf(JSON.stringify(what));
     }
     var KEYS = null;

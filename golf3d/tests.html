@@ -6003,6 +6003,22 @@
             var o = stopAt(-6, 10), by = stopAt(-4, 10);
             assert('…a ball that stops among the world\'s things is out, and one beside them is not',
                 o.out && !by.out && P.outCell(h, -6, 10) && !P.outCell(h, -4, 10) && !P.outCell(h, -60, 10));
+            /* Batch 4: a trunk (`solid`, forge.mjs → solidOf) is struck, and
+               one flown over is not; `paint` reaches the hole for render.js. */
+            var ms = JSON.parse(JSON.stringify(m));
+            ms.water = []; ms.outs = []; ms.solid = [[(10 + 5) * nx + (0 + 10), 0.8]]; ms.paint = true;
+            var hs = F.holeOf(ms);
+            function rollAt(vz, vy) {
+                var w = P.createWorld(hs, { x: 0, z: 10, y: P.surfaceTop(hs, 0, 10).y + C.BALL_R }, 0);
+                w.ball.vz = vz; w.ball.vy = vy || 0; if (vy) w.grounded = false;
+                for (var n = 0; n < 240 && w.ball.z < 16; n++) P.advance(w, 1 / 60);
+                return w.ball;
+            }
+            // Rolled at 6 a ball stops at about 12.6 on this ground; the trunk is at 12.
+            var hit = rollAt(6), over = rollAt(6, 9);
+            assert('…a trunk turns back a ball rolled at it, and lets one flown over it by',
+                !!hs.solidGrid && hs.paint === true && hit.z < 11.5 && over.z >= 16, hit.z.toFixed(2) + ' / ' + over.z.toFixed(2));
+            assert('…and the trunks and the paint give a map a new key', F.keyFor(ms, 4) !== F.keyFor(Object.assign({}, ms, { solid: null, paint: false }), 4));
         })();
         /* The forge's batch (forge-maps.js, made by tools/forge.mjs) is
            played in dev mode only, but each map is still a hole somebody
