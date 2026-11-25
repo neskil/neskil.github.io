@@ -1570,6 +1570,8 @@
             grounded: w.grounded,
             spin: w.spin || 0,
             lift: w.lift || 0,
+            air: w.air || 0,
+            inAir: !!w.inAir,
             slowFor: w.slowFor,
             moving: w.moving,
             sunk: w.sunk,
@@ -1628,6 +1630,72 @@
         return liftFor(hole, loft) > 0;
     }
 
+    /* ── the long game's air (CONFIG.AIR) ─────────────────────────────
+
+       On a long hole a lofted ball flies through real air at LONG_M metres
+       to the unit: the earth's gravity, drag as the square of the speed, and
+       backspin's lift square to the way it is going, also as the square of
+       the speed. The ball comes off the face fast and low, climbs on its
+       spin, is slowed by the air through the top, and falls steeper and much
+       slower than it rose — the flight the long game never had. */
+    function airOf(hole, loft) {
+        var t = C.AIR.CLUBS, deg = loft * 180 / Math.PI, i, a, b, u;
+        if (deg <= t[0].deg) return t[0];
+        for (i = 1; i < t.length; i++) {
+            a = t[i - 1]; b = t[i];
+            if (deg <= b.deg) {
+                u = (deg - a.deg) / (b.deg - a.deg);
+                return { deg: deg, v: a.v + (b.v - a.v) * u, cl: a.cl + (b.cl - a.cl) * u };
+            }
+        }
+        return t[t.length - 1];
+    }
+    // Does a shot of this loft fly the long game's air on this hole?
+    function airy(hole, loft) {
+        return loft > 0 && G3.drawnLong(hole);
+    }
+    // The air's gravity, in units per second squared.
+    function airGrav() { return C.AIR.G / C.LONG_M; }
+    /* One step of the air: drag and lift, as accelerations on the velocity
+       as it was, then the spin wears off. Gravity is the caller's. */
+    function airStep(b, world, dt) {
+        var A = C.AIR, k = A.K * C.LONG_M;
+        var v = Math.sqrt(b.vx * b.vx + b.vy * b.vy + b.vz * b.vz);
+        if (v < 1e-6) return;
+        var h = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+        var dr = k * A.CD * v * dt, lf = k * world.air * v * dt;
+        var vx = b.vx, vy = b.vy, vz = b.vz;
+        b.vx -= dr * vx; b.vy -= dr * vy; b.vz -= dr * vz;
+        // Lift: square to the velocity in its own upright plane, (−vy·ĥ, |h|).
+        if (h > 1e-6) {
+            b.vy += lf * h;
+            b.vx -= lf * vy * vx / h;
+            b.vz -= lf * vy * vz / h;
+        }
+        world.air *= Math.exp(-A.SPIN * dt);
+    }
+    /* What a shape's bend is spread over, for swing.js: the seconds a
+       plain flight is up, where sidespin turns the ball at a steady rate.
+       In the long game's air the turn goes with the speed as well
+       (`substep`: Magnus, as the square of it), so it is steady per unit of
+       ground instead, and this is the ground covered over AIR.VREF — which
+       is what keeps a draw's start line the line it lands back on. */
+    function bendTime(hole, power, loft, topped) {
+        if (!airy(hole, loft)) return hangTime(hole, power, loft, topped);
+        var ab = { vx: 0, vy: 0, vz: 0 }, aw = { air: topped ? 0 : airOf(hole, loft).cl };
+        var sp = power * airOf(hole, loft).v, ag = airGrav(), ay = 0, d = 0, at = 0, adt = C.SIM_DT / 2;
+        ab.vz = Math.cos(loft) * sp; ab.vy = Math.sin(loft) * sp;
+        while (at < 30) {
+            airStep(ab, aw, adt);
+            ab.vy -= ag * adt;
+            ay += ab.vy * adt;
+            d += ab.vz * adt;
+            at += adt;
+            if (ay <= 0 && ab.vy < 0) break;
+        }
+        return d / C.AIR.VREF;
+    }
+
     function carryFlight(world, dt) {
         var b = world.ball;
         var h = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
@@ -1647,7 +1715,20 @@
     /* How long a full flight off flat ground lasts, for the swing's shapes
        (swing.js), which bend a ball by the time it spends in the air. A
        plain arc has a formula; a lifted one is flown, on the same step. */
-    function hangTime(hole, power, loft) {
+    function hangTime(hole, power, loft, topped) {
+        if (airy(hole, loft)) {
+            var ab = { vx: 0, vy: 0, vz: 0 }, aw = { air: topped ? 0 : airOf(hole, loft).cl };
+            var sp = power * airOf(hole, loft).v, ag = airGrav(), ay = 0, at = 0, adt = C.SIM_DT / 2;
+            ab.vz = Math.cos(loft) * sp; ab.vy = Math.sin(loft) * sp;
+            while (at < 30) {
+                airStep(ab, aw, adt);
+                ab.vy -= ag * adt;
+                ay += ab.vy * adt;
+                at += adt;
+                if (ay <= 0 && ab.vy < 0) break;
+            }
+            return at;
+        }
         var g = gravityOf(hole);
         var vy = Math.sin(loft) * power, h = Math.cos(loft) * power;
         if (!flies(hole, loft)) return 2 * vy / g;
@@ -1678,6 +1759,9 @@
         var p = Math.max(0, Math.min(top, power));
         if (p < C.MIN_POWER) return false;
         var l = Math.max(0, Math.min(C.MAX_LOFT, loft || 0));
+        // On a long hole a lofted ball is struck into real air (CONFIG.AIR).
+        var air = airy(world.hole, l) ? airOf(world.hole, l) : null;
+        if (air) p *= air.v;
         var flat = Math.cos(l) * p;
         var b = world.ball;
         world.origin.x = b.x; world.origin.y = b.y; world.origin.z = b.z;
@@ -1699,7 +1783,9 @@
         world.age = 0;
         world.firstLand = null;
         world.carry = 0;
-        world.lift = topped ? 0 : liftFor(world.hole, l);
+        world.lift = air || topped ? 0 : liftFor(world.hole, l);
+        world.air = air ? (topped ? 0 : air.cl) : 0;
+        world.inAir = !!air;
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -2219,7 +2305,7 @@
             rideWarp(world, dt, events);
             return;
         }
-        if (world.grounded) world.fall = null;
+        if (world.grounded) { world.fall = null; world.inAir = false; }
 
         if (world.grounded) {
             var here = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
@@ -2365,13 +2451,19 @@
                     // one and then reading it back to turn the other is a
                     // rotation of the wrong thing by the wrong amount.
                     var ovx = b.vx, ovz = b.vz;
-                    var sa = C.SPIN_ACCEL * world.spin * gs * dt;
+                    // In the long game's air, as the square of the speed (bendTime).
+                    var sa = C.SPIN_ACCEL * world.spin * gs * (world.inAir ? gs / C.AIR.VREF : 1) * dt;
                     b.vx += (ovz / gs) * sa;
                     b.vz += (-ovx / gs) * sa;
                 }
             }
-            if (world.lift) carryFlight(world, dt);
-            b.vy -= grav * dt;
+            if (world.inAir) {
+                airStep(b, world, dt);
+                b.vy -= airGrav() * dt;
+            } else {
+                if (world.lift) carryFlight(world, dt);
+                b.vy -= grav * dt;
+            }
             if (hole.wells) {
                 var wa = world.age > C.SWIRL_WAIT ? wellPull(hole, b.x, b.z, b.vx, b.vz) : wellPull(hole, b.x, b.z);
                 b.vx += wa.x * dt;
@@ -2439,6 +2531,7 @@
                 b.y = land.y + C.BALL_R;
                 if (!world.firstLand) world.firstLand = { x: b.x, y: b.y, z: b.z };
                 world.lift = 0;          // the flight is over; a hop is a plain arc
+                world.air = 0;           // …and in the long game's air, a hop without spin
                 var impact = -b.vy;
                 var kick = springKick(world, land.pad);
                 if (kick) {
@@ -2476,6 +2569,7 @@
                 if (b.vy < C.LAND_REST) {
                     b.vy = 0;
                     world.grounded = true;
+                    world.inAir = false;    // rolling: the ground's physics now
                 }
             }
         }
@@ -2689,6 +2783,9 @@
         flies: flies,
         liftFor: liftFor,
         hangTime: hangTime,
+        airOf: airOf,
+        airy: airy,
+        bendTime: bendTime,
         cloneWorld: cloneWorld,
         launch: launch,
         overdraw: overdraw,
