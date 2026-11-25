@@ -4941,7 +4941,9 @@
         if (wall.kind === 'rock' || wall.kind === 'meteor') { addRock(group, wall); return; }
         if (P.isPost(wall)) { addPost(group, wall); return; }
         // A slingshot is drawn whole off its face; its two backs are in it.
-        if (wall.kind === 'slingback') return;
+        // An unseen wall is the solid part of something drawn as
+        // something else: a fir's needles (portals.js → fir), a cairn (courses.js).
+        if (wall.kind === 'slingback' || wall.kind === 'unseen') return;
         if (wall.tri) { addSling(group, wall); return; }
         if (wall.sails) { addSails(group, wall); return; }
         if (wall.kind === 'train') { addTrain(group, wall); return; }

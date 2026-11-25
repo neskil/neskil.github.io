@@ -4514,6 +4514,16 @@ tee and a green (`--flat`), writes `js/tour-ground.js` and prints the
 `place.at` for portals.js — an exact placing, which `backdrop.anchorFor`
 uses as given instead of searching.
 
+A placed hole whose world's ground moves is given an `at` too, with no
+baked ground: The Maelstrom (v1.221.2). The search casts a ray down at the
+moment it runs, and over the whirlpool the boot found the sea three units
+under the flight while every re-anchor after it found the funnel nineteen
+under, so the deck sank thirteen units into the black the first time the
+view was rebuilt (the owner: "when I move camera it's weird"). Its `at` is
+the boot's own placing, read off `G3.backdrop.debug().anchor` — which
+gives `turn`, `sx` and `sz` for this since then: golf's origin is the
+anchor less the seat (`sx`, `sz`, times `scale`) turned by `turn`.
+
 In the hole that ground is one `rough` pad carrying a `grid` field term
 (`physics.fieldAt`: bilinear, the cell's own slope, the edge carried on
 level), with the fairway and green as square inlays carrying the *same*

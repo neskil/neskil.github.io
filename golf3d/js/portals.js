@@ -72,6 +72,27 @@
             { base: (y || 0) - 0.1, h: h === undefined ? 0.5 : h, t: 0.3 });
     }
 
+    /* A fir the ball cannot roll through. A tree is solid at its trunk
+       only (courses.tree), which is right for a broadleaf with its crown up
+       out of reach; a fir's lowest skirt of needles hangs less than half a
+       unit off the ground and two to three trunks wide, so a ball rolled past
+       one went in under the needles and came out the other side (the
+       owner's `clip` on The Snow Globe). Under it stand two squares of
+       needles, one turned an eighth, as wide across as three quarters of
+       that skirt: an octagon the ball meets where it would meet the
+       branches. They are kind 'unseen', which nothing draws — the fir is
+       the picture. The skirt's radius is render.addTree's own arithmetic
+       for this trunk at this spot (treeHash), so it is the skirt drawn. */
+    function fir(cx, cz, t, h) {
+        var n = Math.sin(cz * 1.7 * 12.9898 + cx * 0.9 * 78.233) * 43758.5453;
+        var spire = t / 2 * (2.6 + (n - Math.floor(n)) * 1.1) * 0.82, a = spire * 0.75;
+        var out = [A.tree(cx, cz, { t: t, h: h, fir: true })];
+        [0, Math.PI / 4].forEach(function (yaw) {
+            out.push(wall(cx - a, cz - a, 2 * a, 2 * a, 0.6, { base: -0.1, yaw: yaw, kind: 'unseen' }));
+        });
+        return out;
+    }
+
     /* Every world is open, calm and unstaked, and its boundary is its own
        extent with room round it: off the edge is off the world, and OOB_Y is
        what ends the shot. `bare` keeps the long game's flowers and herons out
@@ -133,7 +154,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "scale": 1.8}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 1.8}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.35}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -980,10 +1001,7 @@
                 return p;
             })()],
             extra: A.arc(0, 0, 6.2, 0, TAU, { drawn: 'rail', h: 0.5, base: 1.2, n: 32 }).concat([
-                A.tree(0, 0, { t: 0.8, h: 2.4, fir: true }),
-                A.tree(-0.9, 0.6, { t: 0.6, h: 1.9, fir: true }),
-                A.tree(0.9, 0.6, { t: 0.6, h: 1.9, fir: true })
-            ]),
+            ]).concat(fir(0, 0, 0.8, 2.4), fir(-0.9, 0.6, 0.6, 1.9), fir(0.9, 0.6, 0.6, 1.9)),
             tee: { x: 0, z: -3.8 }, cup: { x: 0.9, z: 3.6 }
         })
     });
