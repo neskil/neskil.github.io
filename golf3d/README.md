@@ -5355,6 +5355,25 @@ since that file is what every copy starts from; this is what was done.
   maps carried over twice unplayed (b4-15 to b4-21) are dropped; batch 4's
   five unplayed new ones (b4-10 to b4-14) are carried, last.
 
+The batch: `--batch 5 --with <the four fix files>:b5-01 --keep
+b4-10,…,b4-14 --count 14 --skip <batch 4's list>,sea-sets-in-shade,red-sails-dawn,moor-under-the-fog-bank,temple-of-artemis`.
+Five new maps from 129 worlds sampled (46 minutes, nearly all from nothing:
+the sample's key moved with the water channel and the 106-unit lean), b5-05
+to b5-09: the Fields of Gazing Grain (a par three of 43 down a fenced lane),
+Wool on the Thorn (a par four of 57 over a carded moor, a pond in play), Raku
+Aspens and Still Waving (the two mini holes, 21 and 23 units, on crackle-glaze
+ground and down a village road), and the Bamboo Sea (a par four of 65 among
+the canes, nearly six units of relief, a pond). The longer recipe is pickier
+again: of the worlds turned down, nearly all had no patch with relief and
+slope in range at the new lengths. For the bot with hands the new long holes
+play 2.3 to 3.2 — still under par, which is what the next copy's cards are to
+calibrate — and none of them has a ball a round in trouble yet (`gen.wet` 0):
+the `wet` target is not being met, which says the hazards are where the
+world put them, and not yet where a person aims. All five were loaded live
+and looked at from the tee: the paint reads on each in the world's own
+colours, and none is on water. b5-01 to b5-04 are the fixes, b5-10 to b5-14
+batch 4's carried maps (keys unchanged).
+
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
 unlocks). Off, a tap turns it on; on, it reads **Dev menu** with the build
