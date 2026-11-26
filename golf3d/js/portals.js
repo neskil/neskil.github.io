@@ -155,7 +155,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0, "flyLine": false}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.9}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "lift": 0.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "scale": 1.8}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0, "flyLine": false}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.9}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "lift": 0.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "at": {"x": 0, "z": 24, "y": 0, "yaw": 3.1416, "scale": 1.5}}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -361,7 +361,7 @@
         // The loop puts a straight ball out at x = 2.5 (its foot plus `shift`),
         // and the rug and the cup are on that line.
         var line = 2.5;
-        /* The rink is not level (v1.225.1, the owner: "flat"): a rise of ice
+        /* The rink is not level (v1.226.1, the owner: "flat"): a rise of ice
            on its west side, so a ball out of the loop is bent off the line
            to the right, more the slower it goes. The cup is right of the
            line on the rug, so only the weight whose bend ends there drops;
@@ -402,7 +402,7 @@
        the right pace and you come down inside the ring. Bumpers in a wood
        fire the ball like bumpers anywhere.
 
-       v1.225.1 (the owner: "Make it a bit harder please and fix the weird
+       v1.226.1 (the owner: "Make it a bit harder please and fix the weird
        floating thing"): no ground is found under it in the leaf litter, so
        the disc hung in the air with its edge showing; it stands on a stump
        down into the leaves now (`plinth`). And the flag stands on a crown
@@ -689,7 +689,14 @@
        with the canyon either side, then the ridge. Or straight at it: a
        drive off the bridge, across the corner of the canyon, to land on the
        ridge and run. All of the ground is the world's (tour-ground.js); what
-       is laid on it is a tee, the deck, a strip down the ridge and a green. */
+       is laid on it is a tee, the deck, a strip down the ridge and a green.
+
+       The ground runs 115 units out, past anything the driver reaches.
+       It stopped at fifty-six when the hole was made; once the long game
+       flew real air (v1.224.0) a full drive carried past that edge, where
+       the world still showed ground and the ball fell through it into the
+       lava (the owner: "too short runway for the driver"). The first 66 x 64
+       is the bake as it was; the rest is the same placing baked again. */
     add({
         id: 'ironriver', title: 'The Iron River', world: 'Black Glass and Lava', kind: 'bizarre', tier: 3,
         caption: 'A par four off a bridge of black glass, across a canyon of lava and down the far bank. The canyon is the world\'s own.',
@@ -697,10 +704,13 @@
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).ironriver, field = G ? [{ grid: G }] : [];
             function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
-            var ground = on(pad(-8, -8, 66, 64, 0, 'fairway'));
+            var ground = on(pad(-8, -8, 123, 123, 0, 'fairway'));
             ground.ghost = true;
-            var lava = A.rect(-30, -30, 120, 120, 0.15);
+            var lava = A.rect(-30, -30, 175, 175, 0.15);
             lava.ghost = true;
+            // Lava, not water (README → "Lava, and the crust"): the same
+            // drop, but it is called lava and spits embers.
+            lava.lava = true;
             return world({
                 name: 'The Iron River', par: 4, long: true,
                 blurb: 'Off the bridge. Along it and round is the long way; across the corner of the canyon is a drive that has to carry the iron and hold the ridge.',
@@ -854,7 +864,7 @@
        (5.9 and 7.7 seconds) do not divide, so the two gaps line up a
        different way every time round.
 
-       v1.225.1 (the owner, look 5 but difficulty 1: "would be nicer if the
+       v1.226.1 (the owner, look 5 but difficulty 1: "would be nicer if the
        rails were above the fairway and if the [trains] were tighter. It's
        too easy"): each train is two coaches longer, so the near one leaves
        the lane open about a third of the time and the far one about a
@@ -895,7 +905,7 @@
         caption: 'Meringue islands in custard. Pitch from one to the next, or all the way in one.',
         theme: 'custard',
         hole: (function () {
-            /* v1.225.1 (the owner: fun 1, difficulty 4, look 5, `clip,edges,flat`).
+            /* v1.226.1 (the owner: fun 1, difficulty 4, look 5, `clip,edges,flat`).
                The islands were greens laid flat into the custard, the same
                height and nearly the same colour, so where one ended could
                not be seen, and the whole bowl was one level sheet. Each is a
@@ -979,7 +989,7 @@
        game's belongs on the few holes built round it (the gravity course),
        not on a tour hole you meet once.
 
-       v1.225.1 (the owner: "Can't see [the hole] due to overlapping texture
+       v1.226.1 (the owner: "Can't see [the hole] due to overlapping texture
        and too easy and short", fun 1, eight strokes on the par three). The
        green's dish went 0.12 under the dock's stone floor, so the world was
        drawn over the cup, and the felt was the floor's own grey: the hole
@@ -1365,7 +1375,7 @@
         sky: [0xf6dc8a, 0xfff6d8], fog: 0xfff0c0,
         sun: 0xfff4d0, sunPos: [6, 14, -4], ambient: 0xf8e2a8, ambientI: 0.8,
         /* Meringue white on a custard that is a shade deeper than the
-           world's own, so an island's edge reads (v1.225.1: `edges`). */
+           world's own, so an island's edge reads (v1.226.1: `edges`). */
         grass: ['#fffdf8', '#f7f1e6'], rail: 0xb8742a,
         surroundY: -5, surround: 'floor', floor: '#e8c860',
         water: 0xf0d060, side: '#e2c070', sand: '#d9a531', birds: false

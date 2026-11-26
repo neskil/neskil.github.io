@@ -225,7 +225,7 @@ recipe). The released-hole lines:
   with cards from 2 to 6 and 0.35 balls a round wet; the old hole was a
   straight drive and a putt. **Not yet seen.**
 
-## From the forge's feedback (batch 4 copy, v1.225.1)
+## From the forge's feedback (batch 4 copy, v1.226.1)
 
 None of batch 4's twenty-one maps rated or played (README → "The forge",
 "Batch 4's copy"): the batch is kept and still waiting. The released-hole

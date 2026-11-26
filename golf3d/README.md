@@ -1849,9 +1849,29 @@ in the hole lab, "tutorial"); the crust is the walk across that leaves a
 putt, with a rare ace off its east edge for the full mallet struck as it
 sets. The putt at the flag runs off the crust into the lava.
 
-Not done: **a cooling-crust course** (PLAN.md → "New surfaces and hazards"
-has the rest of the list), a crust that is not a rectangle, and lava on the
-World Tour's Obsidian Forge, which still uses a ghost water sheet.
+**Cooling Lake** (`cinder` 5, v1.226.0) is the second, and the crust as a
+*wave*: three tiles across a lava lake, each a crust (`LAKE` in courses.js)
+whose `phase` is a step behind the last, so the ground sets a tile at a time
+running away from the tee. Struck too early, a firm ball outruns it and meets
+the last tile still molten, where a softer one sent at the same moment keeps
+pace — so pace and moment are one question. The pin is in a crater east of
+the line (a `mesa` with a negative `a`: a flat floor, flanks at 0.21, just
+inside what a green holds), which draws a ball coming off the tiles over its
+west rim down on to the floor; the boardwalk up the east side is the safe
+three. The floor is the cup's whole flat clearing (CUP_FLAT) and no wider.
+0.106% in the hole lab, every ace across the tiles; the bot scores two. It replaced Blowhole. A bank in the far corner turning the ball back to
+the pin was tried first and wanted one exact weight (0.01%).
+
+Lava elsewhere: **The Iron River**'s canyon (World Tour) is lava now — with
+the live world on it is the world's own and the sheet is hidden as before;
+with it off it is drawn. A pond laid on a world's ground (`w.grid`, the
+forge's) draws as lava when it has `lava` set, so a forged map can say so;
+the forge's lava lake (b2-16) does not yet, because its water is in the
+generated maps and changing them changes the map's rating key.
+
+Not done: a crust that is not a rectangle, its own warning length per crust
+(CRUST_WARN is global, so a crust that holds under a second and a half glows
+for most of its life), and lava in Endless's volcanic worlds.
 
 #### The wormhole
 
@@ -5259,7 +5279,7 @@ the Fire re-laid with the tee across the valley and two dug pools
 "2,32,7,0.45;3,45,3.5,0.45" --tour fire`); The Nave's camera clipping noted,
 not fixed.
 
-**Batch 4's copy** (v1.225.1) came back with none of batch 4 rated or
+**Batch 4's copy** (v1.226.1) came back with none of batch 4 rated or
 played: all twenty-one `(not rated)`, no play stats, as batch 2's first copy
 did. So the recipe did not move, no batch 5 was forged (it would have
 replaced `js/forge-maps.js` and the unplayed batch with it), and nothing went
