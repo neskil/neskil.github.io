@@ -5675,10 +5675,11 @@
 
        Each machine is met on its own before they are combined: the pad over a
        wall (The Springboard), a hill with the pin on top of it (The Cone), the
-       pipe (Through the Pipe), the loop (Loop the Loop), and a vent in the
-       floor of a hollow (Blowhole). Then Caldera asks for all of it: up the
-       vent, along the rim on the belt — the one piece of ground on the
-       mountain that is level — and in through the tube.
+       pipe and the crust (Through the Pipe), the loop (Loop the Loop), and a
+       wave of crust across a lava lake (Cooling Lake, which replaced
+       Blowhole's vent in a hollow in v1.226.0). Then Caldera asks for most of
+       it: up the vent, along the rim on the belt — the one piece of ground on
+       the mountain that is level — and in through the tube.
 
        None of it can be aimed off the way a rail can. You cannot bank off a
        belt or put spin on a pipe; the decision each one offers is whether to
@@ -5699,6 +5700,10 @@
     var PIPE_LAVA = 8, PIPE_Z1 = 10 + PIPE_LAVA,
         PIPE_CUP = { x: 5.4, dz: 3.6 }, PIPE_LEAN = 0.07, PIPE_SPLIT = 4, PIPE_EXIT = { x: 4.6, dz: 0.8 },
         PIPE_CRUST = { x: PIPE_SPLIT - 1.8, w: 1.8, period: 7, open: 4 };
+
+    // Cooling Lake's wave of crust (cinder 5).
+    var LAKE = { x: 1.0, w: 1.8, period: 6, open: 2.8, step: 0.4,
+        cup: { x: 3.4, z: 17.6 }, crater: { R: 1.27, r: 2.2, a: -0.3 } };
 
     var cinder = [
         build({
@@ -5869,67 +5874,71 @@
             tee: { x: 3.3, z: 1.5 }, cup: { x: 3.5, z: 15 }
         }),
         build({
-            /* A blowhole: a hollow in the lawn with a vent at the bottom of
-               it, and the green on a shelf above the far side. It was three
-               vents scattered over a lane, which was a hole you either missed
-               or accepted, and the putt at the flag dropped (README → "The
-               hole lab").
+            /* A lake of lava with three tiles of crust across it, and the
+               crust sets a tile at a time, away from the tee: a wave of
+               ground running north at the wave's pace, one tile every
+               LAKE.step seconds, each holding for LAKE.open. A ball sent
+               out with the wave rides it across; too early and the first
+               tile is not there yet, too late and the last has gone. The
+               pace is forgiving — anything from a firm putt-and-a-half to a
+               full mallet keeps up for three tiles — and the moment is not.
+               It is the crust's question asked three times in a row
+               (physics → "lava, and the crust"), and the first hole on the
+               course where *when* is the whole shot.
 
-               The hollow is the hole. Its sides fall into the floor from
-               every direction, so the vent at the bottom is the one thing on
-               the card you cannot miss: anything rolled into the hollow is
-               gathered on to it and thrown up the face — the mountain running
-               everything downhill, and the vent the only way up. What you own
-               is the pace you bring. The vent throws the ball the same height
-               every time and hands it back travelling as it was, so a ball
-               that comes in slowly is thrown on to the front of the shelf and
-               one that comes in hot is thrown off the back of it. Too slow to
-               clear the face, and it falls back in and the blowhole coughs it
-               up again, weaker each time, until it settles at the bottom.
+               And it is a wave, not a gate: struck too early, a firm ball
+               outruns it and reaches the last tile before it has set, where
+               a softer one sent at the same moment keeps pace and gets over.
 
-               And the hollow bends the line. A ball that comes in down one
-               side is turned by that side towards the middle, so the shot
-               aimed at the pin is pulled off it on the way to the vent and
-               lands wide. The ace is a firm mallet in down the right-hand
-               side of the hollow, which turns it back across the vent at the
-               pin — with nothing on the right of the shelf and nothing behind
-               it. The safe way is a gentle putt down the middle: it is
-               gathered, thrown on to the front of the shelf, and leaves a
-               putt for two. */
-            name: 'Blowhole', par: 3,
-            blurb: 'Everything rolls into the hollow and the vent at the bottom throws it up on to the shelf. How far depends on how hard you came in.',
-            pads: (function () {
-                // A hollow in nine pads, most of a `dish`: the floor, a ramp
-                // off each side and the two corners at the tee end, with the
-                // shelf's face where the far ramp would be.
-                var W = 9, cx = 4.5, cz = 9.5, b = 1.3, a = 4.5, run = a - b,
-                    dep = 0.8, k = dep / run;
-                return [
-                    pad(0, 0, W, cz - a),                                  // the tee
-                    pad(cx - b, cz - b, 2 * b, 2 * b, -dep),               // the floor
-                    pad(cx - a, cz - b, run, 2 * b, 0, 'green', -k, 0),    // west side
-                    pad(cx + b, cz - b, run, 2 * b, -dep, 'green', k, 0),  // east side
-                    pad(cx - b, cz - a, 2 * b, run, 0, 'green', 0, -k),    // the near side
-                    pad(cx - a, cz - a, run, run, dep, 'green', -k, -k),   // and its corners
-                    pad(cx + b, cz - a, run, run, 0, 'green', k, -k),
-                    sprung(cx, cz, 1.1, 10, -dep),                         // the blowhole
-                    pad(0, cz + b, 7.8, 7, 0.6)                            // the shelf
-                ];
-            })(),
-            gaps: [
-                brink({ x: 0, z: 17.8, w: 7.8, d: 0 }, 0.4),       // off the back
-                brink({ x: 7.8, z: 11.3, w: 0, d: 6.5 }, 0.4),     // and off the right
-                /* The hollow's two near corners are the two sides added
-                   together, so they rise out of the lawn towards the fence
-                   rather than falling into the hollow — the shoulders either
-                   side of its mouth. Open, not railed: a rail on a seam is a
-                   box as tall as the highest ground it guards, and these were
-                   two of them standing either side of the hollow. The face
-                   turns a ball just as a rail would. */
-                { x: 0, z: 4.8, w: 3.2, d: 0.4 },
-                { x: 5.8, z: 4.8, w: 3.2, d: 0.4 }
+               The tiles run straight up from the tee, so the line is easy
+               and the ace is not on it: the pin is in a crater sunk into the
+               green east of the line, a flat floor with flanks as steep as a
+               green will hold a ball on (0.21). A ball that comes off the
+               tiles over the crater's west rim is drawn down the flank on to
+               the floor and rocks to a stop there, and now and then the stop
+               is the cup. One that comes off wide of the rim, or soft, stops
+               on the green for a putt — the two the crust is for. The putt at
+               the flag runs off the first tile into the lava.
+
+               The floor is exactly as wide as a cup's flat clearing
+               (CUP_FLAT, which the renderer cuts the hole out of), and the
+               pin sits just east of the tiles' line, so the line at the flag
+               leaves the last tile's edge and drowns.
+
+               Measured (hole lab): 0.106%, every ace across the tiles in the
+               wave's window, none off the boardwalk; the bot scores two. The bank in the far corner that turned a ball
+               back to a pin on the east side was tried first: it wanted one
+               exact weight and aced 0.01%.
+
+               The safe way costs a stroke and no nerve: the boardwalk up the
+               east side of the lake. A putt across the lawn to its foot, one
+               up it on to the green, and one at the pin.
+
+               Blowhole stood here (v1.115.0–v1.225.0): a vent in a hollow
+               that threw the ball on to a shelf. Caldera opens with the same
+               vent a hole later, and the lava wanted a hole of its own. */
+            name: 'Cooling Lake', par: 3,
+            blurb: 'The crust sets one tile at a time, running away from you. Send the ball out with the wave — or take the boardwalk the long way round.',
+            pads: [
+                pad(0, 0, 8, 5),                                         // the lawn
+                (function () {                                           // the green
+                    var p = pad(0, 14, 8, 6);
+                    // The crater: a `mesa` the other way up, its floor level for the cup.
+                    p.bumps = [mesa(LAKE.cup.x, LAKE.cup.z, LAKE.crater.R, LAKE.crater.r, LAKE.crater.a)];
+                    return p;
+                })(),
+                pad(6.6, 5, 1.4, 9, 0, 'wood'),                          // the boardwalk
+                pad(LAKE.x, 5, LAKE.w, 3, 0, 'crust'),
+                pad(LAKE.x, 8, LAKE.w, 3, 0, 'crust'),
+                pad(LAKE.x, 11, LAKE.w, 3, 0, 'crust')
             ],
-            tee: { x: 2, z: 1.8 }, cup: { x: 6.6, z: 14.4 }
+            water: [lavaRect(-2, 5, 8.6, 9)],
+            crusts: [0, 1, 2].map(function (k) {
+                return crust(LAKE.x, 5 + 3 * k, LAKE.w, 3, LAKE.period, LAKE.open,
+                    LAKE.period - k * LAKE.step);
+            }),
+            gaps: [shore(rect(-2, 5, 8.6, 9), 0.5)],
+            tee: { x: LAKE.x + LAKE.w / 2, z: 1.6 }, cup: { x: LAKE.cup.x, z: LAKE.cup.z }
         }),
         build({
             /* The finisher, and it is the whole course in one hole: the vent

@@ -682,6 +682,9 @@
             ground.ghost = true;
             var lava = A.rect(-30, -30, 120, 120, 0.15);
             lava.ghost = true;
+            // Lava, not water (README → "Lava, and the crust"): the same
+            // drop, but it is called lava and spits embers.
+            lava.lava = true;
             return world({
                 name: 'The Iron River', par: 4, long: true,
                 blurb: 'Off the bridge. Along it and round is the long way; across the corner of the canyon is a drive that has to carry the iron and hold the ridge.',
