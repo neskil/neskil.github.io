@@ -2578,6 +2578,7 @@
             lastBounceAt = now;
             A.bounce(P.groundSpeed(b));
             if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, P.groundSpeed(b));
+            if (R.knockAt && !ev.bumped && !ev.kicked && !ev.land) R.knockAt(b.x, b.y, b.z, P.groundSpeed(b));
         }
         if (ev.land && now - lastLandAt > 70) {
             lastLandAt = now;
@@ -2585,6 +2586,7 @@
             if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, P.speedOf(b));
             var s = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
             if (s && s.pad.kind === 'sand') R.sandAt(b.x, b.y - C.BALL_R, b.z);
+            else if (s && R.groundAt && !ev.splash) R.groundAt(b.x, b.y - C.BALL_R, b.z, s.pad.kind);
         }
         if (ev.splash) {
             // Lava takes the ball with a spit of embers and a hiss, not a splash.

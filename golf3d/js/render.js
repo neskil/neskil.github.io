@@ -167,6 +167,7 @@
         buildParticles();
         buildCelebration();
         if (G3.sandfx) G3.sandfx.build(R.scene);
+        if (G3.groundfx) G3.groundfx.build(R.scene);
         if (G3.bag) G3.bag.build(R.scene);
 
         R.ready = true;
@@ -183,6 +184,7 @@
         R.camera.aspect = w / Math.max(1, h);
         R.camera.updateProjectionMatrix();
         if (G3.sandfx) G3.sandfx.resize(h * R.renderer.getPixelRatio());
+        if (G3.groundfx) G3.groundfx.resize(h * R.renderer.getPixelRatio());
         if (R.fx) {
             var dpr = R.renderer.getPixelRatio();
             G3.postfx.resize(w * dpr, h * dpr);
@@ -6620,6 +6622,7 @@
         R.sun = sun;
         // The sand's spray is drawn unlit, so it is told what light the sand is in.
         if (G3.sandfx) G3.sandfx.light(amb, sun, weather.wet || 0);
+        if (G3.groundfx) G3.groundfx.light(amb, sun, weather.wet || 0);
         R.sunDir.set(pos[0] * reach, Math.max(2.5, pos[1] * lift), pos[2] * reach).normalize();
 
         var fill = new THREE.DirectionalLight(skyLight, 0.16 + weather.cloud * 0.10);
@@ -6986,6 +6989,7 @@
         clearTracer();
         // The last hole's furrows and craters were in the last hole's sand.
         if (G3.sandfx) G3.sandfx.clear();
+        if (G3.groundfx) G3.groundfx.clear(R.theme);
         // A hole changed with a ball inside a pipe would leave it shrunk.
         R.ball.scale.setScalar(1);
         R.ball.visible = true;
@@ -9533,6 +9537,8 @@
         stepCelebration(dt);
         // What the sand does back: spray and a furrow off a rolling ball.
         if (G3.sandfx) G3.sandfx.step(dt, world);
+        // …and what the rest of the ground does: clippings, spray, frost (groundfx.js).
+        if (G3.groundfx) G3.groundfx.step(dt, world);
         stepRipples(dt);
         stepBlackHoles(dt, world);
         stepBelts();
@@ -9732,9 +9738,30 @@
 
     /* ── effects the game asks for ──────────────────────────────────────── */
 
-    function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
-    // Lava's: a spit of embers, higher and hotter than a splash.
-    function emberAt(x, y, z) { burst(x, y, z, 0xff7a1a, 34, 3.4); }
+    /* Into the water: the crown, the column, the mist and the rings
+       (groundfx.js), and a big entry flinches the camera. */
+    function splashAt(x, y, z) {
+        if (!G3.groundfx || !R.holeGroup) { burst(x, y, z, 0x9fd8ff, 26, 2.6); return; }
+        var h = G3.groundfx.splash(x, y, z);
+        if (h > 0.5) R.cam.kick = Math.max(R.cam.kick, (h - 0.5) * 0.45);
+    }
+    // Lava's: a spit of embers, higher and hotter than a splash, and smoke.
+    function emberAt(x, y, z) {
+        if (!G3.groundfx || !R.holeGroup) { burst(x, y, z, 0xff7a1a, 34, 3.4); return; }
+        G3.groundfx.lava(x, y, z);
+    }
+    /* A landing on anything that is not sand or water: clippings and a
+       shiver off grass, splinters off a plank, frost off ice (groundfx.js).
+       Not on glass, which has its own answer (hitAt). */
+    function groundAt(x, y, z, kind) {
+        if (!G3.groundfx || !R.holeGroup || R.glow) return;
+        var h = G3.groundfx.land(R.hole, x, y, z, kind);
+        if (h > 0.6) R.cam.kick = Math.max(R.cam.kick, (h - 0.6) * 0.3);
+    }
+    // A ball into a rail hard enough to hear.
+    function knockAt(x, y, z, speed) {
+        if (G3.groundfx && R.holeGroup && !R.glow) G3.groundfx.knock(x, y, z, speed);
+    }
 
     /* The grid world's effects (Challenge mode). A landing or a rail hit on
        glass sends a ripple out through the floor from where it happened, with
@@ -9774,6 +9801,11 @@
     function divot(x, y, z, yaw, frac, kind) {
         // Out of a bunker the club takes the sand with it (sandfx, blast).
         if (kind === 'sand' && G3.sandfx && R.hole) { G3.sandfx.blast(R.hole, x, y, z, yaw, frac); return; }
+        // Off turf, a plank or ice, the ground's own (groundfx); a putt off a green throws nothing.
+        if (G3.groundfx && R.hole && !R.glow) {
+            if (kind === 'green') return;
+            if (G3.groundfx.strike(R.hole, x, y, z, yaw, frac, kind)) return;
+        }
         var colour = kind === 'sand' ? 0xe8d8a8 : (kind === 'wood' ? 0xc79a63 : 0x6fbf5a);
         var n = 5 + Math.round(frac * 13);
         burst(x - Math.sin(yaw) * 0.1, y + 0.03, z - Math.cos(yaw) * 0.1,
@@ -9961,6 +9993,8 @@
         splashAt: splashAt,
         emberAt: emberAt,
         sandAt: sandAt,
+        groundAt: groundAt,
+        knockAt: knockAt,
         sinkAt: sinkAt,
         celebrate: celebrate,
         setCelebration: setCelebration,
