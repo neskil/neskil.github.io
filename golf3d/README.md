@@ -5259,6 +5259,87 @@ the Fire re-laid with the tee across the valley and two dug pools
 "2,32,7,0.45;3,45,3.5,0.45" --tour fire`); The Nave's camera clipping noted,
 not fixed.
 
+**Batch 5: the recipe after batch 4's verdicts, and what five batches
+taught** (v1.226.0). Nine of twenty-one came back rated, b4-01 to b4-09:
+one keep (b4-07, the Pop-Up Book, an ace), seven fixes and one drop (Sea of
+Wax, 1/2/1, as batch 4 said it would be if it came back again). The owner's
+words: "Lots of recurring issues, take some general learnings please", and
+"if you need better feedback you can change the form", and "some of the new
+maps can be mini golf style for the worlds as well". The lessons are
+[FORGE-FEEDBACK.md → "What five batches taught"](FORGE-FEEDBACK.md#what-five-batches-taught),
+since that file is what every copy starts from; this is what was done.
+
+- **What the copy said.** `ugly` on six of nine, and the two notes on it
+  were the paint: "Fairways color is way off and inorganic" (glowwood, fun
+  4), "Fairway color is off" (the House of Four Seasons, look 5). `flat` on
+  four, every one difficulty 1–3, on maps with 1.9 to 3.1 of relief. One
+  `clip` that was a fall: "Ball fell thru world" (the moor). The fun ones
+  were the good-looking ones: fun 4 came with look 4–5 three times of three.
+- **The bot with hands.** `tools/human-check.mjs`'s player, run on the nine:
+  3.1 to 3.3 on every par four but one (the House, 4.5 with a 14 in it), 2.4
+  and 2.6 on the par threes, where the perfect bot the forge chose by had
+  played every one in two. The owner's own cards ran about one and a half
+  over that and they still rated them difficulty 1–2: "easy" is a hole that
+  asks nothing more than a score. `pin` now plays the best `handsTop` (4)
+  cups `hands` (6) rounds each with `CONFIG.BOT_HANDS` and takes the one
+  nearest par + `overPar` (0.3) with `wet` (0.4) balls a round in trouble;
+  the perfect bot's birdie no longer ranks the cups first (it ranked the easy
+  ones first). Each map carries `gen.hands` and `gen.wet` so the owner's next
+  cards calibrate it. Relabelling par to what the bot scores (`honest`) was
+  tried and is off: it made glowwood's sixty units a 330-metre par three.
+- **Longer, because a driver carries forty.** Re-forged on their own
+  patches, the fixes played a 47-unit par four in 2.3 and sixty units in 3.0
+  for the bot with hands, rough or no rough. `L` 70 → 85 (leans 64, 85, 106)
+  and `par` [34, 72] → [45, 95].
+- **Rough off a fairway band** (`rough`, `fairwayW` 7; forge.js → holeOf).
+  A forged hole was fairway from edge to edge, open land with nothing to
+  miss. Now the ground is rough and the fairway is one band from the tee to
+  the green, laid as a road (`A.road`), so where it is painted and where it
+  rolls fast are the one shape; the two boxes of `strips` painted a
+  staircase.
+- **The paint is the world's** (render.js → the plate). Batch 4 laid turf's
+  own green over every world at nine tenths: lime on a violet night, green on
+  snow. Now the world's own picture there is softened over a few texels and
+  parted from what grows round it — lighter on dark ground, darker on
+  anything brighter, a green more than a fairway — in perceptual lightness,
+  a little richer and leaning only a fifth of the way to turf, striped, with
+  a wandering edge. It was looked at on three worlds that each broke a first
+  try: lifting alone could not be seen on snow (done after the grade was
+  undone, snow is past white) or on the Tree City's leaves (a lighten/darken
+  crossover sat right on their lightness).
+- **Off the patch is out** (`hole.edge`, physics; portals.js → world). The
+  grid is all the ground a sculpted hole has; the world drawn round it runs
+  on. On the moor a third of tee shots over every line and club left the
+  patch and fell six units through the picture before `OOB_Y` ended them.
+  Now a ball is out as soon as it drops below the ground at the nearest
+  edge, which is what a person sees: it went off the hole. The tour's
+  sculpted holes (The Nave, The Sugar Gate, the Rain Pond, Before the Fire,
+  the Pop-Up Book) have it too.
+- **The form** (`G3.forge.ISSUES`). `flat` had been ticked for "nothing to
+  do", so that is `dull` now, and `flat` means the ground; `ugly` had been
+  ticked for the paint, so that is `paint`, and `ugly` means the spot. New:
+  `layout` (tee or cup in the wrong place), `fell` (through the ground) and
+  `mini`.
+- **Mini golf** (`mini`). Two of every five leans from the top, a quarter in
+  all: a short hole out of the mini bag on gentle ground (`RECIPE.mini`:
+  26 units, relief 1.2), a painted lane 3.5 wide, all fairway, a small dug
+  pond, the cup chosen by ace share and then by the bot with hands.
+- **Keeps and drops.** The Pop-Up Book went into the tour as it was played
+  (`forge-finish b4-07 --tour popup`), the first keep with the world's
+  things hard and out: `forge-finish --tour` now writes `outs` and `solid`
+  with the ground and portals.js → `marks` builds them, and it keeps its
+  paint. Dropped for good (`--skip`): Sea of Wax (dropped), Red Sails (fixed
+  three times, fun 1), the moor (fixed three times, look 1), the Temple of
+  Artemis (1/1/1). Re-forged on the very patch they were rated on, with the
+  new recipe, on the longest lean their ground allowed (the House and the
+  Tree City at 106, the Wood at 85, glowwood at 70: longer, each ran into
+  ground too steep to hold a ball): the House of Four Seasons, glowwood,
+  the Wood Behind the Coats, the Tree City (look 5, 4, 5, 4, in the order
+  they were liked). For the bot with hands they play 3.0, 3.0, 2.8 and 3.7
+  — still short of par on three, which is as long as those patches go. Batch 3's seven
+  maps carried over twice unplayed (b4-15 to b4-21) are dropped; batch 4's
+  five unplayed new ones (b4-10 to b4-14) are carried, last.
+
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
 unlocks). Off, a tap turns it on; on, it reads **Dev menu** with the build
