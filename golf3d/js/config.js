@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.227.0';
+G3.VERSION = '1.228.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1399,14 +1399,31 @@ G3.CONFIG.LONG_M = 5.5;
    cup the look eases back, and inside NEAR it is the mini golf picture
    exactly — a putt looks the way it always has. Nor on a tour hole: those are
    fitted to a world (`place`), seat and all. */
-G3.CONFIG.LONG_LOOK = { MIN: 0.4, SEAT: 0.5, NEAR: 4, FAR: 12 };
+G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
 
 /* The seat behind a long shot while it is up (render.js `watchAir`):
    the eye climbs RISE of the ball's height and looks up at the rest; EASE is
    the per-second easing base it follows that on. RISE was 0.3 under a
    nineteen-metre drive; in the long game's air (AIR) a drive tops out near
-   thirty, and at 0.3 the top of it was a picture of nothing but sky. */
-G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
+   thirty, and at 0.3 the top of it was a picture of nothing but sky.
+
+   On the way down the eye holds DIVE of the height the ball has fallen from
+   the top, so it ends the flight looking down on to where it lands rather
+   than along the grass at it (the owner, v1.228.0: "pivot down a bit more in
+   the end of the sequence"); once the ball is down that lift is given back
+   on SETTLE, gentler than EASE, rather than in a fifth of a second. RELEASE
+   is how many times the mini golf's LAUNCH_CAM.RELEASE the seat takes to
+   catch a long shot up after the strike: given back in a second and a half,
+   it closed on a drive in one lurch half way down ("a bit smoother when
+   getting closer to the ball"). */
+G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002, DIVE: 0.25, SETTLE: 0.12, RELEASE: 1.8 };
+
+/* The ground answering the ball (groundfx.js), all of it at once: AMOUNT of
+   the particles each burst asks for, at SIZE of their size and ALPHA of their
+   opacity, thrown at THROW of the speed; the rings out to SIZE of their reach
+   at ALPHA. The owner on v1.227.0: "great but a smidge too much, make them
+   little more subtle". 1 everywhere is the burst as written. */
+G3.CONFIG.GROUND_FX = { AMOUNT: 0.65, SIZE: 0.85, ALPHA: 0.8, THROW: 0.85 };
 
 /* The long game's air (physics.airFlight), since v1.224.0. The long game
    was the mini golf flight — eighteen units a second squared of gravity, no
