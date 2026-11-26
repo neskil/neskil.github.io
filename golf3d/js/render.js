@@ -1365,6 +1365,10 @@
                flatter and shinier: rain fills the furrows in. */
             sand: (function () {
                 var m = tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac);
+                // A theme may tint it (Île Flottante's custard: until v1.225.1
+                // its `sand` was never read, and its meringue islands were
+                // white on beige with no edge to see).
+                if (theme.sand) m.color.multiply(new THREE.Color(theme.sand));
                 m.bumpMap = tex.sandBump;
                 m.bumpScale = 0.09 * (1 - wet * 0.6);
                 return m;
@@ -5084,6 +5088,37 @@
         car.position.set(B.cx, B.base + H / 2, B.cz);
         group.add(car);
         R.movers.push({ mesh: car, wall: wall, h: H, fade: mats, seen: 1 });
+        if (wall.track) addTrack(group, wall.track[0], wall.track[1], B.cz, B.base - (wall.base || 0), D);
+    }
+
+    /* The track a train runs on, across the ground it crosses (portals.js →
+       train's `track`): two steel rails at the wheels' gauge on sleepers,
+       drawn only — a ball rolls over a level crossing's rails. The Level
+       Crossing's lane stands over the world's own track, which hid it, so
+       its trains ran across bare turf (the owner, v1.225.0: "would be nicer
+       if the rails were above the fairway"). */
+    var trackMats = null;
+    function addTrack(group, x0, x1, z, y, D) {
+        if (!trackMats) trackMats = {
+            rail: new THREE.MeshPhongMaterial({ color: 0x9aa0a8, shininess: 80, specular: 0x666666 }),
+            sleeper: new THREE.MeshLambertMaterial({ color: 0x4a3322 })
+        };
+        // On the turf's pile, which stands about 0.1 over the pad (under it
+        // the track was not seen at all).
+        var LIFT = 0.09;
+        var len = x1 - x0, n = Math.max(2, Math.round(len / 0.34)), k, step = len / n, o;
+        for (k = 0; k < n; k++) {
+            o = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, D * 1.15), trackMats.sleeper);
+            o.position.set(x0 + step * (k + 0.5), y + LIFT + 0.015, z);
+            o.receiveShadow = true;
+            group.add(o);
+        }
+        [-1, 1].forEach(function (s) {
+            o = new THREE.Mesh(new THREE.BoxGeometry(len, 0.045, 0.05), trackMats.rail);
+            o.position.set(x0 + len / 2, y + LIFT + 0.03 + 0.0225, z + s * D * 0.4);
+            o.receiveShadow = true;
+            group.add(o);
+        });
     }
 
     // How far into its run a train's car is from the nearer end, 0 to 1.
@@ -8466,12 +8501,17 @@
         if (!R.ready || !G3.flyover) return false;
         seatFor(hole, ball, _seat);
         /* A tour hole gets the tour's sweep, and — when its world is up and
-           drawn — the world's own flight line (flyover.js → worldLine). */
+           drawn — the world's own flight line (flyover.js → worldLine).
+           Not where the place says `flyLine: false`: along the line the
+           world is not cut (stepPlace), and where the line runs behind a
+           wall while the camera looks at the hole, the hole is drawn over
+           the wall (Three Doors Down, the owner: "on intro sequence there
+           is some clipping"). The orbit keeps the cut. */
         var opts = null;
         if (hole.worldId) {
             opts = { tour: true, line: null };
             var B = G3.backdrop;
-            if (R.place && R.live && B && B.line) {
+            if (R.place && R.place.flyLine !== false && R.live && B && B.line) {
                 try { opts.line = B.line(R.place, R.placeSeat, 360); } catch (e) { opts.line = null; }
             }
         }

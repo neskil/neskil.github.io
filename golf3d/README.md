@@ -5259,6 +5259,18 @@ the Fire re-laid with the tee across the valley and two dug pools
 "2,32,7,0.45;3,45,3.5,0.45" --tour fire`); The Nave's camera clipping noted,
 not fixed.
 
+**Batch 4's copy** (v1.225.1) came back with none of batch 4 rated or
+played: all twenty-one `(not rated)`, no play stats, as batch 2's first copy
+did. So the recipe did not move, no batch 5 was forged (it would have
+replaced `js/forge-maps.js` and the unplayed batch with it), and nothing went
+into the tour. Batch 4 is still the batch, waiting. The copy's notes were on
+released holes, twelve lines: six keeps with nothing asked, and six asking
+for something, all done by hand (HANDOFF.md → "batch 4 copy"): Dry Dock's
+cup under the dock's stone and a second canal, the Fairy Ring on a stump and
+harder, Île Flottante's islands raised, a rise on Loop and Rink's ice, Three
+Doors Down's intro off the world's line (`place.flyLine: false`), and the
+Level Crossing's track drawn and its trains longer.
+
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
 unlocks). Off, a tap turns it on; on, it reads **Dev menu** with the build
