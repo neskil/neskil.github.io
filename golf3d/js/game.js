@@ -2587,8 +2587,9 @@
             if (s && s.pad.kind === 'sand') R.sandAt(b.x, b.y - C.BALL_R, b.z);
         }
         if (ev.splash) {
-            R.splashAt(b.x, b.y, b.z);
-            A.splash();
+            // Lava takes the ball with a spit of embers and a hiss, not a splash.
+            if (ev.lava && R.emberAt) { R.emberAt(b.x, b.y, b.z); if (A.sizzle) A.sizzle(); }
+            else { R.splashAt(b.x, b.y, b.z); A.splash(); }
         }
         if (ev.rim && now - lastRimAt > 55) {
             lastRimAt = now;
@@ -2631,7 +2632,8 @@
 
         if (w.splash || w.out) {
             state.strokes += w.splash ? C.WATER_PENALTY : C.OOB_PENALTY;
-            toast(w.splash ? 'Water — one stroke penalty'
+            toast(w.burnt ? 'Lava — one stroke penalty'
+                : w.splash ? 'Water — one stroke penalty'
                 : w.swallowed ? 'Swallowed by the well — one stroke penalty'
                 : 'Out of play — one stroke penalty', 'bad');
             dropBack(w);
