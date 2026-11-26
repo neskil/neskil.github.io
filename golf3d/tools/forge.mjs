@@ -53,7 +53,11 @@ const RECIPE = Object.assign({
     // half as wide again, sampled a unit apart (the cost of a patch stays
     // what it was), with twice the relief.
     relief: 3, reliefMin: 1.8, reliefMax: 6, maxSlope: 0.5, smooth: 2,
-    L: 70, W: 24, back: 3, d: 1, ahead: 3, ace: 0.003, scaleK: 1, strip: 5,
+    // `L` 70 → 85 and `par` [34, 72] → [45, 95] in batch 5: re-forged on
+    // their own patches with the bot with hands, batch 4's fixes played a
+    // 47-unit par four in 2.3 and sixty units in 3.0 — a driver carries
+    // about forty, so a person needs two real shots only past fifty-five.
+    L: 85, W: 24, back: 3, d: 1, ahead: 3, ace: 0.003, scaleK: 1, strip: 5,
     long: true,
     // Clutter (since batch 2): `stand` is how tall a thing standing on the
     // ground may be (golf units) before it counts, `bump` how far the raw
@@ -101,7 +105,7 @@ const RECIPE = Object.assign({
     // `noEagle`: no cup the perfect bot holes in two under par (`pin`). Off:
     // tried for batch 4, it turned down every cup of every world tried — the
     // perfect bot chips in from wherever its drive stops.
-    dig: 0.45, digR: 4.5, solid: true, paint: true, noEagle: false, par: [34, 72],
+    dig: 0.45, digR: 4.5, solid: true, paint: true, noEagle: false, par: [45, 95],
     // Batch 5 (from batch 4's verdicts and the four batches before it,
     // README → "The forge", Batch 5, and FORGE-FEEDBACK.md → "What four
     // batches taught"). Every batch has come back "easy", and the reason
