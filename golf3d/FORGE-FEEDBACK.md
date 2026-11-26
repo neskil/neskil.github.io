@@ -31,18 +31,18 @@ keyed `1:<id>`.
 | --- | --- | --- |
 | `edges` | couldn't see where the hole was | the hole needs marking. Since v1.214.0 a pin tag points at the flag (README → "Where the flag is"), and since v1.222.0 a forged map's tee, fairway and green are painted on the world (`paint`, README → "Batch 4"); if it still comes back, the next step is a kerb or posts — a code change, not a recipe number |
 | `bumpy` | ground too bumpy | `smooth` up, `maxSlope` down |
-| `flat` | the ground has no shape (until v1.226.0 the chip read "Too flat / boring" and was ticked for `dull` too: read old ones by their note) | `relief` up, `reliefMin` up — but see "What five batches taught" first: raising relief has never fixed a `flat` |
-| `dull` | nothing to decide, no challenge (since v1.226.0) | not height: what the hole asks — `rough`/`fairwayW`, hazards a person reaches (`wet`), the cup by the bot with hands (`overPar`) |
-| `layout` | the tee or the cup is in the wrong place (since v1.226.0) | `forge-finish --tee/--cup` on that map, or `pin`'s choice if it recurs |
+| `flat` | the ground has no shape (until v1.229.0 the chip read "Too flat / boring" and was ticked for `dull` too: read old ones by their note) | `relief` up, `reliefMin` up — but see "What five batches taught" first: raising relief has never fixed a `flat` |
+| `dull` | nothing to decide, no challenge (since v1.229.0) | not height: what the hole asks — `rough`/`fairwayW`, hazards a person reaches (`wet`), the cup by the bot with hands (`overPar`) |
+| `layout` | the tee or the cup is in the wrong place (since v1.229.0) | `forge-finish --tee/--cup` on that map, or `pin`'s choice if it recurs |
 | `long` / `short` | length | `L` down / up |
 | `hard` / `easy` | difficulty | `ace` up / down (target ace share), `L`, `relief` |
 | `clip` | clipping or floating | the world's things on the hole, which the ball rolls through: compare with `gen.clutter` (batch 2 on), raise or lower `stand`, `bump`, `lane` (README → "Clutter"). Since batch 4 the middles of them are hard (`solid`, `gen.solid`): a `clip` there is a trunk struck where nothing is drawn, or a crown rolled through. Otherwise a sculpt or anchor fault: `tools/forge-sculpt.mjs <id> --map` shows where the drawn ground leaves the played one, then look at that world live (`?course=forge-<id>&live=1`) |
-| `fell` | the ball fell through the ground (since v1.226.0; before, a `clip` with a note) | a fault, never a recipe number. b4-06's was the patch's edge, where the played ground stopped and the drawn world ran on (`hole.edge` now). Find where with shots over every line and club, not only towards the cup (`vet()` only looks at where balls stop) |
+| `fell` | the ball fell through the ground (since v1.229.0; before, a `clip` with a note) | a fault, never a recipe number. b4-06's was the patch's edge, where the played ground stopped and the drawn world ran on (`hole.edge` now). Find where with shots over every line and club, not only towards the cup (`vet()` only looks at where balls stop) |
 | `stuck` | ball got stuck | a vetting gap: run the stuck sweep on that map and tighten `vet()` |
 | `camera` | bad view | the tee's heading (`turn`) or `ahead`; perhaps prefer `turn: 0` |
-| `paint` | the fairway or green paint looks wrong (since v1.226.0; before, `ugly`) | `render.js` → the plate's paint, which takes its colour from the world's own picture. Look at it on a dark, a bright and a busy world before shipping |
-| `ugly` | the spot looks bad (until v1.226.0 also the paint: read old ones by their note) | the patch (`u`, `turn`) or the stand-in palette (`themeFor` in `js/forge.js`) |
-| `mini` | better as mini golf here (since v1.226.0) | forge that world on a `mini` lean |
+| `paint` | the fairway or green paint looks wrong (since v1.229.0; before, `ugly`) | `render.js` → the plate's paint, which takes its colour from the world's own picture. Look at it on a dark, a bright and a busy world before shipping |
+| `ugly` | the spot looks bad (until v1.229.0 also the paint: read old ones by their note) | the patch (`u`, `turn`) or the stand-in palette (`themeFor` in `js/forge.js`) |
+| `mini` | better as mini golf here (since v1.229.0) | forge that world on a `mini` lean |
 | `nice-spot` | great place in the world | keep forging from that kind of world and that `u` |
 
 - `RELEASED MAPS` lines rate holes already in the game (`released:<course>:<n>`
@@ -58,7 +58,7 @@ keyed `1:<id>`.
 ## What five batches taught
 
 Standing lessons, from batches 1 to 4 and the copy that sent batch 4 back
-(v1.226.0, the owner: "Lots of recurring issues, take some general
+(v1.229.0, the owner: "Lots of recurring issues, take some general
 learnings please"). Read them before moving a recipe number: every one is a
 loop that went round more than once before it was seen.
 
@@ -110,7 +110,7 @@ loop that went round more than once before it was seen.
    assumption about where the ground is gets tested with shots in every
    direction, not only towards the cup.
 7. **A note outranks a chip.** Chips were ticked for what was closest: `flat`
-   for "no challenge", `ugly` for the paint. The form was split in v1.226.0
+   for "no challenge", `ugly` for the paint. The form was split in v1.229.0
    (`dull`, `paint`, `layout`, `fell`, `mini`), and where a chip and a note
    disagree, do what the note says. If a kind of note keeps coming without
    a chip for it, add the chip (`G3.forge.ISSUES`): the owner has said the
@@ -121,13 +121,13 @@ loop that went round more than once before it was seen.
    (rated fun 1, three fixes, dropped), and the first run of batch 5 laid
    three of its five new maps on water — the Tower's sea, the Mountain's
    tarn (tee on the bed, under the water), the Chinar Terraces' pool. Since
-   v1.226.0 `forge-sample.mjs` marks water (`wet`: Portals' kit names its
+   v1.229.0 `forge-sample.mjs` marks water (`wet`: Portals' kit names its
    water, most worlds name theirs, and a flat see-through shader sheet is a
    pool), and the forge treats it as the world's things: out where a ball
    stops, never under the tee, the green or the landing, and a patch more
    than `wetMax` (30%) water is turned down. If a forged hole still looks
    wet from the tee, its water is unnamed: look at it before shipping.
-9. **Variety.** Since v1.226.0 about one map in four is a mini-golf hole in
+9. **Variety.** Since v1.229.0 about one map in four is a mini-golf hole in
    its world (the owner: "some of the new maps can be mini golf style for
    the worlds as well"), forged on a `mini` lean.
 

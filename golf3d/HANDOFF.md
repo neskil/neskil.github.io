@@ -225,6 +225,69 @@ recipe). The released-hole lines:
   with cards from 2 to 6 and 0.35 balls a round wet; the old hole was a
   straight drive and a putt. **Not yet seen.**
 
+## From the forge's feedback (batch 4 copy, v1.226.2)
+
+None of batch 4's twenty-one maps rated or played (README → "The forge",
+"Batch 4's copy"): the batch is kept and still waiting. The released-hole
+lines, six of them asking for something:
+
+- **Dry Dock** (`drydock`, fix, fun 1, difficulty 1, eight strokes on the
+  par three, `short,clip`: "Can't see [the hole] du[e] to overlapping
+  texture and too easy and short"): the green's dish went 0.12 under the
+  dock's stone, so the world was drawn over the cup, and the felt was the
+  stone's grey. The hole stands 0.8 over the stone now (`lift`, the decks
+  piers on `plinth`), the felt is green, and it is two canals: the tee box
+  over the first on to a deck 8.5 long, the deck over the second to a flat
+  green with the wall behind (the dish gathered a chip from the deck into
+  the cup one time in two). The canals' water stops under the stone
+  (theme `surroundY` −0.9; at −60 it hung down as a black wall). Bot with
+  hands 3.3, cards 2 to 5; the old hole was a pitch and a chip-in, 2.75.
+  **Not yet seen.**
+- **The Fairy Ring** (`mushroom`, fix, fun 1, difficulty 1, `camera,clip`:
+  "Make it a bit harder please and fix the weird floating thing"): no
+  ground is found under it (the leaf litter is alpha-tested and instanced,
+  which the search skips), so the disc hung in the air with its black edge
+  showing over the leaves. It stands on a stump now (`plinth` 7, the side
+  the colour of bark) down into the litter. Harder: the flag stands
+  on a crown (0.3 high, 2.6 in radius) inside the ring, and the cap is smaller
+  (0.95 from 1.15): the sweep's ace share 0.056% → 0.028%, the bot with
+  hands 2.1 → 2.6. Two other things it could have been, not changed:
+  white blobs of the world's that hang near the seat (not its raindrops,
+  drips, motes or falling leaves: hiding each left them), and a leaf
+  between the seat and the green's far edge. If it was either, ask for a
+  screenshot. **Not yet seen.**
+- **Île Flottante** (`custard`, fix, fun 1, difficulty 4, look 5,
+  `clip,edges,flat`): the islands were greens laid flat into the custard,
+  the same height and nearly the same colour, and the world's own meringue
+  island stood up through the tee. Each island is a table now (`mesa`, 0.3
+  high with a slope round it), a little bigger (2.5–2.9 across from
+  2.2–2.6), the custard is tinted custard (its theme's `sand` was never
+  read: render.js multiplies the sand by it now) so the white islands have
+  an edge to see, and the hole is lifted 0.9 over the world's island, not
+  0.35. The bot with hands makes every card a 2 now (1.7 before, with
+  aces); the owner found it too hard. **Not yet seen.**
+- **Loop and Rink** (`carnival`, fix, fun 2, `flat`): the loop put every
+  straight ball into the cup (0.99%, a tutorial's share). The rink has a
+  rise of ice on its west side (0.6), the cup is right of the loop's line
+  on the rug, and the bar's hub moved with it: only the weight whose bend
+  ends at the cup drops. 0.21%, a skill hole. **Not yet seen.**
+- **Three Doors Down** (`stairs`, keep, fun 4, `nice-spot,clip`: "On intro
+  sequence there is some clipping"): its intro flew the world's own line,
+  along which the world is not cut, and the line runs behind a stone wall
+  while the camera looks at the landings, so they were drawn over the wall.
+  `flyLine: false` on its place gives it the ordinary orbit, which keeps the
+  cut; looked at frame by frame here, clean. **Not yet seen.**
+- **The Level Crossing** (`railway`, keep, fun 4, look 5, difficulty 1:
+  "would be nicer if the rails were above the fairway and if the [trains]
+  were tighter. It's too easy"): the lane stood over the world's track and
+  hid it; the track is drawn across the lane now (`track`, render.js →
+  addTrack), and each train is two coaches longer, so the lane is open about
+  a third of the time for the near one and a quarter for the far one (it was
+  about half and two fifths). Ace share 0.063% → 0.021%. **Not yet seen.**
+- Keeps with nothing asked: Stone Bridge and Long Way Round (`redstone:2`,
+  `redstone:3`), The Knuckles, Balloon Hop, Slack Water (fun 4), The
+  Three-Body Problem (fun 5, look 4, holed in one).
+
 ## The owner's ideas waiting their turn
 
 Both done in v1.162.0 (see "After the handoff was written" below and README

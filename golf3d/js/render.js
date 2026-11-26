@@ -167,6 +167,7 @@
         buildParticles();
         buildCelebration();
         if (G3.sandfx) G3.sandfx.build(R.scene);
+        if (G3.groundfx) G3.groundfx.build(R.scene);
         if (G3.bag) G3.bag.build(R.scene);
 
         R.ready = true;
@@ -183,6 +184,7 @@
         R.camera.aspect = w / Math.max(1, h);
         R.camera.updateProjectionMatrix();
         if (G3.sandfx) G3.sandfx.resize(h * R.renderer.getPixelRatio());
+        if (G3.groundfx) G3.groundfx.resize(h * R.renderer.getPixelRatio());
         if (R.fx) {
             var dpr = R.renderer.getPixelRatio();
             G3.postfx.resize(w * dpr, h * dpr);
@@ -1365,6 +1367,10 @@
                flatter and shinier: rain fills the furrows in. */
             sand: (function () {
                 var m = tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac);
+                // A theme may tint it (Île Flottante's custard: until v1.226.2
+                // its `sand` was never read, and its meringue islands were
+                // white on beige with no edge to see).
+                if (theme.sand) m.color.multiply(new THREE.Color(theme.sand));
                 m.bumpMap = tex.sandBump;
                 m.bumpScale = 0.09 * (1 - wet * 0.6);
                 return m;
@@ -5084,6 +5090,37 @@
         car.position.set(B.cx, B.base + H / 2, B.cz);
         group.add(car);
         R.movers.push({ mesh: car, wall: wall, h: H, fade: mats, seen: 1 });
+        if (wall.track) addTrack(group, wall.track[0], wall.track[1], B.cz, B.base - (wall.base || 0), D);
+    }
+
+    /* The track a train runs on, across the ground it crosses (portals.js →
+       train's `track`): two steel rails at the wheels' gauge on sleepers,
+       drawn only — a ball rolls over a level crossing's rails. The Level
+       Crossing's lane stands over the world's own track, which hid it, so
+       its trains ran across bare turf (the owner, v1.225.0: "would be nicer
+       if the rails were above the fairway"). */
+    var trackMats = null;
+    function addTrack(group, x0, x1, z, y, D) {
+        if (!trackMats) trackMats = {
+            rail: new THREE.MeshPhongMaterial({ color: 0x9aa0a8, shininess: 80, specular: 0x666666 }),
+            sleeper: new THREE.MeshLambertMaterial({ color: 0x4a3322 })
+        };
+        // On the turf's pile, which stands about 0.1 over the pad (under it
+        // the track was not seen at all).
+        var LIFT = 0.09;
+        var len = x1 - x0, n = Math.max(2, Math.round(len / 0.34)), k, step = len / n, o;
+        for (k = 0; k < n; k++) {
+            o = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, D * 1.15), trackMats.sleeper);
+            o.position.set(x0 + step * (k + 0.5), y + LIFT + 0.015, z);
+            o.receiveShadow = true;
+            group.add(o);
+        }
+        [-1, 1].forEach(function (s) {
+            o = new THREE.Mesh(new THREE.BoxGeometry(len, 0.045, 0.05), trackMats.rail);
+            o.position.set(x0 + len / 2, y + LIFT + 0.03 + 0.0225, z + s * D * 0.4);
+            o.receiveShadow = true;
+            group.add(o);
+        });
     }
 
     // How far into its run a train's car is from the nearer end, 0 to 1.
@@ -5484,7 +5521,8 @@
         if (!pos.length) return;
         var geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-        var mesh = new THREE.Mesh(geo, waterMaterial(theme, { alpha: 0.8 }));
+        var mesh = new THREE.Mesh(geo, w.lava ? lavaMaterial(theme, { set: w.set, flow: w.flow })
+            : waterMaterial(theme, { alpha: 0.8 }));
         // A hair over the level, so it does not fight the world's ground at the shore.
         mesh.position.y = 0.01;
         group.add(mesh);
@@ -5583,8 +5621,8 @@
     }
 
     function addWater(group, w, theme) {
-        if (w.lava) { addLava(group, w, theme); return; }
         if (w.grid) { addPondOnGrid(group, w, theme); return; }
+        if (w.lava) { addLava(group, w, theme); return; }
         /* A box rather than a plane: the pads reach down to the surrounding
            ground, so a pond between two of them is a filled channel, and a
            sheet floating in the gap would read as a decal. Only the top face
@@ -6584,6 +6622,7 @@
         R.sun = sun;
         // The sand's spray is drawn unlit, so it is told what light the sand is in.
         if (G3.sandfx) G3.sandfx.light(amb, sun, weather.wet || 0);
+        if (G3.groundfx) G3.groundfx.light(amb, sun, weather.wet || 0);
         R.sunDir.set(pos[0] * reach, Math.max(2.5, pos[1] * lift), pos[2] * reach).normalize();
 
         var fill = new THREE.DirectionalLight(skyLight, 0.16 + weather.cloud * 0.10);
@@ -6944,12 +6983,14 @@
         R.cam.speedPull = 0;
         R.launch = null;
         R.airDrop = 0;
+        R.airPeak = 0;
         R.blurK = 0;
         R.blurPrev = null;
         clearTrail();
         clearTracer();
         // The last hole's furrows and craters were in the last hole's sand.
         if (G3.sandfx) G3.sandfx.clear();
+        if (G3.groundfx) G3.groundfx.clear(R.theme);
         // A hole changed with a ball inside a pipe would leave it shrunk.
         R.ball.scale.setScalar(1);
         R.ball.visible = true;
@@ -7868,9 +7909,9 @@
         var spread = P.spray(aim.over || 0);
         var angle = C.CONE_ANGLE + spread.yaw;
         var seconds = 0.5 + frac * 0.5;
-        // The long game's air is a real flight, three times as long a time
-        // over the same ground (CONFIG.AIR); the cone is still cut by distance.
-        if (G3.drawnLong(world.hole)) seconds *= 3;
+        // The long game's air is a real flight, longer in time over the same
+        // ground by 3.4 over its pace (CONFIG.AIR); the cone is cut by distance.
+        if (G3.drawnLong(world.hole)) seconds *= Math.max(1, 3.4 / P.airPace());
         var pts = P.previewPath(world, aim.yaw + (aim.bend || 0), aim.power, aim.loft, seconds, aim.bite, aim.spin, aim.topped);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
@@ -8519,12 +8560,17 @@
         if (!R.ready || !G3.flyover) return false;
         seatFor(hole, ball, _seat);
         /* A tour hole gets the tour's sweep, and — when its world is up and
-           drawn — the world's own flight line (flyover.js → worldLine). */
+           drawn — the world's own flight line (flyover.js → worldLine).
+           Not where the place says `flyLine: false`: along the line the
+           world is not cut (stepPlace), and where the line runs behind a
+           wall while the camera looks at the hole, the hole is drawn over
+           the wall (Three Doors Down, the owner: "on intro sequence there
+           is some clipping"). The orbit keeps the cut. */
         var opts = null;
         if (hole.worldId) {
             opts = { tour: true, line: null };
             var B = G3.backdrop;
-            if (R.place && R.live && B && B.line) {
+            if (R.place && R.place.flyLine !== false && R.live && B && B.line) {
                 try { opts.line = B.line(R.place, R.placeSeat, 360); } catch (e) { opts.line = null; }
             }
         }
@@ -9176,7 +9222,13 @@
     function launchLag() {
         var L = R.launch;
         if (!L) return 0;
-        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / C.LAUNCH_CAM.RELEASE));
+        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / launchRelease()));
+    }
+    /* A long drive is up for two seconds and more, and given back in the
+       mini golf's second and a half the seat closed on it in one lurch half
+       way down (CONFIG.LONG_CAM.RELEASE). */
+    function launchRelease() {
+        return C.LAUNCH_CAM.RELEASE * (G3.drawnLong(R.hole) ? C.LONG_CAM.RELEASE : 1);
     }
 
     function stepLaunch(dt, world, speed) {
@@ -9186,7 +9238,7 @@
         R.wasMoving = !!world.moving;
         if (R.launch) {
             R.launch.t += dt;
-            if (R.launch.t > C.LAUNCH_CAM.HOLD + C.LAUNCH_CAM.RELEASE || R.fly || R.dive || R.replay ||
+            if (R.launch.t > C.LAUNCH_CAM.HOLD + launchRelease() || R.fly || R.dive || R.replay ||
                 (m !== 'follow' && m !== 'side')) R.launch = null;
         }
     }
@@ -9203,15 +9255,23 @@
        far below the seat the eye is held; it is 0 on the ground, so the seat
        is the seat the moment the ball is down. */
     function watchAir(world, dt) {
-        var want = 0, b = world.ball;
+        var want = 0, b = world.ball, LC = C.LONG_CAM, up = false;
         if (world.moving && !world.firstLand && !world.warping && !world.ride && G3.drawnLong(world.hole)) {
             var g = P.surfaceTop(world.hole, b.x, b.z);
             var floor = Math.max(world.origin.y, g ? g.y + C.BALL_R : -Infinity);
-            want = Math.max(0, b.y - floor) * (1 - C.LONG_CAM.RISE);
-        }
+            var h = Math.max(0, b.y - floor);
+            if (h > R.airPeak) R.airPeak = h;
+            /* On the way down the eye comes down slower than the ball (DIVE
+               of what it has fallen from the top), so the end of the flight
+               is looked down on: past level with the seat, which is what
+               makes `airDrop` go negative at the landing. */
+            want = h * (1 - LC.RISE) - LC.DIVE * (R.airPeak - h);
+            up = true;
+        } else R.airPeak = 0;
         R.airDrop = R.airDrop || 0;
-        R.airDrop += (want - R.airDrop) * (1 - Math.pow(C.LONG_CAM.EASE, dt));
-        if (R.airDrop < 1e-3 && want === 0) R.airDrop = 0;
+        // Back on the ground it settles on to the seat on SETTLE, not EASE.
+        R.airDrop += (want - R.airDrop) * (1 - Math.pow(up ? LC.EASE : LC.SETTLE, dt));
+        if (Math.abs(R.airDrop) < 1e-3 && want === 0) R.airDrop = 0;
     }
 
     /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
@@ -9545,6 +9605,8 @@
         stepCelebration(dt);
         // What the sand does back: spray and a furrow off a rolling ball.
         if (G3.sandfx) G3.sandfx.step(dt, world);
+        // …and what the rest of the ground does: clippings, spray, frost (groundfx.js).
+        if (G3.groundfx) G3.groundfx.step(dt, world);
         stepRipples(dt);
         stepBlackHoles(dt, world);
         stepBelts();
@@ -9744,9 +9806,30 @@
 
     /* ── effects the game asks for ──────────────────────────────────────── */
 
-    function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
-    // Lava's: a spit of embers, higher and hotter than a splash.
-    function emberAt(x, y, z) { burst(x, y, z, 0xff7a1a, 34, 3.4); }
+    /* Into the water: the crown, the column, the mist and the rings
+       (groundfx.js), and a big entry flinches the camera. */
+    function splashAt(x, y, z) {
+        if (!G3.groundfx || !R.holeGroup) { burst(x, y, z, 0x9fd8ff, 26, 2.6); return; }
+        var h = G3.groundfx.splash(x, y, z);
+        if (h > 0.5) R.cam.kick = Math.max(R.cam.kick, (h - 0.5) * 0.45);
+    }
+    // Lava's: a spit of embers, higher and hotter than a splash, and smoke.
+    function emberAt(x, y, z) {
+        if (!G3.groundfx || !R.holeGroup) { burst(x, y, z, 0xff7a1a, 34, 3.4); return; }
+        G3.groundfx.lava(x, y, z);
+    }
+    /* A landing on anything that is not sand or water: clippings and a
+       shiver off grass, splinters off a plank, frost off ice (groundfx.js).
+       Not on glass, which has its own answer (hitAt). */
+    function groundAt(x, y, z, kind) {
+        if (!G3.groundfx || !R.holeGroup || R.glow) return;
+        var h = G3.groundfx.land(R.hole, x, y, z, kind);
+        if (h > 0.6) R.cam.kick = Math.max(R.cam.kick, (h - 0.6) * 0.3);
+    }
+    // A ball into a rail hard enough to hear.
+    function knockAt(x, y, z, speed) {
+        if (G3.groundfx && R.holeGroup && !R.glow) G3.groundfx.knock(x, y, z, speed);
+    }
 
     /* The grid world's effects (Challenge mode). A landing or a rail hit on
        glass sends a ripple out through the floor from where it happened, with
@@ -9786,6 +9869,11 @@
     function divot(x, y, z, yaw, frac, kind) {
         // Out of a bunker the club takes the sand with it (sandfx, blast).
         if (kind === 'sand' && G3.sandfx && R.hole) { G3.sandfx.blast(R.hole, x, y, z, yaw, frac); return; }
+        // Off turf, a plank or ice, the ground's own (groundfx); a putt off a green throws nothing.
+        if (G3.groundfx && R.hole && !R.glow) {
+            if (kind === 'green') return;
+            if (G3.groundfx.strike(R.hole, x, y, z, yaw, frac, kind)) return;
+        }
         var colour = kind === 'sand' ? 0xe8d8a8 : (kind === 'wood' ? 0xc79a63 : 0x6fbf5a);
         var n = 5 + Math.round(frac * 13);
         burst(x - Math.sin(yaw) * 0.1, y + 0.03, z - Math.cos(yaw) * 0.1,
@@ -9973,6 +10061,8 @@
         splashAt: splashAt,
         emberAt: emberAt,
         sandAt: sandAt,
+        groundAt: groundAt,
+        knockAt: knockAt,
         sinkAt: sinkAt,
         celebrate: celebrate,
         setCelebration: setCelebration,

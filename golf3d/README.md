@@ -78,6 +78,7 @@ them.
 | `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. And the caddie's [plan](#the-plan-v11280) over it: a graph of where shots come to rest, searched for a route to the cup. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
 | `js/sandfx.js` | What a bunker does back: grains ploughed up off both shoulders of a rolling ball at a rate and height set by its speed, a furrow pressed in behind it, and a landing's crown, dust and crater shaped by how fast and how flat the ball came down and how long it had been in the air. Multiply-blended marks that stay for the hole. Nothing in the simulation. Loaded before `render.js`, which runs without it. |
+| `js/groundfx.js` | What the rest of the ground does back. Grass: clippings in the course's own turf colour (most off the rough, a few off a green), a pale shiver running out through the grass, soil and dust off a hard landing, a pitch mark on a green or fairway, blades flicked off a ball running through the rough and a fine spray off wet grass. Water: a crown of drops leant along the line of entry, a column after a hard one, mist, foam and ripple rings (big drops falling back ring the surface too). Lava: cooling embers, gobs, smoke and orange rings. Splinters off wood, frost and a glitter trail off ice, embers off a crust, the strike's clippings, clod and divot scar, and a knock of dust off a rail. One point cloud, a ring pool and a mark pool, all built at `init` and kept in the scene hidden so nothing compiles mid-hole; the marks share `sandfx`'s mark program. Nothing in the simulation. Loaded after `sandfx.js`, before `render.js`, which falls back to its old bursts without it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -1849,9 +1850,29 @@ in the hole lab, "tutorial"); the crust is the walk across that leaves a
 putt, with a rare ace off its east edge for the full mallet struck as it
 sets. The putt at the flag runs off the crust into the lava.
 
-Not done: **a cooling-crust course** (PLAN.md → "New surfaces and hazards"
-has the rest of the list), a crust that is not a rectangle, and lava on the
-World Tour's Obsidian Forge, which still uses a ghost water sheet.
+**Cooling Lake** (`cinder` 5, v1.226.0) is the second, and the crust as a
+*wave*: three tiles across a lava lake, each a crust (`LAKE` in courses.js)
+whose `phase` is a step behind the last, so the ground sets a tile at a time
+running away from the tee. Struck too early, a firm ball outruns it and meets
+the last tile still molten, where a softer one sent at the same moment keeps
+pace — so pace and moment are one question. The pin is in a crater east of
+the line (a `mesa` with a negative `a`: a flat floor, flanks at 0.21, just
+inside what a green holds), which draws a ball coming off the tiles over its
+west rim down on to the floor; the boardwalk up the east side is the safe
+three. The floor is the cup's whole flat clearing (CUP_FLAT) and no wider.
+0.106% in the hole lab, every ace across the tiles; the bot scores two. It replaced Blowhole. A bank in the far corner turning the ball back to
+the pin was tried first and wanted one exact weight (0.01%).
+
+Lava elsewhere: **The Iron River**'s canyon (World Tour) is lava now — with
+the live world on it is the world's own and the sheet is hidden as before;
+with it off it is drawn. A pond laid on a world's ground (`w.grid`, the
+forge's) draws as lava when it has `lava` set, so a forged map can say so;
+the forge's lava lake (b2-16) does not yet, because its water is in the
+generated maps and changing them changes the map's rating key.
+
+Not done: a crust that is not a rectangle, its own warning length per crust
+(CRUST_WARN is global, so a crust that holds under a second and a half glows
+for most of its life), and lava in Endless's volcanic worlds.
 
 #### The wormhole
 
@@ -5259,8 +5280,20 @@ the Fire re-laid with the tee across the valley and two dug pools
 "2,32,7,0.45;3,45,3.5,0.45" --tour fire`); The Nave's camera clipping noted,
 not fixed.
 
+**Batch 4's copy** (v1.226.2) came back with none of batch 4 rated or
+played: all twenty-one `(not rated)`, no play stats, as batch 2's first copy
+did. So the recipe did not move, no batch 5 was forged (it would have
+replaced `js/forge-maps.js` and the unplayed batch with it), and nothing went
+into the tour. Batch 4 is still the batch, waiting. The copy's notes were on
+released holes, twelve lines: six keeps with nothing asked, and six asking
+for something, all done by hand (HANDOFF.md → "batch 4 copy"): Dry Dock's
+cup under the dock's stone and a second canal, the Fairy Ring on a stump and
+harder, Île Flottante's islands raised, a rise on Loop and Rink's ice, Three
+Doors Down's intro off the world's line (`place.flyLine: false`), and the
+Level Crossing's track drawn and its trains longer.
+
 **Batch 5: the recipe after batch 4's verdicts, and what five batches
-taught** (v1.226.0). Nine of twenty-one came back rated, b4-01 to b4-09:
+taught** (v1.229.0). Nine of twenty-one came back rated, b4-01 to b4-09:
 one keep (b4-07, the Pop-Up Book, an ace), seven fixes and one drop (Sea of
 Wax, 1/2/1, as batch 4 said it would be if it came back again). The owner's
 words: "Lots of recurring issues, take some general learnings please", and
@@ -6634,9 +6667,21 @@ of the speed, and backspin's lift square to the velocity, also as its square,
 all at `LONG_M` metres to the unit. Each club's launch speed (`v`, per unit of
 its power) and lift (`cl`) are read by loft, solved so a full swing finishes
 where its card always said (driver ≈ 228 m) with a real ball's shape: the
-driver leaves at 63 m/s, tops out at thirty metres, is up for 6.4 seconds and
-lands at 29 m/s, 40° down; the irons top out at twelve to eighteen metres and
-the wedges at fifteen to twenty. The air lasts from the strike through every
+drive climbs on its spin to about twenty-seven metres and comes down 38°,
+far slower than it left; the irons top out at ten to fifteen metres and the
+wedges at thirteen to eighteen.
+
+**On the game's clock, not the wall's** (`AIR.PACE`, v1.226.1). At real time
+the drive was up for 6.4 seconds and took eight to stop, three times as long
+as the same swing on every World Tour map — the owner: "long game felt real
+off compared to normal world sports maps". A flight played `PACE` times over
+follows exactly the same path if gravity goes as `PACE²`, the launch as `PACE`
+and the spin's wear as `PACE` (drag and lift, as the square of the speed, look
+after themselves), so the air keeps the real shape and is flown about 3.2
+times over: the pace at which its gravity is the ground's `GRAVITY`, so the
+hops and the roll after it are on the same clock too. A drive is up for 1.9
+seconds, like any other map's. The faster landing runs further, so the
+clubs' `v` were re-solved at that pace for the same cards. The air lasts from the strike through every
 hop until the ball rolls; the roll, slopes, and anything leaving a ledge
 afterwards are the ground's physics as before. A tour or forge hole is fitted
 to its world and keeps the old flight.
@@ -6647,8 +6692,8 @@ and the aim line's distance marks (`runTable`'s `air`). Sidespin up here goes
 as the square of the speed too (`AIR.VREF`), so a shape turns the ball by the
 ground it covers rather than the seconds, and `physics.bendTime` hands swing.js
 that span — without it a draw, slowed by the drag, finished a unit past its
-line. The aim cone previews three times the seconds (the same ground), and the
-low seat climbs `LONG_CAM.RISE` 0.6 of the ball's height, since at 0.3 the top
+line. The aim cone previews 3.4 over `PACE` times the seconds (the same
+ground — at the default pace about the plain flight's), and the low seat climbs `LONG_CAM.RISE` 0.6 of the ball's height, since at 0.3 the top
 of a thirty-metre drive was all sky. tests.html → "The long game's air".
 
 ### The long game draws its flight

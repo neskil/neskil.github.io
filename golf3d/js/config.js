@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.226.0';
+G3.VERSION = '1.229.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1399,14 +1399,31 @@ G3.CONFIG.LONG_M = 5.5;
    cup the look eases back, and inside NEAR it is the mini golf picture
    exactly — a putt looks the way it always has. Nor on a tour hole: those are
    fitted to a world (`place`), seat and all. */
-G3.CONFIG.LONG_LOOK = { MIN: 0.4, SEAT: 0.5, NEAR: 4, FAR: 12 };
+G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
 
 /* The seat behind a long shot while it is up (render.js `watchAir`):
    the eye climbs RISE of the ball's height and looks up at the rest; EASE is
    the per-second easing base it follows that on. RISE was 0.3 under a
    nineteen-metre drive; in the long game's air (AIR) a drive tops out near
-   thirty, and at 0.3 the top of it was a picture of nothing but sky. */
-G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
+   thirty, and at 0.3 the top of it was a picture of nothing but sky.
+
+   On the way down the eye holds DIVE of the height the ball has fallen from
+   the top, so it ends the flight looking down on to where it lands rather
+   than along the grass at it (the owner, v1.228.0: "pivot down a bit more in
+   the end of the sequence"); once the ball is down that lift is given back
+   on SETTLE, gentler than EASE, rather than in a fifth of a second. RELEASE
+   is how many times the mini golf's LAUNCH_CAM.RELEASE the seat takes to
+   catch a long shot up after the strike: given back in a second and a half,
+   it closed on a drive in one lurch half way down ("a bit smoother when
+   getting closer to the ball"). */
+G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002, DIVE: 0.25, SETTLE: 0.12, RELEASE: 1.8 };
+
+/* The ground answering the ball (groundfx.js), all of it at once: AMOUNT of
+   the particles each burst asks for, at SIZE of their size and ALPHA of their
+   opacity, thrown at THROW of the speed; the rings out to SIZE of their reach
+   at ALPHA. The owner on v1.227.0: "great but a smidge too much, make them
+   little more subtle". 1 everywhere is the burst as written. */
+G3.CONFIG.GROUND_FX = { AMOUNT: 0.65, SIZE: 0.85, ALPHA: 0.8, THROW: 0.85 };
 
 /* The long game's air (physics.airFlight), since v1.224.0. The long game
    was the mini golf flight — eighteen units a second squared of gravity, no
@@ -1415,7 +1432,7 @@ G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
    it left, a real flight played three times over speed. Slowing the clock
    down did not answer it (the owner: "the fake airtime is not feeling that
    good … fix the physics for the long game"). So a lofted shot on a long hole
-   flies a real ball through real air, at LONG_M metres to the unit:
+   flies a real ball's path through real air, at LONG_M metres to the unit:
 
      G      the earth's gravity, m/s²
      K      ρ·A / 2m for a golf ball at sea level, per metre
@@ -1432,19 +1449,32 @@ G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
 
    It flies from the strike through every hop until the ball is rolling;
    the roll, the slopes and anything that leaves a ledge afterwards are the
-   ground's physics as they always were. The clubs are solved for the
-   distances they had (driver ≈ 230 m all told) with a real ball's apex
-   and hang: a drive tops out near thirty metres and is up for about six
-   seconds, and comes down steeply and slowly enough to stop. */
+   ground's physics as they always were.
+
+     PACE   how many times over real time the air is flown. At 1 a drive
+            was up for 6.4 seconds and took eight to stop, three times as
+            long as the same swing on every World Tour map, and the owner
+            (v1.226.1): "long game felt real off compared to normal world
+            sports maps". So the air keeps its real shape — gravity as
+            PACE², the launch as PACE, the spin's wear as PACE, under which
+            a flight's path is exactly the same — and is played on the
+            game's own clock: 0 (the default) solves it so the air's gravity
+            is the ground's, GRAVITY, about 3.2 times over. Every hop and
+            roll after it is then on the same clock too.
+
+   The clubs are solved, at that pace, for the distances they had (driver
+   ≈ 228 m all told) with a real ball's shape: a drive climbs on its spin
+   to about 27 m, is up for under two seconds like every other map's, and
+   comes down at 38°, slowly and steeply enough to stop. */
 G3.CONFIG.AIR = {
-    G: 9.81, K: 0.0191, CD: 0.24, SPIN: 0.04, VREF: 22,
+    G: 9.81, K: 0.0191, CD: 0.24, SPIN: 0.04, VREF: 22, PACE: 0,
     CLUBS: [
-        { deg: 12, v: 0.479, cl: 0.24 },     // driver: 30 m up, 6.4 s, 210 m carry
-        { deg: 17, v: 0.441, cl: 0.295 },    // 5 iron: 18 m, 4.8 s
-        { deg: 22, v: 0.428, cl: 0.295 },    // 7 iron: 12 m, 3.7 s
-        { deg: 32, v: 0.378, cl: 0.295 },    // 9 iron: 13 m, 3.6 s
-        { deg: 45, v: 0.350, cl: 0.29 },     // pitch: 15 m, 3.7 s
-        { deg: 52, v: 0.355, cl: 0.14 }      // wedge: 20 m, 4.1 s
+        { deg: 12, v: 0.459, cl: 0.24 },     // driver: 27 m up, 1.9 s, 199 m carry
+        { deg: 17, v: 0.419, cl: 0.295 },    // 5 iron: 15 m, 1.4 s
+        { deg: 22, v: 0.389, cl: 0.295 },    // 7 iron: 10 m, 1.0 s
+        { deg: 32, v: 0.353, cl: 0.295 },    // 9 iron: 11 m, 1.1 s
+        { deg: 45, v: 0.329, cl: 0.29 },     // pitch: 13 m, 1.1 s
+        { deg: 52, v: 0.336, cl: 0.14 }      // wedge: 18 m, 1.2 s
     ]
 };
 
