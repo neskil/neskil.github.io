@@ -1706,8 +1706,16 @@
     function airy(hole, loft) {
         return loft > 0 && G3.drawnLong(hole);
     }
+    /* How much faster than real time the air is flown (AIR.PACE): a flight
+       played PACE times over keeps its shape exactly if gravity goes as
+       PACE², the launch as PACE and the spin's wear as PACE — the drag and
+       the lift, as the square of the speed, look after themselves. */
+    function airPace() {
+        var A = C.AIR;
+        return A.PACE > 0 ? A.PACE : Math.sqrt(C.GRAVITY * C.LONG_M / A.G);
+    }
     // The air's gravity, in units per second squared.
-    function airGrav() { return C.AIR.G / C.LONG_M; }
+    function airGrav() { var s = airPace(); return C.AIR.G / C.LONG_M * s * s; }
     /* One step of the air: drag and lift, as accelerations on the velocity
        as it was, then the spin wears off. Gravity is the caller's. */
     function airStep(b, world, dt) {
@@ -1724,7 +1732,7 @@
             b.vx -= lf * vy * vx / h;
             b.vz -= lf * vy * vz / h;
         }
-        world.air *= Math.exp(-A.SPIN * dt);
+        world.air *= Math.exp(-A.SPIN * airPace() * dt);
     }
     /* What a shape's bend is spread over, for swing.js: the seconds a
        plain flight is up, where sidespin turns the ball at a steady rate.
@@ -1735,7 +1743,7 @@
     function bendTime(hole, power, loft, topped) {
         if (!airy(hole, loft)) return hangTime(hole, power, loft, topped);
         var ab = { vx: 0, vy: 0, vz: 0 }, aw = { air: topped ? 0 : airOf(hole, loft).cl };
-        var sp = power * airOf(hole, loft).v, ag = airGrav(), ay = 0, d = 0, at = 0, adt = C.SIM_DT / 2;
+        var sp = power * airOf(hole, loft).v * airPace(), ag = airGrav(), ay = 0, d = 0, at = 0, adt = C.SIM_DT / 2;
         ab.vz = Math.cos(loft) * sp; ab.vy = Math.sin(loft) * sp;
         while (at < 30) {
             airStep(ab, aw, adt);
@@ -1770,7 +1778,7 @@
     function hangTime(hole, power, loft, topped) {
         if (airy(hole, loft)) {
             var ab = { vx: 0, vy: 0, vz: 0 }, aw = { air: topped ? 0 : airOf(hole, loft).cl };
-            var sp = power * airOf(hole, loft).v, ag = airGrav(), ay = 0, at = 0, adt = C.SIM_DT / 2;
+            var sp = power * airOf(hole, loft).v * airPace(), ag = airGrav(), ay = 0, at = 0, adt = C.SIM_DT / 2;
             ab.vz = Math.cos(loft) * sp; ab.vy = Math.sin(loft) * sp;
             while (at < 30) {
                 airStep(ab, aw, adt);
@@ -1813,7 +1821,7 @@
         var l = Math.max(0, Math.min(C.MAX_LOFT, loft || 0));
         // On a long hole a lofted ball is struck into real air (CONFIG.AIR).
         var air = airy(world.hole, l) ? airOf(world.hole, l) : null;
-        if (air) p *= air.v;
+        if (air) p *= air.v * airPace();
         var flat = Math.cos(l) * p;
         var b = world.ball;
         world.origin.x = b.x; world.origin.y = b.y; world.origin.z = b.z;
@@ -2856,6 +2864,7 @@
         airOf: airOf,
         airy: airy,
         bendTime: bendTime,
+        airPace: airPace,
         cloneWorld: cloneWorld,
         launch: launch,
         overdraw: overdraw,

@@ -4690,8 +4690,23 @@
                         P.airy(longF, dr.loft) && !P.airy(field, dr.loft) && !P.airy(longF, 0));
                     assert('…nor does a tour hole, fitted to its world',
                         G3.portals.WORLDS.every(function (wd) { return !P.airy(wd.hole, dr.loft); }));
-                    assert('a drive in the long game\'s air is up for five seconds or more',
-                        la.t > 5 && la.t < 8, la.t.toFixed(2) + ' s (mini flight ' + mi.t.toFixed(2) + ' s)');
+                    /* …played on the game's own clock (AIR.PACE, v1.226.1): at
+                       real time a drive hung 6.4 s, three times any other
+                       map's, and "felt real off". Speeding it up keeps the
+                       path: the same carry and apex at any pace. */
+                    assert('a drive in the long game\'s air is up about as long as on any other map',
+                        la.t > 1.2 && la.t < 2.5, la.t.toFixed(2) + ' s (mini flight ' + mi.t.toFixed(2) + ' s)');
+                    assert('…and its air pulls as hard as the ground\'s gravity',
+                        Math.abs(C.AIR.G / C.LONG_M * P.airPace() * P.airPace() - C.GRAVITY) < 1e-9);
+                    var pace0 = C.AIR.PACE;
+                    C.AIR.PACE = 1;
+                    var real = flight(longF, dr);
+                    C.AIR.PACE = pace0;
+                    assert('…on the same path a real-time flight takes, three times quicker',
+                        Math.abs(real.carry - la.carry) < 0.01 * real.carry && Math.abs(real.top - la.top) < 0.02 * real.top &&
+                        real.t > 2.8 * la.t,
+                        'carry ' + la.carry.toFixed(2) + ' against ' + real.carry.toFixed(2) + ', top ' + la.top.toFixed(1) +
+                        ' against ' + real.top.toFixed(1) + ' m, ' + la.t.toFixed(2) + ' s against ' + real.t.toFixed(2) + ' s');
                     assert('…tops out between twenty-two and forty metres', la.top > 22 && la.top < 40, la.top.toFixed(1) + ' m');
                     assert('…lands at under half the pace it left at', la.vl < 0.5 * la.v0,
                         la.vl.toFixed(2) + ' against ' + la.v0.toFixed(2));
