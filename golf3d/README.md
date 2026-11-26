@@ -6551,9 +6551,21 @@ of the speed, and backspin's lift square to the velocity, also as its square,
 all at `LONG_M` metres to the unit. Each club's launch speed (`v`, per unit of
 its power) and lift (`cl`) are read by loft, solved so a full swing finishes
 where its card always said (driver ≈ 228 m) with a real ball's shape: the
-driver leaves at 63 m/s, tops out at thirty metres, is up for 6.4 seconds and
-lands at 29 m/s, 40° down; the irons top out at twelve to eighteen metres and
-the wedges at fifteen to twenty. The air lasts from the strike through every
+drive climbs on its spin to about twenty-seven metres and comes down 38°,
+far slower than it left; the irons top out at ten to fifteen metres and the
+wedges at thirteen to eighteen.
+
+**On the game's clock, not the wall's** (`AIR.PACE`, v1.226.1). At real time
+the drive was up for 6.4 seconds and took eight to stop, three times as long
+as the same swing on every World Tour map — the owner: "long game felt real
+off compared to normal world sports maps". A flight played `PACE` times over
+follows exactly the same path if gravity goes as `PACE²`, the launch as `PACE`
+and the spin's wear as `PACE` (drag and lift, as the square of the speed, look
+after themselves), so the air keeps the real shape and is flown about 3.2
+times over: the pace at which its gravity is the ground's `GRAVITY`, so the
+hops and the roll after it are on the same clock too. A drive is up for 1.9
+seconds, like any other map's. The faster landing runs further, so the
+clubs' `v` were re-solved at that pace for the same cards. The air lasts from the strike through every
 hop until the ball rolls; the roll, slopes, and anything leaving a ledge
 afterwards are the ground's physics as before. A tour or forge hole is fitted
 to its world and keeps the old flight.
@@ -6564,8 +6576,8 @@ and the aim line's distance marks (`runTable`'s `air`). Sidespin up here goes
 as the square of the speed too (`AIR.VREF`), so a shape turns the ball by the
 ground it covers rather than the seconds, and `physics.bendTime` hands swing.js
 that span — without it a draw, slowed by the drag, finished a unit past its
-line. The aim cone previews three times the seconds (the same ground), and the
-low seat climbs `LONG_CAM.RISE` 0.6 of the ball's height, since at 0.3 the top
+line. The aim cone previews 3.4 over `PACE` times the seconds (the same
+ground — at the default pace about the plain flight's), and the low seat climbs `LONG_CAM.RISE` 0.6 of the ball's height, since at 0.3 the top
 of a thirty-metre drive was all sky. tests.html → "The long game's air".
 
 ### The long game draws its flight

@@ -1415,7 +1415,7 @@ G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
    it left, a real flight played three times over speed. Slowing the clock
    down did not answer it (the owner: "the fake airtime is not feeling that
    good … fix the physics for the long game"). So a lofted shot on a long hole
-   flies a real ball through real air, at LONG_M metres to the unit:
+   flies a real ball's path through real air, at LONG_M metres to the unit:
 
      G      the earth's gravity, m/s²
      K      ρ·A / 2m for a golf ball at sea level, per metre
@@ -1432,19 +1432,32 @@ G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002 };
 
    It flies from the strike through every hop until the ball is rolling;
    the roll, the slopes and anything that leaves a ledge afterwards are the
-   ground's physics as they always were. The clubs are solved for the
-   distances they had (driver ≈ 230 m all told) with a real ball's apex
-   and hang: a drive tops out near thirty metres and is up for about six
-   seconds, and comes down steeply and slowly enough to stop. */
+   ground's physics as they always were.
+
+     PACE   how many times over real time the air is flown. At 1 a drive
+            was up for 6.4 seconds and took eight to stop, three times as
+            long as the same swing on every World Tour map, and the owner
+            (v1.226.1): "long game felt real off compared to normal world
+            sports maps". So the air keeps its real shape — gravity as
+            PACE², the launch as PACE, the spin's wear as PACE, under which
+            a flight's path is exactly the same — and is played on the
+            game's own clock: 0 (the default) solves it so the air's gravity
+            is the ground's, GRAVITY, about 3.2 times over. Every hop and
+            roll after it is then on the same clock too.
+
+   The clubs are solved, at that pace, for the distances they had (driver
+   ≈ 228 m all told) with a real ball's shape: a drive climbs on its spin
+   to about 27 m, is up for under two seconds like every other map's, and
+   comes down at 38°, slowly and steeply enough to stop. */
 G3.CONFIG.AIR = {
-    G: 9.81, K: 0.0191, CD: 0.24, SPIN: 0.04, VREF: 22,
+    G: 9.81, K: 0.0191, CD: 0.24, SPIN: 0.04, VREF: 22, PACE: 0,
     CLUBS: [
-        { deg: 12, v: 0.479, cl: 0.24 },     // driver: 30 m up, 6.4 s, 210 m carry
-        { deg: 17, v: 0.441, cl: 0.295 },    // 5 iron: 18 m, 4.8 s
-        { deg: 22, v: 0.428, cl: 0.295 },    // 7 iron: 12 m, 3.7 s
-        { deg: 32, v: 0.378, cl: 0.295 },    // 9 iron: 13 m, 3.6 s
-        { deg: 45, v: 0.350, cl: 0.29 },     // pitch: 15 m, 3.7 s
-        { deg: 52, v: 0.355, cl: 0.14 }      // wedge: 20 m, 4.1 s
+        { deg: 12, v: 0.459, cl: 0.24 },     // driver: 27 m up, 1.9 s, 199 m carry
+        { deg: 17, v: 0.419, cl: 0.295 },    // 5 iron: 15 m, 1.4 s
+        { deg: 22, v: 0.389, cl: 0.295 },    // 7 iron: 10 m, 1.0 s
+        { deg: 32, v: 0.353, cl: 0.295 },    // 9 iron: 11 m, 1.1 s
+        { deg: 45, v: 0.329, cl: 0.29 },     // pitch: 13 m, 1.1 s
+        { deg: 52, v: 0.336, cl: 0.14 }      // wedge: 18 m, 1.2 s
     ]
 };
 
