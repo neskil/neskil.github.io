@@ -1293,6 +1293,56 @@
         return null;
     }
 
+    /* ── lava, and the crust that sets on it ────────────────────────────
+
+       Lava is water that is drawn hot: a `hole.water` rectangle with `lava:
+       true`. Played exactly as a pond is — under its surface is a splash, the
+       shot is replayed a stroke down — so everything that already knows about
+       water (the bot's toGo, the drop back, the hole lab) knows about lava
+       without a line of its own. What it adds is the **crust** (`hole.crusts`,
+       each `{ x, z, w, d, period, open, phase }`): a rectangle of the lava
+       that sets solid for `open` seconds out of every `period` and melts for
+       the rest. Under it the hole has a pad at the crust's own level, so
+       while it is set it is ground like any other, and while it is molten the
+       lava's surface (a hair above that pad) is over a ball standing on it.
+
+       It is a gate in time laid on the floor, which nothing else on the
+       course is: every timing hole before it is a wall. The clock is the
+       world's own (`world.time`), which keeps on running while the player
+       aims (game.js) and is the one the renderer reads the crust's glow off,
+       so the crust you see is the crust the ball meets. The picture leads
+       the melt by CRUST_WARN: the seams glow for that long before the crust
+       goes, so nobody is drowned by a change they could not see coming. */
+    function crustSet(c, t) {
+        var u = (t + (c.phase || 0)) % c.period;
+        if (u < 0) u += c.period;
+        return u < c.open;
+    }
+
+    /* Where in its cycle a crust is, for the picture: `set` is 1 while it is
+       solid and 0 while it is molten, `warn` climbs from 0 to 1 over the last
+       CRUST_WARN seconds before the melt. */
+    function crustPhase(c, t, out) {
+        out = out || {};
+        var u = (t + (c.phase || 0)) % c.period;
+        if (u < 0) u += c.period;
+        var warn = C.CRUST_WARN || 1;
+        out.set = u < c.open ? 1 : 0;
+        out.warn = u < c.open ? Math.max(0, Math.min(1, (u - (c.open - warn)) / warn)) : 1;
+        out.age = u;
+        return out;
+    }
+
+    function crustAt(hole, x, z) {
+        var cs = hole.crusts, i, c;
+        if (!cs) return null;
+        for (i = 0; i < cs.length; i++) {
+            c = cs[i];
+            if (x >= c.x && x <= c.x + c.w && z >= c.z && z <= c.z + c.d) return c;
+        }
+        return null;
+    }
+
     /* ── walls: boxes that may slide or spin ────────────────────────────── */
 
     /* A wall is authored as an unrotated footprint (min corner + size) plus a
@@ -1549,6 +1599,7 @@
             slowFor: 0,
             sunk: false,
             splash: false,
+            burnt: false,       // the splash was lava
             out: false,
             sprung: 0,          // springs fired this shot; each is worth less
             warpFor: 0,         // seconds before a mouth will swallow again
@@ -1576,6 +1627,7 @@
             moving: w.moving,
             sunk: w.sunk,
             splash: w.splash,
+            burnt: !!w.burnt,
             out: w.out,
             sprung: w.sprung || 0,
             warpFor: w.warpFor || 0,
@@ -1772,6 +1824,7 @@
         world.moving = true;
         world.spin = 0;
         world.splash = false;
+        world.burnt = false;
         world.out = false;
         world.overCup = false;
         world.sprung = 0;
@@ -2197,6 +2250,11 @@
         var b = world.ball;
         var w = waterAt(world.hole, b.x, b.z);
         if (!w || b.y - C.BALL_R > w.y) return false;
+        // A crust that has set is ground, whatever is under it.
+        if (w.lava && world.hole.crusts) {
+            var cr = crustAt(world.hole, b.x, b.z);
+            if (cr && crustSet(cr, world.time)) return false;
+        }
         /* A cup is lined. On Coral Keys the greens sit a third of a unit over
            a sea sheet that runs under the whole hole, and the bottom of a cup
            is CUP_DEPTH down — under the sea's surface. Without this a ball
@@ -2213,6 +2271,7 @@
         world.splash = true;
         world.moving = false;
         events.splash = true;
+        if (w.lava) { world.burnt = true; events.lava = true; }
         return true;
     }
 
@@ -2647,6 +2706,14 @@
             }
             // In a firing bat's path it is not at rest, it is waiting to be hit.
             if (settled && inSweep(hole, b.x, b.z)) settled = false;
+            /* And on a crust it is not at rest, it is waiting for the melt:
+               the shot is not over until the lava has had its say, so a
+               ball that stops on the crust is a splash to the bot and the
+               hole lab exactly as it is to the player watching it go. */
+            if (settled && hole.crusts && crustAt(hole, b.x, b.z)) {
+                var lw = waterAt(hole, b.x, b.z);
+                if (lw && lw.lava && b.y - C.BALL_R <= lw.y) settled = false;
+            }
             if (settled) {
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
@@ -2772,6 +2839,9 @@
         surfaceUnder: surfaceUnder,
         surfaceTop: surfaceTop,
         waterAt: waterAt,
+        crustAt: crustAt,
+        crustSet: crustSet,
+        crustPhase: crustPhase,
         fieldAt: fieldAt,
         wallBox: wallBox,
         runOffset: runOffset,

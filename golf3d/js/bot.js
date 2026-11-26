@@ -167,6 +167,14 @@
         // `sails` are timing holes too, and this once asked about two of them
         // (golf3d/CLAUDE.md, "a wall may move four ways").
         this.waits = moving(hole) ? [0, 0.45, 0.95, 1.5] : [0];
+        /* A crust (physics → "lava, and the crust") turns on a cycle of
+           several seconds, longer than the wall waits reach, so on a crust
+           hole the waits are spread over the shortest crust's whole period. */
+        if (hole.crusts && hole.crusts.length) {
+            var per = Math.min.apply(null, hole.crusts.map(function (c) { return c.period; }));
+            this.waits = [];
+            for (i = 0; i < 8; i++) this.waits.push(+(per * i / 8).toFixed(3));
+        }
         /* `opts.score` is the planner's (see "the plan", below): strokes to
            go from wherever a candidate comes to rest, read off the route it
            found, in place of the distance to the cup. Everything else about
@@ -447,7 +455,8 @@
     }
 
     function moving(hole) {
-        return hole.walls.some(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; });
+        return hole.walls.some(function (wl) { return wl.move || wl.spin || wl.swing || wl.sails; }) ||
+            !!(hole.crusts && hole.crusts.length);
     }
 
     function Planner(hole, bag, opts) {

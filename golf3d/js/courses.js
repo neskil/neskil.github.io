@@ -5684,6 +5684,22 @@
        belt or put spin on a pipe; the decision each one offers is whether to
        be on it and how fast, and after that it is simply what happens next. */
 
+    /* Lava (physics → "lava, and the crust"). A pool is a water rectangle
+       with `lava` set, its surface a hair over the ground it stands in so a
+       crust's pad is under it; a crust is a rectangle of that pool that sets
+       for `open` seconds in every `period`. */
+    function lavaRect(x, z, w, d, y) {
+        var r = rect(x, z, w, d, y === undefined ? 0.005 : y);
+        r.lava = true;
+        return r;
+    }
+    function crust(x, z, w, d, period, open, phase) {
+        return { x: x, z: z, w: w, d: d, period: period, open: open, phase: phase || 0 };
+    }
+    var PIPE_LAVA = 8, PIPE_Z1 = 10 + PIPE_LAVA,
+        PIPE_CUP = { x: 5.4, dz: 3.6 }, PIPE_LEAN = 0.07, PIPE_SPLIT = 4, PIPE_EXIT = { x: 4.6, dz: 0.8 },
+        PIPE_CRUST = { x: PIPE_SPLIT - 1.8, w: 1.8, period: 7, open: 4 };
+
     var cinder = [
         build({
             /* Launch pads, introduced the only honest way: a wall with no way
@@ -5753,13 +5769,28 @@
             tee: { x: 0, z: 1.4 }, cup: { x: 1.0, z: 11 }
         }),
         build({
-            /* And the pipes. Eleven units of water, which is more than
-               anything in the bag carries — the iron is the longest flight in
-               the game at about nine and a half — so the mouth is not a short
-               cut, it is the hole. It sits off the middle of the floor on
-               purpose: a pipe you cannot miss is a corridor with extra steps. */
+            /* And the pipes. A field of lava nothing in the bag carries, so
+               the mouth is not a short cut, it is one of the two ways over.
+               It sits off the middle of the floor on purpose: a pipe you
+               cannot miss is a corridor with extra steps.
+
+               The other way is the crust (v1.225.0, physics → "lava, and the
+               crust"): a causeway straight up from the tee that sets for four
+               seconds in every seven and melts for three. It is wide and
+               it is straight, so the line is easy and the weight forgiving —
+               the question it asks is *when*, the first one on the floor of
+               any hole. Its seams glow for a second before it goes. A full
+               mallet struck as it sets crosses in about a second and curls
+               along the green's lean to the pin; a soft one stops on the
+               crust and goes down with it. The field was eleven deep when it
+               was water and is eight now, so a mallet can get across; the
+               green, the pin and the pipe's far end came down with it.
+
+               Measured (hole lab): 0.54%, nearly all of it the pipe and the
+               rest the crust struck in its window; the putt at the flag runs
+               off the crust's edge into the lava. */
             name: 'Through the Pipe', par: 3,
-            blurb: 'Nothing in the bag carries this. Find the mouth: it comes out on a green that falls to the pin, at the pace you sent it in with.',
+            blurb: 'Nothing in the bag carries the lava. Find the mouth of the pipe, or cross the crust while it holds — it glows before it melts.',
             pads: [
                 pad(0, 0, 8, 10),
                 /* The far green falls east, seven hundredths, and the pin
@@ -5770,12 +5801,29 @@
                    was. On a lean the pace is how far across it curls, so the
                    mouth is still the line and the weight is the shot
                    (0.72%). */
-                pad(0, 21, 8, 9, 0, 'green', -0.07, 0)
+                pad(0, PIPE_Z1, PIPE_SPLIT, 9),
+                pad(PIPE_SPLIT, PIPE_Z1, 8 - PIPE_SPLIT, 9, 0, 'green', -PIPE_LEAN, 0),
+                // Under the crust, level with the lawn and the green's west edge.
+                pad(PIPE_CRUST.x, 10, PIPE_CRUST.w, PIPE_LAVA, 0, 'crust')
             ],
-            water: [rect(-2, 10, 12, 11, -0.8)],
-            gaps: [shore(rect(-2, 10, 12, 11), 0.6)],
-            warps: [pipe(5.6, 7.4, 2.4, 24, 0, 0.95)],
-            tee: { x: 2.6, z: 1.6 }, cup: { x: 4.6, z: 27 }
+            /* Two pools, a step apart. The west one is flush with the lawn
+               because the crust is laid in it; the east one sits under the
+               green's low east edge (the lean takes it 0.28 down), so the
+               lava is never higher than the grass beside it, and the step
+               between them pours east as a lavafall. */
+            water: [(function () {
+                var r = lavaRect(-2, 10, PIPE_SPLIT + 2, PIPE_LAVA);
+                r.spill = [1];
+                return r;
+            })(), (function () {
+                var r = lavaRect(PIPE_SPLIT, 10, 8 - PIPE_SPLIT + 2, PIPE_LAVA, -0.34);
+                r.held = [0];
+                return r;
+            })()],
+            crusts: [crust(PIPE_CRUST.x, 10, PIPE_CRUST.w, PIPE_LAVA, PIPE_CRUST.period, PIPE_CRUST.open)],
+            gaps: [shore(rect(-2, 10, 12, PIPE_LAVA), 0.6)],
+            warps: [pipe(5.6, 7.4, PIPE_EXIT.x, PIPE_Z1 + PIPE_EXIT.dz, 0, 0.95)],
+            tee: { x: 2.6, z: 1.6 }, cup: { x: PIPE_CUP.x, z: PIPE_Z1 + PIPE_CUP.dz }
         }),
         build({
             /* A loop-the-loop, and the one ride on the course the ball goes
@@ -5963,7 +6011,7 @@
                 pad(14, 11, 3.4, 3.5, 2.2, 'wood'),
                 pad(0, 15, 12, 10, 1)
             ],
-            water: [rect(-2, 10, 22, 5, -0.8)],
+            water: [lavaRect(-2, 10, 22, 5, -0.8)],
             gaps: [
                 { x: -0.6, z: 10.7, w: 8.6, d: 0.6 },    // the face of the rim, where you land
                 { x: -1, z: 14.7, w: 21, d: 0.9 }        // and the crater's own
@@ -7693,7 +7741,7 @@
             id: 'cinder',
             group: 'adventure',
             name: 'Cinder Cone',
-            blurb: 'Launch pads, belts, a pipe and a loop on the side of a mountain. The floor decides; you only decide how hard.',
+            blurb: 'Launch pads, belts, a pipe, a loop and a crust of lava on the side of a mountain. The floor decides; you only decide how hard, and when.',
             theme: 'volcano',
             holes: cinder
         },

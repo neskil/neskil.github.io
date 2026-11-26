@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.224.1';
+G3.VERSION = '1.225.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -57,6 +57,12 @@ G3.CONFIG = {
            ice, so a putt runs a little further than the eye expects and the
            shape of the ground does more of the work. */
         glass: 0.40,
+        /* Set lava (physics → "lava, and the crust"): glassy, between a
+           plank and ice. A crust is a bridge you cross while it lasts, not
+           somewhere to stop, and at a green's pace a mallet could not get
+           over eight units of it from a tee; this hands the pace on to the
+           green beyond, where it is spent. */
+        crust: 0.6,
         sand: 0.004,   // a bunker eats a shot
         rough: 0.135,  // was 0.06, for the same reason as the fairway: ROLL holds it now
         cup: 0.004     // the bottom of the hole: whatever lands here stays
@@ -847,6 +853,9 @@ G3.CONFIG = {
 
     OOB_Y: -6,            // fall past this and the shot is lost
     WATER_PENALTY: 1,
+    /* How long a crust's seams glow before it melts (physics.crustPhase):
+       the warning a player gets that the floor is about to go. */
+    CRUST_WARN: 1.1,
     OOB_PENALTY: 1,
 
     /* Feel. None of this touches the simulation — it is what the shot looks

@@ -44,6 +44,8 @@
             if (w.swing && w.swing.speed) T = Math.max(T, 2 * Math.PI / Math.abs(w.swing.speed));
             if (w.sails && w.sails.speed) T = Math.max(T, Math.PI / 2 / Math.abs(w.sails.speed));
         });
+        // And a crust that sets and melts (physics → "lava, and the crust").
+        (hole.crusts || []).forEach(function (c) { T = Math.max(T, c.period); });
         return T;
     }
 

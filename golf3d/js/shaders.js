@@ -426,6 +426,81 @@
         '}'
     ].join('\n');
 
+    /* ── lava ───────────────────────────────────────────────────────────
+
+       The water's sibling (physics → "lava, and the crust"), and unlit for
+       the same reason the sea is: it makes its own light. Two layers in
+       world space, both crawling down `flow`: molten rock, folded fbm from
+       deep red through orange to a yellow-white where it is hottest, and
+       plates of black crust over it, the cells of a Voronoi pattern with
+       the seams between them left molten.
+
+       `set` is how much of the surface is crust. A pool runs about half
+       (islands of crust drifting on the melt); a crust (hole.crusts) is
+       drawn by the same shader on a sheet laid over its pool with `set` at
+       one, so the whole of it is plates, and `warn` is the warning before
+       it goes: the seams widen and brighten and the plates themselves
+       take the heat. `alpha` lets it fade in when it sets again.
+
+       It writes linear colour straight out, as WATER_FS does, and fogs
+       itself off the same three uniforms. */
+    var LAVA_FS = [
+        'uniform vec3 fogColour;',
+        'uniform float time, set, warn, fogNear, fogFar, alpha;',
+        'uniform vec2 flow;',
+        'varying vec3 vWorld;',
+        'float lhash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+        'vec2 lhash2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }',
+        'float lnoise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(lhash(i), lhash(i + vec2(1.0, 0.0)), f.x),',
+        '             mix(lhash(i + vec2(0.0, 1.0)), lhash(i + vec2(1.0, 1.0)), f.x), f.y);',
+        '}',
+        'float lfbm(vec2 p){',
+        '  float s = 0.0, a = 0.5;',
+        '  for (int i = 0; i < 4; i++) { s += a * lnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; }',
+        '  return s;',
+        '}',
+        // Distance to the nearest seam between Voronoi cells, and the cell's id.
+        'vec2 seam(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p), id = vec2(0.0);',
+        '  float d1 = 8.0, d2 = 8.0;',
+        '  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {',
+        '    vec2 g = vec2(float(x), float(y));',
+        '    vec2 o = lhash2(i + g);',
+        '    vec2 r = g + o - f;',
+        '    float d = dot(r, r);',
+        '    if (d < d1) { d2 = d1; d1 = d; id = i + g; } else if (d < d2) { d2 = d; }',
+        '  }',
+        '  return vec2(sqrt(d2) - sqrt(d1), lhash(id));',
+        '}',
+        'void main(){',
+        '  vec2 p = vWorld.xz;',
+        '  vec2 q = p - flow * time;',
+        '  float w = lfbm(q * 0.8 + vec2(time * 0.05, -time * 0.04));',
+        '  float m = lfbm(q * 2.1 - w * 1.8 + vec2(0.0, time * 0.11));',
+        '  vec3 deepC = vec3(0.42, 0.03, 0.01), hotC = vec3(1.0, 0.30, 0.03), whiteC = vec3(1.0, 0.78, 0.36);',
+        '  vec3 molten = mix(deepC, hotC, smoothstep(0.30, 0.62, m));',
+        '  molten = mix(molten, whiteC, smoothstep(0.60, 0.82, m) * 0.85);',
+        // Plates: where the slow noise is under `set`, cut into cells.
+        '  vec2 sv = seam(q * 1.25 + w * 0.5);',
+        '  float cover = set >= 0.999 ? 1.0 : smoothstep(set + 0.06, set - 0.06, lfbm(q * 0.45 + vec2(3.1, 7.7)));',
+        '  float gap = 0.035 + warn * 0.15;',
+        '  float plate = smoothstep(gap, gap + 0.05, sv.x) * cover;',
+        '  float grain = lnoise(p * 9.0) * 0.5 + lnoise(p * 23.0) * 0.5;',
+        '  vec3 basalt = vec3(0.045, 0.038, 0.036) * (0.7 + 0.6 * sv.y) * (0.75 + 0.5 * grain);',
+        // A plate is hotter towards its edges, and all of it as the melt nears.
+        '  float rim = 1.0 - smoothstep(gap, gap + 0.22, sv.x);',
+        '  basalt = mix(basalt, deepC * 1.2, clamp(rim * 0.55 + warn * (0.55 + 0.45 * sin(time * 9.0 + sv.y * 6.0)), 0.0, 1.0) * 0.9);',
+        '  vec3 seamC = mix(molten * 0.55, molten * 1.25, 0.35 + 0.65 * warn);',
+        '  vec3 col = mix(cover > 0.0 ? mix(molten, seamC, cover) : molten, basalt, plate);',
+        '  float dist = length(vWorld - cameraPosition);',
+        '  col = mix(col, fogColour, smoothstep(fogNear, fogFar, dist) * 0.85);',
+        '  gl_FragColor = vec4(col, alpha);',
+        '}'
+    ].join('\n');
+
     /* ── the turf ───────────────────────────────────────────────────────
 
        Not a shader — four fragments of one, spliced into three.js's own
@@ -1368,6 +1443,7 @@
         SKY_FS: SKY_FS,
         WATER_VS: WATER_VS,
         WATER_FS: WATER_FS,
+        LAVA_FS: LAVA_FS,
         TURF_VS_HEAD: TURF_VS_HEAD,
         TURF_VS_BODY: TURF_VS_BODY,
         TURF_FS_HEAD: TURF_FS_HEAD,

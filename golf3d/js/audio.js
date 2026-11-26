@@ -317,6 +317,13 @@
             noise(0.4, 900, 0.6, 0.2);
             tone(420, 0.35, 'sine', 0.1, 90);
         },
+        /* Lava (physics → "lava, and the crust"): a hiss that falls away and
+           a low glug, where water has its splash. */
+        sizzle: function () {
+            noise(0.7, 4200, 0.5, 0.16, 'highpass');
+            noise(0.35, 700, 1.2, 0.08);
+            tone(110, 0.4, 'sine', 0.08, 55);
+        },
         out: function () {
             tone(300, 0.5, 'sawtooth', 0.08, 60);
         },

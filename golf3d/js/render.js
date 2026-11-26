@@ -3543,6 +3543,8 @@
     }
 
     function addPad(group, pad, theme, cup, pads) {
+        // The ground under a crust is the lava's to draw (addLava, addCrust).
+        if (pad.kind === 'crust') return;
         if (pad.shelf) addShelf(group, pad);
         if (pad.bumps || pad.field) { addTerrain(group, pad, theme, cup, pads); return; }
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
@@ -5413,7 +5415,7 @@
        inside a slab that reaches the same ground, and is never seen. */
     var BANK_W = 0.4;
 
-    function addBank(group, w, theme, depth) {
+    function addBank(group, w, theme, depth, skip) {
         // Nothing to hold up: on a theme whose floor is near the waterline the
         // flanks are a few centimetres and the kerb would be a hairline.
         if (depth < 0.45) return;
@@ -5432,6 +5434,7 @@
             [w.x + w.w / 2, w.z + w.d + BANK_W / 2, w.w, BANK_W]
         ];
         for (i = 0; i < sides.length; i++) {
+            if (skip && skip.indexOf(i) >= 0) continue;
             s = sides[i];
             mesh = new THREE.Mesh(new THREE.BoxGeometry(s[2], depth, s[3]), mat);
             mesh.position.set(s[0], y, s[1]);
@@ -5487,7 +5490,100 @@
         group.add(mesh);
     }
 
+    /* Lava (physics → "lava, and the crust"; the shader is SH.LAVA_FS). One
+       material per surface, so a crust's sheet can be told its own phase. */
+    function lavaMaterial(theme, opts) {
+        opts = opts || {};
+        var mat = new THREE.ShaderMaterial({
+            uniforms: {
+                fogColour: { value: new THREE.Color(theme.fog) },
+                fogNear: { value: 24 },
+                fogFar: { value: 95 },
+                time: { value: 0 },
+                set: { value: opts.set !== undefined ? opts.set : 0.48 },
+                warn: { value: 0 },
+                alpha: { value: 1 },
+                flow: { value: new THREE.Vector2(opts.flow ? opts.flow[0] : 0.05, opts.flow ? opts.flow[1] : 0.12) }
+            },
+            vertexShader: SH.WATER_VS,
+            fragmentShader: SH.LAVA_FS,
+            transparent: !!opts.sheet,
+            depthWrite: !opts.sheet
+        });
+        R.lavaMats.push(mat);
+        return mat;
+    }
+
+    /* A lava pool is drawn as the pond is — a box from its surface down to
+       the surround, held in by the same kerb of the course's ground — with
+       the lava on top and cooled black rock for its sides. No bed: it is
+       not something you see into. */
+    function addLava(group, w, theme) {
+        var depth = Math.max(0.6, w.y - theme.surroundY + 0.2);
+        var rock = new THREE.MeshLambertMaterial({ color: 0x1a1412 });
+        var top = lavaMaterial(theme, { set: w.set, flow: w.flow });
+        /* `spill` names the sides that pour into a lower pool next door
+           (0 −x, 1 +x, 2 −z, 3 +z, as addBank counts them): that face is
+           drawn in lava too — in world space the shader smears it down the
+           face, which is a lavafall — and gets no kerb. */
+        var spill = w.spill || [];
+        var side = function (k) { return spill.indexOf(k) >= 0 ? top : rock; };
+        // Box material order: +x, -x, +y, -y, +z, -z.
+        var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d),
+            [side(1), side(0), top, rock, side(3), side(2)]);
+        mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
+        group.add(mesh);
+        /* The kerb a hair under the surface rather than level with it: a
+           pool flush with the lawn (a crust's) would otherwise stand its
+           kerb a few centimetres proud along the lawn's edge. */
+        addBank(group, { x: w.x, z: w.z, w: w.w, d: w.d, y: w.y - 0.04, dip: w.dip }, theme, depth,
+            spill.concat(w.held || []));
+    }
+
+    /* A crust: a sheet of the same lava laid a hair over its pool, all
+       plates (`set` 1), shown while the crust is set and gone while it is
+       molten. stepLava reads its phase off the world's clock every frame —
+       the clock physics.drown asks — so what is drawn is what the ball
+       meets: the seams start to glow CRUST_WARN before the melt. */
+    function addCrust(group, c, hole, theme) {
+        var lw = P.waterAt(hole, c.x + c.w / 2, c.z + c.d / 2);
+        var y = (lw ? lw.y : 0) + 0.006;
+        var geo = new THREE.PlaneGeometry(c.w, c.d);
+        geo.rotateX(-Math.PI / 2);
+        var mat = lavaMaterial(theme, { set: 1, sheet: true, flow: lw && lw.flow });
+        var mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(c.x + c.w / 2, y, c.z + c.d / 2);
+        mesh.renderOrder = 2;
+        group.add(mesh);
+        R.crusts.push({ crust: c, mesh: mesh, mat: mat });
+    }
+
+    var _crust = {};
+    function stepLava(world) {
+        var i, u, k, c, f, fade;
+        for (i = 0; i < (R.lavaMats || []).length; i++) {
+            u = R.lavaMats[i].uniforms;
+            u.time.value = R.clock;
+            if (R.scene.fog) {
+                u.fogNear.value = R.scene.fog.near;
+                u.fogFar.value = R.scene.fog.far;
+                u.fogColour.value.copy(R.scene.fog.color);
+            }
+        }
+        for (k = 0; k < (R.crusts || []).length; k++) {
+            c = R.crusts[k];
+            f = P.crustPhase(c.crust, world ? world.time : R.clock, _crust);
+            // It sets at once (the physics does), and so does the picture;
+            // molten, the sheet is simply not there.
+            fade = f.set;
+            c.mesh.visible = fade > 0.001;
+            c.mat.uniforms.alpha.value = fade;
+            c.mat.uniforms.warn.value = f.warn * f.set;
+        }
+    }
+
     function addWater(group, w, theme) {
+        if (w.lava) { addLava(group, w, theme); return; }
         if (w.grid) { addPondOnGrid(group, w, theme); return; }
         /* A box rather than a plane: the pads reach down to the surrounding
            ground, so a pond between two of them is a filled channel, and a
@@ -6667,6 +6763,8 @@
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
+        R.lavaMats = [];
+        R.crusts = [];
         // The black holes (see "the black hole"): every material, every
         // mouth with its sky portal, every well — and the camera that
         // watches a ball come out of the sky.
@@ -6786,6 +6884,7 @@
             addWater(g, hole.water[i], theme);
             if (hole.water[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
         }
+        for (i = 0; i < (hole.crusts || []).length; i++) addCrust(g, hole.crusts[i], hole, theme);
         addCup(g, hole);
         // No ring on the tee any more: it sat round the ball at every
         // address and said where the ball was while the ball said so itself
@@ -9396,6 +9495,7 @@
         stepRipples(dt);
         stepBlackHoles(dt, world);
         stepBelts();
+        stepLava(world);
         if (G3.worlds) G3.worlds.step(dt, R.clock);
         watchLoop(world, dt);
         watchWarp(world, dt);
@@ -9592,6 +9692,8 @@
     /* ── effects the game asks for ──────────────────────────────────────── */
 
     function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
+    // Lava's: a spit of embers, higher and hotter than a splash.
+    function emberAt(x, y, z) { burst(x, y, z, 0xff7a1a, 34, 3.4); }
 
     /* The grid world's effects (Challenge mode). A landing or a rail hit on
        glass sends a ripple out through the floor from where it happened, with
@@ -9816,6 +9918,7 @@
         frame: frame,
         hitAt: hitAt,
         splashAt: splashAt,
+        emberAt: emberAt,
         sandAt: sandAt,
         sinkAt: sinkAt,
         celebrate: celebrate,

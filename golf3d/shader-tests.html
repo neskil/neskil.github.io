@@ -166,7 +166,8 @@
             TURF_FS_HEAD: SH.TURF_FS_HEAD, TURF_FS_BODY: SH.TURF_FS_BODY,
             SUR_FS_HEAD: SH.SUR_FS_HEAD, SUR_FS_BODY: SH.SUR_FS_BODY,
             RIDGE_VS: SH.RIDGE_VS, RIDGE_FS: SH.RIDGE_FS,
-            BLACKHOLE_VS: SH.BLACKHOLE_VS, BLACKHOLE_FS: SH.BLACKHOLE_FS
+            BLACKHOLE_VS: SH.BLACKHOLE_VS, BLACKHOLE_FS: SH.BLACKHOLE_FS,
+            LAVA_FS: SH.LAVA_FS
         };
 
         Object.keys(SOURCES).forEach(function (k) {
@@ -869,6 +870,48 @@
                 });
                 assert(pick[2] + ': the uniforms agree on both sides', bhDecl.length > 8);
             });
+
+            /* Lava and its crust (README → "Lava, and the crust"), on the
+               hole that has both. The crust's sheet is shown and hidden off
+               the world's clock, so the frame is drawn at a moment it is set,
+               one in its warning and one while it is molten. */
+            (function () {
+                section('THE LAVA');
+                var c = G3.courseById('cinder'), h = c.holes[2], cr = h.crusts && h.crusts[0];
+                var lavaDecl = declaredUniforms(SH.LAVA_FS).concat(declaredUniforms(SH.WATER_VS));
+                drainErrors();
+                var shown = [];
+                var built = attempt('a hole with lava and a crust builds and draws', function () {
+                    R.buildHole(h, c.theme, null);
+                    [0.5, cr.open - 0.4, cr.open + 0.5].forEach(function (t) {
+                        var world = P.createWorld(h, { x: h.tee.x, z: h.tee.z }, t);
+                        R.frame(1 / 60, world, { yaw: 0, power: 0 });
+                        renderOnce();
+                        shown.push(R.state.crusts[0].mesh.visible);
+                    });
+                });
+                if (!built.ok) return;
+                var mats = R.state.lavaMats || [];
+                assert('lava: a material for each pool and one for the crust',
+                    mats.length === h.water.length + h.crusts.length, mats.length + ' materials');
+                var errs = drainErrors(), bad = unlinkedPrograms();
+                assert('lava: every program links, and nothing is logged',
+                    errs.length === 0 && bad.length === 0, errs.concat(bad).join(' | ').slice(0, 400));
+                assert('lava: the crust is drawn while set and in its warning, and not while molten',
+                    shown[0] === true && shown[1] === true && shown[2] === false, JSON.stringify(shown));
+                assert('lava: the crust\'s warning is lit before the melt',
+                    R.state.crusts[0].mat.uniforms.warn.value >= 0 && P.crustPhase(cr, cr.open - 0.4).warn > 0.5);
+                mats.forEach(function (m, i) {
+                    lavaDecl.forEach(function (n) {
+                        if (BUILT_IN.indexOf(n) > -1) return;
+                        if (m.uniforms[n] === undefined) assert('lava material ' + i + ' supplies `' + n + '`', false);
+                    });
+                    Object.keys(m.uniforms).forEach(function (n) {
+                        if (!usesName(SH.LAVA_FS, n)) assert('the lava shader still reads `' + n + '`', false);
+                    });
+                });
+                assert('lava: the uniforms agree on both sides', lavaDecl.length >= 7, lavaDecl.join(','));
+            })();
 
             (function () {
                 var c = G3.courseById('cinder'), h = c.holes[2], wp = h.warps[0];

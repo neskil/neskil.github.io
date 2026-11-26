@@ -363,7 +363,15 @@ The one idea here that changes what a hole can be, and the most work.
   beside the tee, a loop the player is walked round rather than flown.
   An **Apogee Yard 2** (the gravity course) is where they belong.
 
-### 2. Lava — a hazard that is not water
+### 2. Lava — a hazard that is not water — **done (v1.225.0)**
+
+Both halves shipped: lava pools and the cooling crust, first on Cinder Cone
+(Caldera's ring, and Through the Pipe rebuilt round a crust). README →
+"Lava, and the crust" has how it works. What is left of this item: a hole or
+a course built *round* crusts (several, out of phase — a stepping-stone path
+across a lava lake that opens one tile at a time), lava on the Obsidian Forge
+tour hole and Endless's volcanic worlds, and a crust that is not a rectangle.
+The plan as it was written:
 
 - **Molten lava** (`pad.kind = 'lava'`, or a `hole.lava` list shaped like
   `hole.water`): played like water — the shot is replayed a stroke down —
@@ -409,7 +417,8 @@ in `substep`'s grounded branch:
   a belt in the way that matters: the direction is yours, only the pace is
   the tile's.
 
-**Order, if the owner says yes:** lava and cooling crust first (it is a new
+**Order, if the owner says yes:** (lava and the crust shipped in v1.225.0)
+lava and cooling crust first (it is a new
 kind of decision, it is mostly shader work on code that exists, and a course
 — Cinder Cone — is waiting for it); then the turntable and mud; gravity
 folding last and as its own course, because it touches the camera, the aim

@@ -1753,6 +1753,8 @@ next.
 | **Pipe** | A mouth and where it puts you: `hole.warps = [{ x, z, r, tx, tz, yaw }]` | `physics.takeWarp` / `rideWarp` | One way. A two-way pipe is two of them; `pipes()` returns the pair. The trip takes `warpLength()`, about 1.2 s, and changes nothing else — see [The wormhole](#the-wormhole). |
 | **Loop** | A track the ball rides round the inside of: `hole.loops = [{ x, z, yaw, R, shift }]`, `loop()` in courses.js | `physics.takeLoop` / `rideLoop` | About √(5gR) at the foot to make the top, and the boards take more — a 1.1 loop wants about 14, a firm mallet. Under that it comes off the top or rolls back out. See [The loop](#the-loop). |
 | **Gravity** | One number on the hole: `hole.gravity` | `physics.gravityOf` | Carry goes as 1/g and so does apex, so two fifths of a g is two and a half times both. The gradient a surface holds a ball on does not move at all. |
+| **Lava** | A water rectangle drawn hot: `lava: true` (`lavaRect()` in courses.js) | `physics.drown`, `render.addLava`, `SH.LAVA_FS` | Plays exactly as a pond does — a stroke and the shot again — so the bot, the drop and the hole lab need nothing new. See [Lava, and the crust](#lava-and-the-crust). |
+| **Crust** | A rectangle of a lava pool that sets on a cycle: `hole.crusts = [{ x, z, w, d, period, open, phase }]`, `crust()` | `physics.crustSet` / `crustPhase` | Solid for `open` seconds of every `period` off the world's own clock; the seams glow for `CONFIG.CRUST_WARN` (1.1 s) before it melts. A ball that stops on it is not at rest until the melt. |
 
 Three details in those are load-bearing.
 
@@ -1791,6 +1793,65 @@ without a single wall. The exit direction belongs to the pipe rather than to
 the ball, because a pipe has a mouth and coming out of one pointing wherever
 you happened to enter would make the far end unaimable — which is the one thing
 the far end has to be.
+
+#### Lava, and the crust
+
+Asked for in v1.186.0 ("new hazards like lava or something else you can come
+up with") and first used on Cinder Cone in v1.225.0, which had been a volcano
+with ponds on it. Caldera's ring and Through the Pipe's field are lava now.
+
+**Lava is water with another skin.** A `hole.water` rectangle with `lava:
+true`, drowned by the same `physics.drown`, which marks the world `burnt` and
+the events `lava` so the game can say "Lava — one stroke penalty", spit embers
+(`render.emberAt`) and hiss (`audio.sizzle`) instead of splashing. Drawn by
+`render.addLava`: the pond's box and kerb, cooled rock for the sides, and
+`SH.LAVA_FS` on top — unlit like the sea, two layers of world-space noise
+crawling down `flow` (folded fbm from deep red to yellow-white for the melt,
+Voronoi plates of black crust over it with the seams left molten; `set` is how
+much of it is crust). A pool's `spill` sides pour into a lower pool beside it:
+that face is drawn in lava and gets no kerb, which is a lavafall for free.
+
+**A crust is a gate in time on the floor** — every timing hole before it was a
+wall. `hole.crusts` lists rectangles of a lava pool that set for `open`
+seconds of every `period` (`phase` shifts the cycle). Under each the hole has a
+pad of `kind: 'crust'` at the crust's own level (glassy: `FRICTION.crust` 0.6,
+so a mallet crosses eight units of it and hands its pace to the green
+beyond), and the lava's surface stands a hair (0.005) over that pad. So while
+it is set, `drown` lets the ball through and it is ground like any other;
+while it is molten, a ball on it is under the lava. Three things hold it
+together:
+
+- **One clock.** The cycle runs off `world.time`, which game.js keeps running
+  while the player aims (the same clock gates and blades use) and
+  `render.stepLava` reads every frame, so the crust drawn is the crust the
+  ball meets. A replay sets `world.time` too.
+- **The picture leads the melt.** For the last `CRUST_WARN` seconds of each
+  set the plates go red and the seams widen (`warn` in the shader); molten,
+  the sheet is not drawn at all.
+- **A ball that stops on a crust is not at rest**, it is waiting for the
+  melt: the at-rest test refuses it, as it refuses a ball in a firing bat's
+  path, so the shot runs on until `drown` takes it. That is what makes the
+  bot and the hole lab see a soft one as the splash it is, rather than a
+  rest the player then watches sink.
+
+The bot treats a crust hole as a timing hole (`bot.moving`), with its waits
+spread over the shortest crust's whole period; the hole lab's moments span
+it (`lab.beat`). `render.addPad` draws nothing for a crust pad — the lava
+draws it. The audit's "water stands above the ground" is why a crust's pool
+is flush with the lawn and why Through the Pipe's green is split: its east
+two thirds lean, and the lava beside a lean that falls below the crust's level
+has to be a second, lower pool.
+
+**Through the Pipe** (`cinder` 3) is the first crust hole: the pipe or the
+crust, aim or timing. The field went from eleven deep to eight so a mallet
+gets across; the crust sets four seconds in seven. The pipe is the ace (0.82%
+in the hole lab, "tutorial"); the crust is the walk across that leaves a
+putt, with a rare ace off its east edge for the full mallet struck as it
+sets. The putt at the flag runs off the crust into the lava.
+
+Not done: **a cooling-crust course** (PLAN.md → "New surfaces and hazards"
+has the rest of the list), a crust that is not a rectangle, and lava on the
+World Tour's Obsidian Forge, which still uses a ghost water sheet.
 
 #### The wormhole
 
