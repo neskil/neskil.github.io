@@ -1365,7 +1365,7 @@
                flatter and shinier: rain fills the furrows in. */
             sand: (function () {
                 var m = tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac);
-                // A theme may tint it (Île Flottante's custard: until v1.226.1
+                // A theme may tint it (Île Flottante's custard: until v1.226.2
                 // its `sand` was never read, and its meringue islands were
                 // white on beige with no edge to see).
                 if (theme.sand) m.color.multiply(new THREE.Color(theme.sand));

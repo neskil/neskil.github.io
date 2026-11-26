@@ -361,7 +361,7 @@
         // The loop puts a straight ball out at x = 2.5 (its foot plus `shift`),
         // and the rug and the cup are on that line.
         var line = 2.5;
-        /* The rink is not level (v1.226.1, the owner: "flat"): a rise of ice
+        /* The rink is not level (v1.226.2, the owner: "flat"): a rise of ice
            on its west side, so a ball out of the loop is bent off the line
            to the right, more the slower it goes. The cup is right of the
            line on the rug, so only the weight whose bend ends there drops;
@@ -402,7 +402,7 @@
        the right pace and you come down inside the ring. Bumpers in a wood
        fire the ball like bumpers anywhere.
 
-       v1.226.1 (the owner: "Make it a bit harder please and fix the weird
+       v1.226.2 (the owner: "Make it a bit harder please and fix the weird
        floating thing"): no ground is found under it in the leaf litter, so
        the disc hung in the air with its edge showing; it stands on a stump
        down into the leaves now (`plinth`). And the flag stands on a crown
@@ -864,7 +864,7 @@
        (5.9 and 7.7 seconds) do not divide, so the two gaps line up a
        different way every time round.
 
-       v1.226.1 (the owner, look 5 but difficulty 1: "would be nicer if the
+       v1.226.2 (the owner, look 5 but difficulty 1: "would be nicer if the
        rails were above the fairway and if the [trains] were tighter. It's
        too easy"): each train is two coaches longer, so the near one leaves
        the lane open about a third of the time and the far one about a
@@ -905,7 +905,7 @@
         caption: 'Meringue islands in custard. Pitch from one to the next, or all the way in one.',
         theme: 'custard',
         hole: (function () {
-            /* v1.226.1 (the owner: fun 1, difficulty 4, look 5, `clip,edges,flat`).
+            /* v1.226.2 (the owner: fun 1, difficulty 4, look 5, `clip,edges,flat`).
                The islands were greens laid flat into the custard, the same
                height and nearly the same colour, so where one ended could
                not be seen, and the whole bowl was one level sheet. Each is a
@@ -989,7 +989,7 @@
        game's belongs on the few holes built round it (the gravity course),
        not on a tour hole you meet once.
 
-       v1.226.1 (the owner: "Can't see [the hole] due to overlapping texture
+       v1.226.2 (the owner: "Can't see [the hole] due to overlapping texture
        and too easy and short", fun 1, eight strokes on the par three). The
        green's dish went 0.12 under the dock's stone floor, so the world was
        drawn over the cup, and the felt was the floor's own grey: the hole
@@ -1375,7 +1375,7 @@
         sky: [0xf6dc8a, 0xfff6d8], fog: 0xfff0c0,
         sun: 0xfff4d0, sunPos: [6, 14, -4], ambient: 0xf8e2a8, ambientI: 0.8,
         /* Meringue white on a custard that is a shade deeper than the
-           world's own, so an island's edge reads (v1.226.1: `edges`). */
+           world's own, so an island's edge reads (v1.226.2: `edges`). */
         grass: ['#fffdf8', '#f7f1e6'], rail: 0xb8742a,
         surroundY: -5, surround: 'floor', floor: '#e8c860',
         water: 0xf0d060, side: '#e2c070', sand: '#d9a531', birds: false

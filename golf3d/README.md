@@ -5279,7 +5279,7 @@ the Fire re-laid with the tee across the valley and two dug pools
 "2,32,7,0.45;3,45,3.5,0.45" --tour fire`); The Nave's camera clipping noted,
 not fixed.
 
-**Batch 4's copy** (v1.226.1) came back with none of batch 4 rated or
+**Batch 4's copy** (v1.226.2) came back with none of batch 4 rated or
 played: all twenty-one `(not rated)`, no play stats, as batch 2's first copy
 did. So the recipe did not move, no batch 5 was forged (it would have
 replaced `js/forge-maps.js` and the unplayed batch with it), and nothing went
