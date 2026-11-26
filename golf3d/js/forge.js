@@ -68,10 +68,27 @@
     function holeOf(m) {
         var G = m.grid, field = [{ grid: G }];
         function on(p) { p.field = field; p.inlay = true; return p; }
-        var ground = A.pad(G.x0, G.z0, (G.nx - 1) * G.d, (G.nz - 1) * G.d, 0, 'fairway');
+        /* `rough` (batch 5 on): the ground off the fairway is rough, so the
+           painted fairway is somewhere a ball wants to be — until batch 4
+           every forged hole was fairway from edge to edge, open land the
+           width of the patch, and a person played every par four of batch
+           4 in three (README → "Batch 5"). Since `paint`, the line between
+           them can be seen, which is what kept the sculpted holes all
+           fairway (portals.js → world). */
+        var ground = A.pad(G.x0, G.z0, (G.nx - 1) * G.d, (G.nz - 1) * G.d, 0, m.rough ? 'rough' : 'fairway');
         ground.field = field; ground.ghost = true;
         var pads = [ground, on(A.pad(m.tee.x - 1, m.tee.z - 1, 2, 2, 0, 'fairway'))];
         (m.strips || []).forEach(function (r) { pads.push(on(A.pad(r[0], r[1], r[2] - r[0], r[3] - r[1], 0, 'fairway'))); });
+        /* `fairway` (batch 5 on): [x0, z0, x1, z1, width], one band from the
+           tee to the green with round ends, in place of the two boxes of
+           `strips`, which painted a staircase (batch 4: "inorganic"). It is
+           a road (courses.road), so where it is painted and where it rolls
+           as fairway are the one shape. */
+        if (m.fairway) {
+            var fw = m.fairway, fdx = fw[2] - fw[0], fdz = fw[3] - fw[1];
+            pads.push(on(A.road({ x: fw[0], z: fw[1], dir: Math.atan2(fdx, fdz), w: fw[4], y: 0, kind: 'fairway', caps: true },
+                [['line', Math.max(0.1, Math.hypot(fdx, fdz))]])));
+        }
         var gr = m.green || 1.3;
         pads.push(on(A.pad(m.cup.x - gr, m.cup.z - gr, 2 * gr, 2 * gr, 0, 'green')));
         // `long` (batch 2 on): a long-game hole, the full bag (no `bag` at all).
@@ -179,6 +196,8 @@
         if (m.finished) what.push(m.finished, m.water || null, m.outs || null, m.green || null);
         // Batch 4's trunks and paint change how a map plays and looks; maps without them keep their keys.
         if (m.solid || m.paint) what.push(m.solid || null, !!m.paint);
+        // Batch 5's rough and fairway band, likewise.
+        if (m.rough || m.fairway) what.push(!!m.rough, m.fairway || null);
         return 'forge:' + hashOf(JSON.stringify(what));
     }
     var KEYS = null;
@@ -232,17 +251,29 @@
        issue names a part of the recipe it would move (forge.mjs reads the
        pasted text back; the names are what it looks for). */
     var ISSUES = [
+        /* Batch 5 split the two chips that had come to mean two things each
+           (FORGE-FEEDBACK.md): `flat` was ticked for "nothing to do" on
+           ground with five units of relief, so that is `dull` now; `ugly`
+           was ticked for the paint and for the world alike, so the paint
+           is `paint`. `fell` and `layout` are things the notes said that
+           no chip did, and `mini` is the owner's "some of the new maps can
+           be mini golf style". */
         ['edges', 'Couldn’t see where the hole was'],
         ['bumpy', 'Ground too bumpy'],
-        ['flat', 'Too flat / boring'],
+        ['flat', 'Ground too flat (no shape)'],
+        ['dull', 'Nothing to decide / no challenge'],
         ['long', 'Too long'],
         ['short', 'Too short'],
         ['hard', 'Too hard'],
         ['easy', 'Too easy'],
-        ['clip', 'Clipping / floating'],
+        ['layout', 'Tee or cup in the wrong place'],
+        ['clip', 'Ball went through things'],
+        ['fell', 'Ball fell through the ground'],
         ['stuck', 'Ball got stuck'],
         ['camera', 'Bad view / camera'],
-        ['ugly', 'Paint looked wrong'],
+        ['paint', 'Fairway / green paint looks wrong'],
+        ['ugly', 'The spot looks bad'],
+        ['mini', 'Better as mini golf here'],
         ['nice-spot', 'Great spot in the world']
     ];
     var VERDICTS = [['keep', 'Keep'], ['fix', 'Keep if fixed'], ['drop', 'Drop']];

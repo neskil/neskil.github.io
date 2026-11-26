@@ -224,7 +224,14 @@ if (args.includes('--write')) {
 const tour = one('--tour');
 if (tour) {
     const f = join(js, 'tour-ground.js'), text = readFileSync(f, 'utf8');
-    const line = `    G3.TOUR_GROUND['${tour}'] = ${JSON.stringify({ x0: g.x0, z0: g.z0, d: g.d, nx: g.nx, nz: g.nz, h: g.h })};`;
+    /* The world's things go with the ground since batch 5 (the Pop-Up Book,
+       the first keep forged with trunks): `outs`, the cells a ball may not
+       stop in, and `solid`, the trunks it strikes, which portals.js →
+       marks() turns into the hole's outGrid and solidGrid as forge.js does. */
+    const tg = { x0: g.x0, z0: g.z0, d: g.d, nx: g.nx, nz: g.nz, h: g.h };
+    if (map.outs && map.outs.length) tg.outs = map.outs;
+    if (map.solid && map.solid.length) tg.solid = map.solid;
+    const line = `    G3.TOUR_GROUND['${tour}'] = ${JSON.stringify(tg)};`;
     const re = new RegExp(`^    G3\\.TOUR_GROUND\\['${tour}'\\] = .*$`, 'm');
     writeFileSync(f, re.test(text) ? text.replace(re, line) : text.replace(/\n\}\)\(window\.G3\);\s*$/, '\n' + line + '\n})(window.G3);\n'));
     console.log(`wrote G3.TOUR_GROUND['${tour}'] to js/tour-ground.js. The place and the hole, for portals.js:`);

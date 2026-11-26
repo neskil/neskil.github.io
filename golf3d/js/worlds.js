@@ -485,6 +485,7 @@
     SCENES.savanna = SCENES.clouds;
     // …and the second (v1.221.0): Echronedal's night, so Great A'Tuin's stars, as its forged map had.
     SCENES.fire = SCENES.turtle;
+    SCENES.popup = SCENES.attic;
 
     G3.worlds = { build: build, step: step, SCENES: SCENES, state: W };
 

@@ -101,16 +101,47 @@ const RECIPE = Object.assign({
     // `noEagle`: no cup the perfect bot holes in two under par (`pin`). Off:
     // tried for batch 4, it turned down every cup of every world tried — the
     // perfect bot chips in from wherever its drive stops.
-    dig: 0.45, digR: 4.5, solid: true, paint: true, noEagle: false, par: [34, 72]
+    dig: 0.45, digR: 4.5, solid: true, paint: true, noEagle: false, par: [34, 72],
+    // Batch 5 (from batch 4's verdicts and the four batches before it,
+    // README → "The forge", Batch 5, and FORGE-FEEDBACK.md → "What four
+    // batches taught"). Every batch has come back "easy", and the reason
+    // was the measuring stick: cups were chosen for the perfect bot, which
+    // played every par four of batch 4 in two, where the bot with a
+    // person's hands (CONFIG.BOT_HANDS, tools/human-check.mjs) averaged 3.1
+    // — a stroke under par for a person, on every map. So:
+    // `hands`: rounds of the bot with hands played on each of the best
+    // `handsTop` cups, and the cup chosen whose average is nearest par +
+    // `overPar` with `wet` balls a round in the water or out. `honest`
+    // (off): a hole that many strokes under par for it would be given the
+    // par it plays to. Tried at 0.4 and at 1, it made glowwood's sixty
+    // units a "par three" (330 metres on the screen), and the owner had
+    // taken five there and still called it easy: they average about one
+    // and a half over the bot with hands, so what "easy" measures is a hole
+    // that asks nothing, not its score (FORGE-FEEDBACK.md, lesson 1).
+    hands: 6, handsTop: 4, overPar: 0.3, wet: 0.4, honest: 0,
+    // `rough`: the ground off the fairway is rough (it was fairway from edge
+    // to edge: open land, nothing to miss), and the fairway is one band
+    // `fairwayW` wide from the tee to the green (forge.js → `fairway`),
+    // painted as it rolls.
+    rough: true, fairwayW: 7,
+    // `mini`: the owner, "some of the new maps can be mini golf style for
+    // the worlds as well". A lean marked `mini` makes a short hole out of
+    // the mini bag with these over the recipe: gentle ground, a narrow
+    // painted lane, all of it fairway, a small dug pond.
+    mini: { L: 26, relief: 1.2, reliefMin: 0.5, reliefMax: 3, maxSlope: 0.35, minSlope: 0.08, long: false, rough: false,
+            fairwayW: 3.5, ace: 0.004, dig: 0.35, digR: 2.5, lane: 1, overPar: -0.2 }
 }, JSON.parse(one('--recipe', '{}')));
 // …and how each map of the batch leans off it, so a verdict can be read
 // against a setting: four lengths, three reliefs.
+// Since batch 5 a quarter of the maps are mini-golf holes (`mini`), two of
+// the first five, since a copy is played from the top (FORGE-FEEDBACK.md,
+// lesson 4). Leans 1 and 3 are where they were, for `--lean`.
 const LEAN = [
-    { L: 0.75, relief: 0.6 }, { L: 1, relief: 1 }, { L: 1.25, relief: 1.5 },
-    { L: 0.75, relief: 1.5 }, { L: 1, relief: 0.6 }, { L: 1.25, relief: 1 },
-    { L: 0.75, relief: 1 }, { L: 1, relief: 1.5 }, { L: 1.25, relief: 0.6 },
-    { L: 1, relief: 1 }, { L: 0.75, relief: 1.5 }, { L: 1.25, relief: 1 }
+    { L: 0.75, relief: 0.6 }, { L: 1, relief: 1 }, { mini: true }, { L: 1.25, relief: 1.5 },
+    { mini: true }, { L: 0.75, relief: 1.5 }, { L: 1, relief: 0.6 }, { L: 1.25, relief: 1 },
+    { mini: true }, { L: 1, relief: 1.5 }, { L: 0.75, relief: 1 }, { L: 1.25, relief: 0.6 }
 ];
+const leanL = (l) => l.mini ? RECIPE.mini.L : Math.round(RECIPE.L * l.L);
 // Par by length for a long-game hole (CONFIG.CLUBS: a driver runs about
 // forty units). Until batch 4 it was the drawn long courses' (under 28 a
 // three, under 60 a four), and batch 3 came back with its par fours played
@@ -278,10 +309,11 @@ function outsOf(standing, g, tee, cup, greenR) {
    the strips is made hard: the world clears its things from the strips
    (backdrop.mjs → sculpt), and a trunk that is not drawn must not be hit.
    Returns [cell, height] pairs (forge.js → solidGrid). */
-function solidOf(standing, stood, g, tee, cup, greenR, strips) {
+function solidOf(standing, stood, g, tee, cup, greenR, strips, fw) {
     if (!standing || !stood) return [];
     const n = g.nx * g.nz, on = new Uint8Array(n);
     const inStrip = (x, z) => (strips || []).some((r) => x > r[0] - 0.8 && x < r[2] + 0.8 && z > r[1] - 0.8 && z < r[3] + 0.8) ||
+        (fw && segDist(x, z, fw) < fw[4] / 2 + 0.8) ||
         Math.hypot(x - cup.x, z - cup.z) < greenR + 1.1 || Math.hypot(x - tee.x, z - tee.z) < 2;
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
         const c = k * g.nx + i;
@@ -406,6 +438,29 @@ function strips(tee, cup, w, gr) {
     const b = [Math.min(mx, cup.x) - half, mz, Math.max(mx, cup.x) + half, cup.z - gr - 0.1];
     return [a, b].filter((r) => r[3] - r[1] > 0.5).map((r) => r.map((x) => +x.toFixed(2)));
 }
+/* The fairway band (batch 5): from just in front of the tee to the
+   green's middle, `w` wide, round-ended (forge.js → holeOf lays it as a
+   road, render.js paints the same shape). */
+function fairwayOf(tee, cup, gr, w) {
+    const ax = cup.x - tee.x, az = cup.z - tee.z, L = Math.hypot(ax, az) || 1;
+    return [+(tee.x + ax / L * 1.2).toFixed(2), +(tee.z + az / L * 1.2).toFixed(2), cup.x, cup.z, w];
+}
+function segDist(x, z, f) {
+    const ax = f[2] - f[0], az = f[3] - f[1], t = Math.max(0, Math.min(1, ((x - f[0]) * ax + (z - f[1]) * az) / (ax * ax + az * az || 1)));
+    return Math.hypot(x - f[0] - ax * t, z - f[1] - az * t);
+}
+/* The bot with a person's hands (CONFIG.BOT_HANDS; tools/human-check.mjs),
+   `n` rounds, seeded: its average and the balls a round wet or out. */
+function handsOf(map, n) {
+    const h = G3.forge.holeOf(map), bag = G3.bagFor(h);
+    let t = 0, wet = 0;
+    for (let k = 0; k < n; k++) {
+        const res = G3.bot.play(h, 12, bag, { hands: C.BOT_HANDS, rng: rng(k * 7919 + 13) });
+        t += res.strokes;
+        res.shots.forEach((s) => { if (s.world.splash || s.world.out) wet++; });
+    }
+    return { avg: t / n, wet: wet / n };
+}
 function measure(map) {
     const h = G3.forge.holeOf(map), bag = G3.bagFor(h);
     const bot = G3.bot.play(h, 10, bag);
@@ -476,7 +531,7 @@ function pin(q, base, r) {
     // A long hole's green is a long-game green, six units across.
     const gr = r.long ? 3 : 1.3, step = Math.max(1.5, r.L / 16);
     let best = null;
-    const why = { line: 0, bot: 0, par: 0 };
+    const why = { line: 0, bot: 0, par: 0 }, cands = [];
     for (let z = r.L * 0.55; z <= r.L * 0.92; z += step) {
         for (let x = -(r.W / 2 - gr - 2); x <= r.W / 2 - gr - 2 + 1e-6; x += step) {
             const cup = { x: +x.toFixed(2), z: +z.toFixed(2) };
@@ -485,19 +540,23 @@ function pin(q, base, r) {
                 continue;
             }
             let h = level(teed, g, x, z, gr + 0.3, gr + 2.2);
-            const pond = ponds(h, g, tee, cup, r.pond, gr), dug = !pond && r.long ? digPond(h, g, tee, cup, gr, r) : null;
+            // Dug on a mini hole too since batch 5 (a mini hole is never `long`).
+            const pond = ponds(h, g, tee, cup, r.pond, gr), dug = !pond && (r.long || r.isMini) ? digPond(h, g, tee, cup, gr, r) : null;
             if (dug) h = dug.h;
             const map = {
                 id: 'probe', title: 'probe', world: q.world, u: q.u, par: r.long ? parFor(tee, cup, r) : 3,
                 bag: r.long ? 'long' : 'loft', grid: Object.assign({}, g, { h: round(h, 3) }), tee, cup,
-                strips: strips(tee, cup, r.strip, gr)
+                strips: r.fairwayW ? undefined : strips(tee, cup, r.strip, gr)
             };
+            if (!map.strips) delete map.strips;
+            if (r.fairwayW) map.fairway = fairwayOf(tee, cup, gr, r.fairwayW);
+            if (r.rough) map.rough = true;
             if (r.long) { map.long = true; map.green = gr; }
             if (pond) map.water = [pond.rect];
             if (dug) { map.water = [dug.rect]; map.dug = true; }
             const outs = r.outs ? outsOf(base.standing, g, tee, cup, gr) : [];
             if (outs.length) map.outs = outs;
-            const solid = r.solid ? solidOf(base.standing, q.stood, g, tee, cup, gr, map.strips) : [];
+            const solid = r.solid ? solidOf(base.standing, q.stood, g, tee, cup, gr, map.strips, map.fairway) : [];
             if (solid.length) map.solid = solid;
             if (r.paint) map.paint = true;
             const m = measure(map);
@@ -512,8 +571,13 @@ function pin(q, base, r) {
                    had made every one of them a hole the perfect bot played in
                    two. An eagle for it is a birdie for a person. */
                 if (r.noEagle && m.bot < map.par - 1) { why.eagle = (why.eagle || 0) + 1; continue; }
-                const sc = Math.abs(m.bot - (map.par - 1)) + 3 * Math.abs(m.risk - r.risk) + 0.1 * Math.abs(x) / (r.W / 2);
-                if (!best || sc < best.sc) best = { sc, map, m };
+                /* Until batch 5 this also paid for every stroke the perfect
+                   bot was off a birdie, which ranked first the cups it could
+                   birdie — the easy ones — before anything else was asked.
+                   The bot with hands judges difficulty now (below); here
+                   only the hazards in play and the tie to the middle. */
+                const sc = (r.hands ? 0 : Math.abs(m.bot - (map.par - 1))) + 3 * Math.abs(m.risk - r.risk) + 0.1 * Math.abs(x) / (r.W / 2);
+                cands.push({ sc, map, m });
                 continue;
             }
             if (!m || m.bot > 3) continue;
@@ -523,8 +587,33 @@ function pin(q, base, r) {
             // could not ace scored alike, so the first tried won — the far
             // left edge, on six maps of ten. Between equals, nearer the middle.
             const sc = Math.abs(Math.log((m.share + 1e-4) / r.ace)) + (m.straight ? 0.8 : 0) + (m.share === 0 ? 1.5 : 0) + 0.1 * Math.abs(x) / (r.W / 2);
-            if (!best || sc < best.sc) best = { sc, map, m };
+            cands.push({ sc, map, m });
         }
+    }
+    /* The bot with hands (batch 5): the best few cups by the perfect bot's
+       reading are played `hands` rounds each as a person would, and the one
+       whose average is nearest par + `overPar`, with about `wet` balls a
+       round in trouble, wins. Batch 4 is why: the perfect bot played every
+       par four in two and could not tell one cup from another, and the bot
+       with hands averaged 3.1 on all of them, which is what the owner's
+       "easy" on every map of every batch was saying. */
+    cands.sort((a, b) => a.sc - b.sc);
+    for (const c of cands.slice(0, r.hands ? (r.handsTop || 3) : 1)) {
+        if (r.hands) {
+            const hd = handsOf(c.map, r.hands);
+            const want = (r.long ? c.map.par : 3) + (r.overPar || 0);
+            c.m.hands = hd.avg; c.m.wet = hd.wet;
+            c.sc2 = Math.abs(hd.avg - want) + 0.5 * Math.abs(hd.wet - (r.wet || 0)) + 0.2 * c.sc;
+        } else c.sc2 = c.sc;
+        if (!best || c.sc2 < best.sc2) best = c;
+    }
+    /* …and a long hole a person still plays well under its par by length
+       is given the par it plays to: a "par four" played in three is a par
+       three, and calling it four is what made batch 4's two-stroke holes
+       eagles. */
+    if (best && r.long && r.hands && r.honest && best.m.hands <= best.map.par - r.honest) {
+        best.m.lenPar = best.map.par;
+        best.map.par = Math.max(3, Math.round(best.m.hands - (r.overPar || 0)));
     }
     if (!best && process.env.FORGE_DEBUG) console.log(`  ${q.world} u${q.u} t${q.turn}: no pin — line blocked ${why.line}, bot never holed ${why.bot}, over par ${why.par}, eagle ${why.eagle || 0}; ${base.standing ? base.standing.reduce((a, x) => a + x, 0) : 0} cells standing, ${base.clutter.reduce((a, x) => a + x, 0)} cluttered`);
     return best;
@@ -546,7 +635,7 @@ function pinAndVet(cands, r) {
         if (!p) continue;
         const v = vet(p.map);
         if (!v.ok) { log.push(`vet failed (${v.moving} shots never stop, ${v.stuck} spots no shot leaves) — next patch`); continue; }
-        return { i: cands.indexOf(c), map: p.map, m: { bot: p.m.bot, share: p.m.share, straight: p.m.straight, risk: p.m.risk }, log };
+        return { i: cands.indexOf(c), map: p.map, m: { bot: p.m.bot, share: p.m.share, straight: p.m.straight, risk: p.m.risk, hands: p.m.hands, wet: p.m.wet, lenPar: p.m.lenPar }, log };
     }
     return { i: -1, log };
 }
@@ -633,7 +722,7 @@ if (one('--keep')) {
    world it has seen. `--cache <dir>` puts it elsewhere, `--no-cache`
    neither reads nor writes it. */
 const GROUND = one('--ground', 'render');
-const SAMPLE_L = Math.max(...LEAN.map((l) => Math.round(RECIPE.L * l.L)));
+const SAMPLE_L = Math.max(...LEAN.map(leanL));
 const CACHE = args.includes('--no-cache') ? null : one('--cache', join(homedir(), '.cache', 'loft-links-forge'));
 const SRC = createHash('sha1').update(readFileSync(join(js, 'backdrop.mjs'))).update(readFileSync(join(here, 'forge-sample.mjs'))).digest('hex');
 const stats = { cached: 0, sampled: 0, load: 0, ground: 0, stood: 0 };
@@ -641,7 +730,7 @@ async function sampled(world) {
     const R = {
         us: [0.2, 0.35, 0.5, 0.65, 0.8], turns: [-0.5, 0, 0.5], ahead: RECIPE.ahead,
         W: RECIPE.W, L: SAMPLE_L, back: RECIPE.back, d: RECIPE.d, scaleK: RECIPE.scaleK, ground: GROUND,
-        crops: [...new Set(LEAN.map((l) => Math.round(RECIPE.L * l.L)))]
+        crops: [...new Set(LEAN.map(leanL))]
     };
     const key = createHash('sha1').update(JSON.stringify([world, R, SRC])).digest('hex').slice(0, 16);
     const file = CACHE && join(CACHE, world + '-' + key + '.json');
@@ -664,7 +753,8 @@ function crop(q, L) {
 
 async function forgeOne(row, li) {
     const lean = LEAN[li];
-    const r = Object.assign({}, RECIPE, { L: Math.round(RECIPE.L * lean.L), relief: +(RECIPE.relief * lean.relief).toFixed(2) });
+    const r = lean.mini ? Object.assign({}, RECIPE, RECIPE.mini, { isMini: true })
+        : Object.assign({}, RECIPE, { L: Math.round(RECIPE.L * lean.L), relief: +(RECIPE.relief * lean.relief).toFixed(2) });
     const s = await sampled(row[0]);
     if (s.error) return { why: 'load: ' + s.error };
     s.patches = s.patches.map((q) => crop(Object.assign(q, { back: -q.z0 }), r.L));
@@ -708,6 +798,9 @@ async function forgeOne(row, li) {
         map.gen = { L: r.L, relief: r.relief, got: +c.rel.toFixed(2), slope: +c.sl.toFixed(2), u: q.u, turn: q.turn, scale: +q.scale.toFixed(2), smooth: c.smooth, clutter: c.b.clutter.reduce((a, x) => a + x, 0) };
         if (c.b.covered) map.gen.covered = true;
         if (map.long) map.gen.long = true;
+        if (r.isMini) map.gen.mini = true;
+        if (p.m.hands !== undefined) { map.gen.hands = +p.m.hands.toFixed(2); map.gen.wet = +p.m.wet.toFixed(2); }
+        if (p.m.lenPar !== undefined) map.gen.lenPar = p.m.lenPar;
         if (map.water) map.gen.pond = map.water[0][4];
         if (map.outs) map.gen.outs = map.outs.length;
         if (map.solid) map.gen.solid = map.solid.length;
