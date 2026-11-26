@@ -191,7 +191,8 @@ function bake(q, r) {
     let h = raw;
     for (let n = 0; n < r.smooth; n++) h = blur(h, q.nx, q.nz);
     const cl = clutter(q, raw, r);
-    return { h, y0: lo - 0.1 * q.scale, clutter: cl.mask, standing: cl.standing, covered: cl.covered };
+    return { h, y0: lo - 0.1 * q.scale, clutter: cl.mask, standing: cl.standing, covered: cl.covered, wet: q.wet || null,
+             wetShare: q.wet ? q.wet.reduce((a, x) => a + x, 0) / q.wet.length : 0 };
 }
 /* Where the ball would roll through the world's things. Two kinds, and the
    ground probe sees neither as an obstacle — the ball can hit nothing of the
@@ -214,7 +215,11 @@ function clutter(q, raw, r) {
     for (let n = 0; n < 2; n++) sm = blur(sm, q.nx, q.nz);
     const stood = q.stood ? q.stood.filter((x) => x >= r.stand).length : 0;
     const covered = stood > raw.length / 2;
-    const standing = Uint8Array.from(raw, (x, k) => (!covered && q.stood && q.stood[k] >= r.stand) ? 1 : 0);
+    /* …and the world's water (batch 5, forge-sample.mjs → `wet`): a ball
+       may fly it, never rest on it (out, as the world's things are), and
+       the tee, the green and the landing stay off it as they stay off a
+       trunk. */
+    const standing = Uint8Array.from(raw, (x, k) => ((!covered && q.stood && q.stood[k] >= r.stand) || (q.wet && q.wet[k])) ? 1 : 0);
     const mask = Uint8Array.from(raw, (x, k) => (standing[k] || Math.abs(x - sm[k]) >= r.bump) ? 1 : 0);
     return { mask, standing, covered };
 }
@@ -313,7 +318,7 @@ function outsOf(standing, g, tee, cup, greenR) {
    the strips is made hard: the world clears its things from the strips
    (backdrop.mjs → sculpt), and a trunk that is not drawn must not be hit.
    Returns [cell, height] pairs (forge.js → solidGrid). */
-function solidOf(standing, stood, g, tee, cup, greenR, strips, fw) {
+function solidOf(standing, stood, g, tee, cup, greenR, strips, fw, wet) {
     if (!standing || !stood) return [];
     const n = g.nx * g.nz, on = new Uint8Array(n);
     const inStrip = (x, z) => (strips || []).some((r) => x > r[0] - 0.8 && x < r[2] + 0.8 && z > r[1] - 0.8 && z < r[3] + 0.8) ||
@@ -321,7 +326,8 @@ function solidOf(standing, stood, g, tee, cup, greenR, strips, fw) {
         Math.hypot(x - cup.x, z - cup.z) < greenR + 1.1 || Math.hypot(x - tee.x, z - tee.z) < 2;
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
         const c = k * g.nx + i;
-        if (standing[c] && !inStrip(g.x0 + i * g.d, g.z0 + k * g.d)) on[c] = 1;
+        // Water is out, never a trunk.
+        if (standing[c] && !(wet && wet[c]) && !inStrip(g.x0 + i * g.d, g.z0 + k * g.d)) on[c] = 1;
     }
     // Chessboard distance in from the nearest clear cell (or the patch's edge).
     const dist = new Int32Array(n).fill(0), q = [];
@@ -560,7 +566,7 @@ function pin(q, base, r) {
             if (dug) { map.water = [dug.rect]; map.dug = true; }
             const outs = r.outs ? outsOf(base.standing, g, tee, cup, gr) : [];
             if (outs.length) map.outs = outs;
-            const solid = r.solid ? solidOf(base.standing, q.stood, g, tee, cup, gr, map.strips, map.fairway) : [];
+            const solid = r.solid ? solidOf(base.standing, q.stood, g, tee, cup, gr, map.strips, map.fairway, base.wet) : [];
             if (solid.length) map.solid = solid;
             if (r.paint) map.paint = true;
             const m = measure(map);
@@ -752,7 +758,7 @@ async function sampled(world) {
 function crop(q, L) {
     const nz = Math.min(q.nz, Math.round((L + q.back) / q.d) + 1);
     const n = nz * q.nx, h = q.h.slice(0, n);
-    return Object.assign({}, q, { nz, h, stood: q.stoodBy && L in q.stoodBy ? q.stoodBy[L] : null, miss: h.filter((x) => x === null).length });
+    return Object.assign({}, q, { nz, h, wet: q.wet ? q.wet.slice(0, n) : null, stood: q.stoodBy && L in q.stoodBy ? q.stoodBy[L] : null, miss: h.filter((x) => x === null).length });
 }
 
 async function forgeOne(row, li) {
@@ -781,6 +787,8 @@ async function forgeOne(row, li) {
             const rel = relief(b.h), sl = steepest(b.h, q.nx, q.nz, q.d);
             if (process.env.FORGE_DEBUG) console.log(`  ${row[0]} u${q.u} t${q.turn} ×${passes}: relief ${rel.toFixed(2)} slope ${sl.toFixed(2)} flight ${((q.flightY - b.y0) / q.scale).toFixed(1)} scale ${q.scale.toFixed(2)}`);
             if (rel < r.reliefMin || rel > r.reliefMax || sl > r.maxSlope || sl < (r.minSlope || 0)) continue;
+            // A patch that is mostly the world's water is a hole on a lake (batch 5: the Mountain, the Tower, the Chinar Terraces).
+            if (b.wetShare > (r.wetMax || 0.3)) { if (process.env.FORGE_DEBUG) console.log(`  ${row[0]} u${q.u} t${q.turn}: ${Math.round(b.wetShare * 100)}% water`); continue; }
             if ((q.flightY - b.y0) / q.scale < 2) continue;
             const busy = b.covered ? 0 : b.clutter.reduce((a, x) => a + x, 0) / b.clutter.length;
             scored.push({ q, b, rel, sl, smooth: passes, sc: Math.abs(Math.log(rel / r.relief)) + sl + (r.turnCost || 0) * Math.abs(q.turn) + (r.clutterCost || 0) * busy });
@@ -808,6 +816,7 @@ async function forgeOne(row, li) {
         if (map.water) map.gen.pond = map.water[0][4];
         if (map.outs) map.gen.outs = map.outs.length;
         if (map.solid) map.gen.solid = map.solid.length;
+        if (c.b.wetShare) map.gen.water = +c.b.wetShare.toFixed(2);
         if (map.dug) { map.gen.dug = true; delete map.dug; }
         map.metrics = { bot: p.m.bot, ace: +(p.m.share * 100).toFixed(3), straight: p.m.straight };
         if (map.long) map.metrics.risk = +(p.m.risk * 100).toFixed(1);

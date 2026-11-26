@@ -7627,8 +7627,10 @@
                    own picture there, softened over a few texels. */
                 '                    if (pa > 0.001) {',
                 '                        vec2 tx = vec2(3.5 / size.x, 1.75 / size.y);',
+                // Never below the picture's own half: under it is the depth, packed into red and green, and a tap there painted the foot of the screen crimson.
+                '                        float ylo = 0.5 + 0.75 / size.y;',
                 '                        pc = 0.25 * (pow(texture2D(map, cuv + vec2(tx.x, 0.0)).rgb, vec3(2.2)) + pow(texture2D(map, cuv - vec2(tx.x, 0.0)).rgb, vec3(2.2)) +',
-                '                                     pow(texture2D(map, cuv + vec2(0.0, tx.y)).rgb, vec3(2.2)) + pow(texture2D(map, cuv - vec2(0.0, tx.y)).rgb, vec3(2.2)));',
+                '                                     pow(texture2D(map, min(cuv + vec2(0.0, tx.y), vec2(1.0))).rgb, vec3(2.2)) + pow(texture2D(map, vec2(cuv.x, max(cuv.y - tx.y, ylo))).rgb, vec3(2.2)));',
                 '                        c = mix(c, pc, 0.85 * pa);',
                 '                        stripe = smoothstep(-0.2, 0.2, sin(at.z * 1.9 + at.x * 0.3));',
                 '                    }',
@@ -7658,9 +7660,9 @@
                 '        vec3 g = pow(max(c, 0.0), vec3(1.0 / 2.2));',
                 '        float l = max(dot(g, vec3(0.2126, 0.7152, 0.0722)), 1e-3), gk = pg / pa;',
                 '        float br = smoothstep(0.24, 0.34, l);',
-                '        float lt = mix(l * mix(1.35, 1.6, gk) + mix(0.05, 0.08, gk), l * mix(0.74, 0.62, gk), br);',
+                '        float lt = mix(l * mix(1.35, 1.6, gk) + mix(0.05, 0.08, gk), l * mix(mix(0.74, 0.84, smoothstep(0.7, 0.9, l)), 0.66, gk), br);',
                 '        lt *= 1.0 + mix(0.07, 0.0, gk) * (stripe - 0.5);',
-                '        vec3 s = max(mix(vec3(l), g, 1.2), 0.0) * (lt / l);',
+                '        vec3 s = max(mix(vec3(l), g, 1.1), 0.0) * (lt / l);',
                 '        s = mix(s, vec3(0.45, 0.68, 0.36) * (lt / 0.6), mix(0.2, 0.28, gk));',
                 '        c = mix(c, pow(clamp(s, 0.0, 0.97), vec3(2.2)), pa * 0.95);',
                 '    }',

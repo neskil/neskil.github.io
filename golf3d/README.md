@@ -5320,6 +5320,21 @@ since that file is what every copy starts from; this is what was done.
   ticked for the paint, so that is `paint`, and `ugly` means the spot. New:
   `layout` (tee or cup in the wrong place), `fell` (through the ground) and
   `mini`.
+- **Water is not ground** (`forge-sample.mjs → wetOf`, `forge.mjs →
+  clutter`, `wetMax`). The first run of this batch laid three of its five new
+  maps on a world's water — the Tower to Burn on its sea, the Mountain's tee
+  on the bed of a tarn drawn see-through over it, the Chinar Terraces in a
+  pool among fountains — as Red Sails had been on its sea since batch 2. The
+  ground render now writes a second channel for water: a mesh, or a group it
+  is in, named for water (the kit's `kit-ocean`, `kit-lake`, `kit-river`, …;
+  most worlds' own names), or a flat see-through shader sheet; named water
+  drawn without depth is read too, at its surface, rather than skipped to the
+  bed. Wet cells are the world's things to the forge (out where a ball stops,
+  kept off the tee, the green and the landing, never a trunk), a patch more
+  than 30% wet is turned down, and `gen.water` says how wet the chosen one
+  was. Run again on those worlds: the Tower's patches read 64–74% water, the
+  tide's dead flat (its sea), and none of the four made a map. The batch was
+  forged again with it.
 - **Mini golf** (`mini`). Two of every five leans from the top, a quarter in
   all: a short hole out of the mini bag on gentle ground (`RECIPE.mini`:
   26 units, relief 1.2), a painted lane 3.5 wide, all fairway, a small dug

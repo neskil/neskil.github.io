@@ -115,7 +115,19 @@ loop that went round more than once before it was seen.
    disagree, do what the note says. If a kind of note keeps coming without
    a chip for it, add the chip (`G3.forge.ISSUES`): the owner has said the
    form may change whenever better feedback needs it.
-8. **Variety.** Since v1.226.0 about one map in four is a mini-golf hole in
+8. **A world's water is not ground.** The sampler read a sea, a lake or a
+   pool as ground whenever it was solid enough to draw, and the bed under it
+   whenever it was see-through: Red Sails was played on its sea in batch 2
+   (rated fun 1, three fixes, dropped), and the first run of batch 5 laid
+   three of its five new maps on water — the Tower's sea, the Mountain's
+   tarn (tee on the bed, under the water), the Chinar Terraces' pool. Since
+   v1.226.0 `forge-sample.mjs` marks water (`wet`: Portals' kit names its
+   water, most worlds name theirs, and a flat see-through shader sheet is a
+   pool), and the forge treats it as the world's things: out where a ball
+   stops, never under the tee, the green or the landing, and a patch more
+   than `wetMax` (30%) water is turned down. If a forged hole still looks
+   wet from the tee, its water is unnamed: look at it before shipping.
+9. **Variety.** Since v1.226.0 about one map in four is a mini-golf hole in
    its world (the owner: "some of the new maps can be mini golf style for
    the worlds as well"), forged on a `mini` lean.
 
