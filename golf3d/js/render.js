@@ -6983,6 +6983,7 @@
         R.cam.speedPull = 0;
         R.launch = null;
         R.airDrop = 0;
+        R.airPeak = 0;
         R.blurK = 0;
         R.blurPrev = null;
         clearTrail();
@@ -9168,7 +9169,13 @@
     function launchLag() {
         var L = R.launch;
         if (!L) return 0;
-        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / C.LAUNCH_CAM.RELEASE));
+        return L.s * (1 - smooth01((L.t - C.LAUNCH_CAM.HOLD) / launchRelease()));
+    }
+    /* A long drive is up for two seconds and more, and given back in the
+       mini golf's second and a half the seat closed on it in one lurch half
+       way down (CONFIG.LONG_CAM.RELEASE). */
+    function launchRelease() {
+        return C.LAUNCH_CAM.RELEASE * (G3.drawnLong(R.hole) ? C.LONG_CAM.RELEASE : 1);
     }
 
     function stepLaunch(dt, world, speed) {
@@ -9178,7 +9185,7 @@
         R.wasMoving = !!world.moving;
         if (R.launch) {
             R.launch.t += dt;
-            if (R.launch.t > C.LAUNCH_CAM.HOLD + C.LAUNCH_CAM.RELEASE || R.fly || R.dive || R.replay ||
+            if (R.launch.t > C.LAUNCH_CAM.HOLD + launchRelease() || R.fly || R.dive || R.replay ||
                 (m !== 'follow' && m !== 'side')) R.launch = null;
         }
     }
@@ -9195,15 +9202,23 @@
        far below the seat the eye is held; it is 0 on the ground, so the seat
        is the seat the moment the ball is down. */
     function watchAir(world, dt) {
-        var want = 0, b = world.ball;
+        var want = 0, b = world.ball, LC = C.LONG_CAM, up = false;
         if (world.moving && !world.firstLand && !world.warping && !world.ride && G3.drawnLong(world.hole)) {
             var g = P.surfaceTop(world.hole, b.x, b.z);
             var floor = Math.max(world.origin.y, g ? g.y + C.BALL_R : -Infinity);
-            want = Math.max(0, b.y - floor) * (1 - C.LONG_CAM.RISE);
-        }
+            var h = Math.max(0, b.y - floor);
+            if (h > R.airPeak) R.airPeak = h;
+            /* On the way down the eye comes down slower than the ball (DIVE
+               of what it has fallen from the top), so the end of the flight
+               is looked down on: past level with the seat, which is what
+               makes `airDrop` go negative at the landing. */
+            want = h * (1 - LC.RISE) - LC.DIVE * (R.airPeak - h);
+            up = true;
+        } else R.airPeak = 0;
         R.airDrop = R.airDrop || 0;
-        R.airDrop += (want - R.airDrop) * (1 - Math.pow(C.LONG_CAM.EASE, dt));
-        if (R.airDrop < 1e-3 && want === 0) R.airDrop = 0;
+        // Back on the ground it settles on to the seat on SETTLE, not EASE.
+        R.airDrop += (want - R.airDrop) * (1 - Math.pow(up ? LC.EASE : LC.SETTLE, dt));
+        if (Math.abs(R.airDrop) < 1e-3 && want === 0) R.airDrop = 0;
     }
 
     /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is

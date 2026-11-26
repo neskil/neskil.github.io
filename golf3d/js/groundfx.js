@@ -251,7 +251,10 @@
     /* o: { type, size, life, col: [r,g,b], tone (± variation), drag (what is
        left of the speed after a second), grav, floor, a0, glow, ripple } */
     function spawn(x, y, z, vx, vy, vz, o) {
-        var i, p, k;
+        var i, p, k, F = C.GROUND_FX;
+        // Toned down as a whole rather than burst by burst (CONFIG.GROUND_FX).
+        if (Math.random() > F.AMOUNT) return null;
+        vx *= F.THROW; vy *= F.THROW; vz *= F.THROW;
         for (k = 0; k < N; k++) {
             i = (S.next + k) % N;
             if (S.v[i].life <= 0) break;
@@ -261,12 +264,12 @@
         p.x = x; p.y = y; p.z = z;
         p.vx = vx; p.vy = vy; p.vz = vz;
         p.life = p.max = o.life;
-        p.size = o.size;
+        p.size = o.size * F.SIZE;
         p.type = o.type;
         p.floor = o.floor !== undefined ? o.floor : y - 0.02;
         p.drag = o.drag !== undefined ? o.drag : 0.6;
         p.grav = o.grav !== undefined ? o.grav : 15;
-        p.a0 = o.a0 !== undefined ? o.a0 : 1;
+        p.a0 = (o.a0 !== undefined ? o.a0 : 1) * F.ALPHA;
         p.ripple = !!o.ripple;
         p.settled = false;
         p.phase = Math.random() * 6.28;
@@ -275,7 +278,7 @@
         S.col[i * 3] = p.c[0]; S.col[i * 3 + 1] = p.c[1]; S.col[i * 3 + 2] = p.c[2];
         S.soft[i] = o.type === PUFF ? 1 : 0;
         S.glow[i] = o.glow || 0;
-        S.size[i] = o.size;
+        S.size[i] = p.size;
         S.alpha[i] = 0;
         var a = S.points.geometry.attributes;
         a.aColor.needsUpdate = true;
@@ -374,7 +377,7 @@
         r.mesh.material.opacity = 0;
         r.mesh.scale.setScalar(Math.max(0.001, r0));
         r.mesh.visible = false;
-        r.t = 0; r.delay = delay || 0; r.dur = dur; r.r0 = r0; r.r1 = r1; r.a0 = a0; r.live = true;
+        r.t = 0; r.delay = delay || 0; r.dur = dur; r.r0 = r0; r.r1 = r1 * C.GROUND_FX.SIZE; r.a0 = a0 * C.GROUND_FX.ALPHA; r.live = true;
         S.ringsLive = 1;
     }
 
