@@ -139,9 +139,29 @@ export async function samplePatches(browser, world, recipe) {
             const groundMat = (side) => new THREE.ShaderMaterial({
                 side,
                 vertexShader: 'varying vec3 vO; varying float vY; void main() { vO = position; vec4 w = modelMatrix * vec4(position, 1.); vY = w.y; gl_Position = projectionMatrix * viewMatrix * w; }',
-                fragmentShader: 'varying vec3 vO; varying float vY; uniform mat3 nm; void main() { if (!gl_FrontFacing) discard; vec3 n = normalize(nm * cross(dFdx(vO), dFdy(vO))); if (abs(n.y) < 0.3) discard; gl_FragColor = vec4(vY, 0., 0., 1.); }',
-                uniforms: { nm: { value: new THREE.Matrix3() } }
+                fragmentShader: 'varying vec3 vO; varying float vY; uniform mat3 nm; uniform float wet; void main() { if (!gl_FrontFacing) discard; vec3 n = normalize(nm * cross(dFdx(vO), dFdy(vO))); if (abs(n.y) < 0.3) discard; gl_FragColor = vec4(vY, wet, 0., 1.); }',
+                uniforms: { nm: { value: new THREE.Matrix3() }, wet: { value: 0 } }
             });
+            /* Is this mesh water? (batch 5: three of five new maps were laid
+               on a world's lake, sea or pool, read as ground, as Red Sails
+               had been on its sea in batch 2 — rated fun 1, dropped.) Portals'
+               kit names its water (kit-ocean, kit-lake, kit-river, …) and most
+               hand-made worlds name theirs too; a mesh or any group it is in
+               whose name says water is wet. Failing a name: a flat sheet with
+               a see-through shader material, which is what a hand-made pool
+               is. Wet cells go back with the ground (`wet`), and the forge
+               keeps the tee, the green and the landing off them. */
+            const WET = /kit-(ocean|lake|river|waterfall|sea|underwater-surface)|water|lake|pond|pool|\bsea\b|ocean|river|canal|tide|lagoon|fountain/i;
+            const DRY = /floor|bed|bank|shore|ice|rock|underwater-floor/i;
+            const wetByName = (o) => { for (let p = o; p; p = p.parent) if (p.name && WET.test(p.name) && !DRY.test(p.name)) return true; return false; };
+            const wetOf = (o, m) => {
+                if (wetByName(o)) return 1;
+                const g = o.geometry;
+                if (!g.boundingBox) g.computeBoundingBox();
+                const b = g.boundingBox, sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
+                const flat = sy < 0.01 * Math.max(sx, sz) || sz < 0.01 * Math.max(sx, sy) && o.rotation && Math.abs(Math.abs(o.rotation.x) - Math.PI / 2) < 0.05;
+                return m && (m.isShaderMaterial || m.isMeshPhysicalMaterial) && m.transparent && flat ? 1 : 0;
+            };
             function rendered(q, s, c, sn, ox, oz, flightY) {
                 const { cur, engine, THREE } = window.__forgeBD;
                 const r = engine.renderer, sc = cur.scene;
@@ -169,7 +189,11 @@ export async function samplePatches(browser, world, recipe) {
                         if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || !o.material) return;
                         const m = Array.isArray(o.material) ? o.material[0] : o.material;
                         if (!m || m.side === THREE.BackSide) return;
-                        if (m.transparent && m.depthWrite === false) return;
+                        /* See-through and writing no depth is not ground — unless it is
+                           named water: the Mountain's tarn is drawn so, and the forge laid
+                           its tee on the tarn's bed, under the water (batch 5). Such a
+                           sheet is read as wet ground at its surface. */
+                        if (m.transparent && m.depthWrite === false && !wetByName(o)) return;
                         if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
                         if (o.geometry.boundingSphere.radius * o.matrixWorld.getMaxScaleOnAxis() < 30) return;
                         const one = (x) => {
@@ -178,6 +202,7 @@ export async function samplePatches(browser, world, recipe) {
                             if (x.side === THREE.BackSide) return new THREE.MeshBasicMaterial({ visible: false });
                             const g = groundMat(x.side === THREE.DoubleSide ? THREE.DoubleSide : THREE.FrontSide);
                             g.uniforms.nm.value.setFromMatrix4(o.matrixWorld);
+                            g.uniforms.wet.value = wetOf(o, x);
                             return g;
                         };
                         swapped.push([o, o.material, o.layers.mask]);
@@ -196,14 +221,15 @@ export async function samplePatches(browser, world, recipe) {
                     sc.background = bg; sc.fog = fog; sc.overrideMaterial = ov; r.autoClear = ac; r.setClearColor(cc, ca); r.setRenderTarget(keep);
                     rt.dispose();
                 }
-                const out = new Array(q.nx * q.nz), mid = (GPX - 1) / 2;
-                let miss = 0;
+                const out = new Array(q.nx * q.nz), wet = new Array(q.nx * q.nz).fill(0), mid = (GPX - 1) / 2;
+                let miss = 0, nw = 0;
                 for (let k = 0; k < q.nz; k++) for (let i = 0; i < q.nx; i++) {
                     // Picture x runs with golf -x (the camera looks down), as in `stood`.
                     const j = ((k * GPX + mid) * w + (q.nx - 1 - i) * GPX + mid) * 4;
                     if (buf[j + 3] < 0.5) { out[k * q.nx + i] = null; miss++; } else out[k * q.nx + i] = +buf[j].toFixed(3);
+                    if (buf[j + 1] > 0.5) { wet[k * q.nx + i] = 1; nw++; }
                 }
-                return { h: out, miss };
+                return { h: out, miss, wet: nw ? wet : null };
             }
             // The world's own scale: how fast its flight goes and how high
             // over the ground (backdrop.mjs → autoScale, the same rule).
@@ -246,6 +272,7 @@ export async function samplePatches(browser, world, recipe) {
                 const check = how === 'both' ? ray() : null;
                 tRay += performance.now() - tr;
                 const q = { u, turn, yaw, scale: s, ox, oz, flightY: a[1], nx, nz, d: R.d, x0: -R.W / 2, z0: -R.back, h, miss };
+                if (got.wet) q.wet = got.wet;
                 if (check) {
                     q.rayH = check.h;
                     // What the ray passes through on the first cells the two

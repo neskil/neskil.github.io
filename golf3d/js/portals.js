@@ -101,7 +101,9 @@
        one surface from edge to edge: fairway, like the strips laid on it,
        since v1.183.0. Nothing is painted on the world any more, so a line
        between fairway and rough would be a change in the roll nobody could
-       see. The green round the cup is still a green underfoot. */
+       see. The green round the cup is still a green underfoot. (The forge's
+       maps paint theirs since batch 4, and so since batch 5 they have
+       rough off a painted fairway: forge.js → holeOf, `rough`.) */
     function world(h) {
         var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, m = 6;
         h.pads.forEach(function (p) {
@@ -120,7 +122,35 @@
            how deep its slab has to be to reach that floor (`plinth`). */
         h.pads.forEach(function (p) { if (!p.inlay) { p.hover = true; if (h.plinth) p.deck = h.plinth; } });
         h.fence = { x: minX - m, z: minZ - m, w: maxX - minX + 2 * m, d: maxZ - minZ + 2 * m };
+        /* A sculpted hole's grid is all the ground it has: off its edge the
+           ball is out at once rather than falling through the world drawn
+           round it (physics → `hole.edge`; b4-06, "Ball fell thru world").
+           Held a hair inside the last cell, where the grid still answers. */
+        h.pads.forEach(function (p) {
+            if (!p.ghost || !p.field || !p.field[0] || !p.field[0].grid) return;
+            var e = 0.02;
+            h.edge = { x0: p.x + e, z0: p.z + e, x1: p.x + p.w - e, z1: p.z + p.d - e };
+        });
         return A.build(h);
+    }
+
+    /* A forged keep's world things, carried with its ground (tour-ground.js
+       → `outs`, `solid`; forge-finish --tour writes them): the cells a ball
+       may cross and not stop in, and the trunks it strikes — what forge.js
+       → holeOf gives a forged map, so the hole plays as it was rated. */
+    function marks(h, G) {
+        if (!G) return;
+        var sub = { x0: G.x0, z0: G.z0, d: G.d, nx: G.nx, nz: G.nz };
+        if (G.outs && G.outs.length) {
+            var o = {};
+            G.outs.forEach(function (k) { o[k] = 1; });
+            h.outGrid = Object.assign({ on: o, n: G.outs.length }, sub);
+        }
+        if (G.solid && G.solid.length) {
+            var s = {};
+            G.solid.forEach(function (p) { s[p[0]] = p[1]; });
+            h.solidGrid = Object.assign({ h: G.h, on: s, n: G.solid.length }, sub);
+        }
     }
 
     /* A train on a straight track along x: a locomotive and its coaches,
@@ -155,7 +185,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0, "flyLine": false}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.9}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "lift": 0.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "at": {"x": 0, "z": 24, "y": 0, "yaw": 3.1416, "scale": 1.5}}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}]};
+    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0, "flyLine": false}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.9}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "lift": 0.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "at": {"x": 0, "z": 24, "y": 0, "yaw": 3.1416, "scale": 1.5}}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}], "popup": ["paper-kingdom", {"reach": 2.5, "u": 0.35, "at": {"x": 299.3, "z": 190.32, "y": 1.23, "yaw": -1.1232, "scale": 3}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -1184,6 +1214,45 @@
         })()
     });
 
+    /* The Pop-Up Book — the forge's b4-07, kept as the owner played it
+       (v1.229.0: "keep · fun 4/5 · difficulty 2 · look 4/5", an ace on
+       their one play). The ground is The Pop-Up Book Opens' own, read and
+       baked by tools/forge.mjs: a paper river down the right, flooded, and
+       the kingdom's folded card standing on the left. It is the first keep
+       forged with the world's things hard and out (forge.mjs → solidOf,
+       outsOf), so they come with the ground (tour-ground.js → `outs`,
+       `solid`; `marks` below), and the first with its fairway and green
+       painted on the world (`paint`), as it was rated. Nothing moved: a
+       keep with no note. */
+    add({
+        id: 'popup', title: 'The Pop-Up Book', world: 'The Pop-Up Book Opens', kind: 'bizarre', tier: 2,
+        caption: 'A long par three across one sheet of paper folded into a kingdom, with a paper river down the right. The folds are the world\'s own.',
+        theme: 'popup',
+        hole: (function () {
+            var G = (G3.TOUR_GROUND || {}).popup, field = G ? [{ grid: G }] : [];
+            function on(p, inlay) { p.field = field; if (inlay) p.inlay = true; return p; }
+            var ground = on(pad(-12, -3, 24, 56, 0, 'fairway'));
+            ground.ghost = true;
+            var h = world({
+                name: 'The Pop-Up Book', par: 3, long: true,
+                blurb: 'Down the page between the folds. The river runs the whole right side; the card kingdom stands on the left, and its towers are paper you can hit. The green sits left, against the fold.',
+                pads: [
+                    ground,
+                    on(pad(-4, -1, 2, 2, 0, 'fairway'), true),
+                    on(pad(-7.5, 1, 7, 15.23, 0, 'fairway'), true),
+                    on(pad(-9.5, 16.23, 7, 13.13, 0, 'fairway'), true),
+                    on(pad(-10, 29.46, 6, 6, 0, 'green'), true)
+                ],
+                // Drawn to its waterline on the grid (render.js → addPondOnGrid).
+                water: G ? [Object.assign(A.rect(4.5, -3.5, 8, 52, 0.586), { grid: G })] : [],
+                tee: { x: -3, z: 0 }, cup: { x: -7, z: 32.46 }
+            });
+            marks(h, G);
+            h.paint = true;
+            return h;
+        })()
+    });
+
     /* ── the shelves ────────────────────────────────────────────────────── */
 
     var KINDS = {
@@ -1194,6 +1263,17 @@
     /* ── the palettes ───────────────────────────────────────────────────── */
 
     var THEMES = {
+        /* The forge's palette for this world as the owner rated it (forge.js →
+           themeFor: the attic's stand-in, its grass turned to the paper's
+           violet ink), kept as it was: look 4/5. */
+        popup: {
+            sky: [0x3a2a1e, 0xc98f58], fog: 0xb07d4c,
+            sun: 0xffd9a0, sunPos: [-10, 9, 4], ambient: 0xa87c50, ambientI: 0.72,
+            grass: ['#6f4c8a', '#62437a'], rail: 0x7a542e,
+            cloudLum: 0.3, birds: false, motes: true,
+            surroundY: -0.42, surround: 'floor', floor: '#3d2817',
+            water: 0x2b6f8f, side: '#4a3019'
+        },
         /* The forge's palette for this world (forge.js → themeFor: the
            paper-river stand-in), with the grass turned from its teal to the
            savanna's dry gold and the water to the storm's slate. */

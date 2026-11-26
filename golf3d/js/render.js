@@ -7151,19 +7151,28 @@
                in its ground, never a sheet on it. What came and went on a
                phone before v1.183.0 was the veils, rebuilt under a live
                world and not put away; they are put away every frame now. */
-            /* Turf's own greens, not the stand-in theme's grass (which is
-               turned to the world's hue: purple in the Tree City, slate by
-               the ford), because what was asked for was a fairway and a
-               green. Mixed in after the plate undoes the game's grade, so
-               the grade lays on them as on any of this game's turf. */
-            var tint = hole.paint ? [new THREE.Color('#4c8f3a'), new THREE.Color('#6fbd4c')] : null, rects = [];
+            /* The colour is the world's own (batch 5): each decal carries
+               only what it is — [green?, 0, 0] — and the plate lifts and
+               calms the world's pixel there, leaning it a little towards
+               turf. Batch 4 laid turf's own #4c8f3a and #6fbd4c over every
+               world at nine tenths, and six of the nine maps rated came back
+               `ugly`: "Fairways color is way off and inorganic" (glowwood),
+               "Fairway color is off" (the House of Four Seasons). A road
+               (the fairway band, forge.js → `fairway`) is sent as its
+               centreline and a negative corner, its half width. */
+            var rects = [];
             if (gp) {
                 (hole.pads || []).forEach(function (p) {
                     if (p.ghost || !p.inlay || p.w === undefined) return;
                     place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
-                    if (!tint) return;
-                    var gn = p.kind === 'green', t = tint[gn ? 1 : 0], e = gn ? 0.3 : 0;
-                    rects.push([p.x - e, p.z - e, p.x + p.w + e, p.z + p.d + e, [t.r, t.g, t.b], gn ? p.w / 2 + e : 1.4]);
+                    if (!hole.paint) return;
+                    if (p.lane) {
+                        var L = p.lane;
+                        rects.unshift([L.x0, L.z0, L.x1, L.z1, [0, 0, 0], -L.hw]);
+                        return;
+                    }
+                    var gn = p.kind === 'green', e = gn ? 0.3 : 0;
+                    rects.push([p.x - e, p.z - e, p.x + p.w + e, p.z + p.d + e, [gn ? 1 : 0, 0, 0], gn ? p.w / 2 + e : 1.4]);
                 });
                 place.grid = gp.field[0].grid;
                 if (rects.length) R.placeDecals = { grid: place.grid, rects: rects.slice(0, 6), dirty: true };
@@ -7598,7 +7607,7 @@
                 '    float minI = min(min(i00, i10), min(i01, i11)), maxI = max(max(i00, i10), max(i01, i11));',
                 '    float iz = minI > maxI * 0.8 ? mix(mix(i00, i10, df.x), mix(i01, i11, df.x), df.y) : inv(floor(vUv * size));',
                 '    float depth = 0.9999995;',
-                '    vec3 pc = vec3(0.0); float pa = 0.0;',
+                '    vec3 pc = vec3(0.0); float pa = 0.0, pg = 0.0, stripe = 0.0;',
                 '    if (iz > 0.00002) {',
                 '        float z = 1.0 / iz;',
                 '        vec3 at = (camWorld * vec4(vRay * z, 1.0)).xyz;',
@@ -7620,10 +7629,11 @@
                    the world: it is paint on the world's own picture. This
                    pixel of the world is at `at` in the hole's own
                    coordinates; if that is on the hole's ground (within a
-                   stride of the baked height there) and inside a tee or a
-                   fairway, it takes the turf's colour — keeping the light
-                   and shade the world gave it, striped the way a mower
-                   leaves it, with a soft edge that wanders a little. So a
+                   stride of the baked height there) and inside a tee, the
+                   fairway or the green, it is mown: its own colour softened,
+                   lifted and leant a little towards turf (below, after the
+                   grade is undone), striped the way a mower leaves it, with
+                   a soft edge that wanders a little. So a
                    fairway follows every fold of the land exactly, because
                    it is the land. */
                 '        if (decalOn > 0.5) {',
@@ -7634,24 +7644,68 @@
                 // grid to a few hundredths (forge-sculpt), and at 1.3 the paint climbed
                 // a sauropod's legs and the foot of every trunk.
                 '                if (abs(at.y - gh) < 0.3) {',
-                '                    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
-                '                    float wob = 0.4 * sin(at.x * 1.7 + at.z * 0.9) * sin(at.z * 1.3 - at.x * 0.6);',
-                '                    float stripe = 0.9 + 0.1 * smoothstep(-0.15, 0.15, sin(at.z * 2.1 + at.x * 0.35));',
+                /* Edges that wander the way mown grass does: two slow waves
+                   and a quicker one, a few tenths of a unit at most. */
+                '                    float wob = 0.22 * sin(at.x * 0.9 + at.z * 0.45) * sin(at.z * 0.7 - at.x * 0.3) + 0.08 * sin(at.x * 3.1 - at.z * 2.3);',
                 '                    for (int j = 0; j < 6; j++) {',
-                '                        vec4 k = decal[j];',
-                // A rounded box, its corner the tint's fourth number: the green's is half its side, a disc.
-                '                        float rc = min(decalTint[j].w, 0.5 * min(k.z - k.x, k.w - k.y));',
-                '                        vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + rc;',
-                '                        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rc;',
-                '                        float a = (1.0 - smoothstep(-0.45, 0.4, d + wob)) * step(0.001, k.z - k.x);',
-                '                        vec3 col = decalTint[j].rgb * (0.4 + 1.0 * min(lum, 0.6)) * stripe;',
-                '                        pc = pa < 0.001 ? col : mix(pc, col, a); pa = max(pa, a * 0.92);',
+                '                        vec4 k = decal[j]; vec4 t = decalTint[j];',
+                '                        float d;',
+                '                        if (t.w < 0.0) {',
+                // A band: the distance to its centreline, less its half width (a road, round-ended).
+                '                            vec2 ab = k.zw - k.xy;',
+                '                            float h = clamp(dot(at.xz - k.xy, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0);',
+                '                            d = length(at.xz - k.xy - ab * h) + t.w;',
+                '                        } else {',
+                // A rounded box, its corner the fourth number: the green's is half its side, a disc.
+                '                            float rc = min(t.w, 0.5 * min(k.z - k.x, k.w - k.y));',
+                '                            vec2 q = abs(at.xz - 0.5 * (k.xy + k.zw)) - 0.5 * (k.zw - k.xy) + rc;',
+                '                            d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rc;',
+                '                        }',
+                '                        float a = (1.0 - smoothstep(-0.5, 0.45, d + wob)) * step(0.001, abs(k.z - k.x) + abs(k.w - k.y));',
+                '                        pa = max(pa, a); pg = max(pg, a * t.r);',
+                '                    }',
+                /* Mown grass is calmer than what grows round it: the world's
+                   own picture there, softened over a few texels. */
+                '                    if (pa > 0.001) {',
+                '                        vec2 tx = vec2(3.5 / size.x, 1.75 / size.y);',
+                // Never below the picture's own half: under it is the depth, packed into red and green, and a tap there painted the foot of the screen crimson.
+                '                        float ylo = 0.5 + 0.75 / size.y;',
+                '                        pc = 0.25 * (pow(texture2D(map, cuv + vec2(tx.x, 0.0)).rgb, vec3(2.2)) + pow(texture2D(map, cuv - vec2(tx.x, 0.0)).rgb, vec3(2.2)) +',
+                '                                     pow(texture2D(map, min(cuv + vec2(0.0, tx.y), vec2(1.0))).rgb, vec3(2.2)) + pow(texture2D(map, vec2(cuv.x, max(cuv.y - tx.y, ylo))).rgb, vec3(2.2)));',
+                '                        c = mix(c, pc, 0.85 * pa);',
+                '                        stripe = smoothstep(-0.2, 0.2, sin(at.z * 1.9 + at.x * 0.3));',
                 '                    }',
                 '                }',
                 '            }',
                 '        }',
                 '        if (at.x > soft.x && at.x < soft.z && at.z > soft.y && at.z < soft.w) { if (at.y < softY) ours = true; z += 0.7; }',
                 '        if (!ours) depth = clamp(0.5 * (pB - pA * z) / z + 0.5, 0.0, 0.9999995);',
+                '    }',
+                /* The paint, from the world's own colour. What makes a fairway
+                   read is that it parts from what grows round it, and which
+                   way depends on the world: on dark ground it is lighter, on
+                   anything brighter (leaves, sand, snow, paper) darker — with
+                   no middle where the two cancel, which hid it on the Tree
+                   City's leaves at first — a green more so
+                   than a fairway. Its hue is the world's, a touch richer and
+                   leaning only a little towards turf, and it is striped the
+                   way a mower leaves it. Batch 4's paint was turf's own
+                   green at nine tenths, and on a violet night or on snow
+                   that was "way off and inorganic"; a first try at only
+                   lifting the world's colour could not be seen on either.
+                   Done on the world's picture as it arrived, before the grade
+                   is undone: undone, bright ground is past white, and snow
+                   darkened by a fifth was still white. */
+                '    if (pa > 0.001) {',
+                // In perceptual lightness, so the parting is as plain on a night as on snow.
+                '        vec3 g = pow(max(c, 0.0), vec3(1.0 / 2.2));',
+                '        float l = max(dot(g, vec3(0.2126, 0.7152, 0.0722)), 1e-3), gk = pg / pa;',
+                '        float br = smoothstep(0.24, 0.34, l);',
+                '        float lt = mix(l * mix(1.35, 1.6, gk) + mix(0.05, 0.08, gk), l * mix(mix(0.74, 0.84, smoothstep(0.7, 0.9, l)), 0.66, gk), br);',
+                '        lt *= 1.0 + mix(0.07, 0.0, gk) * (stripe - 0.5);',
+                '        vec3 s = max(mix(vec3(l), g, 1.1), 0.0) * (lt / l);',
+                '        s = mix(s, vec3(0.45, 0.68, 0.36) * (lt / 0.6), mix(0.2, 0.28, gk));',
+                '        c = mix(c, pow(clamp(s, 0.0, 0.97), vec3(2.2)), pa * 0.95);',
                 '    }',
                 /* The world arrives graded by its own makers, and this
                    game's grade (postfx.js: tone curve, tint, saturation,
@@ -7667,7 +7721,6 @@
                 '        c = clamp((c - gLift) / max(gTint, vec3(0.05)), 0.0, 0.93);',
                 '        c = unaces(c) / max(gExp, 0.05);',
                 '    }',
-                '    c = mix(c, pc, pa);',
                 '    gl_FragDepth = depth;',
                 '    gl_FragColor = vec4(c, 1.0);',
                 '    #include <encodings_fragment>',

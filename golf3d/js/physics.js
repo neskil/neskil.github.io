@@ -2665,6 +2665,28 @@
             events.out = true;
             return;
         }
+        /* …or off the edge of a sculpted hole's ground (`hole.edge`, set by
+           portals.js → world for a `ghost` pad carrying a grid). The grid
+           is all the ground there is; the world drawn round it runs on, so
+           a ball rolled off the patch used to fall six units through that
+           picture before OOB_Y ended the shot (b4-06, the moor: "Ball fell
+           thru world" — a third of all tee shots over every line and club
+           left a 24-unit patch). Now it is out the moment it drops below the
+           ground at the nearest edge: flown over the line it flies on, and
+           comes down out where it would have landed. */
+        if (hole.edge) {
+            var eg = hole.edge;
+            if (b.x < eg.x0 || b.x > eg.x1 || b.z < eg.z0 || b.z > eg.z1) {
+                var lip = surfaceTop(hole, Math.max(eg.x0, Math.min(eg.x1, b.x)), Math.max(eg.z0, Math.min(eg.z1, b.z)));
+                if (!lip || b.y < lip.y + C.BALL_R * 0.5) {
+                    b.vx = b.vy = b.vz = 0;
+                    world.out = true;
+                    world.moving = false;
+                    events.out = true;
+                    return;
+                }
+            }
+        }
 
         /* At rest — if the ground under the ball will hold it there.
 

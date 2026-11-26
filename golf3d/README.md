@@ -57,7 +57,7 @@ them.
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/forge.js`, `js/forge-maps.js` | [The forge](#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode): new tour holes made by `tools/forge.mjs` from Portals worlds' own ground (`forge-maps.js`, generated), built and kept here with the owner's verdicts on them (localStorage, dev mode). Loaded after `endless.js`. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-five holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-six holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -5291,6 +5291,121 @@ cup under the dock's stone and a second canal, the Fairy Ring on a stump and
 harder, Île Flottante's islands raised, a rise on Loop and Rink's ice, Three
 Doors Down's intro off the world's line (`place.flyLine: false`), and the
 Level Crossing's track drawn and its trains longer.
+
+**Batch 5: the recipe after batch 4's verdicts, and what five batches
+taught** (v1.229.0). Nine of twenty-one came back rated, b4-01 to b4-09:
+one keep (b4-07, the Pop-Up Book, an ace), seven fixes and one drop (Sea of
+Wax, 1/2/1, as batch 4 said it would be if it came back again). The owner's
+words: "Lots of recurring issues, take some general learnings please", and
+"if you need better feedback you can change the form", and "some of the new
+maps can be mini golf style for the worlds as well". The lessons are
+[FORGE-FEEDBACK.md → "What five batches taught"](FORGE-FEEDBACK.md#what-five-batches-taught),
+since that file is what every copy starts from; this is what was done.
+
+- **What the copy said.** `ugly` on six of nine, and the two notes on it
+  were the paint: "Fairways color is way off and inorganic" (glowwood, fun
+  4), "Fairway color is off" (the House of Four Seasons, look 5). `flat` on
+  four, every one difficulty 1–3, on maps with 1.9 to 3.1 of relief. One
+  `clip` that was a fall: "Ball fell thru world" (the moor). The fun ones
+  were the good-looking ones: fun 4 came with look 4–5 three times of three.
+- **The bot with hands.** `tools/human-check.mjs`'s player, run on the nine:
+  3.1 to 3.3 on every par four but one (the House, 4.5 with a 14 in it), 2.4
+  and 2.6 on the par threes, where the perfect bot the forge chose by had
+  played every one in two. The owner's own cards ran about one and a half
+  over that and they still rated them difficulty 1–2: "easy" is a hole that
+  asks nothing more than a score. `pin` now plays the best `handsTop` (4)
+  cups `hands` (6) rounds each with `CONFIG.BOT_HANDS` and takes the one
+  nearest par + `overPar` (0.3) with `wet` (0.4) balls a round in trouble;
+  the perfect bot's birdie no longer ranks the cups first (it ranked the easy
+  ones first). Each map carries `gen.hands` and `gen.wet` so the owner's next
+  cards calibrate it. Relabelling par to what the bot scores (`honest`) was
+  tried and is off: it made glowwood's sixty units a 330-metre par three.
+- **Longer, because a driver carries forty.** Re-forged on their own
+  patches, the fixes played a 47-unit par four in 2.3 and sixty units in 3.0
+  for the bot with hands, rough or no rough. `L` 70 → 85 (leans 64, 85, 106)
+  and `par` [34, 72] → [45, 95].
+- **Rough off a fairway band** (`rough`, `fairwayW` 7; forge.js → holeOf).
+  A forged hole was fairway from edge to edge, open land with nothing to
+  miss. Now the ground is rough and the fairway is one band from the tee to
+  the green, laid as a road (`A.road`), so where it is painted and where it
+  rolls fast are the one shape; the two boxes of `strips` painted a
+  staircase.
+- **The paint is the world's** (render.js → the plate). Batch 4 laid turf's
+  own green over every world at nine tenths: lime on a violet night, green on
+  snow. Now the world's own picture there is softened over a few texels and
+  parted from what grows round it — lighter on dark ground, darker on
+  anything brighter, a green more than a fairway — in perceptual lightness,
+  a little richer and leaning only a fifth of the way to turf, striped, with
+  a wandering edge. It was looked at on three worlds that each broke a first
+  try: lifting alone could not be seen on snow (done after the grade was
+  undone, snow is past white) or on the Tree City's leaves (a lighten/darken
+  crossover sat right on their lightness).
+- **Off the patch is out** (`hole.edge`, physics; portals.js → world). The
+  grid is all the ground a sculpted hole has; the world drawn round it runs
+  on. On the moor a third of tee shots over every line and club left the
+  patch and fell six units through the picture before `OOB_Y` ended them.
+  Now a ball is out as soon as it drops below the ground at the nearest
+  edge, which is what a person sees: it went off the hole. The tour's
+  sculpted holes (The Nave, The Sugar Gate, the Rain Pond, Before the Fire,
+  the Pop-Up Book) have it too.
+- **The form** (`G3.forge.ISSUES`). `flat` had been ticked for "nothing to
+  do", so that is `dull` now, and `flat` means the ground; `ugly` had been
+  ticked for the paint, so that is `paint`, and `ugly` means the spot. New:
+  `layout` (tee or cup in the wrong place), `fell` (through the ground) and
+  `mini`.
+- **Water is not ground** (`forge-sample.mjs → wetOf`, `forge.mjs →
+  clutter`, `wetMax`). The first run of this batch laid three of its five new
+  maps on a world's water — the Tower to Burn on its sea, the Mountain's tee
+  on the bed of a tarn drawn see-through over it, the Chinar Terraces in a
+  pool among fountains — as Red Sails had been on its sea since batch 2. The
+  ground render now writes a second channel for water: a mesh, or a group it
+  is in, named for water (the kit's `kit-ocean`, `kit-lake`, `kit-river`, …;
+  most worlds' own names), or a flat see-through shader sheet; named water
+  drawn without depth is read too, at its surface, rather than skipped to the
+  bed. Wet cells are the world's things to the forge (out where a ball stops,
+  kept off the tee, the green and the landing, never a trunk), a patch more
+  than 30% wet is turned down, and `gen.water` says how wet the chosen one
+  was. Run again on those worlds: the Tower's patches read 64–74% water, the
+  tide's dead flat (its sea), and none of the four made a map. The batch was
+  forged again with it.
+- **Mini golf** (`mini`). Two of every five leans from the top, a quarter in
+  all: a short hole out of the mini bag on gentle ground (`RECIPE.mini`:
+  26 units, relief 1.2), a painted lane 3.5 wide, all fairway, a small dug
+  pond, the cup chosen by ace share and then by the bot with hands.
+- **Keeps and drops.** The Pop-Up Book went into the tour as it was played
+  (`forge-finish b4-07 --tour popup`), the first keep with the world's
+  things hard and out: `forge-finish --tour` now writes `outs` and `solid`
+  with the ground and portals.js → `marks` builds them, and it keeps its
+  paint. Dropped for good (`--skip`): Sea of Wax (dropped), Red Sails (fixed
+  three times, fun 1), the moor (fixed three times, look 1), the Temple of
+  Artemis (1/1/1). Re-forged on the very patch they were rated on, with the
+  new recipe, on the longest lean their ground allowed (the House and the
+  Tree City at 106, the Wood at 85, glowwood at 70: longer, each ran into
+  ground too steep to hold a ball): the House of Four Seasons, glowwood,
+  the Wood Behind the Coats, the Tree City (look 5, 4, 5, 4, in the order
+  they were liked). For the bot with hands they play 3.0, 3.0, 2.8 and 3.7
+  — still short of par on three, which is as long as those patches go. Batch 3's seven
+  maps carried over twice unplayed (b4-15 to b4-21) are dropped; batch 4's
+  five unplayed new ones (b4-10 to b4-14) are carried, last.
+
+The batch: `--batch 5 --with <the four fix files>:b5-01 --keep
+b4-10,…,b4-14 --count 14 --skip <batch 4's list>,sea-sets-in-shade,red-sails-dawn,moor-under-the-fog-bank,temple-of-artemis`.
+Five new maps from 129 worlds sampled (46 minutes, nearly all from nothing:
+the sample's key moved with the water channel and the 106-unit lean), b5-05
+to b5-09: the Fields of Gazing Grain (a par three of 43 down a fenced lane),
+Wool on the Thorn (a par four of 57 over a carded moor, a pond in play), Raku
+Aspens and Still Waving (the two mini holes, 21 and 23 units, on crackle-glaze
+ground and down a village road), and the Bamboo Sea (a par four of 65 among
+the canes, nearly six units of relief, a pond). The longer recipe is pickier
+again: of the worlds turned down, nearly all had no patch with relief and
+slope in range at the new lengths. For the bot with hands the new long holes
+play 2.3 to 3.2 — still under par, which is what the next copy's cards are to
+calibrate — and none of them has a ball a round in trouble yet (`gen.wet` 0):
+the `wet` target is not being met, which says the hazards are where the
+world put them, and not yet where a person aims. All five were loaded live
+and looked at from the tee: the paint reads on each in the world's own
+colours, and none is on water. b5-01 to b5-04 are the fixes, b5-10 to b5-14
+batch 4's carried maps (keys unchanged).
 
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop
