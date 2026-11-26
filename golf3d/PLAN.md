@@ -366,11 +366,12 @@ The one idea here that changes what a hole can be, and the most work.
 ### 2. Lava — a hazard that is not water — **done (v1.225.0)**
 
 Both halves shipped: lava pools and the cooling crust, first on Cinder Cone
-(Caldera's ring, and Through the Pipe rebuilt round a crust). README →
-"Lava, and the crust" has how it works. What is left of this item: a hole or
-a course built *round* crusts (several, out of phase — a stepping-stone path
-across a lava lake that opens one tile at a time), lava on the Obsidian Forge
-tour hole and Endless's volcanic worlds, and a crust that is not a rectangle.
+(Caldera's ring, and Through the Pipe rebuilt round a crust), then Cooling
+Lake (v1.226.0: three crusts out of phase, a wave across a lava lake; it
+replaced Blowhole) and The Iron River's canyon on the World Tour. README →
+"Lava, and the crust" has how it works. What is left of this item: the forge's
+lava lake (b2-16) marked as lava next time it is forged, Endless's volcanic
+worlds, a crust that is not a rectangle, and a warning length per crust.
 The plan as it was written:
 
 - **Molten lava** (`pad.kind = 'lava'`, or a `hole.lava` list shaped like

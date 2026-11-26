@@ -5484,7 +5484,8 @@
         if (!pos.length) return;
         var geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-        var mesh = new THREE.Mesh(geo, waterMaterial(theme, { alpha: 0.8 }));
+        var mesh = new THREE.Mesh(geo, w.lava ? lavaMaterial(theme, { set: w.set, flow: w.flow })
+            : waterMaterial(theme, { alpha: 0.8 }));
         // A hair over the level, so it does not fight the world's ground at the shore.
         mesh.position.y = 0.01;
         group.add(mesh);
@@ -5583,8 +5584,8 @@
     }
 
     function addWater(group, w, theme) {
-        if (w.lava) { addLava(group, w, theme); return; }
         if (w.grid) { addPondOnGrid(group, w, theme); return; }
+        if (w.lava) { addLava(group, w, theme); return; }
         /* A box rather than a plane: the pads reach down to the surrounding
            ground, so a pond between two of them is a filled channel, and a
            sheet floating in the gap would read as a decal. Only the top face
