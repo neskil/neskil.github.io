@@ -7816,9 +7816,9 @@
         var spread = P.spray(aim.over || 0);
         var angle = C.CONE_ANGLE + spread.yaw;
         var seconds = 0.5 + frac * 0.5;
-        // The long game's air is a real flight, three times as long a time
-        // over the same ground (CONFIG.AIR); the cone is still cut by distance.
-        if (G3.drawnLong(world.hole)) seconds *= 3;
+        // The long game's air is a real flight, longer in time over the same
+        // ground by 3.4 over its pace (CONFIG.AIR); the cone is cut by distance.
+        if (G3.drawnLong(world.hole)) seconds *= Math.max(1, 3.4 / P.airPace());
         var pts = P.previewPath(world, aim.yaw + (aim.bend || 0), aim.power, aim.loft, seconds, aim.bite, aim.spin, aim.topped);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
