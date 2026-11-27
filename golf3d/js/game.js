@@ -7573,9 +7573,10 @@
         warmTour();
     }
 
-    /* One hole at a time, out of any course, and never one this machine has
-       already been shown: `G3.demoDraw` walks every hole once before it
-       repeats any, and the list of what has been on screen lives in
+    /* One hole at a time, out of any course, a different kind of golf from
+       the hole before it, and never one this machine has already been shown:
+       `G3.demoDraw` draws the kind first and walks every hole of it once
+       before it repeats any, and the list of what has been on screen lives in
        localStorage so it carries across visits. Each hole the caddie finishes
        is followed by a fresh draw rather than the next hole of the same
        course — a demo that walks one course is six holes of one world, and

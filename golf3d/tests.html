@@ -1448,42 +1448,76 @@
                         mode: 'kind', from: 'works', group: 'crazy', rng: fixed(0.99)
                     })).group === 'crazy');
 
-                // Walked rather than sampled: thirteen draws spread evenly over
-                // the unit interval must reach all thirteen other courses, which
-                // is the property "you can end up anywhere" actually means.
-                var seen = {}, k, n = G3.COURSES.length - 1;
-                for (k = 0; k < n; k++) {
-                    seen[G3.randomCourseId({ mode: 'any', from: 'seaside', rng: fixed((k + 0.5) / n) })] = 1;
+                // Walked rather than sampled: draws spread evenly over the
+                // unit interval must reach every other course, which is the
+                // property "you can end up anywhere" actually means.
+                var seen = {}, k, n = G3.COURSES.length - 1, steps = 600, byKind = {};
+                for (k = 0; k < steps; k++) {
+                    var got = G3.randomCourseId({ mode: 'any', from: 'seaside', rng: fixed((k + 0.5) / steps) });
+                    seen[got] = 1;
+                    var g = G3.courseById(got).group;
+                    byKind[g] = (byKind[g] || 0) + 1;
                 }
                 assert('every other course is reachable from a given one',
                     Object.keys(seen).length === n && !seen.seaside,
                     Object.keys(seen).length + ' of ' + n);
+                // The kind is drawn before the course: the long game's six
+                // courses do not make it twice as likely as a kind with three.
+                assert('every kind of golf is as likely as any other',
+                    groupIdList.every(function (id) {
+                        return Math.abs((byKind[id] || 0) - steps / groupIdList.length) <= 1;
+                    }), JSON.stringify(byKind));
 
-                // The demo's draw: every hole once before any hole twice, and
-                // the wrap never hands back the hole that was just shown.
+                // The demo's draw: never the same kind twice running, every
+                // hole of a kind once before any of that kind twice, and a
+                // kind's wrap never hands back the hole that was just shown.
                 (function () {
-                    var list = [], keys = {}, d, last = null, repeat = false, total = 0, j;
+                    var list = [], keys = {}, d, last = null, repeat = false, sameKind = false,
+                        total = 0, j, kindOf = {}, perKind = {}, shown = {};
+                    G3.COURSES.forEach(function (c) {
+                        if (c.playtest) return;
+                        kindOf[c.id] = c.group;
+                        perKind[c.group] = (perKind[c.group] || 0) + c.holes.length;
+                    });
                     var r = 0.37;
                     var rng = function () { r = (r * 9301 + 0.49297) % 1; return r; };
+                    var prevKind = null, draws = 0;
                     d = G3.demoDraw([], { rng: rng });
                     total = d.total;
-                    list = d.seen;
-                    keys[G3.demoKey(d.id, d.hole)] = 1;
-                    for (j = 1; j < total; j++) {
-                        d = G3.demoDraw(list, { rng: rng });
-                        var key = G3.demoKey(d.id, d.hole);
-                        if (keys[key]) repeat = true;
+                    // Long enough for every kind to wrap at least once: no
+                    // repeat inside a kind until that kind is spent.
+                    for (j = 0; j < 400; j++) {
+                        var key = G3.demoKey(d.id, d.hole), kd = kindOf[d.id];
+                        if (kd === prevKind) sameKind = true;
+                        shown[kd] = shown[kd] || {};
+                        if (shown[kd][key]) {
+                            if (Object.keys(shown[kd]).length < perKind[kd]) repeat = true;
+                            if (key === last) repeat = true;
+                            shown[kd] = {};
+                        }
+                        shown[kd][key] = 1;
                         keys[key] = 1;
-                        list = d.seen;
+                        prevKind = kd;
                         last = key;
+                        list = d.seen;
+                        d = G3.demoDraw(list, { rng: rng });
                     }
-                    assert('the demo shows every hole once before it shows any twice',
+                    assert('the demo never shows the same kind of golf twice running',
+                        !sameKind && Object.keys(perKind).every(function (id) { return shown[id]; }));
+                    assert('…and shows every hole of a kind once before any of it twice',
                         !repeat && Object.keys(keys).length === total && total > 60,
                         Object.keys(keys).length + ' of ' + total);
-                    var wrapped = G3.demoDraw(list, { rng: function () { return 0; }, last: last });
-                    assert('and when it starts over it starts somewhere new',
-                        wrapped.seen.length === 1 &&
-                        G3.demoKey(wrapped.id, wrapped.hole) !== last);
+                    // A kind that has shown everything starts over on its own.
+                    var mini = [];
+                    G3.COURSES.forEach(function (c) {
+                        if (c.group !== 'mini' || c.playtest) return;
+                        c.holes.forEach(function (h, i) { mini.push(G3.demoKey(c.id, i)); });
+                    });
+                    var restart = G3.demoDraw(['works:0'].concat(mini), {
+                        rng: fixed(0), last: 'works:0' });
+                    assert('a spent kind starts over alone',
+                        restart.kind === 'mini' && restart.seen.length === 2 &&
+                        restart.seen[0] === 'works:0');
                     var junk = G3.demoDraw(['nowhere:9', 42], { rng: fixed(0.5) });
                     assert('a stored list from another build cannot jam the draw',
                         !!G3.courseById(junk.id) &&
@@ -1649,19 +1683,25 @@
                     G3.holeWeight(null, 'seaside', 0) === 1 &&
                     G3.holeWeight({ holes: { 'seaside:0': { plays: 1 } } }, 'seaside', 0) === 0.25);
 
-                // Every course but one played eight times over: the shuffle
-                // should find the one nearly every time, and the others still sometimes.
+                // Every course but one played eight times over: inside its
+                // kind the shuffle should find the one nearly every time, and
+                // the others still sometimes. The lean never crosses kinds —
+                // every kind is still drawn as often as the next.
                 var played = { courses: {}, holes: {} };
                 G3.COURSES.forEach(function (c) {
                     if (c.id !== 'quarry') played.courses[c.id] = { rounds: 8 };
                 });
-                var hits = 0, others = 0, rng = lcg(7), k;
-                for (k = 0; k < 400; k++) {
+                var hits = 0, mini = 0, others = 0, rng = lcg(7), k;
+                for (k = 0; k < 800; k++) {
                     var id = G3.randomCourseId({ mode: 'any', from: 'seaside', save: played, rng: rng });
-                    if (id === 'quarry') hits++; else others++;
+                    if (G3.courseById(id).group !== 'mini') { others++; continue; }
+                    mini++;
+                    if (id === 'quarry') hits++;
                 }
-                assert('the shuffle leans hard towards the course never played', hits > 300, hits + ' of 400');
-                assert('…and still draws the played ones now and then', others > 0, others + ' of 400');
+                assert('the shuffle leans hard towards the course never played, inside its kind',
+                    hits > mini * 0.9 && hits < mini, hits + ' of ' + mini);
+                assert('…and the lean does not crowd out the other kinds',
+                    mini > 140 && mini < 260 && others > 540, mini + ' mini, ' + others + ' other');
 
                 // Holes played out of a showcase count against their course too.
                 var seen = { courses: {}, holes: {} };
