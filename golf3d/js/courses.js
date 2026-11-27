@@ -7880,7 +7880,7 @@
                page's own font — so a die here is a tofu box on the one chip
                that is selected by default. */
             id: 'any', name: 'Anything', icon: '\u2733',
-            blurb: 'Any course on the list except the one you are playing, leaning towards the ones you have played least.',
+            blurb: 'Any course except the one you are playing. Every kind of golf is as likely as the next, leaning towards what you have played least.',
             eased: 'Nowhere else to go — this draws from all of them.'
         },
         {
@@ -8065,47 +8065,90 @@
     }
     G3.weightedIndex = weightedIndex;
 
+    /* The kind first, then the course. Every kind of golf the draw holds is
+       as likely as any other, and the lean towards what you have played least
+       works *inside* the kind. Drawn over the courses as one pool, the long
+       game's six courses outnumbered every other kind two to one, and the
+       lean made it worse: someone who plays mini golf has never played the
+       long courses, every one of them weighs four to eighty times what a
+       played course does, and "Surprise me" was the long game nearly every
+       press (the owner: "surprise me should be able to be any kind of map").
+
+       One number from `rng` does both picks — its whole part over the kinds
+       says which kind, what is left over says where inside it — so a fixed
+       source walks the draw in the order it is listed, kind by kind. */
     G3.randomCourseId = function (opts) {
         var draw = G3.shuffleDraw(opts);
         var rng = (opts && opts.rng) || Math.random;
         var save = (opts && opts.save) || null;
-        var i = weightedIndex(draw.courses.map(function (c) { return G3.courseWeight(save, c); }), rng());
-        return draw.courses[Math.max(0, Math.min(draw.courses.length - 1, i))].id;
+        var n = rng();
+        n = typeof n === 'number' && n >= 0 && n < 1 ? n : 0;
+        var kinds = [];
+        draw.courses.forEach(function (c) { if (kinds.indexOf(c.group) < 0) kinds.push(c.group); });
+        var k = Math.min(kinds.length - 1, Math.floor(n * kinds.length));
+        var u = n * kinds.length - k;
+        var list = draw.courses.filter(function (c) { return c.group === kinds[k]; });
+        var i = weightedIndex(list.map(function (c) { return G3.courseWeight(save, c); }), u);
+        return list[Math.max(0, Math.min(list.length - 1, i))].id;
     };
 
-    /* ── the demo's draw: every hole once before any hole twice ──────────
+    /* ── the demo's draw: a new kind every hole ──────────────────────────
 
-       The demo deals one hole at a time, out of any course, and remembers what
-       it has shown (game.js keeps the list in localStorage) so a visitor who
-       comes back does not get the hole they watched last time. `seen` is a
-       list of "course:hole" keys; what comes back is the pick and the list to
-       store. When everything has been shown the list starts over — but never
-       with the hole that has just been on screen, so the wrap is not a repeat
-       either. Keys for holes that no longer exist are simply never matched,
-       so a stored list from an older build cannot jam the draw. */
+       The demo deals one hole at a time and remembers what it has shown
+       (game.js keeps the list in localStorage) so a visitor who comes back
+       does not get the hole they watched last time. `seen` is a list of
+       "course:hole" keys; what comes back is the pick and the list to store.
+
+       The kind of golf is drawn first, evenly, and never the kind of the hole
+       that has just been on screen — two long holes back to back is a demo of
+       one kind of golf, and drawn over all ninety holes at once the long game
+       is two holes in every five (the owner: "the demo should cycle different
+       kind of map each time, not 2 long game in a row"). Inside the kind it is
+       every hole once before any hole twice; when a kind has shown all of its
+       holes, that kind alone starts over, and never with the hole just shown.
+
+       The hole just shown is `opts.last`, or failing that the newest key in
+       `seen`, which is where every draw puts its pick. Keys for holes that no
+       longer exist are simply never matched, so a stored list from an older
+       build cannot jam the draw. */
     G3.demoKey = function (id, hole) { return id + ':' + hole; };
 
     G3.demoDraw = function (seen, opts) {
         var rng = (opts && opts.rng) || Math.random;
-        var last = opts && opts.last || null;
-        var all = [];
+        var kept = Array.isArray(seen) ? seen.filter(function (k) { return typeof k === 'string'; }) : [];
+        var last = opts && opts.last || kept[kept.length - 1] || null;
+        var all = [], kinds = [];
         G3.COURSES.forEach(function (c) {
             if (c.playtest) return;
-            for (var h = 0; h < c.holes.length; h++) all.push({ id: c.id, hole: h });
+            if (kinds.indexOf(c.group) < 0) kinds.push(c.group);
+            for (var h = 0; h < c.holes.length; h++) all.push({ id: c.id, hole: h, kind: c.group });
         });
-        var had = {};
-        (Array.isArray(seen) ? seen : []).forEach(function (k) { had[k] = 1; });
-        var pool = all.filter(function (p) { return !had[G3.demoKey(p.id, p.hole)]; });
-        var kept = Array.isArray(seen) ? seen.slice() : [];
-        if (!pool.length) {
-            kept = [];
-            pool = all.filter(function (p) { return G3.demoKey(p.id, p.hole) !== last; });
-            if (!pool.length) pool = all;
+        var lastKind = null;
+        all.forEach(function (p) { if (G3.demoKey(p.id, p.hole) === last) lastKind = p.kind; });
+
+        function pickOf(list, n) {
+            var i = Math.floor((typeof n === 'number' && n >= 0 && n < 1 ? n : 0) * list.length);
+            return list[Math.max(0, Math.min(list.length - 1, i))];
         }
-        var i = Math.floor(rng() * pool.length);
-        var pick = pool[Math.max(0, Math.min(pool.length - 1, i))];
+        var open = kinds.filter(function (k) { return k !== lastKind; });
+        if (!open.length) open = kinds;
+        var kind = pickOf(open, rng());
+
+        var had = {};
+        kept.forEach(function (k) { had[k] = 1; });
+        var ofKind = all.filter(function (p) { return p.kind === kind; });
+        var pool = ofKind.filter(function (p) { return !had[G3.demoKey(p.id, p.hole)]; });
+        if (!pool.length) {
+            // This kind has shown everything: start it over, and only it.
+            var mine = {};
+            ofKind.forEach(function (p) { mine[G3.demoKey(p.id, p.hole)] = 1; });
+            kept = kept.filter(function (k) { return !mine[k]; });
+            pool = ofKind.filter(function (p) { return G3.demoKey(p.id, p.hole) !== last; });
+            if (!pool.length) pool = ofKind;
+        }
+        var pick = pickOf(pool, rng());
         kept.push(G3.demoKey(pick.id, pick.hole));
-        return { id: pick.id, hole: pick.hole, seen: kept, total: all.length };
+        return { id: pick.id, hole: pick.hole, kind: pick.kind, seen: kept, total: all.length };
     };
 
     G3.shuffleModeById = function (id) {
