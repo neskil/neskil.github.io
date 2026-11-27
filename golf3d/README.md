@@ -4,12 +4,15 @@ A **World Tour** of twenty holes, each played inside a world borrowed from
 Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world))
 — and beside it in the same picker, the game this started as:
 
-Fifteen six-hole courses of 3D golf in four kinds. **Mini golf**: three
-courses of lanes, rails, ledges, banks and carries. **Crazy golf**: three of
+Fifteen six-hole courses of 3D golf under two tabs, **Mini golf** and **the
+long game**, and three kinds (since v1.235.0, when crazy golf was folded into
+adventure — the owner: "world, mini golf, long game", mini golf in two).
+**Classic** mini golf: three courses of lanes, rails, ledges, banks and
+carries. **Adventure**: six where the course plays back. Three of
 blades, gates, bumpers, angled banks and pendulums, where the shot is a matter
 of timing rather than of aim — and on Clockwork Court of bells geared to each
 other and a mill race under the machinery, where a mistimed shot is a stroke.
-**Adventure golf**: three where the floor itself is the obstacle — ice that
+And three where the floor itself is the obstacle — ice that
 will not let the ball stop, belts that carry it off, launch pads that throw it
 in the air and pipes that put it somewhere else entirely, all on the side of a
 volcano, and Apogee Yard, where the floor is ordinary and the *ball* is not: six holes at six gravities, from three tenths of a g to two and
@@ -1177,21 +1180,23 @@ say what it cost rather than how long it went on.
 
 ## The courses
 
-Fifteen, six holes each, filed under four groups — and the group is not a
-heading in the picker, it is a tab (see [The picker](#the-picker)). The four
-are not variations of one another: a mini golf hole is one swing and a putt, a
-crazy golf hole is a mechanism you have to time, an adventure hole is a floor
-that does something to the ball, and a long-game hole is a drive and an
-approach.
+Fifteen, six holes each, filed under three kinds (`course.group`:
+`mini` — shown as Classic — `adventure` and `long`) and shown under two tabs
+(`G3.COURSE_TABS`): Mini golf, which draws its two kinds as two shelves under a
+heading each, and Long game (see [The picker](#the-picker)). A classic hole is
+one swing and a putt; an adventure hole is a mechanism you have to time or a
+floor that does something to the ball; a long-game hole is a drive and an
+approach. Until v1.235.0 there were four kinds and four tabs, crazy golf
+being the three machine courses now first on the adventure shelf.
 
 | Course | Group | Theme | What it is about |
 | --- | --- | --- | --- |
 | Seaside Green | mini | `seaside` | The opener, played with a putter and a mallet. A bounce off an angled rail, a slipway round a corner, one slow gate, a first bridge to fly, a horseshoe that leans at the sea wall, and a jetty with a bend in it. Two safe putts and one ace line on every hole. |
 | Quarry Ridge | mini | `quarry` | Height, both ways: ground that is missing and ground that is in the way. A curved backboard behind a bricked-up door, a drop off a pillar with a stair down its side, a quarter-pipe that turns what climbs it, a slanted wall only the chipper goes over, a road banked round a bend over the pool, and a cannon with a plank beside it. The best six of the old Quarry Ridge and Highland Steps (v1.122.0). |
 | Tidewater Reach | mini | `lagoon` | The loft course. Almost nothing here can be reached along the floor, and every carry has a safe target and a short one. |
-| Windmill Works | crazy | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a back gate round Turnstile's fence. The third is The Carousel: four blades in a round room that carry a ball round and set it down by the pin. The fourth is The Line, a belt across the way that is crossed like a river, and the last is a chute, a lip and a carry over the mill race (v1.149.0). |
-| Pinball Parlour | crazy | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots that kick, ramps, flippers that fire and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
-| Clockwork Court | crazy | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
+| Windmill Works | adventure | `works` | Gates, blades and a windmill, after dark. Timing — and a slower way round on the holes that would otherwise be one shot: sand past First Gear's gate, a back gate round Turnstile's fence. The third is The Carousel: four blades in a round room that carry a ball round and set it down by the pin. The fourth is The Line, a belt across the way that is crossed like a river, and the last is a chute, a lip and a carry over the mill race (v1.149.0). |
+| Pinball Parlour | adventure | `arcade` | A table, not a course, and a room round every table. Round pop bumpers that fire and rubber posts that do not, a plunger chute, slingshots that kick, ramps, flippers that fire and a hole in the table — one more piece on each hole than the last. Bumper City is a block of bumpers you bank into; Jackpot is a vault you get into through the floor. |
+| Clockwork Court | adventure | `clockwork` | The moment. One bar over a plank, two bells round a corner, two doors with a different clock behind each, a weir and a two-road mill race where a mistimed shot is a stroke, and a clock lane with two weights to finish. The best six of the old Clockwork Court, The Belfry and The Millrace (v1.122.0). |
 | Icehouse Yard | adventure | `icehouse` | Nothing stops. A putter runs eight and a half units on grass and thirty-two on ice. |
 | Cinder Cone | adventure | `volcano` | Machinery on a mountainside: a launch pad over a wall, a belt running back at you, a pipe under the lake, a loop-the-loop, a vent in the floor of a hollow, and Caldera, which asks for all of it. The best six of the old Helter Skelter and Cinder Cone (v1.122.0). |
 | Apogee Yard | adventure | `lunar` | The floor sits still and the ball does not: six holes at six gravities. Light takes distance away as a defence; heavy takes the air. |

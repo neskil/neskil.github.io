@@ -5063,6 +5063,15 @@ body.lane-swing .swipe-hint {
 }
 
 .world-grid { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.55rem; }
+.world-shelf {
+    grid-column: 1 / -1;
+    display: flex; flex-direction: column; gap: 0.1rem;
+    margin-top: 0.5rem; padding: 0 0 0.25rem 0.55rem;
+    border-left: 3px solid var(--w-tint, var(--accent));
+}
+.world-shelf:first-child { margin-top: 0; }
+.world-shelf b { font-size: 0.85rem; font-weight: 600; color: var(--w-tint, var(--accent)); }
+.world-shelf > span { font-size: 0.72rem; color: var(--ink-dim); line-height: 1.35; }
 @media (max-width: 520px) { .world-grid { grid-template-columns: 1fr 1fr; } }
 .world { grid-template-rows: auto auto; }
 .world.up-next { border-color: var(--gold); }
