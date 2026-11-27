@@ -11,7 +11,15 @@
        of soil and a puff of dust, and on a green or a fairway it leaves a
        pitch mark that stays for the hole. A ball running through the rough
        flicks blades off its shoulders; in the wet, any grass throws a fine
-       spray behind a running ball and a landing throws the dew.
+       spray behind a running ball and a landing throws the dew. Every
+       landing on grass leaves a dent now, not only on the short stuff, and
+       a hard one or a divot opens the turf to the brown earth under it (the
+       owner: "I like that it makes some dents in the sand … can we do that
+       for other types"; "a bit of brown for when you hit the ground"). A
+       rolling ball presses a track through the turf the way it furrows a
+       bunker, and the grass stands back up after it. All of it is laid up
+       among the blades (render.js → grassLift): on the ground it is under
+       the lawn, which is why the old pitch mark was so hard to see.
      · **water** — a crown of drops thrown up and out (leant along the line
        the ball came in on), a column that climbs out of the hole it made
        after a hard entry, mist, and rings running out across the surface; a
@@ -45,6 +53,9 @@
     var N = 1100;             // the pool, every kind of particle together
     var RING_N = 18;
     var MARK_N = 24;
+    var SOIL_N = 16;          // patches of bare earth: hard landings and divots
+    var TRACK = 400;          // points in the grass track before the oldest is reused
+    var TRACK_STEP = 0.08;    // how far the ball rolls between track points
 
     var CHIP = 0, PUFF = 1, DROP = 2, BLADE = 3, EMBER = 4, GLINT = 5;
 
@@ -56,6 +67,12 @@
         light: [1, 1, 1], wet: 0,
         rings: [], ringAt: 0, ringsLive: 0,
         marks: [], markAt: 0,
+        soils: [], soilAt: 0, soilMat: null,
+        // The track through the grass: sandfx's furrow, for turf. A ring of
+        // points, each with the strand it belongs to and when it was pressed,
+        // because grass, unlike sand, stands back up.
+        track: null, tr: [], trAt: -1, trCount: 0, trStrand: 0, lastTr: null, trBase: null, trFade: 0,
+        dropRing: null, dropT: 0,
         queue: [],
         grass: [[0.31, 0.68, 0.33], [0.26, 0.63, 0.29]],
         // What the ball was doing before it arrived, read by the landings.
@@ -179,10 +196,208 @@
             mk.frustumCulled = false;
             mk.visible = false;
             mk.renderOrder = 1;
+            mk.userData.grass = 0.8;
             scene.add(mk);
             S.marks.push(mk);
         }
+        // A deeper dent for the rough, where the ball sits down in the grass.
+        S.markDeep = markGeometry(1.6);
+        S.markGeo = mg;
+
+        /* Bare earth: a hard landing or a divot opens the turf, and what is
+           under it is brown (the owner: "a bit of brown for when you hit the
+           ground"). A multiply can only darken the green it lies on, and
+           darkened green is olive, never soil — so this one is drawn over the
+           turf in its own colour, from a ragged patch painted once, under the
+           dent that shades it. Lit by hand (light()): it is unlit, and an
+           unlit brown would glow at dusk. */
+        S.soilMat = new THREE.MeshBasicMaterial({
+            map: soilTexture(), transparent: true, depthWrite: false,
+            polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -3
+        });
+        var sg = new THREE.PlaneGeometry(2, 2);
+        sg.rotateX(-Math.PI / 2);
+        for (i = 0; i < SOIL_N; i++) {
+            var so = new THREE.Mesh(sg, S.soilMat);
+            so.name = 'ground-soil';
+            so.frustumCulled = false;
+            so.visible = false;
+            so.renderOrder = 0.5;     // under the dent's shading (1)
+            // Lower than the dent: the tallest blades stand through the earth
+            // at its ragged edge, which is what reads as torn turf.
+            so.userData.grass = 0.55;
+            scene.add(so);
+            S.soils.push(so);
+        }
+
+        buildTrack(scene);
+
+        /* Where a drop would go (game.js → the penalty card): a brass ring on
+           the ground, breathing, while the choice is up. A ring like the
+           others, so it is their program. */
+        var dr = new THREE.RingGeometry(0.7, 1, 40, 1);
+        dr.rotateX(-Math.PI / 2);
+        S.dropRing = new THREE.Mesh(dr, new THREE.MeshBasicMaterial({
+            color: 0xd6b25e, transparent: true, opacity: 0, depthWrite: false,
+            polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4
+        }));
+        S.dropRing.name = 'drop-ring';
+        S.dropRing.frustumCulled = false;
+        S.dropRing.visible = false;
+        S.dropRing.renderOrder = 2;
+        scene.add(S.dropRing);
         S.ready = true;
+    }
+
+    /* The patch of earth: a few dozen overlapping crumbs of brown, densest in
+       the middle and thinning out to a ragged edge, with darker clods in it
+       and a lighter dry rim. One texture for every patch; each is turned and
+       stretched its own way, so no two read the same. */
+    function soilTexture() {
+        var n = 128, cv = document.createElement('canvas');
+        cv.width = cv.height = n;
+        var g = cv.getContext('2d'), i, k;
+        var seed = 7;
+        function r() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+        function brown(t, a) {
+            return 'rgba(' + Math.round(104 * t) + ',' + Math.round(73 * t) + ',' + Math.round(45 * t) + ',' + a.toFixed(2) + ')';
+        }
+        // The hole in the turf: one ragged outline, a radius per bearing.
+        var rad = [], N = 28;
+        for (k = 0; k < N; k++) rad.push(n * (0.27 + r() * 0.13));
+        function blob(scale, fill) {
+            g.fillStyle = fill;
+            g.beginPath();
+            for (k = 0; k <= N; k++) {
+                var a = k / N * Math.PI * 2, rr = rad[k % N] * scale;
+                var x = n / 2 + Math.cos(a) * rr, y = n / 2 + Math.sin(a) * rr * 0.86;
+                if (k) g.lineTo(x, y); else g.moveTo(x, y);
+            }
+            g.fill();
+        }
+        blob(1.0, brown(0.92, 0.55));
+        blob(0.82, brown(0.85, 0.85));
+        blob(0.55, brown(0.68, 0.95));      // the floor of it, in its own shade
+        // Clods and crumbs in it, darker and lighter, and a few thrown out
+        // past the edge.
+        for (i = 0; i < 70; i++) {
+            var b = r() * Math.PI * 2, e = Math.pow(r(), 0.8) * n * (i < 55 ? 0.33 : 0.46);
+            var dark = r() < 0.55;
+            g.fillStyle = dark ? 'rgba(52,36,22,0.85)' : brown(1.3 + r() * 0.2, 0.85);
+            g.beginPath(); g.arc(n / 2 + Math.cos(b) * e, n / 2 + Math.sin(b) * e * 0.86, 1 + r() * (i < 55 ? 3.2 : 2), 0, Math.PI * 2); g.fill();
+        }
+        var t = new THREE.CanvasTexture(cv);
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        return t;
+    }
+
+    /* ── the track through the grass ────────────────────────────────────── */
+
+    // Across it: the blades pressed flat under the ball darkest, the ones
+    // either side bent over and half as dark, standing grass at the edges.
+    var TR_ACROSS = [-1, -0.45, 0, 0.45, 1];
+    var TR_DEPTH = [0, 0.75, 1, 0.75, 0];
+    // How strong, how wide, and how long the grass takes to stand up again.
+    var TR_KIND = {
+        rough:   { k: 0.38, w: 1.15, keep: 40 },
+        fairway: { k: 0.24, w: 0.85, keep: 26 },
+        green:   { k: 0.15, w: 0.75, keep: 16 }
+    };
+    var TR_FADE = 30;
+
+    function buildTrack(scene) {
+        var g = new THREE.BufferGeometry(), n = TRACK * TR_ACROSS.length, i;
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+        var c = new Float32Array(n * 3);
+        for (i = 0; i < c.length; i++) c[i] = 1;
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+        g.setIndex(new THREE.BufferAttribute(new Uint16Array((TRACK - 1) * (TR_ACROSS.length - 1) * 6), 1));
+        g.setDrawRange(0, 0);
+        S.track = new THREE.Mesh(g, markMaterial());
+        S.track.name = 'grass-track';
+        S.track.frustumCulled = false;
+        S.track.renderOrder = 1;
+        scene.add(S.track);
+        S.trBase = new Float32Array(n);
+        for (i = 0; i < TRACK; i++) S.tr.push({ x: 0, z: 0, strand: -1, t: 0, kind: 'fairway' });
+    }
+
+    function pressTrack(hole, b, kind) {
+        var last = S.lastTr;
+        if (last && last.strand === S.trStrand) {
+            var ddx = b.x - last.x, ddz = b.z - last.z;
+            if (ddx * ddx + ddz * ddz < TRACK_STEP * TRACK_STEP) return;
+        }
+        S.trAt = (S.trAt + 1) % TRACK;
+        S.trCount = Math.min(TRACK, S.trCount + 1);
+        var f = S.tr[S.trAt];
+        f.x = b.x; f.z = b.z; f.strand = S.trStrand; f.t = S.t; f.kind = kind;
+        S.lastTr = f;
+        writeTrack(hole);
+    }
+
+    function trAge(f) {
+        var K = TR_KIND[f.kind] || TR_KIND.fairway, age = S.t - f.t;
+        return age < K.keep ? 1 : Math.max(0, 1 - (age - K.keep) / TR_FADE);
+    }
+
+    function writeTrack(hole) {
+        var g = S.track.geometry, pos = g.attributes.position.array;
+        var idx = g.index.array, ni = 0, i, j, f, prev, nxt, dx, dz, l;
+        var nA = TR_ACROSS.length, start = (S.trAt - S.trCount + 1 + TRACK) % TRACK;
+        var wet = 1 + S.wet * 0.9;
+        for (var o = 0; o < S.trCount; o++) {
+            i = (start + o) % TRACK;
+            f = S.tr[i];
+            prev = o > 0 ? S.tr[(i - 1 + TRACK) % TRACK] : null;
+            nxt = o < S.trCount - 1 ? S.tr[(i + 1) % TRACK] : null;
+            if (prev && prev.strand !== f.strand) prev = null;
+            if (nxt && nxt.strand !== f.strand) nxt = null;
+            var a = nxt || f, bb = prev || f;
+            dx = a.x - bb.x; dz = a.z - bb.z;
+            l = Math.sqrt(dx * dx + dz * dz) || 1;
+            var K = TR_KIND[f.kind] || TR_KIND.fairway;
+            var taper = (!prev || !nxt) ? 0.35 : 1, w = C.BALL_R * K.w * taper;
+            for (j = 0; j < nA; j++) {
+                var x = f.x + (dz / l) * TR_ACROSS[j] * w, z = f.z - (dx / l) * TR_ACROSS[j] * w;
+                var s = P.surfaceUnder(hole, x, z, Infinity);
+                var vi = i * nA + j;
+                pos[vi * 3] = x; pos[vi * 3 + 1] = (s ? s.y + inGrass(s.pad.kind, 0.8) : 0) + 0.004; pos[vi * 3 + 2] = z;
+                var k = s && TR_KIND[s.pad.kind] ? TR_DEPTH[j] * Math.min(0.5, K.k * wet) * taper : 0;
+                S.trBase[vi] = k;
+            }
+            if (prev) {
+                var pi = (i - 1 + TRACK) % TRACK;
+                for (j = 0; j < nA - 1; j++) {
+                    var a0 = pi * nA + j, a1 = pi * nA + j + 1, b0 = i * nA + j, b1 = i * nA + j + 1;
+                    idx[ni++] = a0; idx[ni++] = b0; idx[ni++] = a1;
+                    idx[ni++] = a1; idx[ni++] = b0; idx[ni++] = b1;
+                }
+            }
+        }
+        g.setDrawRange(0, ni);
+        g.index.needsUpdate = true;
+        g.attributes.position.needsUpdate = true;
+        shadeTrack();
+    }
+
+    // The colours alone, from each vertex's depth and its point's age: the
+    // grass standing back up, a few times a second, without re-laying it.
+    function shadeTrack() {
+        var col = S.track.geometry.attributes.color.array, nA = TR_ACROSS.length, i, j, any = 0;
+        var start = (S.trAt - S.trCount + 1 + TRACK) % TRACK;
+        for (var o = 0; o < S.trCount; o++) {
+            i = (start + o) % TRACK;
+            var fade = trAge(S.tr[i]);
+            if (fade > 0 && fade < 1) any = 1;
+            for (j = 0; j < nA; j++) {
+                var vi = i * nA + j, d = 1 - S.trBase[vi] * fade;
+                // Pressed grass is darker and a little bluer: the undersides.
+                col[vi * 3] = d; col[vi * 3 + 1] = 1 - (1 - d) * 0.85; col[vi * 3 + 2] = 1 - (1 - d) * 0.8;
+            }
+        }
+        S.track.geometry.attributes.color.needsUpdate = true;
+        S.trFade = any;
     }
 
     function markMaterial() {
@@ -194,8 +409,9 @@
         });
     }
 
-    function markGeometry() {
+    function markGeometry(deep) {
         var R = [0, 0.4, 0.75, 1.0, 1.25], SH = [0.70, 0.62, 0.74, 0.92, 1.0], SEG = 18;
+        if (deep) SH = SH.map(function (v) { return 1 - (1 - v) * deep; });
         var nv = R.length * SEG, pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), idx = [];
         var i, j, k = 0;
         for (i = 0; i < R.length; i++) {
@@ -234,6 +450,11 @@
         S.light = [r, g, b];
         S.wet = wet || 0;
         if (S.points) S.points.material.uniforms.uLight.value.set(r, g, b);
+        // The earth in the same light as the turf round it, and darker wet.
+        if (S.soilMat) {
+            var k = 0.95 * (1 - S.wet * 0.3);
+            S.soilMat.color.setRGB(Math.min(1, r * k), Math.min(1, g * k), Math.min(1, b * k));
+        }
     }
 
     function resize(drawingBufferHeight) {
@@ -402,13 +623,19 @@
 
     /* ── marks ──────────────────────────────────────────────────────────── */
 
+    // Up among the blades of a grassy kind (render.js → grassLift): `k` of
+    // the way to the tips. Nothing on bare ground.
+    function inGrass(kind, k) {
+        var r = G3.render;
+        return r && r.grassLift ? r.grassLift(kind) * k : 0;
+    }
+
     var _n = null;
-    function mark(hole, x, z, r, dx, dz, stretch) {
+    // Lay a flat thing on the ground's own slope, measured either side, its
+    // local +x turned to the line (dx, dz).
+    function lay(m, hole, x, z, dx, dz, lift) {
         var s = P.surfaceUnder(hole, x, z, Infinity);
-        if (!s) return;
-        var m = S.marks[S.markAt];
-        S.markAt = (S.markAt + 1) % MARK_N;
-        // Laid on the ground's own slope, measured either side.
+        if (!s) return null;
         var e = 0.12;
         var sx0 = P.surfaceUnder(hole, x - e, z, Infinity), sx1 = P.surfaceUnder(hole, x + e, z, Infinity);
         var sz0 = P.surfaceUnder(hole, x, z - e, Infinity), sz1 = P.surfaceUnder(hole, x, z + e, Infinity);
@@ -419,7 +646,26 @@
         _n.yaw.setFromAxisAngle(_n.Y, Math.atan2(-dz, dx));
         _n.q.setFromUnitVectors(_n.Y, _n.up).multiply(_n.yaw);
         m.quaternion.copy(_n.q);
-        m.position.set(x, s.y + 0.006, z);
+        m.position.set(x, s.y + lift + inGrass(s.pad.kind, m.userData.grass || 0), z);
+        return s;
+    }
+
+    function mark(hole, x, z, r, dx, dz, stretch, deep) {
+        var m = S.marks[S.markAt];
+        if (!lay(m, hole, x, z, dx, dz, 0.006)) return;
+        S.markAt = (S.markAt + 1) % MARK_N;
+        m.geometry = deep ? S.markDeep : S.markGeo;
+        m.scale.set(r * stretch, 1, r);
+        m.visible = true;
+    }
+
+    // Bare earth, `r` across and stretched along the line; turned a little
+    // at random so the same patch does not read twice.
+    function soil(hole, x, z, r, dx, dz, stretch) {
+        var m = S.soils[S.soilAt];
+        var tw = rnd(-0.5, 0.5), c = Math.cos(tw), sn = Math.sin(tw);
+        if (!lay(m, hole, x, z, dx * c - dz * sn, dz * c + dx * sn, 0.005)) return;
+        S.soilAt = (S.soilAt + 1) % SOIL_N;
         m.scale.set(r * stretch, 1, r);
         m.visible = true;
     }
@@ -494,7 +740,16 @@
             ring(x, y + 0.012, z, 0.08, 0.3 + h * 0.8, 0.4 + h * 0.2, 0.18 + h * 0.22,
                 [Math.min(1, g0[0] * 1.6 + 0.15), Math.min(1, g0[1] * 1.4 + 0.15), Math.min(1, g0[2] * 1.6 + 0.15)]);
             if (S.wet > 0.15) splashDew(x, y, z, h, A);
-            if (!rough && h > 0.22) mark(hole, x + dx * 0.04, z + dz * 0.04, C.BALL_R * (0.8 + h * 0.7), dx, dz, 1 + A.flat * 1.2);
+            /* The dent, on every kind of grass now and not only the short
+               stuff — the rough's deeper, where the ball sits down in it —
+               and under a hard one, the earth it broke through to. */
+            if (h > 0.08) {
+                var mx = x + dx * 0.04, mz = z + dz * 0.04;
+                if (h > (green ? 0.6 : 0.3)) {
+                    soil(hole, mx + dx * 0.03, mz + dz * 0.03, C.BALL_R * (green ? 0.55 : 0.6 + h * 0.8), dx, dz, 1 + A.flat * 1.3);
+                }
+                mark(hole, mx, mz, C.BALL_R * (0.8 + h * 0.8) * (rough ? 1.15 : 1), dx, dz, 1 + A.flat * 1.2, rough);
+            }
         } else if (kind === 'wood') {
             for (i = 0; i < Math.round(5 + h * 30); i++) {
                 var w = Math.random() * Math.PI * 2, ow = rnd(0.3, 1.3) * (0.4 + h);
@@ -645,7 +900,9 @@
                         { type: CHIP, size: i === 0 ? rnd(0.06, 0.085) : rnd(0.02, 0.04), life: rnd(0.8, 1.3),
                           col: i === 0 ? grassCol(true) : SOIL, tone: 0.25, grav: 17, floor: y });
                 }
-                if (kind === 'fairway') mark(hole, x + dx * 0.12, z + dz * 0.12, C.BALL_R * (0.7 + frac * 0.4), dx, dz, 2.1);
+                // The scar, with the earth showing in it.
+                soil(hole, x + dx * 0.14, z + dz * 0.14, C.BALL_R * (0.55 + frac * 0.45), dx, dz, 2.3);
+                mark(hole, x + dx * 0.12, z + dz * 0.12, C.BALL_R * (0.7 + frac * 0.4), dx, dz, 2.1, kind === 'rough');
             }
             return true;
         }
@@ -686,10 +943,12 @@
 
     function roll(world, b, speed, dt) {
         var s = P.surfaceUnder(world.hole, b.x, b.z, b.y + C.STEP_UP);
-        if (!s) { S.carry.blade = S.carry.drop = S.carry.glint = 0; return; }
+        if (!s) { S.carry.blade = S.carry.drop = S.carry.glint = 0; breakTrack(); return; }
         var kind = s.pad.kind, y = s.y + 0.02;
         var dx = b.vx / speed, dz = b.vz / speed, sx = dz, sz = -dx, n, i, side;
         var grass = kind === 'rough' || kind === 'fairway' || kind === 'green';
+        if (grass) pressTrack(world.hole, b, kind);
+        else breakTrack();
         // Blades off the shoulders, through the long stuff.
         if (kind === 'rough' && speed > 1.0) {
             S.carry.blade += Math.min(40, (speed - 1) * 11) * dt;
@@ -739,16 +998,44 @@
             var b = world.ball;
             if (world.moving && !world.ride && !world.warping) {
                 S.vx = b.vx; S.vy = b.vy; S.vz = b.vz;
-                if (!world.grounded) S.air += dt;
+                if (!world.grounded) { S.air += dt; breakTrack(); }
                 else {
                     S.air = 0;
                     var speed = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
-                    if (speed > 1) roll(world, b, speed, dt);
+                    if (speed > 0.5) roll(world, b, speed, dt);
+                    else breakTrack();
                 }
-            }
+            } else breakTrack();
         }
         stepPoints(dt);
         stepRings(dt);
+        // The grass standing back up: the colours, four times a second.
+        if (S.trCount && S.trFade !== 0) {
+            S.trTick = (S.trTick || 0) + dt;
+            if (S.trTick > 0.25) { S.trTick = 0; shadeTrack(); }
+        }
+        if (S.dropRing && S.dropRing.visible) {
+            S.dropT += dt;
+            var u = 0.5 + 0.5 * Math.sin(S.dropT * 4);
+            S.dropRing.material.opacity = Math.min(1, S.dropT * 3) * (0.55 + 0.35 * u);
+            S.dropRing.scale.setScalar(C.BALL_R * (2.2 + 0.5 * u));
+        }
+    }
+
+    function breakTrack() {
+        if (S.lastTr && S.lastTr.strand === S.trStrand) S.trStrand++;
+    }
+
+    // Where a drop would go, or nothing (spot null).
+    function dropMark(hole, spot) {
+        if (!S.dropRing) return;
+        if (!spot) { S.dropRing.visible = false; return; }
+        var s = P.surfaceUnder(hole, spot.x, spot.z, spot.y + C.STEP_UP);
+        S.dropRing.position.set(spot.x, (s ? s.y : spot.y - C.BALL_R) + 0.012, spot.z);
+        S.dropRing.scale.setScalar(C.BALL_R * 2.2);
+        S.dropRing.material.opacity = 0;
+        S.dropRing.visible = true;
+        S.dropT = 0;
     }
 
     function clear(th) {
@@ -760,6 +1047,10 @@
         S.live = 0;
         for (i = 0; i < RING_N; i++) { S.rings[i].live = false; S.rings[i].mesh.visible = false; }
         for (i = 0; i < MARK_N; i++) S.marks[i].visible = false;
+        for (i = 0; i < SOIL_N; i++) S.soils[i].visible = false;
+        S.trCount = 0; S.trAt = -1; S.lastTr = null; S.trStrand++; S.trFade = 0;
+        S.track.geometry.setDrawRange(0, 0);
+        S.dropRing.visible = false;
         S.ringsLive = 0;
         S.queue.length = 0;
         S.air = 0; S.vx = S.vy = S.vz = 0;
@@ -777,6 +1068,7 @@
         lava: lava,
         strike: strike,
         knock: knock,
+        dropMark: dropMark,
         clear: clear,
         state: S
     };

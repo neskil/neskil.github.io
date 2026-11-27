@@ -81,7 +81,7 @@ them.
 | `js/bot.js` | The greedy player: fan out candidate shots, keep the one that finishes nearest the cup, refine twice. And the caddie's [plan](#the-plan-v11280) over it: a graph of where shots come to rest, searched for a route to the cup. Pure — no three.js, no DOM. What proves every hole is solvable in `tests.html`, and what plays for you in [autoplay](#the-caddie-autoplay). |
 | `js/life.js` | What is on a hole that is not the hole: the long game's [dressing](#the-life-on-the-long-game) and its flock, ducks and butterflies, and the [world round each drawn hole](#the-worlds-round-the-drawn-holes) — a recipe per theme. Static props are built as one mesh per hole; what moves is stepped every frame. Loaded before `render.js` on every page that loads it. |
 | `js/sandfx.js` | What a bunker does back: grains ploughed up off both shoulders of a rolling ball at a rate and height set by its speed, a furrow pressed in behind it, and a landing's crown, dust and crater shaped by how fast and how flat the ball came down and how long it had been in the air. Multiply-blended marks that stay for the hole. Nothing in the simulation. Loaded before `render.js`, which runs without it. |
-| `js/groundfx.js` | What the rest of the ground does back. Grass: clippings in the course's own turf colour (most off the rough, a few off a green), a pale shiver running out through the grass, soil and dust off a hard landing, a pitch mark on a green or fairway, blades flicked off a ball running through the rough and a fine spray off wet grass. Water: a crown of drops leant along the line of entry, a column after a hard one, mist, foam and ripple rings (big drops falling back ring the surface too). Lava: cooling embers, gobs, smoke and orange rings. Splinters off wood, frost and a glitter trail off ice, embers off a crust, the strike's clippings, clod and divot scar, and a knock of dust off a rail. One point cloud, a ring pool and a mark pool, all built at `init` and kept in the scene hidden so nothing compiles mid-hole; the marks share `sandfx`'s mark program. Nothing in the simulation. Loaded after `sandfx.js`, before `render.js`, which falls back to its old bursts without it. |
+| `js/groundfx.js` | What the rest of the ground does back. Grass: clippings in the course's own turf colour (most off the rough, a few off a green), a pale shiver running out through the grass, soil and dust off a hard landing, a dent wherever a ball comes down on grass (deeper in the rough) with bare brown earth showing under a hard one, a track pressed through the turf behind a rolling ball that stands back up over half a minute or so, blades flicked off a ball running through the rough and a fine spray off wet grass. Marks on grass are laid up among the blades (`render.grassLift`), not on the ground, which the shells hide. Water: a crown of drops leant along the line of entry, a column after a hard one, mist, foam and ripple rings (big drops falling back ring the surface too). Lava: cooling embers, gobs, smoke and orange rings. Splinters off wood, frost and a glitter trail off ice, embers off a crust, the strike's clippings, clod and a divot scar with the earth in it, a knock of dust off a rail, and the brass ring where a drop would go while the penalty card is up. One point cloud, a ring pool and a mark pool, all built at `init` and kept in the scene hidden so nothing compiles mid-hole; the marks share `sandfx`'s mark program. Nothing in the simulation. Loaded after `sandfx.js`, before `render.js`, which falls back to its old bursts without it. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/minimap.js` | The hole from above, drawn per pixel out of `physics.surfaceUnder` — the course picker's plans and the one on the hole card. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera, holding whichever clubs this hole hands out. |
@@ -6837,11 +6837,26 @@ owner, "the fake airtime is not feeling that good on the long game map".)
     half a unit in a frame. It is on a spring now. The clearance under an eye
     left behind is eased up too, not set.
   - *The drop back* (render.js `dropTo`, game.js `dropBack`: out of play,
-    water, stuck). The seat jumps the length of the shot, and the camera eased
+    water, stuck; and a drop taken off the penalty card, below). The seat jumps the length of the shot, and the camera eased
     after it, twenty units back up the hole in half a second at up to fifty
     units a second. Now it is the intro's cut: the frame is held and
     photographed, then a short push in on to the tee while the picture wipes
     away. A drop that leaves the seat within three units is eased as before.
+  - *The hold and the penalty card* (game.js → the penalty card,
+    `physics.dropSpot`). Into the water or out of play, the shot no longer
+    cuts straight back: the frame stays on the ball for a couple of seconds
+    while the splash plays (the ball sinks; one over the stakes coasts on, for
+    the look only), any press skipping it, and then a card offers **Drop**,
+    by where the ball last crossed on to playable ground, or **Re-hit** from
+    where the shot was played, which it takes after five seconds. Water is a
+    stroke either way; out of play is a stroke to replay and two to drop.
+    `dropSpot` reads the ball's path through the shot (`state.track`, sampled
+    by game.js), takes the last point over dry, staked-in, playable ground,
+    and tries spots out to two club lengths round it and then back along the
+    line in, nearest first, settling each on a copy of the world: the first
+    that holds a ball still and dry, no nearer the hole, is the drop. None,
+    and there is no card. The caddie, the demo and the range keep the old
+    straight replay. `tests.html` → "The drop".
 
   The same shot after: the view goes from −12° to −7.6° with no reversal;
   the fastest turn in the flight is 0.36–0.57 rad/s, down from 1.84, and the

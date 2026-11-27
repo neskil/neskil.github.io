@@ -697,6 +697,17 @@
             </div>
 
             <div class="toast" id="toast"></div>
+            <!-- After the water or out of play (game.js → the penalty card): a
+                 moment held on it, a tap skipping it, then the choice. -->
+            <div class="pen-skip" id="pen-skip" hidden aria-hidden="true">Tap to skip</div>
+            <div class="penalty" id="penalty" hidden role="dialog" aria-labelledby="pen-title">
+                <span class="pen-title" id="pen-title">Water hazard</span>
+                <p class="pen-sub" id="pen-sub"></p>
+                <div class="pen-row">
+                    <button type="button" class="pen-btn pen-drop" id="pen-drop" title="Drop (D)">Drop <b id="pen-drop-cost">+1</b></button>
+                    <button type="button" class="pen-btn pen-again" id="pen-again" title="Re-hit (Enter)">Re-hit <b id="pen-again-cost">+1</b><span class="pen-count" id="pen-count" aria-hidden="true">5</span></button>
+                </div>
+            </div>
             <!-- Where the flag is, on a hole laid on a world's own ground
                  (game.js → syncPinTag): over the pin, or at the edge pointing. -->
             <div class="pin-tag" id="pin-tag" aria-hidden="true" hidden><span class="pin-tag-flag">⚑</span><span class="pin-tag-dist" id="pin-tag-dist"></span></div>

@@ -609,7 +609,7 @@
         if (demo) return R.flying() || state.phase === 'rolling';
         if (heldDown > 0 && now - heldAt < 4000) return true;
         if (gate || arc || needle) return true;
-        return state.phase === 'rolling';
+        return state.phase === 'rolling' || state.phase === 'penalty';
     }
 
     var aheadTimer = 0;
@@ -1036,6 +1036,9 @@
         hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
+        // The ball's path through this shot, for the drop (penalty card).
+        var tb = state.world.ball;
+        state.track = [{ x: tb.x, y: tb.y, z: tb.z }];
         // The gate goes before the button is asked what it says, or Swing
         // spends the whole roll still offering to Strike.
         closeGate();
@@ -2640,12 +2643,20 @@
 
         if (w.splash || w.out) {
             state.strokes += w.splash ? C.WATER_PENALTY : C.OOB_PENALTY;
+            // A person playing gets the moment and the choice (the penalty
+            // card, below); the caddie, the demo and the range go straight
+            // back to where the shot was played from, as they always did.
+            if (!state.course.isRange && !demo && !sim && !auto) { startPenalty(w); return; }
             toast(w.burnt ? 'Lava — one stroke penalty'
                 : w.splash ? 'Water — one stroke penalty'
                 : w.swallowed ? 'Swallowed by the well — one stroke penalty'
                 : 'Out of play — one stroke penalty', 'bad');
             dropBack(w);
         }
+        afterShot(w);
+    }
+
+    function afterShot(w) {
         /* Five over par and still out: the hole is picked up. It scores
            par + PICKUP whatever the penalties made of the count, and the
            round moves on — a hole you cannot finish is a hole that has stopped
@@ -2676,6 +2687,160 @@
         R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
         // Cut back to it rather than flown back (render.js → dropTo).
         if (R.dropTo && !demo && !sim) R.dropTo();
+    }
+
+    /* ── the penalty card ─────────────────────────────────────────────────
+
+       Into the water or out of play, the game used to cut straight back to
+       where the shot was played from. The owner asked for two things: hold
+       the camera on it for a moment — "so you can see the water droplets and
+       animations and ponder how did I get here", a tap skipping it — and a
+       choice of a drop, with the replay chosen for you after five seconds.
+
+       So the shot ends in two beats. **The hold**: the frame stays on the
+       ball where it went in while the splash plays out (the ball sinks; one
+       flown over the stakes runs on and comes to rest, for the look of it —
+       none of that is the simulation). **The card**: Drop, by the line the
+       ball last crossed on to playable ground (physics.dropSpot), or Re-hit
+       from where the shot was played, the old behaviour and the default the
+       countdown takes. Water costs a stroke either way; out of play is
+       stroke and distance, and a drop near where it went out is two (the
+       local rule a club plays when it does not want people walking back to
+       the tee). No lie anywhere near that holds a ball: no card, the replay.
+
+       `state.track` is the ball's path through the shot, sampled as it went
+       (trackBall); physics.js has no record of where it has been. */
+    var PEN_HOLD = { water: 2.4, lava: 2.4, out: 1.9 };
+    var PEN_CHOOSE = 5;
+    var pen = null;
+
+    function trackBall() {
+        var t = state.track, b = state.world.ball;
+        if (!t) return;
+        var l = t[t.length - 1];
+        if ((b.x - l.x) * (b.x - l.x) + (b.z - l.z) * (b.z - l.z) < 0.15 * 0.15) return;
+        t.push({ x: b.x, y: b.y, z: b.z });
+        if (t.length > 2400) t.splice(0, 1200);
+    }
+
+    function startPenalty(w) {
+        stuckJob = null;
+        aimTurn = null;
+        var kind = w.burnt ? 'lava' : w.splash ? 'water' : 'out';
+        var b = w.ball;
+        pen = { world: w, kind: kind, stage: 'hold', t: 0, hold: PEN_HOLD[kind], spot: undefined,
+                track: state.track || [], vx: b.vx, vy: b.vy, vz: b.vz, sinkTo: b.y - C.BALL_R * 3 };
+        state.phase = 'penalty';
+        toast(kind === 'lava' ? 'Into the lava' : kind === 'water' ? 'In the water'
+            : w.swallowed ? 'Swallowed by the well' : 'Out of play', 'bad', pen.hold * 1000);
+        $('pen-skip').hidden = false;
+        syncSwing();
+        syncHud();
+    }
+
+    function tickPenalty(dt) {
+        var w = pen.world;
+        // Something else took the hole away (a restart, the menu, a new hole).
+        if (state.world !== w || state.phase !== 'penalty') { closePenalty(); return; }
+        pen.t += dt;
+        holdBall(w, dt);
+        if (pen.stage === 'hold') {
+            if (pen.t >= pen.hold) offerDrop();
+            return;
+        }
+        if (pen.stage === 'choose') {
+            var left = Math.max(0, PEN_CHOOSE - (pen.t - pen.at));
+            $('pen-again').style.setProperty('--pen-left', (left / PEN_CHOOSE).toFixed(3));
+            $('pen-count').textContent = Math.ceil(left);
+            if (left <= 0) penaltyPick('again');
+        }
+    }
+
+    // The look of the moment, not the game: the world is thrown away after.
+    function holdBall(w, dt) {
+        var b = w.ball;
+        if (pen.kind !== 'out') {
+            if (b.y > pen.sinkTo) b.y = Math.max(pen.sinkTo, b.y - dt * (pen.kind === 'lava' ? 0.18 : 0.32));
+            return;
+        }
+        if (w.swallowed) return;
+        var sp = pen.vx * pen.vx + pen.vy * pen.vy + pen.vz * pen.vz;
+        if (sp < 0.01) return;
+        var g = P.gravityOf ? P.gravityOf(w.hole) : 9.8;
+        pen.vy -= (g || 9.8) * dt;
+        var nx = b.x + pen.vx * dt, ny = b.y + pen.vy * dt, nz = b.z + pen.vz * dt;
+        var s = P.surfaceUnder(w.hole, nx, nz, b.y + C.STEP_UP);
+        if (s && ny < s.y + C.BALL_R) {
+            ny = s.y + C.BALL_R;
+            pen.vy = pen.vy < -1 ? -pen.vy * 0.35 : 0;
+            var f = Math.pow(0.25, dt);
+            pen.vx *= f; pen.vz *= f;
+        }
+        if (ny < C.OOB_Y) { pen.vx = pen.vy = pen.vz = 0; return; }
+        b.x = nx; b.y = ny; b.z = nz;
+    }
+
+    function skipPenaltyHold(e) {
+        if (!pen || pen.stage !== 'hold') return;
+        if (e && e.type === 'keydown' && (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta')) return;
+        // Not a press on the bar or a menu: those are their own business.
+        if (e && e.target && e.target.closest && e.target.closest('button, a, input, select, .modal, .topbar')) return;
+        // A key that skips is spent on the skip, not read again by the card.
+        if (e && e.type === 'keydown') { e.preventDefault(); e.stopPropagation(); }
+        offerDrop();
+    }
+
+    function offerDrop() {
+        var w = pen.world;
+        $('pen-skip').hidden = true;
+        // Already at the pick-up: nothing to choose.
+        if (state.strokes >= state.course.holes[state.holeIndex].par + C.PICKUP) { penaltyPick('again'); return; }
+        if (pen.spot === undefined) {
+            try { pen.spot = P.dropSpot(w.hole, pen.track, w.time); } catch (err) { pen.spot = null; }
+        }
+        if (!pen.spot) { penaltyPick('again'); return; }
+        pen.stage = 'choose';
+        pen.at = pen.t;
+        var out = pen.kind === 'out';
+        $('pen-title').textContent = pen.kind === 'lava' ? 'Lava' : pen.kind === 'water' ? 'Water hazard'
+            : w.swallowed ? 'In the well' : 'Out of bounds';
+        $('pen-drop-cost').textContent = out ? '+2' : '+1';
+        $('pen-again-cost').textContent = '+1';
+        $('pen-sub').textContent = out
+            ? 'Drop by where it went out, or play it again from where you were.'
+            : 'Drop by where it went in, or play it again from where you were.';
+        $('pen-again').style.setProperty('--pen-left', '1');
+        $('pen-count').textContent = PEN_CHOOSE;
+        $('penalty').hidden = false;
+        if (R.markDrop) R.markDrop(pen.spot);
+    }
+
+    function penaltyPick(which) {
+        if (!pen) return;
+        var w = pen.world, spot = pen.spot, kind = pen.kind, swallowed = w.swallowed;
+        closePenalty();
+        if (state.world !== w) return;
+        if (which === 'drop' && spot) {
+            if (kind === 'out') state.strokes += 1;
+            state.world = P.createWorld(w.hole, { x: spot.x, y: spot.y, z: spot.z }, w.time);
+            R.state.lastBall.set(spot.x, spot.y, spot.z);
+            if (R.dropTo) R.dropTo();
+            toast(kind === 'out' ? 'Dropped — two stroke penalty' : 'Dropped — one stroke penalty', 'bad');
+        } else {
+            toast(kind === 'lava' ? 'Lava — one stroke penalty, play it again'
+                : kind === 'water' ? 'Water — one stroke penalty, play it again'
+                : swallowed ? 'Swallowed by the well — one stroke penalty'
+                : 'Out of play — one stroke penalty, play it again', 'bad');
+            dropBack(w);
+        }
+        afterShot(w);
+    }
+
+    function closePenalty() {
+        pen = null;
+        if ($('penalty')) $('penalty').hidden = true;
+        if ($('pen-skip')) $('pen-skip').hidden = true;
+        if (R.markDrop) R.markDrop(null);
     }
 
     /* Stuck. A tour hole is played on a world's own ground, and a world's
@@ -5048,6 +5213,11 @@
             // Enter on "Watch again" is a press of that button, not a skip.
             if (e.target === $('banner-replay')) return;
             e.preventDefault(); nextHole(); return;
+        }
+        if (pen && pen.stage === 'choose') {
+            if (k === 'd' || k === 'D') { e.preventDefault(); penaltyPick('drop'); }
+            else if (k === 'Enter' || k === ' ' || k === 'r' || k === 'R') { e.preventDefault(); penaltyPick('again'); }
+            return;
         }
         if (state.phase !== 'aim') return;
 
@@ -7780,6 +7950,7 @@
         tickHoleEnd(Math.min(0.25, raw));
         if (sim) tickSim(Math.min(0.25, raw));
         if (stuckJob) tickStuckCheck();
+        if (pen) tickPenalty(Math.min(0.25, raw));
 
         if (state.phase === 'rolling') {
             /* Under the bot, the same step it planned on. Its shot was chosen
@@ -7797,6 +7968,7 @@
                     ev = P.advance(state.world, SIM_STEP, {});
                     if (tape) G3.replay.record(tape, state.world, ev);
                     handleEvents(ev);
+                    trackBall();
                     if (P.done(state.world)) { endShot(); break; }
                 }
                 syncDistance();
@@ -7804,6 +7976,7 @@
                 ev = P.advance(state.world, dt, {});
                 if (tape) G3.replay.record(tape, state.world, ev);
                 handleEvents(ev);
+                trackBall();
                 syncDistance();
                 if (P.done(state.world)) endShot();
             }
@@ -8957,6 +9130,12 @@
         $('banner-replay').addEventListener('click', playReplay);
         window.addEventListener('pointerdown', skipReplay, true);
         window.addEventListener('keydown', skipReplay, true);
+        // The hold after the water or out of play (the penalty card): any
+        // press skips it, and the card's two buttons are the choice.
+        window.addEventListener('pointerdown', skipPenaltyHold, true);
+        window.addEventListener('keydown', skipPenaltyHold, true);
+        $('pen-drop').addEventListener('click', function () { penaltyPick('drop'); });
+        $('pen-again').addEventListener('click', function () { penaltyPick('again'); });
         $('btn-restart').addEventListener('click', restartHole);
         // Wrapped: openMenu takes the course to nudge towards, and a click
         // handler would otherwise hand it an Event.
