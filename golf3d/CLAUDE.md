@@ -213,7 +213,7 @@ really have the game play feeling"). What that has meant in practice:
   unstaked, and `tests.html` holds them to their own short list. The hole
   lab's ace bands and "a putt at the flag never drops" are the drawn
   courses'. After touching one, run `node tools/portal-check.mjs`. The one
-  thing it does share since v1.230.0: a tour hole with a fairway (and every
+  thing it does share since v1.231.0: a tour hole with a fairway (and every
   forged map) is played as the long game — `G3.longHole` is `hole.longGame`,
   wherever the hole lies — so its air, ball, tracer and chase are the long
   courses'.

@@ -2929,7 +2929,8 @@
        partition of the triangles rather than an overlay, like splitSteep,
        and the grass is cut to the same line. Returns the country's share, or
        null when there is none. */
-    function countryAt(fences, x, z) {
+    // How far outside the stakes a point is (0 inside them).
+    function fenceDist(fences, x, z) {
         var d = Infinity, i, f, dx, dz;
         for (i = 0; i < fences.length; i++) {
             f = fences[i];
@@ -2937,9 +2938,17 @@
             dz = Math.max(f.z - z, 0, z - (f.z + f.d));
             d = Math.min(d, Math.sqrt(dx * dx + dz * dz));
         }
-        if (d < 0.5) return false;
+        return d;
+    }
+    // …and how far out the rough runs before the country takes over there.
+    function countryLine(x, z) {
         var j = (surNoise(x * 0.09, z * 0.09) - 0.5) * 7 + (surNoise(x * 0.27 + 7, z * 0.27 - 3) - 0.5) * 2.2;
-        return d > Math.max(0.5, 3.5 + j);
+        return Math.max(0.5, 3.5 + j);
+    }
+    function countryAt(fences, x, z) {
+        var d = fenceDist(fences, x, z);
+        if (d < 0.5) return false;
+        return d > countryLine(x, z);
     }
     function splitCountry(geo, hole, cx, cz) {
         var fences = P.fenceRects(hole);
@@ -2958,6 +2967,169 @@
         g.setIndex(out);
         return g;
     }
+
+    /* ── the fringe: gorse, heather and the odd tree where the hole ends ──
+
+       Two lines were left on every long hole once the country was drawn
+       past the stakes (splitCountry): the rough's own edge, which is cut by
+       whole triangles and so reads from above as a saw blade of bright grass
+       on the heather, and the slab's outer edge, a long straight crease
+       where the ground turns down into the bank. Real country has neither,
+       because something grows along both: a hedge of whin at the edge of a
+       links, heather and gorse on a heath, a shrubbery and a stand of trees
+       round a park, dwarf pine and boulders on a mountain. So that is what
+       goes there — clumps in thickets and gaps (a slow noise of where you
+       are, so a hole has a dense side and a thin one), thickest on the two
+       lines and scattered thin over the country between them.
+
+       Scenery only, and always well past the stakes: a ball is out the
+       moment it crosses them and is never simulated past, so nothing here
+       is solid and nothing needs to be. Drawn instanced — one mesh per
+       shape and colour, a handful of draw calls for every clump on the
+       hole. Which plants, and how thick, is the theme's (`theme.fringe`);
+       a theme without one gets none. */
+    var FRINGE_STEP = 0.85;     // the sampling grid, in units
+    var FRINGE_OUT = 1.3;       // never nearer the stakes than this
+    var FRINGE_MAX = 900;       // clumps on one hole, at most
+    // Made fresh each hole: disposeGroup takes the geometry with the hole.
+    function fringeShapes() {
+        var bush = new THREE.IcosahedronGeometry(1, 0);
+        bush.scale(1, 0.62, 1); bush.translate(0, 0.42, 0);
+        var heather = new THREE.DodecahedronGeometry(1, 0);
+        heather.scale(1, 0.34, 1); heather.translate(0, 0.18, 0);
+        var tussock = new THREE.ConeGeometry(0.7, 1, 5, 1, true);
+        tussock.translate(0, 0.5, 0);
+        var rock = new THREE.DodecahedronGeometry(1, 0);
+        rock.scale(1, 0.55, 0.8); rock.translate(0, 0.2, 0);
+        var bloom = new THREE.TetrahedronGeometry(1, 0);
+        var trunk = new THREE.CylinderGeometry(0.1, 0.16, 1, 6);
+        trunk.translate(0, 0.5, 0);
+        var cone = new THREE.ConeGeometry(1, 2.2, 7);
+        cone.translate(0, 1.1, 0);
+        var crown = new THREE.IcosahedronGeometry(1, 0);
+        crown.scale(1, 0.85, 1);
+        return { bush: bush, heather: heather, tussock: tussock, rock: rock,
+            bloom: bloom, trunk: trunk, cone: cone, crown: crown };
+    }
+
+    function addFringe(group, hole, theme) {
+        var spec = theme.fringe;
+        if (!spec || !hole.open || !hole.fence || hole.stakes === false || hole.portal) return;
+        var fences = P.fenceRects(hole), pads = hole.pads;
+        var minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, q, p;
+        for (q = 0; q < pads.length; q++) {
+            p = pads[q];
+            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x + p.w);
+            minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z + p.d);
+        }
+        if (!isFinite(minX)) return;
+
+        var wet = R.weather ? (R.weather.wet || 0) : 0;
+        var shapes = fringeShapes();
+        var lots = {};
+        function put(shape, colour, x, y, z, sx, sy, sz, yaw) {
+            var key = shape + colour;
+            var lot = lots[key] || (lots[key] = { shape: shape, colour: colour, m: [] });
+            _fm.makeRotationY(yaw);
+            _fm.scale(_fs.set(sx, sy, sz));
+            _fm.setPosition(x, y, z);
+            lot.m.push(_fm.clone());
+        }
+        // Ground under a point, if it is the rough of this hole and not wet.
+        function groundAt(x, z) {
+            var s = P.surfaceTop(hole, x, z);
+            if (!s || s.pad.kind !== 'rough' || s.pad.oob || s.pad.inlay || s.pad.stands) return null;
+            if (P.waterAt(hole, x, z)) return null;
+            return s;
+        }
+        function edgeNear(x, z, r) {
+            return !P.surfaceTop(hole, x + r, z) || !P.surfaceTop(hole, x - r, z) ||
+                !P.surfaceTop(hole, x, z + r) || !P.surfaceTop(hole, x, z - r);
+        }
+
+        var shrubs = spec.shrubs, density = spec.density || 0.5, count = 0;
+        var x, z, gx, gz, h1, h2, h3, h4, s, d, line, w, n, size, k, kind, y, slope;
+        for (gx = minX; gx <= maxX && count < FRINGE_MAX; gx += FRINGE_STEP) {
+            for (gz = minZ; gz <= maxZ && count < FRINGE_MAX; gz += FRINGE_STEP) {
+                h1 = treeHash(gx * 1.31 + 3.7, gz * 0.77 - 1.9);
+                h2 = treeHash(gz * 1.13 - 5.1, gx * 0.91 + 2.3);
+                x = gx + (h1 - 0.5) * FRINGE_STEP;
+                z = gz + (h2 - 0.5) * FRINGE_STEP;
+                d = fenceDist(fences, x, z);
+                if (d < FRINGE_OUT) continue;
+                s = groundAt(x, z);
+                if (!s) continue;
+                line = countryLine(x, z);
+                // How much this spot wants a plant: the rough's edge, the
+                // ground's edge, or the open country between.
+                /* The ground's edge is a straight line, so the band along it
+                   stands in from it by a distance that wanders (`off`) — a
+                   band hard against the edge would draw the very rectangle it
+                   is there to hide. */
+                n = surNoise(x * 0.06 + 31, z * 0.06 - 17);
+                var off = 3.6 * surNoise(x * 0.09 + 5, z * 0.09 + 9);
+                w = Math.abs(d - line) < 0.75 ? 1
+                    : edgeNear(x, z, off + 1.4) && !edgeNear(x, z, off) ? 0.7
+                    : d > line ? 0.1 : 0.03;
+                w *= Math.min(1, Math.max(0.12, (n - 0.28) * 2.4)) * density;
+                h3 = treeHash(x * 2.71 - 9.3, z * 3.17 + 4.4);
+                h4 = treeHash(z * 0.53 + 8.1, x * 1.77 - 6.6);
+                /* A tree, now and then, where the country is well out from
+                   the stakes and the thicket is thick: a stand, wherever it
+                   falls, rather than a row along either line. */
+                var tree = spec.trees && d > Math.max(3, line + 1.2) && n > 0.55 &&
+                    h4 < spec.trees * (n - 0.45) * 0.9;
+                if (!tree && h3 >= w) continue;
+                // Not on a bank too steep to grow on.
+                slope = Math.abs(P.padHeight(s.pad, x + 0.3, z) - s.y) +
+                        Math.abs(P.padHeight(s.pad, x, z + 0.3) - s.y);
+                if (slope > 0.35) continue;
+                y = s.y - 0.06;
+                count++;
+
+                if (tree) {
+                    var th = 2.2 + h1 * 1.6, cr = 0.75 + h2 * 0.45;
+                    var conifer = treeHash(x + 0.5, z - 0.5) < (spec.conifer === undefined ? 0.5 : spec.conifer);
+                    put('trunk', 0x6b503a, x, y - 0.2, z, 1.4, th * (conifer ? 0.55 : 0.75), 1.4, h1 * 6.28);
+                    put(conifer ? 'cone' : 'crown', spec.leaf[h3 < w / 2 ? 0 : 1],
+                        x, y + (conifer ? th * 0.3 : th * 0.78), z,
+                        cr, cr * (conifer ? 1 + h4 : 0.9), cr, h2 * 6.28);
+                    continue;
+                }
+
+                kind = shrubs[Math.floor(h4 * shrubs.length) % shrubs.length];
+                size = (kind.size || 0.55) * (0.6 + h1 * 0.8);
+                put(kind.shape, kind.colour, x, y, z,
+                    size * (0.85 + h2 * 0.3), size * (0.8 + h3 * 0.5), size, h4 * 6.28);
+                /* Gorse in flower: a few chips of yellow over the clump. */
+                if (kind.bloom) {
+                    for (k = 0; k < 4; k++) {
+                        var a = (h1 * 7 + k * 1.7) % 6.283, rr = size * (0.35 + 0.15 * k % 0.5);
+                        put('bloom', kind.bloom,
+                            x + Math.cos(a) * rr, y + size * (0.55 + 0.2 * ((k * h2) % 1)), z + Math.sin(a) * rr,
+                            0.07, 0.07, 0.07, a);
+                    }
+                }
+            }
+        }
+
+        var key, lot, mesh, i, mat;
+        for (key in lots) {
+            lot = lots[key];
+            mat = new THREE.MeshLambertMaterial({
+                color: new THREE.Color(lot.colour).multiplyScalar(1 - wet * 0.22)
+            });
+            mesh = new THREE.InstancedMesh(shapes[lot.shape], mat, lot.m.length);
+            for (i = 0; i < lot.m.length; i++) mesh.setMatrixAt(i, lot.m[i]);
+            mesh.instanceMatrix.needsUpdate = true;
+            mesh.castShadow = lot.shape !== 'bloom';
+            mesh.receiveShadow = true;
+            mesh.name = 'fringe-' + lot.shape;
+            group.add(mesh);
+        }
+        R.fringe = count;
+    }
+    var _fm = new THREE.Matrix4(), _fs = new THREE.Vector3();
 
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
@@ -5956,6 +6128,8 @@
     var SKIRT_SECT = 96;        // bearings, as many as the surround has wedges
     var SKIRT_STEPS = 5;        // rings across it, so the fall is a curve
     var SKIRT_LIP = 0.03;       // …ending this far over the surround, not on it
+    var SKIRT_SHOULDER = 0.9;   // level ground past the edge before the fall
+    var SKIRT_SINK = 0.015;     // …a hair under the slab, so the two never fight
 
     /* Where the ground ends on one bearing, and how high it is there. Marched
        from outside in, because what is wanted is the *outer* edge: a hole with
@@ -6022,29 +6196,39 @@
         if (!plan) return;
         var pos = [], uv = [], idx = [], j, k, e, t, r, ang, ca, sa;
 
+        /* The first ring is tucked under the slab; the second is the
+           shoulder, level with the edge and a little past it, and only then
+           does the curve begin. Without the shoulder the triangle from the
+           tuck to the first ring of the fall was already dropping where it
+           crossed the slab's edge, and the slab's cut face showed above the
+           bank as a thin brown line round the whole hole — the "faint line
+           where the ground meets the bank" of PLAN.md. */
         for (j = 0; j < SKIRT_SECT; j++) {
             e = plan.edge[j];
             if (!e) continue;
             ang = j / SKIRT_SECT * Math.PI * 2;
             ca = Math.cos(ang); sa = Math.sin(ang);
+            r = e.r - SKIRT_TUCK;
+            pos.push(ca * r, e.y - SKIRT_SINK, sa * r);
+            uv.push((plan.cx + ca * r) / SUR_TILE, (plan.cz + sa * r) / SUR_TILE);
             for (k = 0; k <= SKIRT_STEPS; k++) {
                 t = k / SKIRT_STEPS;
-                r = e.r - SKIRT_TUCK + (plan.width + SKIRT_TUCK) * t;
+                r = e.r + SKIRT_SHOULDER + (plan.width - SKIRT_SHOULDER) * t;
                 pos.push(ca * r,
                     theme.surroundY + SKIRT_LIP +
-                        (1 - t * t * (3 - 2 * t)) * (e.y - theme.surroundY),
+                        (1 - t * t * (3 - 2 * t)) * (e.y - SKIRT_SINK - theme.surroundY),
                     sa * r);
                 uv.push((plan.cx + ca * r) / SUR_TILE, (plan.cz + sa * r) / SUR_TILE);
             }
         }
         // Every bearing found ground, or the ring has a gap in it and is not a
         // ring; the march only fails on a hole with no pads at all.
-        if (pos.length !== SKIRT_SECT * (SKIRT_STEPS + 1) * 3) return;
+        var ring = SKIRT_STEPS + 2, a0, a1;
+        if (pos.length !== SKIRT_SECT * ring * 3) return;
 
-        var ring = SKIRT_STEPS + 1, a0, a1;
         for (j = 0; j < SKIRT_SECT; j++) {
             a0 = j * ring; a1 = ((j + 1) % SKIRT_SECT) * ring;
-            for (k = 0; k < SKIRT_STEPS; k++) {
+            for (k = 0; k < ring - 1; k++) {
                 idx.push(a0 + k, a1 + k, a1 + k + 1);
                 idx.push(a0 + k, a1 + k + 1, a0 + k + 1);
             }
@@ -6891,6 +7075,9 @@
             }
         }
         R.country = null;
+        // What grows where the hole ends (addFringe), with the rest of the place.
+        R.fringe = 0;
+        addFringe(og, hole, theme);
         // The grid on the floor is off the course, with the rest of the
         // scenery: in a live world it put a band of lines across the horizon.
         if (theme.grid) addGrid(og, hole, theme);

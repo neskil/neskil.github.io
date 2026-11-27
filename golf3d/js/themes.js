@@ -137,7 +137,17 @@
             ridge: { colour: '#3f5c42', cap: '#7a9670', peak: 9, rough: 0.40 },
             relief: 2.6,
             water: 0x2a7ea6,
-            side: '#8f7a55'
+            side: '#8f7a55',
+            /* What grows where the hole ends (render.addFringe): a shrubbery
+               of three greens and a stand of trees in the thick of it. */
+            fringe: {
+                shrubs: [
+                    { shape: 'bush', colour: 0x356b2e, size: 0.6 },
+                    { shape: 'bush', colour: 0x4a7d34, size: 0.5 },
+                    { shape: 'bush', colour: 0x3f5f2a, size: 0.7 }
+                ],
+                trees: 0.2, conifer: 0.45, leaf: [0x3d7a32, 0x59993f], density: 0.55
+            }
         },
         links: {
             air: 1.3,
@@ -166,7 +176,16 @@
             ridge: { colour: '#4e6540', cap: '#87996a', peak: 9, rough: 0.45 },
             relief: 3.0,
             water: 0x2c6f92,
-            side: '#8a7c58'
+            side: '#8a7c58',
+            // Whin (gorse) in flower, and marram in tussocks (render.addFringe).
+            fringe: {
+                shrubs: [
+                    { shape: 'bush', colour: 0x4b5e33, size: 0.6, bloom: 0xe8c234 },
+                    { shape: 'bush', colour: 0x56683a, size: 0.5, bloom: 0xe0b92c },
+                    { shape: 'tussock', colour: 0xb7ae78, size: 0.45 }
+                ],
+                density: 0.55
+            }
         },
         /* The arcade. A basement at night with the lights left on: a black
            ceiling, one warm neon over the table and a floor that is not
@@ -279,7 +298,17 @@
             ridge: { colour: '#4d4763', cap: '#8f86a6', peak: 11, rough: 0.50 },
             relief: 3.6,
             water: 0x35657f,
-            side: '#7a6a58'
+            side: '#7a6a58',
+            // Heather in two shades, gorse in flower and the odd Scots pine.
+            fringe: {
+                shrubs: [
+                    { shape: 'heather', colour: 0x7a4f86, size: 0.7 },
+                    { shape: 'heather', colour: 0x8f6492, size: 0.6 },
+                    { shape: 'heather', colour: 0x5f4a63, size: 0.8 },
+                    { shape: 'bush', colour: 0x46593a, size: 0.55, bloom: 0xe5bf2e }
+                ],
+                trees: 0.07, conifer: 1, leaf: [0x2f5a36, 0x3b6b3a], density: 0.6
+            }
         },
         /* ── the adventure courses ──────────────────────────────────────
 
@@ -431,6 +460,16 @@
                 rock: '#5c6067', snow: '#f2f6fa', forest: '#2a4430' },
             water: 0x4cc4c4,
             side: '#6b6e74',
+            // Dwarf pine, alpine rose, boulders, and firs (render.addFringe).
+            fringe: {
+                shrubs: [
+                    { shape: 'bush', colour: 0x2f5134, size: 0.55 },
+                    { shape: 'heather', colour: 0x8e5a6e, size: 0.5 },
+                    { shape: 'rock', colour: 0x80848b, size: 0.45 },
+                    { shape: 'bush', colour: 0x3c5f37, size: 0.45 }
+                ],
+                trees: 0.3, conifer: 1, leaf: [0x2c5638, 0x335f3e], density: 0.5
+            },
             strata: [
                 [-99, '#55585d'], [-2.5, '#63666b'], [1.2, '#6e7176'], [3.4, '#5e6166'],
                 [5.0, '#76797e'], [7.6, '#84878c'], [10.0, '#eef2f6']

@@ -4688,7 +4688,7 @@
                     var dr = club('driver'), la = flight(longF, dr), mi = flight(field, dr);
                     assert('a long hole flies the long game\'s air, a mini fairway does not',
                         P.airy(longF, dr.loft) && !P.airy(field, dr.loft) && !P.airy(longF, 0));
-                    // Since v1.230.0 a long hole in a world flies it too; a green one does not.
+                    // Since v1.231.0 a long hole in a world flies it too; a green one does not.
                     assert('…and a tour hole flies it exactly when it is a long hole',
                         G3.portals.WORLDS.every(function (wd) { return P.airy(wd.hole, dr.loft) === !!wd.hole.longGame; }));
                     /* …played on the game's own clock (AIR.PACE, v1.226.1): at
@@ -5991,7 +5991,7 @@
             var longH = G3.courseById('parkland').holes[0];
             assert('a parkland hole is drawn at the long game\'s scale', G3.longHole(longH));
             assert('…a mini lane is not', !G3.longHole(hole));
-            // Since v1.230.0 a long hole in a world is played as the long game too.
+            // Since v1.231.0 a long hole in a world is played as the long game too.
             assert('a tour hole with a fairway is played as the long game, one of green is not',
                 G3.portals.WORLDS.every(function (w) { return G3.longHole(w.hole) === !!w.hole.longGame; }) &&
                 G3.portals.WORLDS.some(function (w) { return G3.longHole(w.hole); }));

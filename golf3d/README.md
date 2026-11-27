@@ -6338,12 +6338,41 @@ that was twenty-eight bearings out of ninety-six. The start is read off the pads
 which are the ground. It costs 3.4 ms on the worst hole in the file, once, at
 build.
 
+**A shoulder before the fall** (v1.230.0). The bank's first ring is tucked
+under the slab and its second is level with the edge, `SKIRT_SHOULDER` past
+it; only then does the curve start. Without it the triangle from the tuck to
+the first ring of the fall was already dropping where it crossed the slab's
+edge, and the slab's cut face showed above the bank as a thin brown line
+round the whole hole — from every angle but the tee.
+
 **The drawn holes do not get one, and should not.** A slab in the sea is the
 house style on the mini and crazy courses and reads as a model on a table on
 purpose — see PLAN.md §1, which is about what stands *on* the table rather than
 about hiding its edge. `skirtPlan` returns nothing for them, and a course whose
 ground already lies near the country around it gets nothing either: the links is
 half a unit above its own, and half a unit is not a hillside.
+
+#### The fringe
+
+What grows where a long hole ends (`render.addFringe`, `theme.fringe`).
+Drawing the rough past the stakes as country left two lines: the rough's own
+edge, cut by whole triangles and so a saw blade of bright grass from above,
+and the slab's long straight edge. Real country has neither, because
+something grows along both. The hole's rough is sampled on a jittered grid
+and a spot is planted by how much it wants a plant — the rough's edge most,
+a band in from the ground's edge whose distance in wanders (a band hard
+against the edge draws the rectangle it is hiding), the open country thinly —
+times a slow thicket noise, so a hole has a thick side and a thin one. Trees
+go only in the thick of a thicket, three units or more out, so they stand in
+stands rather than rows. The theme names the plants: shapes (`bush`,
+`heather`, `tussock`, `rock`), colours, a `bloom` for gorse in flower, a
+`trees` share and how many are conifers. One `InstancedMesh` per shape and
+colour, so a hole's few hundred clumps are a handful of draw calls.
+
+Nothing in it is solid, and nothing needs to be: a ball is out the moment it
+crosses the stakes and is not simulated past them, and no clump stands within
+`FRINGE_OUT` (1.3) of them. `shader-tests.html` → "The fringe" holds that, and
+that every long theme with a fringe grows one and a drawn hole none.
 
 ### The sky
 
@@ -6635,7 +6664,7 @@ mini golf sizes too: a ball nearly two metres across in the course's own
 metres, a driver bigger than the cart parked behind it, and a camera standing
 over the whole thing like a model on a table (the owner: "scale is a bit off…
 perhaps long game and mini golf have to use different scale"). Now, on a long
-hole (`G3.longHole`, a world's as well as a course's since v1.230.0), the ball, the club in hand (`bag.addressUpdate`'s
+hole (`G3.longHole`, a world's as well as a course's since v1.231.0), the ball, the club in hand (`bag.addressUpdate`'s
 `look`), the trail and the aim strip are drawn at `CONFIG.LONG_LOOK.MIN` of
 themselves, and the follow and side-on seats come in to `SEAT` of their
 distance — render.js `lookFor` and `seatLook`, both read off the ball. The ball
@@ -6648,7 +6677,7 @@ crater, so the look eases back to 1 between `FAR` and `NEAR` units of the cup.
 The camera comes back with it, so on the screen the ball barely changes size;
 what changes is how big the green looks round it, and a putt looks the way it
 always has. (A long hole hung in a Portals world was a third, kept at the
-picture it was fitted with, until v1.230.0: the owner preferred the long
+picture it was fitted with, until v1.231.0: the owner preferred the long
 game's feel to the worlds', so a tour hole with a fairway and every forged map
 are played as the long game now — air, look, tracer and chase.) The drawn ball is lowered by what it lost, so it sits on
 the ground the physics' ball sits on. Anything that sets the ball's scale
@@ -6686,7 +6715,7 @@ seconds, like any other map's. The faster landing runs further, so the
 clubs' `v` were re-solved at that pace for the same cards. The air lasts from the strike through every
 hop until the ball rolls; the roll, slopes, and anything leaving a ledge
 afterwards are the ground's physics as before. A long tour or forge hole flies
-it too since v1.230.0, under its own `gravity` (`airGrav(hole)`: the Cloud
+it too since v1.231.0, under its own `gravity` (`airGrav(hole)`: the Cloud
 Kingdom's 0.7 is a floatier drive); a hole of green, a putt, never does.
 
 What it moved: the cards on a long hole are measured in the air (game.js
@@ -6719,7 +6748,7 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   dropped somewhere else. The streak still draws at the head of it. It is in
   the scene from the hole's build with a degenerate pair in it, so its program
   is never compiled mid-shot.
-- **The chase** (`CONFIG.LONG_CAM`, render.js `watchChase`, v1.230.0). The
+- **The chase** (`CONFIG.LONG_CAM`, render.js `watchChase`, v1.231.0). The
   follow seat is measured off the ball, so it went up with a drive exactly as
   far as the drive did; then (v1.220.0–v1.228.0) it was held down and given
   the launch's lag, which fell sixteen units behind a drive by the top,
