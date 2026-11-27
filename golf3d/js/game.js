@@ -7872,6 +7872,7 @@
            points down it — and `bend` is how far off it the ball sets out.
            Whether the strike delivers it is the gate's business. */
         intent.loft = state.club.loft;
+        intent.club = state.club.id;   // which chase follows it (render.js → chaseRides)
         intent.bite = state.club.bite || 0;
         intent.bend = intent.spin = 0;
         intent.topped = false;
@@ -8995,6 +8996,11 @@
             $('forge-clear').addEventListener('click', function () {
                 if (!window.confirm('Clear every rating saved in this browser? Copy them first if you have not.')) return;
                 G3.forge.clear(); syncForgeChip(); drawMaps();
+            });
+            // The camera panel floats over the hole, so the menu gets out of its way.
+            if ($('dev-camera')) $('dev-camera').addEventListener('click', function () {
+                closeDev();
+                if (G3.camTune) G3.camTune.open();
             });
             $('dev-unlock').addEventListener('click', unlockAllShopDev);
             $('dev-reset').addEventListener('click', resetShopDev);

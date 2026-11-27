@@ -6038,4 +6038,24 @@ body.flight-mode .controls { display: none; }
 .dev-styles button { font-size: 0.85rem; padding: 0.6rem 0.2rem; }
 #dev-where button { font-size: 0.85rem; padding: 0.6rem 0.2rem; }
 .dev-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.dev-tools .dev-wide { grid-column: 1 / -1; }
+
+/* The dev camera panel (js/camtune.js): floats over the top of the course so
+   the hole can be played under it, folds to its header. */
+.cam-tune { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 0.5rem); left: 0.5rem; right: 0.5rem; z-index: 80; max-width: 26rem; margin: 0 auto; max-height: 46vh; display: flex; flex-direction: column; background: var(--ov-bg-open); border: 1px solid var(--ov-border); border-radius: 8px; box-shadow: var(--ov-shadow); color: var(--ink); font-size: 0.78rem; }
+.cam-tune[hidden] { display: none; }
+.cam-tune .ct-head { display: flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--ov-border); }
+.cam-tune .ct-head b { font-family: 'Outfit', sans-serif; font-size: 0.9rem; }
+.cam-tune .ct-ver { color: var(--ink-dim); margin-right: auto; font-size: 0.7rem; }
+.cam-tune .ct-head button { padding: 0.3rem 0.55rem; font: inherit; font-weight: 600; color: var(--ink); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; }
+.cam-tune .ct-body { overflow-y: auto; padding: 0.2rem 0.6rem 0.6rem; overscroll-behavior: contain; }
+.cam-tune.folded .ct-body { display: none; }
+.cam-tune .ct-sec { margin: 0.6rem 0 0.15rem; color: var(--accent); font-weight: 700; font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.cam-tune .ct-row { display: block; padding: 0.3rem 0; border-top: 1px solid var(--ov-border); }
+.cam-tune .ct-top { display: flex; justify-content: space-between; gap: 0.5rem; font-weight: 600; }
+.cam-tune output { color: var(--accent); font-variant-numeric: tabular-nums; }
+.cam-tune input[type=range] { width: 100%; margin: 0.25rem 0 0.1rem; accent-color: var(--accent); }
+.cam-tune input[type=checkbox] { width: 1.2rem; height: 1.2rem; margin: 0.3rem 0 0.1rem; accent-color: var(--accent); }
+.cam-tune .ct-says { display: block; color: var(--ink-dim); font-size: 0.7rem; line-height: 1.3; }
+.cam-tune .ct-note { margin: 0.6rem 0 0; color: var(--ink-dim); font-size: 0.7rem; }
 .dev-ver { margin-left: 0.4rem; padding: 0.1rem 0.5rem; vertical-align: middle; font-size: 0.8rem; font-weight: 500; letter-spacing: 0; color: var(--ink-dim); border: 1px solid var(--panel-border); border-radius: 999px; font-variant-numeric: tabular-nums; }
