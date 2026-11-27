@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loft Links — 3D Golf: a World Tour and Fifteen Courses | Niklas Billgren</title>
-    <meta name="description" content="Free 3D golf in the browser: a twenty-hole World Tour through strange worlds, plus fifteen courses of mini, crazy, adventure and full-size golf. Works on a phone.">
+    <meta name="description" content="Free 3D golf in the browser: a twenty-hole World Tour through strange worlds, plus fifteen courses of mini golf and full-size golf. Works on a phone.">
     <meta name="theme-color" content="#1c1f17">
     <!-- Safari on an iPhone will not take a page fullscreen; launched from the
          Home Screen it opens without its bars, which is the nearest thing. -->
@@ -17,7 +17,7 @@
     <link rel="canonical" href="https://neskil.github.io/golf3d/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Loft Links — 3D Golf in the Browser">
-    <meta property="og:description" content="Twenty holes through strange worlds — a breakfast table, a kelp cathedral, a lava river, three black holes — plus fifteen courses of mini, crazy, adventure and full-size golf. Free, plays on a phone.">
+    <meta property="og:description" content="Twenty holes through strange worlds — a breakfast table, a kelp cathedral, a lava river, three black holes — plus fifteen courses of mini golf and full-size golf. Free, plays on a phone.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf3d/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.234.0">
+    <link rel="stylesheet" href="style.css?v=1.235.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -79,7 +79,7 @@
             {
                 "@type": "VideoGame",
                 "url": "https://neskil.github.io/golf3d/",
-                "description": "Free 3D golf in the browser: a twenty-hole World Tour through strange worlds, plus fifteen courses of mini, crazy, adventure and full-size golf. Works on a phone.",
+                "description": "Free 3D golf in the browser: a twenty-hole World Tour through strange worlds, plus fifteen courses of mini golf and full-size golf. Works on a phone.",
                 "image": "https://neskil.github.io/assets/og/golf3d.png",
                 "name": "Loft Links — 3D Golf in the Browser",
                 "author": {
@@ -1004,7 +1004,7 @@
                     <span class="sh-die" aria-hidden="true">&#x2726;</span>
                     <span class="sh-go-text">
                         <b>Showcase</b>
-                        <span class="sh-sub">Two holes from every kind of golf, eight in all.</span>
+                        <span class="sh-sub">Two holes of classic, two of adventure and two of the long game.</span>
                         <span class="sh-stars"></span>
                     </span>
                 </button>
@@ -1012,7 +1012,7 @@
                     <span class="sh-die" aria-hidden="true">&#x2691;</span>
                     <span class="sh-go-text">
                         <b>Mini golf</b>
-                        <span class="sh-sub">Six holes of mini, crazy and adventure golf.</span>
+                        <span class="sh-sub">Six holes of classic and adventure mini golf.</span>
                         <span class="sh-stars"></span>
                     </span>
                 </button>
@@ -1329,48 +1329,48 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.234.0"></script>
-    <script src="js/balls.js?v=1.234.0"></script>
-    <script src="js/celebrate.js?v=1.234.0"></script>
-    <script src="js/themes.js?v=1.234.0"></script>
-    <script src="js/physics.js?v=1.234.0"></script>
-    <script src="js/courses.js?v=1.234.0"></script>
-    <script src="js/tour-ground.js?v=1.234.0"></script>
-    <script src="js/portals.js?v=1.234.0"></script>
-    <script src="js/portal-worlds.js?v=1.234.0"></script>
-    <script src="js/endless.js?v=1.234.0"></script>
-    <script src="js/forge-maps.js?v=1.234.0"></script>
-    <script src="js/forge.js?v=1.234.0"></script>
-    <script src="js/audit.js?v=1.234.0"></script>
-    <script src="js/custom.js?v=1.234.0"></script>
-    <script src="js/scoring.js?v=1.234.0"></script>
-    <script src="js/swing.js?v=1.234.0"></script>
-    <script src="js/school.js?v=1.234.0"></script>
-    <script src="js/audio.js?v=1.234.0"></script>
-    <script src="js/music.js?v=1.234.0"></script>
-    <script src="js/bag.js?v=1.234.0"></script>
-    <script src="js/textures.js?v=1.234.0"></script>
-    <script src="js/shaders.js?v=1.234.0"></script>
-    <script src="js/postfx.js?v=1.234.0"></script>
-    <script src="js/weather.js?v=1.234.0"></script>
-    <script src="js/flyover.js?v=1.234.0"></script>
-    <script src="js/replay.js?v=1.234.0"></script>
-    <script src="js/bot.js?v=1.234.0"></script>
-    <script src="js/models.js?v=1.234.0"></script>
-    <script src="js/life.js?v=1.234.0"></script>
-    <script src="js/worlds.js?v=1.234.0"></script>
-    <script src="js/sandfx.js?v=1.234.0"></script>
-    <script src="js/groundfx.js?v=1.234.0"></script>
-    <script src="js/render.js?v=1.234.0"></script>
-    <script src="js/minimap.js?v=1.234.0"></script>
-    <script src="js/debug.js?v=1.234.0"></script>
-    <script src="js/game.js?v=1.234.0"></script>
+    <script src="js/config.js?v=1.235.0"></script>
+    <script src="js/balls.js?v=1.235.0"></script>
+    <script src="js/celebrate.js?v=1.235.0"></script>
+    <script src="js/themes.js?v=1.235.0"></script>
+    <script src="js/physics.js?v=1.235.0"></script>
+    <script src="js/courses.js?v=1.235.0"></script>
+    <script src="js/tour-ground.js?v=1.235.0"></script>
+    <script src="js/portals.js?v=1.235.0"></script>
+    <script src="js/portal-worlds.js?v=1.235.0"></script>
+    <script src="js/endless.js?v=1.235.0"></script>
+    <script src="js/forge-maps.js?v=1.235.0"></script>
+    <script src="js/forge.js?v=1.235.0"></script>
+    <script src="js/audit.js?v=1.235.0"></script>
+    <script src="js/custom.js?v=1.235.0"></script>
+    <script src="js/scoring.js?v=1.235.0"></script>
+    <script src="js/swing.js?v=1.235.0"></script>
+    <script src="js/school.js?v=1.235.0"></script>
+    <script src="js/audio.js?v=1.235.0"></script>
+    <script src="js/music.js?v=1.235.0"></script>
+    <script src="js/bag.js?v=1.235.0"></script>
+    <script src="js/textures.js?v=1.235.0"></script>
+    <script src="js/shaders.js?v=1.235.0"></script>
+    <script src="js/postfx.js?v=1.235.0"></script>
+    <script src="js/weather.js?v=1.235.0"></script>
+    <script src="js/flyover.js?v=1.235.0"></script>
+    <script src="js/replay.js?v=1.235.0"></script>
+    <script src="js/bot.js?v=1.235.0"></script>
+    <script src="js/models.js?v=1.235.0"></script>
+    <script src="js/life.js?v=1.235.0"></script>
+    <script src="js/worlds.js?v=1.235.0"></script>
+    <script src="js/sandfx.js?v=1.235.0"></script>
+    <script src="js/groundfx.js?v=1.235.0"></script>
+    <script src="js/render.js?v=1.235.0"></script>
+    <script src="js/minimap.js?v=1.235.0"></script>
+    <script src="js/debug.js?v=1.235.0"></script>
+    <script src="js/game.js?v=1.235.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.234.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.235.0"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.234.0';
+G3.VERSION = '1.235.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -684,7 +684,7 @@ G3.CONFIG = {
     ],
     DEFAULT_CLUB: 'driver',
 
-    /* Mini golf's bag. Mini, crazy and adventure golf are one game and the
+    /* Mini golf's bag. Classic and adventure mini golf are one game and the
        long game is another, and for most of this game's life they shared the
        long game's bag — so the club the bot reached for first on two dozen
        twelve-unit lanes was a 10° driver with thirty-two units of pace in it,
@@ -702,7 +702,7 @@ G3.CONFIG = {
        editor — keeps CLUBS. */
     MINI_BAG: ['putter', 'mallet'],
     MINI_LOFT_BAG: ['putter', 'mallet', 'chipper', 'wedge'],
-    MINI_GROUPS: ['mini', 'crazy', 'adventure'],
+    MINI_GROUPS: ['mini', 'adventure'],
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
     /* A pop bumper (courses.bumper, physics.popBumper) is not a rail: it is

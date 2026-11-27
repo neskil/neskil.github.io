@@ -2,7 +2,7 @@
 // tee of every drawn hole, how many of them are aces and where, whether a shot
 // aimed straight at the flag drops, and the caddie's card.
 //
-//   node golf3d/tools/hole-lab.mjs                       # every mini, crazy and adventure hole
+//   node golf3d/tools/hole-lab.mjs                       # every classic and adventure mini golf hole
 //   node golf3d/tools/hole-lab.mjs seaside quarry        # any course ids
 //   node golf3d/tools/hole-lab.mjs works --hole 3        # one hole (or --hole 1,3,4)
 //   node golf3d/tools/hole-lab.mjs --coarse              # 1° and 25 weights: a quarter of the work

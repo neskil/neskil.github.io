@@ -1225,6 +1225,23 @@
                     groupIds.indexOf(course.group) >= 0, course.group);
             });
 
+            /* The picker's tabs: Mini golf holds the two mini kinds, Long game
+               the long one, and every kind is under exactly one tab — a kind
+               under none would be on no shelf at all. */
+            assert('every kind of golf is shown under exactly one tab',
+                G3.COURSE_GROUPS.every(function (g) {
+                    return G3.COURSE_TABS.filter(function (t) { return t.kinds.indexOf(g.id) >= 0; }).length === 1;
+                }) && G3.COURSE_TABS.every(function (t) {
+                    return t.kinds.every(function (k) { return groupIds.indexOf(k) >= 0; }) &&
+                        !!t.name && !!t.icon && !!t.blurb && /^#[0-9a-f]{6}$/i.test(t.tint);
+                }));
+            assert('two tabs of courses: Mini golf (classic and adventure) and Long game',
+                G3.COURSE_TABS.map(function (t) { return t.name; }).join() === 'Mini golf,Long game' &&
+                G3.tabOfKind('mini').id === 'minigolf' && G3.tabOfKind('adventure').id === 'minigolf' &&
+                G3.tabOfKind('long').id === 'long' && G3.tabOfKind('nope') === null);
+            assert('mini golf is three classic courses and six adventure ones',
+                G3.coursesInGroup('mini').length === 3 && G3.coursesInGroup('adventure').length === 6);
+
             assert('every course is in exactly one group\'s list',
                 G3.COURSE_GROUPS.reduce(function (n, g) {
                     return n + G3.coursesInGroup(g.id).length;
@@ -1293,7 +1310,7 @@
                         return !m.blurbKind || m.blurbKind.indexOf('%s') >= 0;
                     }));
                 assert('groupById finds a kind, and is honest about one that is not',
-                    G3.groupById('mini').name === 'Mini golf' && G3.groupById('nope') === null &&
+                    G3.groupById('mini').name === 'Classic' && G3.groupById('nope') === null &&
                     G3.groupById(G3.SHUFFLE_GROUP.id) === null);
                 assert('and no two of them share an id',
                     modeIds.filter(function (id, i) { return modeIds.indexOf(id) !== i; }).length === 0);
@@ -1303,7 +1320,7 @@
 
                 assert('a draw never offers the course you are already on',
                     modeIds.every(function (m) {
-                        return G3.shuffleDraw({ mode: m, from: 'works', save: played, group: 'crazy' })
+                        return G3.shuffleDraw({ mode: m, from: 'works', save: played, group: 'adventure' })
                             .courses.every(function (c) { return c.id !== 'works'; });
                     }));
                 assert('an unknown mode draws like "anything"',
@@ -1314,16 +1331,16 @@
                 assert('a draw from nowhere in particular offers everything',
                     G3.shuffleDraw({ mode: 'any' }).courses.length === G3.COURSES.length);
 
-                var kind = G3.shuffleDraw({ mode: 'kind', from: 'works', group: 'crazy' });
+                var kind = G3.shuffleDraw({ mode: 'kind', from: 'works', group: 'adventure' });
                 assert('"same kind" stays inside the kind',
-                    kind.courses.length === G3.coursesInGroup('crazy').length - 1 &&
-                    kind.courses.every(function (c) { return c.group === 'crazy'; }) && !kind.eased);
+                    kind.courses.length === G3.coursesInGroup('adventure').length - 1 &&
+                    kind.courses.every(function (c) { return c.group === 'adventure'; }) && !kind.eased);
                 assert('and the tab it is looking at wins over the course it came from',
                     G3.shuffleDraw({ mode: 'kind', from: 'works', group: 'long' })
                         .courses.every(function (c) { return c.group === 'long'; }));
                 assert('with no tab named it uses the kind you are standing in',
                     G3.shuffleDraw({ mode: 'kind', from: 'works' })
-                        .courses.every(function (c) { return c.group === 'crazy'; }));
+                        .courses.every(function (c) { return c.group === 'adventure'; }));
 
                 var fresh = G3.shuffleDraw({ mode: 'fresh', from: 'seaside', save: played });
                 assert('"new to you" offers only what has never been finished',
@@ -1375,7 +1392,7 @@
                 assert('the ticks hold on every mode, not just "anything"',
                     modeIds.every(function (m) {
                         return G3.shuffleDraw({
-                            mode: m, from: 'seaside', group: 'crazy',
+                            mode: m, from: 'seaside', group: 'adventure',
                             kinds: ['long'], save: played
                         }).courses.every(function (c) { return c.group === 'long'; });
                     }));
@@ -1412,8 +1429,8 @@
                 assert('the ticks reach the dice, not just the count',
                     [0, 0.25, 0.5, 0.99].every(function (n) {
                         return G3.courseById(G3.randomCourseId({
-                            mode: 'any', from: 'seaside', kinds: ['crazy'], rng: fixed(n)
-                        })).group === 'crazy';
+                            mode: 'any', from: 'seaside', kinds: ['adventure'], rng: fixed(n)
+                        })).group === 'adventure';
                     }));
 
                 /* `shuffleKinds` is the same normalising, for the picker's own
@@ -1442,11 +1459,11 @@
                             return G3.randomCourseId({ mode: 'any', from: null, rng: rng }) === ids[0];
                         }));
                 assert('the draw is what is picked from, not the whole list',
-                    G3.randomCourseId({ mode: 'kind', from: 'works', group: 'crazy', rng: fixed(0) }) !==
+                    G3.randomCourseId({ mode: 'kind', from: 'works', group: 'adventure', rng: fixed(0) }) !==
                         'works' &&
                     G3.courseById(G3.randomCourseId({
-                        mode: 'kind', from: 'works', group: 'crazy', rng: fixed(0.99)
-                    })).group === 'crazy');
+                        mode: 'kind', from: 'works', group: 'adventure', rng: fixed(0.99)
+                    })).group === 'adventure');
 
                 // Walked rather than sampled: draws spread evenly over the
                 // unit interval must reach every other course, which is the
@@ -1555,7 +1572,7 @@
                         if (home.playtest) bad = bad || 'deal ' + k + ' dealt the playtest';
                     });
                 }
-                assert('a showcase is two holes of every kind, in order, from eight different courses',
+                assert('a showcase is two holes of every kind, in order, from six different courses',
                     !bad, bad);
                 assert('and the deal changes from round to round',
                     Object.keys(deals).length >= 55, Object.keys(deals).length + ' different deals in 60');
@@ -1605,7 +1622,7 @@
                         if (mini.indexOf(g) < 0) bad = bad || 'mini deal ' + k + ' took ' + f.id;
                         per[g] = (per[g] || 0) + 1;
                     });
-                    if (mini.some(function (g) { return per[g] !== 2; })) bad = bad || 'mini deal ' + k + ' is ' + JSON.stringify(per);
+                    if (mini.some(function (g) { return per[g] !== 6 / mini.length; })) bad = bad || 'mini deal ' + k + ' is ' + JSON.stringify(per);
                     if (l.id !== 'showcase-long' || l.holes.length !== 6) bad = bad || 'long deal ' + k + ' has ' + l.holes.length;
                     l.from.forEach(function (f, i) {
                         var home = G3.courseById(f.id);
@@ -1615,7 +1632,7 @@
                         if (home.holes[f.index] !== l.holes[i] || l.themes[i] !== home.theme) bad = bad || 'long deal ' + k + ' hole ' + (i + 1) + ' is not its home hole';
                     });
                 }
-                assert('a mini showcase is six holes, two each of mini, crazy and adventure; a long one six long holes from six courses',
+                assert('a mini showcase is six holes, three each of classic and adventure; a long one six long holes from six courses',
                     !bad, bad);
 
                 // Every long hole on three stars but four on none and five on one.
@@ -1701,7 +1718,7 @@
                 assert('the shuffle leans hard towards the course never played, inside its kind',
                     hits > mini * 0.9 && hits < mini, hits + ' of ' + mini);
                 assert('…and the lean does not crowd out the other kinds',
-                    mini > 140 && mini < 260 && others > 540, mini + ' mini, ' + others + ' other');
+                    mini > 200 && mini < 335 && others > 465, mini + ' mini, ' + others + ' other');
 
                 // Holes played out of a showcase count against their course too.
                 var seen = { courses: {}, holes: {} };

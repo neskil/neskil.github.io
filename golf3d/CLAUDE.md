@@ -3,7 +3,7 @@
 **Loft Links**: a World Tour of twenty-six holes, each played inside a world from
 Ethan Mollick's Portals and dealt six at a time — what a new game plays — and
 Endless, made-up mini golf riding through all 471 Portals worlds, in
-front of fifteen six-hole courses of 3D golf in four groups (mini, crazy, adventure and the long game), on vendored
+front of fifteen six-hole courses of 3D golf under two tabs — Mini golf (three Classic courses, six Adventure) and the Long game, on vendored
 three.js (r128), ES5-flavoured plain JavaScript, no build step. Open
 `index.html` and it runs.
 

@@ -145,7 +145,7 @@
 
     /* Where a hole of this round comes from, and which world it is drawn in.
        On every course but one the answer is the course itself. The showcase is
-       eight holes out of eight courses, and each is drawn, skied and planned
+       six holes out of six courses, and each is drawn, skied and planned
        exactly as it is at home — the sky and the plan are keyed by the home
        course and its number, so a hole is the same hole wherever you meet it.
        See courses.js → dealShowcase. */
@@ -6043,16 +6043,25 @@
         return g === WORLDS_GROUP.id || g === ALL_GROUP.id ? G3.COURSE_GROUPS[0].id : g;
     }
 
+    // …and the tab it is shown under: a kind is a shelf inside a tab
+    // (G3.COURSE_TABS), and Mini golf holds two of them.
+    function tabOf(id) {
+        var g = groupOf(id);
+        if (g === WORLDS_GROUP.id || g === ALL_GROUP.id) return g;
+        var t = G3.tabOfKind(g);
+        return t ? t.id : G3.COURSE_TABS[0].id;
+    }
+
     function openMenu(suggestId) {
         menuTaking = false;
         menuSuggest = suggestId || null;
         /* It opens on everything. A course on offer (the end of a round
            nudging at the next) opens on that course's page, one press from
            playing it, with its own kind's tab behind it. */
-        menuGroup = suggestId ? groupOf(suggestId) : ALL_GROUP.id;
+        menuGroup = suggestId ? tabOf(suggestId) : ALL_GROUP.id;
         menuPick = suggestId || null;
         menuKind = state && state.course ? kindOf(state.course.id) : G3.COURSE_GROUPS[0].id;
-        if (suggestId) menuKind = menuGroup;
+        if (suggestId) menuKind = kindOf(suggestId);
         $('menu').className = 'modal show';
         drawMenu();
     }
@@ -6175,15 +6184,29 @@
         var host = $('menu-worlds');
         host.innerHTML = '';
         var all = pickables(), worlds = [], courses = [], list = [];
+        var tab = G3.COURSE_TABS.filter(function (t) { return t.id === filter; })[0] || null;
         all.forEach(function (o) {
-            if (filter !== ALL_GROUP.id && o.group !== filter) return;
+            if (filter !== ALL_GROUP.id && (tab ? tab.kinds.indexOf(o.group) < 0 : o.group !== filter)) return;
             (o.group === WORLDS_GROUP.id ? worlds : courses).push(o);
         });
+        /* A tab of more than one kind is drawn a shelf at a time, each under
+           its own heading — Mini golf's Classic, then its Adventure. */
+        var shelved = tab && tab.kinds.length > 1, shelf = null;
         for (var i = 0; i < Math.max(worlds.length, courses.length); i++) {
             if (worlds[i]) list.push(worlds[i]);
             if (courses[i]) list.push(courses[i]);
         }
         list.forEach(function (o) {
+            if (shelved && o.group !== shelf) {
+                shelf = o.group;
+                var kind = G3.groupById(shelf), head = document.createElement('div');
+                head.className = 'world-shelf';
+                head.setAttribute('role', 'presentation');
+                head.style.setProperty('--w-tint', kind.tint);
+                head.innerHTML = '<b><span aria-hidden="true">' + kind.icon + '</span> ' + kind.name + '</b>' +
+                    '<span>' + kind.blurb + '</span>';
+                host.appendChild(head);
+            }
             var el = document.createElement('button');
             el.type = 'button';
             el.className = 'world' + (o.played ? '' : ' unfound') + (o.key === menuSuggest ? ' up-next' : '');
@@ -6344,10 +6367,11 @@
         host.appendChild(menuTab(ALL_GROUP, G3.portals.WORLDS.length +
             G3.COURSES.filter(function (c) { return !c.playtest; }).length, 'menu-worlds-panel'));
         host.appendChild(menuTab(WORLDS_GROUP, G3.portals.WORLDS.length, 'menu-worlds-panel'));
-        G3.COURSE_GROUPS.forEach(function (group) {
-            var courses = G3.coursesInGroup(group.id);
-            if (!courses.length) return;
-            host.appendChild(menuTab(group, courses.length, 'menu-list'));
+        G3.COURSE_TABS.forEach(function (tab) {
+            var n = 0;
+            tab.kinds.forEach(function (k) { n += G3.coursesInGroup(k).length; });
+            if (!n) return;
+            host.appendChild(menuTab(tab, n, 'menu-list'));
         });
 
         var g = openTab();
@@ -6366,8 +6390,8 @@
         if (menuGroup === G3.SHUFFLE_GROUP.id) return G3.SHUFFLE_GROUP;
         if (menuGroup === WORLDS_GROUP.id) return WORLDS_GROUP;
         if (menuGroup === ALL_GROUP.id) return ALL_GROUP;
-        var g = G3.COURSE_GROUPS.filter(function (x) { return x.id === menuGroup; })[0];
-        return g || G3.COURSE_GROUPS[0];
+        var g = G3.COURSE_TABS.filter(function (x) { return x.id === menuGroup; })[0];
+        return g || G3.COURSE_TABS[0];
     }
 
     /* One tab, dressed out of the four fields every group and the draw both
@@ -6388,7 +6412,7 @@
             '<span class="mt-icon" aria-hidden="true">' + group.icon + '</span>' +
             '<span class="mt-name">' + group.name + '</span>' +
             '<span class="mt-count">' + count + '</span>' +
-            (menuSuggest && groupOf(menuSuggest) === group.id && !on
+            (menuSuggest && tabOf(menuSuggest) === group.id && !on
                 ? '<span class="mt-dot" title="up next"></span>' : '');
         tab.addEventListener('click', function () {
             if (menuGroup === group.id && !menuPick) return;
@@ -6397,7 +6421,8 @@
             // "Same kind" means the kind you are looking at, so the draw and
             // its counts move with the tabs — and the draw's own tab, which is
             // not a kind, leaves that pointing where it last was.
-            if (group.id !== G3.SHUFFLE_GROUP.id && group !== WORLDS_GROUP && group !== ALL_GROUP) menuKind = group.id;
+            // A tab of two kinds keeps the one you were on if it is one of them.
+            if (group.kinds && group.kinds.indexOf(menuKind) < 0) menuKind = group.kinds[0];
             drawShuffle();
             drawTabs();
             drawCourses();
@@ -7644,7 +7669,7 @@
     /* Out of the demo and into a game. The round on screen is the caddie's —
        a hole picked out of the middle of a course, with strokes on it nobody
        played — so it is put away before anyone is handed the club, and what
-       is dealt in its place is a showcase: eight holes, two of every kind,
+       is dealt in its place is a showcase: six holes, two of every kind,
        which is the game in one round. The course list opens over it, with the
        showcase at the top of it, so "Keep playing" is the showcase and
        anything else is one press away. */

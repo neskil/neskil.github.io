@@ -6,8 +6,8 @@
    look — is derived below, because a hole that has to repeat itself is a hole
    that will one day disagree with itself.
 
-   Three of the fifteen courses are mini golf, three are crazy golf, three
-   are adventure golf and six are the long game — tee, fairway, rough, sand,
+   Three of the fifteen courses are classic mini golf, six are adventure
+   golf (machines to time and floors that play back) and six are the long game — tee, fairway, rough, sand,
    trees, green — authored through `bands` and `tree` rather than a hole at a
    time; see the comment above them. They use the same pads, the same walls
    and the same solver as everything else, which is the point: a parkland hole
@@ -20,9 +20,10 @@
    so a course is not six variations on a theme, it is a climb. That is why the
    holes are in the order they are written in rather than the order they were
    built in, and why moving one is a change to the course rather than a tidy-up.
-   The same rule runs across a group: the three mini courses are in order of
-   how much they ask for, and so are the crazy, the adventure and the long
-   ones.
+   The same rule runs across a group: the three classic courses are in order of
+   how much they ask for, and so are the adventure and the long ones (the
+   adventure shelf in two runs: the three machine courses, then the three
+   floor courses).
 
    **A hole is not the hole beside it.** Ninety holes on one list is
    ninety chances to write the same corridor again, and the way out is the
@@ -7710,27 +7711,31 @@
         })()
     ];
 
+    /* The kinds of golf, and the picker's tabs over them.
+
+       Three kinds and two tabs (the owner, v1.235.0: fewer categories —
+       "world, mini golf, long game", with mini golf split in two). Classic
+       mini golf is the ground sitting still and a lane to read: rails,
+       ramps, ledges and carries. Adventure is everything where the course
+       plays back — a machine to time (blades, gates, bumpers, bells) or a
+       floor or a ball that will not behave (ice, belts, launch pads, pipes,
+       other gravities). It used to be two kinds, crazy and adventure; most
+       players could not have told you which of the two a windmill was.
+
+       A kind is what the draw, the showcase and the stars count by, and what
+       a course is filed under (`course.group`). A tab is what the picker
+       shows: Mini golf holds two kinds, and draws them as two shelves under
+       one heading each; Long game holds one. */
     G3.COURSE_GROUPS = [
         {
-            id: 'mini', name: 'Mini golf', icon: '\u2691',
+            id: 'mini', name: 'Classic', icon: '\u2691',
             tint: '#7dd3fc',
-            blurb: 'Lanes, rails and one swing to the green. Where the pace is learned.'
+            blurb: 'Lanes, rails, ramps and carries, and nothing on them moves but the ball. Where the pace is learned.'
         },
         {
-            id: 'crazy', name: 'Crazy golf', icon: '\u2699',
-            tint: '#f0abfc',
-            blurb: 'Blades, gates, posts and pendulums — and, on the last course, a river under every one of them. Aim less; time it better.'
-        },
-        {
-            /* The fourth kind, and the newest. The other three are all played
-               on ground that sits still: mini golf hands you a lane and a
-               rail, crazy golf a machine to time, the long game country to
-               read. Here the floor is the obstacle — it will not let the ball
-               stop, or it carries it off, or it throws it in the air, or it
-               puts it somewhere else entirely. */
-            id: 'adventure', name: 'Adventure golf', icon: '\u21AF',
+            id: 'adventure', name: 'Adventure', icon: '\u21AF',
             tint: '#fbbf24',
-            blurb: 'Ice, travelators, launch pads, pipes and steam vents. The floor is not on your side.'
+            blurb: 'Windmills, gates, bumpers and bells to time; ice, belts, launch pads, pipes and other gravities underfoot. The course plays back.'
         },
         {
             id: 'long', name: 'Long game', icon: '\u27FF',
@@ -7739,8 +7744,31 @@
         }
     ];
 
-    /* The picker's fifth tab, and the only one that is not a shelf of courses:
-       the draw itself. It is described here, beside the four kinds, because
+    /* The picker's shelves of courses, one tab each. `kinds` are the
+       COURSE_GROUPS ids a tab shows, in that order. */
+    G3.COURSE_TABS = [
+        {
+            id: 'minigolf', name: 'Mini golf', icon: '\u2691',
+            tint: '#7dd3fc', kinds: ['mini', 'adventure'],
+            blurb: 'Played with a putter. Classic lanes to read, and adventure courses that play back.'
+        },
+        {
+            id: 'long', name: 'Long game', icon: '\u27FF',
+            tint: '#86efac', kinds: ['long'],
+            blurb: 'Full-size holes and no fences on any of them. Two shots to most greens, and a line of stakes where the course stops.'
+        }
+    ];
+
+    /* The tab a kind is shown under, or null. */
+    G3.tabOfKind = function (kindId) {
+        for (var i = 0; i < G3.COURSE_TABS.length; i++) {
+            if (G3.COURSE_TABS[i].kinds.indexOf(kindId) >= 0) return G3.COURSE_TABS[i];
+        }
+        return null;
+    };
+
+    /* The picker's last tab, and the only one that is not a shelf of courses:
+       the draw itself. It is described here, beside the kinds, because
        the picker dresses every tab out of the same four fields — mark, name,
        tint, blurb — and the one tab whose colour and wording lived in game.js
        would be the one that drifted away from the rest of the row.
@@ -7784,7 +7812,7 @@
         },
         {
             id: 'works',
-            group: 'crazy',
+            group: 'adventure',
             name: 'Windmill Works',
             blurb: 'Everything moves. Nothing waits.',
             theme: 'works',
@@ -7792,7 +7820,7 @@
         },
         {
             id: 'parlour',
-            group: 'crazy',
+            group: 'adventure',
             name: 'Pinball Parlour',
             blurb: 'A table, not a course. Play off the posts, because there is no line past them.',
             theme: 'arcade',
@@ -7800,7 +7828,7 @@
         },
         {
             id: 'clockwork',
-            group: 'crazy',
+            group: 'adventure',
             name: 'Clockwork Court',
             blurb: 'Bars, bells and a mill race, each machine running at its own rate. Timing is the whole of it.',
             theme: 'clockwork',
@@ -7882,8 +7910,8 @@
 
     /* Which game a hole belongs to, on the hole itself — the showcase deals
        holes out of their courses into a round of its own, so the course is
-       not there to be asked once a hole is being played. Mini golf, crazy
-       golf and adventure golf are one game played with one bag
+       not there to be asked once a hole is being played. Classic and
+       adventure mini golf are one game played with one bag
        (CONFIG.MINI_BAG); the long game is another. See G3.bagFor. */
     G3.COURSES.forEach(function (c) {
         if (C.MINI_GROUPS.indexOf(c.group) < 0) return;
@@ -8226,7 +8254,7 @@
         return G3.SHUFFLE_MODES[0];
     };
 
-    /* ── the showcase: the game in eight holes ───────────────────────────
+    /* ── the showcase: the game in six holes ─────────────────────────────
 
        A hundred and eight holes is a lot to ask anybody to walk before they
        know what is in them, and the order they are written in shows you six
@@ -8252,8 +8280,8 @@
     G3.SHOWCASE_PER_KIND = 2;
 
     /* Three deals, one button each (the owner, v1.189.0: "the long game is a
-       bit hidden"). The first is the game in eight holes, two of every kind;
-       the other two are six holes of one game — mini golf (mini, crazy and
+       bit hidden"). The first is the game in six holes, two of every kind;
+       the other two are six holes of one game — mini golf (classic and
        adventure, the games played with the mini bag) or the long game.
        `per` is how many holes each kind in `groups` gets; `count` is a deal
        that is only filled to a total, with the kinds kept as even as the
@@ -8262,12 +8290,12 @@
         {
             id: 'showcase', name: 'Showcase', short: 'All kinds', icon: '\u2726',
             groups: null, per: G3.SHOWCASE_PER_KIND,
-            blurb: 'Two holes from every kind of golf, eight in all.'
+            blurb: 'Two holes of classic, two of adventure and two of the long game.'
         },
         {
             id: 'showcase-mini', name: 'Mini golf showcase', short: 'Mini golf', icon: '\u2691',
             groups: C.MINI_GROUPS, count: 6,
-            blurb: 'Six holes of mini, crazy and adventure golf.'
+            blurb: 'Six holes of classic and adventure mini golf.'
         },
         {
             id: 'showcase-long', name: 'Long game showcase', short: 'Long game', icon: '\u27FF',
@@ -8371,7 +8399,7 @@
 
     /* The deal on the table. `courseById('showcase')` deals one the first time
        it is asked and then keeps answering with it — Play again is the same
-       eight holes — until something deals a fresh one in its place. */
+       six holes — until something deals a fresh one in its place. */
     G3.SHOWCASE = null;
 
     /* ── Challenge mode ──────────────────────────────────────────────────
