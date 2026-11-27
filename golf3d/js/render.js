@@ -671,7 +671,7 @@
        it while the ball is up, and fade it once the ball has stopped. */
     function stepTracer(dt, world) {
         var T = C.TRACER, pts = R.tracerPts, b = R.ball.position, last;
-        if (!G3.drawnLong(world.hole) || world.warping || world.ride) {
+        if (!G3.longHole(world.hole) || world.warping || world.ride) {
             if (pts.length) clearTracer();
             return;
         }
@@ -6982,8 +6982,7 @@
         R.cam.kick = 0;
         R.cam.speedPull = 0;
         R.launch = null;
-        R.airDrop = 0;
-        R.airPeak = 0;
+        R.chase = null;
         R.blurK = 0;
         R.blurPrev = null;
         clearTrail();
@@ -7780,8 +7779,8 @@
        camera ever jumps. */
     function lookT(hole, ball) {
         // Not in a Portals world: a tour hole (or anything else hung on one)
-        // is fitted to it, seat and all (`G3.drawnLong`).
-        if (!G3.drawnLong(hole) || !ball || !hole.cup) return 0;
+        // is fitted to it, seat and all (`G3.longHole`).
+        if (!G3.longHole(hole) || !ball || !hole.cup) return 0;
         var L = C.LONG_LOOK;
         var d = Math.sqrt((ball.x - hole.cup.x) * (ball.x - hole.cup.x) + (ball.z - hole.cup.z) * (ball.z - hole.cup.z));
         var t = Math.max(0, Math.min(1, (d - L.NEAR) / (L.FAR - L.NEAR)));
@@ -7911,7 +7910,7 @@
         var seconds = 0.5 + frac * 0.5;
         // The long game's air is a real flight, longer in time over the same
         // ground by 3.4 over its pace (CONFIG.AIR); the cone is cut by distance.
-        if (G3.drawnLong(world.hole)) seconds *= Math.max(1, 3.4 / P.airPace());
+        if (G3.longHole(world.hole)) seconds *= Math.max(1, 3.4 / P.airPace());
         var pts = P.previewPath(world, aim.yaw + (aim.bend || 0), aim.power, aim.loft, seconds, aim.bite, aim.spin, aim.topped);
 
         /* Under MIN_POWER there is no shot to preview: launch() refuses it and
@@ -8464,15 +8463,16 @@
             if (there) ty = Math.max(ty, there.y + 0.35 * look);
             var back = dist * Math.cos(pitch);
             px = ball.x - Math.sin(yaw) * back;
-            // Held under a long shot rather than riding up with it (watchAir).
-            py = ball.y + dist * Math.sin(pitch) - (R.airDrop || 0);
+            py = ball.y + dist * Math.sin(pitch);
             pz = ball.z - Math.cos(yaw) * back;
-            if (R.airDrop > 0) {
-                var under = P.surfaceTop(hole, px, pz);
-                if (under && py < under.y + C.LAUNCH_CAM.CLEAR) py = under.y + C.LAUNCH_CAM.CLEAR;
-            }
             // The ball has to be seen over a bank behind it: the line to it, not to the lead.
             py += sightLift(hole, ball, ball.x, by, ball.z, px, py, pz);
+            // A long shot in the air is the chase's, by its weight (watchChase).
+            var ch = R.chase;
+            if (ch && ch.w > 0) {
+                px += (ch.px - px) * ch.w; py += (ch.py - py) * ch.w; pz += (ch.pz - pz) * ch.w;
+                tx += (ball.x - tx) * ch.w; ty += (ball.y - ty) * ch.w; tz += (ball.z - tz) * ch.w;
+            }
         }
 
         out.px = px; out.py = py; out.pz = pz;
@@ -9170,11 +9170,20 @@
             /* At the strike the seat lets go (launchLag): the eye and the look
                each ease on a slower base, mixed in by rate rather than by
                base so that half a lag is half as slow. */
-            var lag = (R.cam.mode === 'follow' || R.cam.mode === 'side') && !R.warpCam && !R.loopCam ? launchLag() : 0;
+            var lag = (R.cam.mode === 'follow' || R.cam.mode === 'side') && !R.warpCam && !R.loopCam &&
+                !(R.chase && R.cam.mode === 'follow') ? launchLag() : 0;
             if (lag > 0) {
                 var LC = C.LAUNCH_CAM, seatRate = Math.log(0.0016);
                 k = 1 - Math.exp((seatRate + (Math.log(LC.POS) - seatRate) * lag) * dt);
                 kt = 1 - Math.exp((seatRate + (Math.log(LC.LOOK) - seatRate) * lag) * dt);
+            }
+            /* The chase is smooth by construction, and a lerp on top of a
+               seat moving at a drive's speed trails it by speed × the lag —
+               a gap that shrinks as the ball slows, which is the lurch the
+               chase is there to take out. So under it the eye is the seat. */
+            if (R.chase && R.chase.w > 0 && R.cam.mode === 'follow' && !R.warpCam && !R.loopCam) {
+                k += (1 - k) * R.chase.w;
+                kt += (1 - kt) * R.chase.w;
             }
             R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
             R.smooth.target.lerp(_camTarget.set(tx, ty, tz), kt);
@@ -9228,7 +9237,7 @@
        mini golf's second and a half the seat closed on it in one lurch half
        way down (CONFIG.LONG_CAM.RELEASE). */
     function launchRelease() {
-        return C.LAUNCH_CAM.RELEASE * (G3.drawnLong(R.hole) ? C.LONG_CAM.RELEASE : 1);
+        return C.LAUNCH_CAM.RELEASE * (G3.longHole(R.hole) ? C.LONG_CAM.RELEASE : 1);
     }
 
     function stepLaunch(dt, world, speed) {
@@ -9243,35 +9252,64 @@
         }
     }
 
-    /* The long game's flight, as the seat behind it tells it
-       (CONFIG.LONG_CAM). The follow seat is measured off the ball, so it went
-       up with a drive as far as the drive went up: the ball sat still in the
-       middle of the frame while the ground fell away under both, and the one
-       thing a long shot has that a putt does not — its height — never showed.
-       So while a long-game shot is up, the eye climbs only RISE of the ball's
-       height over the ground it left (or the ground under it, where that is
-       higher), and keeps looking at the ball: the camera tips back to watch it
-       go up against the sky and down again on to the fairway. `airDrop` is how
-       far below the seat the eye is held; it is 0 on the ground, so the seat
-       is the seat the moment the ball is down. */
-    function watchAir(world, dt) {
-        var want = 0, b = world.ball, LC = C.LONG_CAM, up = false;
-        if (world.moving && !world.firstLand && !world.warping && !world.ride && G3.drawnLong(world.hole)) {
-            var g = P.surfaceTop(world.hole, b.x, b.z);
-            var floor = Math.max(world.origin.y, g ? g.y + C.BALL_R : -Infinity);
-            var h = Math.max(0, b.y - floor);
-            if (h > R.airPeak) R.airPeak = h;
-            /* On the way down the eye comes down slower than the ball (DIVE
-               of what it has fallen from the top), so the end of the flight
-               is looked down on: past level with the seat, which is what
-               makes `airDrop` go negative at the landing. */
-            want = h * (1 - LC.RISE) - LC.DIVE * (R.airPeak - h);
-            up = true;
-        } else R.airPeak = 0;
-        R.airDrop = R.airDrop || 0;
-        // Back on the ground it settles on to the seat on SETTLE, not EASE.
-        R.airDrop += (want - R.airDrop) * (1 - Math.pow(up ? LC.EASE : LC.SETTLE, dt));
-        if (Math.abs(R.airDrop) < 1e-3 && want === 0) R.airDrop = 0;
+    /* The chase: a long shot in the air, followed (CONFIG.LONG_CAM).
+
+       It used to be the follow seat with the launch's lag on it: the seat let
+       the ball go at the strike, fell sixteen units behind it by the top with
+       the eye looking up at a speck in the sky, and then, as the lag was given
+       back and the ball slowed, closed on it in a rush on the way down (the
+       owner: "fix the full chase so it feels better"). Every part of that
+       was emergent — a lerp chasing a seat that was itself moving at the
+       ball's speed — so none of it could be tuned.
+
+       So the chase is a seat of its own, placed rather than eased: from
+       where the camera stood at the strike it drops back to DIST behind the
+       ball over GROW and rides there, turned along the ball's course on TURN;
+       its eye climbs RISE of the ball's height over UP, and on the way down
+       comes down slower than the ball (DIVE of what it has fallen from the
+       top), so the flight ends looked down on to where it lands. It is
+       blended in over IN at the strike and out over OUT from the first
+       landing, on to the follow seat, which is the one place anything eases. */
+    function watchChase(world, dt) {
+        var LC = C.LONG_CAM, b = world.ball, ch = R.chase;
+        var flying = world.moving && world.inAir && !world.firstLand && !world.warping && !world.ride &&
+            G3.longHole(world.hole) && R.cam.mode === 'follow' && !R.fly && !R.dive && !R.replay && !R.lap;
+        if (flying && (!ch || ch.out >= 0)) {
+            var cp = R.camera.position;
+            ch = R.chase = { t: 0, out: -1, w: 0, peak: 0, floor: world.origin.y,
+                yaw: Math.atan2(b.vx, b.vz), d0: Math.hypot(cp.x - b.x, cp.z - b.z), y0: cp.y - b.y,
+                px: cp.x, py: cp.y, pz: cp.z };
+        }
+        if (!ch) return;
+        ch.t += dt;
+        if (ch.out < 0 && !flying) ch.out = 0;
+        else if (ch.out >= 0) ch.out += dt;
+        ch.w = smooth01(ch.t / LC.IN) * (ch.out >= 0 ? 1 - smooth01(ch.out / LC.OUT) : 1);
+        if (ch.out >= LC.OUT) { R.chase = null; return; }
+
+        var hs = Math.sqrt(b.vx * b.vx + b.vz * b.vz);
+        if (ch.out < 0 && hs > 1) {
+            var turn = Math.atan2(b.vx, b.vz) - ch.yaw;
+            turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+            ch.yaw += turn * (1 - Math.pow(LC.TURN, dt));
+        }
+        /* The ground under the ball, eased (FLOOR): off a raised tee the
+           tee's height would leave the eye coming down with the ball the
+           whole way to a fairway below it, and the ground read raw would
+           bob it over every bunker lip. */
+        var g = P.surfaceTop(world.hole, b.x, b.z);
+        if (g && ch.out < 0) ch.floor += (g.y + C.BALL_R - ch.floor) * (1 - Math.pow(LC.FLOOR, dt));
+        var floor = Math.min(ch.floor, b.y);
+        var h = b.y - floor;
+        if (ch.out < 0 && h > ch.peak) ch.peak = h;
+        var grow = smooth01(ch.t / LC.GROW);
+        var d = ch.d0 + (LC.DIST - ch.d0) * grow;
+        var up = ch.y0 + (LC.UP - ch.y0) * grow;
+        ch.px = b.x - Math.sin(ch.yaw) * d;
+        ch.pz = b.z - Math.cos(ch.yaw) * d;
+        ch.py = floor + up + h * LC.RISE + LC.DIVE * Math.max(0, ch.peak - h);
+        var under = P.surfaceTop(world.hole, ch.px, ch.pz);
+        if (under && ch.py < under.y + LC.CLEAR) ch.py = under.y + LC.CLEAR;
     }
 
     /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
@@ -9615,7 +9653,7 @@
         watchLoop(world, dt);
         watchWarp(world, dt);
         stepLaunch(dt, world, speed);
-        watchAir(world, dt);
+        watchChase(world, dt);
         updateCamera(world.hole, world.ball, dt);
         motionBlur(dt, world, speed);
         if (R.fx && G3.postfx.lens) G3.postfx.lens(lensList());
