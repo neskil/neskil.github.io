@@ -7385,6 +7385,10 @@
         R.cam.speedPull = 0;
         R.launch = null;
         R.chase = null;
+        R.lookSpring = null;
+        R.liftS = null;
+        R.drop = null;
+        R.windup = null;
         R.blurK = 0;
         R.blurPrev = null;
         clearTrail();
@@ -8692,6 +8696,49 @@
         return Math.min(lift, 8);
     }
 
+    /* The lift over a bank, eased (CONFIG.SIGHT_EASE). It is read off the
+       ground a few points along the line to the ball, so on ground that
+       steps — the Pop-Up Book's folded paper — it steps too: half a unit
+       in a frame, which the seat's own easing turned into the eye leaping
+       off at once (the owner's phone: "very jarring"). On a spring with no
+       give-away of how fast it was asked to move, so the seat comes up and
+       goes down with no corner in it. Only when updateCamera is asking, on
+       a frame of its own (`R.seatDt`); anyone else asking where the seat
+       is — the intro's last key, the flight's start — gets the lift as it
+       is, and the spring starts again from there. */
+    function easedLift(raw) {
+        var S = R.liftS, dt = R.seatDt, w = C.SIGHT_EASE;
+        if (!dt || !S || !w) { R.liftS = { y: raw, v: 0 }; return raw; }
+        var n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n, i;
+        for (i = 0; i < n; i++) {
+            S.v += (w * w * (raw - S.y) - 2 * w * S.v) * h;
+            S.y += S.v * h;
+        }
+        return Math.max(0, S.y);
+    }
+
+    /* The windup's weight, on a critically damped spring (LONG_CAM.WINDUP
+       per second) so the camera sets off and settles with no corner in it.
+       Held at 1 through the strike until the chase has the shot; let go of,
+       or ended, it goes back to 0. */
+    function setWindup(on) {
+        if (!R.windup) R.windup = { on: false, w: 0, v: 0 };
+        R.windup.on = !!on;
+    }
+    function stepWindup(dt) {
+        var W = R.windup;
+        if (!W || dt <= 0) return;
+        if (R.chase) { W.on = false; W.w = 0; W.v = 0; return; }
+        var want = W.on && R.cam.mode === 'follow' ? 1 : 0, w = C.LONG_CAM.WINDUP;
+        var n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n, i;
+        for (i = 0; i < n; i++) {
+            W.v += (w * w * (want - W.w) - 2 * w * W.v) * h;
+            W.w += W.v * h;
+        }
+        if (W.w < 0) { W.w = 0; W.v = Math.max(0, W.v); }
+        if (W.w > 1) { W.w = 1; W.v = Math.min(0, W.v); }
+    }
+
     function seatFor(hole, ball, out) {
         var c = R.cam;
         var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
@@ -8868,12 +8915,45 @@
             py = ball.y + dist * Math.sin(pitch);
             pz = ball.z - Math.cos(yaw) * back;
             // The ball has to be seen over a bank behind it: the line to it, not to the lead.
-            py += sightLift(hole, ball, ball.x, by, ball.z, px, py, pz);
+            py += easedLift(sightLift(hole, ball, ball.x, by, ball.z, px, py, pz));
+            /* The backswing (`R.windup`, from game.js → setWindup). The owner, on
+               the follow camera: "perhaps when you start the stroke you can start
+               to align the camera with a better start position". Everything
+               the chase does in its first second — drop back to DIST, come
+               down to UP over the ball, stop looking down the line and look
+               at the ball — is done instead while the club goes back, by the
+               windup's weight. A strike from a full pull then has nothing
+               left for the chase to blend: it starts where it would have got
+               to. A pull let go of without a shot eases back. Long holes, the
+               follow seat, and only with no chase on. */
+            var ww = R.windup ? R.windup.w : 0;
+            if (ww > 0.001 && !R.chase && G3.longHole(hole)) {
+                var LC = C.LONG_CAM;
+                var wpx = ball.x - Math.sin(yaw) * LC.DIST, wpz = ball.z - Math.cos(yaw) * LC.DIST;
+                var wpy = ball.y + LC.UP;
+                var wun = P.surfaceTop(hole, wpx, wpz);
+                if (wun && wpy < wun.y + LC.CLEAR) wpy = wun.y + LC.CLEAR;
+                wpy += sightLift(hole, ball, ball.x, ball.y, ball.z, wpx, wpy, wpz);
+                px += (wpx - px) * ww; py += (wpy - py) * ww; pz += (wpz - pz) * ww;
+                tx += (ball.x - tx) * ww; ty += (ball.y - ty) * ww; tz += (ball.z - tz) * ww;
+            }
             // A long shot in the air is the chase's, by its weight (watchChase).
             var ch = R.chase;
+            /* Blended from, while the ball is up, is the seat as it stood at
+               the strike carried along with the ball — not the seat worked
+               out afresh: that one re-aims at the hill ahead as the ball
+               leaves it (`rise`), and blended in over the chase's first
+               third of a second it was a dip in the view. */
+            if (ch && ch.w > 0 && ch.out < 0 && ch.ox !== undefined) {
+                px = ball.x + ch.ox; py = ball.y + ch.oy; pz = ball.z + ch.oz;
+                tx = ball.x + ch.lx; ty = ball.y + ch.ly; tz = ball.z + ch.lz;
+            }
             if (ch && ch.w > 0) {
                 px += (ch.px - px) * ch.w; py += (ch.py - py) * ch.w; pz += (ch.pz - pz) * ch.w;
-                tx += (ball.x - tx) * ch.w; ty += (ball.y - ty) * ch.w; tz += (ball.z - tz) * ch.w;
+                var lk = ch.lk === undefined ? 0 : ch.lk;
+                tx += (ball.x + ch.lx * lk - tx) * ch.w;
+                ty += (ball.y + ch.ly * lk - ty) * ch.w;
+                tz += (ball.z + ch.lz * lk - tz) * ch.w;
             }
         }
 
@@ -9050,6 +9130,56 @@
     }
 
     function wipe() { return R.wipe; }
+
+    /* The ball put back (game.js → dropBack: out of play, water, stuck).
+       It used to be eased back to like any other move of the seat, and the
+       seat had just jumped the length of the shot: the camera flew twenty
+       units back up the hole in half a second, turning as it went, at fifty
+       units a second at its fastest (the owner's phone, the Pop-Up Book:
+       "very jarring … gives you motion sickness"). Now it is the intro's
+       cut: the frame is held and photographed, and the next is a short push
+       in on to the seat at the tee while that picture slides away (the
+       wipe). A drop that leaves the seat close by is eased to as before. */
+    function dropTo() {
+        if (!R.ready || !R.camera || !R.smooth.started) return false;
+        var m = R.cam.mode;
+        if (m !== 'follow' && m !== 'side') return false;
+        R.chase = null; R.lookSpring = null; R.launch = null; R.liftS = null;
+        R.drop = { snap: 1 };
+        R.snapWanted = true;
+        R.snapReady = false;
+        return true;
+    }
+
+    function dropCamera(dt) {
+        var d = R.drop, W = C.FLY.WIPE;
+        if (!d.arrive) {
+            var far = Math.hypot(R.smooth.pos.x - _seat.px, R.smooth.pos.y - _seat.py, R.smooth.pos.z - _seat.pz);
+            if (far < 3) { R.drop = null; R.snapWanted = false; return false; }
+            if (!(R.snapReady || ++d.snap > 3)) {
+                // Held, for the picture.
+                R.camera.position.copy(R.smooth.pos);
+                R.camera.lookAt(R.smooth.target);
+                return true;
+            }
+            var dx = _seat.px - _seat.tx, dy = _seat.py - _seat.ty, dz = _seat.pz - _seat.tz;
+            var dist = Math.hypot(dx, dy, dz) || 1;
+            d.arrive = { t: 0, dur: W.TIME, ox: dx * W.PULL, oy: dy * W.PULL + dist * W.LIFT, oz: dz * W.PULL };
+            R.wipe = { t: 0, dur: W.TIME, dir: -1 };
+            R.snapWanted = false;
+            R.snapReady = false;
+            dt = 0;
+        }
+        var a = d.arrive;
+        a.t += dt;
+        var u = Math.min(1, a.t / a.dur), k = (1 - u) * (1 - u);
+        R.smooth.pos.set(_seat.px + a.ox * k, _seat.py + a.oy * k, _seat.pz + a.oz * k);
+        R.smooth.target.set(_seat.tx, _seat.ty, _seat.tz);
+        R.camera.position.copy(R.smooth.pos);
+        R.camera.lookAt(R.smooth.target);
+        if (u >= 1) R.drop = null;
+        return true;
+    }
 
     function flying() { return !!R.fly; }
 
@@ -9535,9 +9665,13 @@
         // world stops for a moment every time the bot thinks, and a camera
         // that stopped with it would say so.
         if (R.cam.mode === 'demo') R.cam.demoT += dt;
+        stepWindup(dt);
+        R.seatDt = R.cam.mode === 'follow' && R.smooth.started ? dt : 0;
         seatFor(hole, ball, _seat);
+        R.seatDt = 0;
         stepWipe(dt);
         R.camGap = Infinity;   // camSettled(): set below, only on the plain seat
+        if (R.drop && dropCamera(dt)) return;
         if (R.dive && diveCamera(hole, dt)) return;
         if (R.fly && flyCamera(hole, ball, dt)) return;
         if (R.replay && replayCamera(hole, ball, dt)) return;
@@ -9583,18 +9717,44 @@
                seat moving at a drive's speed trails it by speed × the lag —
                a gap that shrinks as the ball slows, which is the lurch the
                chase is there to take out. So under it the eye is the seat. */
-            if (R.chase && R.chase.w > 0 && R.cam.mode === 'follow' && !R.warpCam && !R.loopCam) {
+            var chased = R.chase && R.cam.mode === 'follow' && !R.warpCam && !R.loopCam;
+            if (chased && R.chase.w > 0) {
                 k += (1 - k) * R.chase.w;
                 kt += (1 - kt) * R.chase.w;
             }
-            R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
-            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), kt);
+            /* …except that the eye and the look both ride a spring
+               (LONG_CAM.SPRING) for as long as the chase is on. Made the seat outright, the look
+               went from standing still to the ball's speed at the strike and
+               on every bounce; and eased in by the lerp it first fell behind
+               a ball four units away and then was snatched on to it as the
+               chase took over: the view dipped and swung back up (the Pop-Up
+               Book, "gives you motion sickness"). The spring is told how fast
+               the seat's look is moving, so a ball in steady flight is looked
+               at with no lag at all; what it takes out is only the change.
+               The eye is on the same spring, or it rose and ran on with the
+               ball a beat before the look did, which is the same dip. */
+            if (chased) {
+                if (!R.lookSpring) R.lookSpring = { t: springOf(_camTarget.set(tx, ty, tz)), p: springOf(_camPos.set(px, py, pz)) };
+                chaseSpring(R.lookSpring.t, R.smooth.target, _camTarget.set(tx, ty, tz), dt);
+                chaseSpring(R.lookSpring.p, R.smooth.pos, _camPos.set(px, py, pz), dt);
+            } else {
+                R.lookSpring = null;
+                R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
+                R.smooth.target.lerp(_camTarget.set(tx, ty, tz), kt);
+            }
             /* An eye left behind is not riding the seat, which keeps itself
                off the ground; a drive over a crest would otherwise drag it
                through the hill on the way to catching up. */
-            if (lag > 0) {
-                var under = P.surfaceTop(hole, R.smooth.pos.x, R.smooth.pos.z);
-                if (under && R.smooth.pos.y < under.y + C.LAUNCH_CAM.CLEAR) R.smooth.pos.y = under.y + C.LAUNCH_CAM.CLEAR;
+            /* Lifted, not lifted in one frame: under the chase nothing held
+               the eye up, and the frame the chase let go this put it up four
+               tenths of a unit at once on the Pop-Up Book's slope. It may
+               not go nearer the ground than a sixth of the clearance. */
+            if (lag > 0 || chased) {
+                var under = P.surfaceTop(hole, R.smooth.pos.x, R.smooth.pos.z), CL = C.LAUNCH_CAM.CLEAR;
+                if (under && R.smooth.pos.y < under.y + CL) {
+                    R.smooth.pos.y += (under.y + CL - R.smooth.pos.y) * (1 - Math.pow(0.002, dt));
+                    if (R.smooth.pos.y < under.y + CL / 6) R.smooth.pos.y = under.y + CL / 6;
+                }
             }
         }
         R.camera.position.copy(R.smooth.pos);
@@ -9608,6 +9768,27 @@
             var reach = Math.hypot(px - tx, py - ty, pz - tz) || 1;
             R.camGap = (R.smooth.pos.distanceTo(_camPos.set(px, py, pz)) +
                 R.smooth.target.distanceTo(_camTarget.set(tx, ty, tz))) / reach;
+        }
+    }
+
+    var _lookWas = new THREE.Vector3();
+    function springOf(at) { return { v: new THREE.Vector3(), was: new THREE.Vector3().copy(at) }; }
+    // A critically damped spring on `t`, towards `want`, told how fast `want` moves.
+    function chaseSpring(S, t, want, dt) {
+        var w = C.LONG_CAM.SPRING;
+        if (dt <= 0) return;
+        // How fast the look the seat asks for is going — not past what a
+        // frame can honestly mean (a ball put back on the tee is a cut).
+        _lookWas.copy(want).sub(S.was).multiplyScalar(1 / dt);
+        if (_lookWas.length() > 80) _lookWas.setScalar(0);
+        S.was.copy(want);
+        var n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n, i, ax, ay, az;
+        for (i = 0; i < n; i++) {
+            ax = w * w * (want.x - t.x) + 2 * w * (_lookWas.x - S.v.x);
+            ay = w * w * (want.y - t.y) + 2 * w * (_lookWas.y - S.v.y);
+            az = w * w * (want.z - t.z) + 2 * w * (_lookWas.z - S.v.z);
+            S.v.x += ax * h; S.v.y += ay * h; S.v.z += az * h;
+            t.x += S.v.x * h; t.y += S.v.y * h; t.z += S.v.z * h;
         }
     }
 
@@ -9677,10 +9858,20 @@
         var flying = world.moving && world.inAir && !world.firstLand && !world.warping && !world.ride &&
             G3.longHole(world.hole) && R.cam.mode === 'follow' && !R.fly && !R.dive && !R.replay && !R.lap;
         if (flying && (!ch || ch.out >= 0)) {
-            var cp = R.camera.position;
+            var cp = R.camera.position, st = R.smooth.target;
+            /* Where the look stood off the ball at the strike (`lx`…): the
+               seat looks over the ball, and on a tee facing up a hill by a
+               lot (the Pop-Up Book's: two units up the page in front of it).
+               The chase looks at the ball itself, and taking that offset
+               away over IN dived the view ten degrees at the strike and
+               swung it back up as the ball rose — the owner's phone: "very
+               jarring … gives you motion sickness". So the offset rides
+               with the ball and is given back over LOOK instead. */
             ch = R.chase = { t: 0, out: -1, w: 0, peak: 0, floor: world.origin.y,
                 yaw: Math.atan2(b.vx, b.vz), d0: Math.hypot(cp.x - b.x, cp.z - b.z), y0: cp.y - b.y,
-                px: cp.x, py: cp.y, pz: cp.z };
+                px: cp.x, py: cp.y, pz: cp.z,
+                lx: st.x - b.x, ly: st.y - b.y, lz: st.z - b.z, lk: 1,
+                ox: cp.x - b.x, oy: cp.y - b.y, oz: cp.z - b.z };
         }
         if (!ch) return;
         ch.t += dt;
@@ -9712,6 +9903,7 @@
         ch.py = floor + up + h * LC.RISE + LC.DIVE * Math.max(0, ch.peak - h);
         var under = P.surfaceTop(world.hole, ch.px, ch.pz);
         if (under && ch.py < under.y + LC.CLEAR) ch.py = under.y + LC.CLEAR;
+        ch.lk = 1 - smooth01(ch.t / LC.LOOK);
     }
 
     /* Motion blur (CONFIG.MOTION_BLUR, postfx.js). What postfx needs is
@@ -10512,6 +10704,8 @@
         punch: punch,
         setCam: setCam,
         startDive: startDive,
+        dropTo: dropTo,
+        setWindup: setWindup,
         startLap: startLap,
         stopLap: stopLap,
         diving: diving,

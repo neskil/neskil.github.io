@@ -6809,6 +6809,49 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   speed trails it by speed × the lag, a gap that shrinks as the ball slows —
   the lurch). Follow seat only; the side seat keeps the launch lag, at
   `RELEASE` times its mini golf length on a long hole.
+- **No whips** (v1.235.0). The owner on the Pop-Up Book: "very jarring …
+  must be more smooth. Gives you motion sickness now." Traced frame by frame
+  at a fixed 60 Hz (a 5-iron from the tee), the camera had four corners in it,
+  each fixed where it starts:
+  - *The dip at the strike.* The seat looks over the ball by the hill in front
+    of it, and that tee faces two units up the page. The chase looks at the
+    ball, and took that offset away over `IN`: the view dived ten degrees in a
+    tenth of a second and swung back up as the ball rose, 1.8 rad/s each way.
+    Now the chase keeps the strike's offset and gives it back over `LOOK`
+    (1.2 s), and blends from the seat *as it stood at the strike*, carried
+    with the ball. The seat worked out afresh re-aims at the hill as the ball
+    leaves it.
+  - *Eye and look out of step.* While the chase is on, both ride a critically
+    damped spring (`SPRING`, render.js `chaseSpring`) that is told how fast the
+    seat moves, so a steady flight is followed with no lag and only the strike
+    and the bounces are softened.
+  - *The lift over a bank* (`CONFIG.SIGHT_EASE`, render.js `easedLift`). It is
+    read off the ground at a few points, so on stepped ground it stepped:
+    half a unit in a frame. It is on a spring now. The clearance under an eye
+    left behind is eased up too, not set.
+  - *The drop back* (render.js `dropTo`, game.js `dropBack`: out of play,
+    water, stuck). The seat jumps the length of the shot, and the camera eased
+    after it, twenty units back up the hole in half a second at up to fifty
+    units a second. Now it is the intro's cut: the frame is held and
+    photographed, then a short push in on to the tee while the picture wipes
+    away. A drop that leaves the seat within three units is eased as before.
+
+  The same shot after: the view goes from −12° to −7.6° with no reversal;
+  the fastest turn in the flight is 0.36–0.57 rad/s, down from 1.84, and the
+  angular acceleration peaks at 5.7 rad/s², down from 34. Before the Fire,
+  which nobody had complained about, went from 1.17 to 0.66 rad/s.
+- **Into place on the backswing** (`LONG_CAM.WINDUP`, render.js `setWindup`
+  / `stepWindup`, v1.235.0). The owner, next: "I guess it's not only that
+  map. Perhaps when you start the stroke you can start to align the camera
+  with a better start position?" While the club goes back (the swipe pulled
+  past `MIN_POWER`, or the needle or the arc running; game.js sets it every
+  frame), the follow seat on a long hole eases on a critically damped spring
+  towards where the chase would be a second in: `DIST` back on the aim line,
+  `UP` over the ball, looking at the ball. On the Pop-Up Book that is from
+  four units back to almost six, the look coming down off the hill on to
+  the ball, done before the strike. After a 0.8 s pull the fastest turn in
+  the flight is 0.50 rad/s there and 0.46 on Before the Fire (0.57 and 0.66
+  without it). A pull let go of without a shot eases back.
 
 ### The fourth camera, which is not a seat
 
