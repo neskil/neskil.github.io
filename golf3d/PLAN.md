@@ -48,8 +48,6 @@ Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the
 owner's yes before it is started.
 
-- **A tree line or gorse along each long hole's edge**, to hide the faint
-  line left where the ground meets the bank (v1.141.0).
 - **Another biome** after the alpine one, for the long game or a mini course:
   black-sand volcanic links, an autumn forest, a desert of dunes, or a course
   under floodlights at night.
@@ -77,6 +75,22 @@ Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **The edge of every long hole** (v1.230.0) — the tree line or gorse item
+  above, and the two lines it was meant to hide. The faint line was the
+  slab's own cut face: the bank was already falling where it crossed the
+  slab's edge, so a strip of brown earth showed all round the hole. The bank
+  now has a level shoulder past the edge before it falls (`SKIRT_SHOULDER`).
+  Then the fringe (render.addFringe, `theme.fringe`): instanced clumps in
+  thickets along the rough's sawtooth edge and in a wandering band in from
+  the ground's edge, thin over the country between, and trees in the
+  thickets — a shrubbery and stands of trees on Ashdown, whin in flower and
+  marram on Whinstone, heather, gorse and the odd pine on Dunmore, dwarf
+  pine, alpine rose, boulders and firs on Alpenglow. Scenery only, never
+  within 1.3 of the stakes (shader-tests → "The fringe"). Not done: Redstone
+  and Coral Keys have no fringe (the canyon floor and the lagoon have no
+  edge to hide); Whinstone's slab, which has no bank, still shows its edge
+  faintly from above; the clumps do not sway in the wind.
 
 - **The Cone** (v1.150.0) — Cinder Cone had no cone. *The Ash Slide* (a
   belt across a lane) is gone and the second hole is a hill on a keyhole
