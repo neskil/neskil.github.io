@@ -71,7 +71,7 @@
 
     /* The club for a mini tee that has to be chipped from. A hole flagged
        `needsLoft` cannot be played along the floor, so the mallet the other
-       mini tees start with is the one club sure to be wrong here: the Pitch
+       mini tees start with is the one club sure to be wrong here: the Gap Wedge
        if the bag has it, which is the chip, or else the club in it that flies
        the shortest — Glass Table hands out an iron and a checker, and the
        checker is the one it was built for. */

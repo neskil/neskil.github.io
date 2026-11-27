@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.239.1';
+G3.VERSION = '1.240.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -63,7 +63,11 @@ G3.CONFIG = {
            over eight units of it from a tee; this hands the pace on to the
            green beyond, where it is spent. */
         crust: 0.6,
-        sand: 0.004,   // a bunker eats a shot
+        /* A bunker slows a rolling ball hard, but no longer eats it: at
+           0.004 a putt in the sand went a quarter as far as on the green and the
+           owner found it "a little bit too powerful" (v1.240.0). What sand
+           does that nothing else does is take the bounce away — LANDING.sand. */
+        sand: 0.02,
         rough: 0.135,  // was 0.06, for the same reason as the fairway: ROLL holds it now
         cup: 0.004     // the bottom of the hole: whatever lands here stays
     },
@@ -273,7 +277,10 @@ G3.CONFIG = {
        the 7 iron: a 45° face already launches the ball at the sky and needs
        less help getting there than a 22° one. A topped shot is struck
        without spin and gets none. */
-    AIR_LIFT: [[12, 1.4], [17, 1.89], [22, 2.39], [32, 2.05], [45, 1.4], [58, 0.48]],
+    /* [38, 1.75] and [52, 0.9046] are pins, not clubs: they are what the
+       checker and the wedge read between 32/45 and 45/58 before the gap
+       wedge's point came down to 1.0, so lowering it moved nothing else. */
+    AIR_LIFT: [[12, 1.4], [17, 1.89], [22, 2.39], [32, 2.05], [38, 1.75], [45, 1.0], [52, 0.9046], [58, 0.48]],
     AIR_DECAY: 3,
 
     /* The swing gate itself — what a shot past a full swing has to do to keep
@@ -614,12 +621,22 @@ G3.CONFIG = {
            under three. Lifted, the pitch climbs three and the wedge three and
            a half, and both finish where they did. The run these two cards
            used to give, 14.6 and 13.0, was older than the turf they land on;
-           the card is measured now (tests.html, "what the card says"). */
+           the card is measured now (tests.html, "what the card says").
+
+           Then the owner (v1.240.0): the pitch "feels a bit weak" in mini golf
+           "and should not be called pitch". It was the weaker of the two
+           wedges — 10.5 to the 52° wedge's 11.2 — which is backwards for the
+           lower loft and left the two cards a metre apart. It is the Gap
+           Wedge now, with 13.5 of pace: 13.2 all told, between the 9 iron's
+           14.1 and the wedge's 11.2, so the ladder down the bag reads in
+           order in both games. Its lift came down (AIR_LIFT 1.4 to 1.0) so
+           the extra pace goes out rather than up and the top stays within a
+           stride of the drive. */
         {
-            id: 'chipper', name: 'Pitch', short: 'PW', key: '6',
-            loft: 45 * Math.PI / 180, power: 12.3, carry: 8.1, total: 10.5,
+            id: 'chipper', name: 'Gap Wedge', short: 'GW', key: '6',
+            loft: 45 * Math.PI / 180, power: 13.5, carry: 10.2, total: 13.2,
             shapes: ['backspin', 'topped'],
-            blurb: 'Up steep and down steeper. Stops near where it lands.'
+            blurb: 'The strong wedge. Carries the trouble and still checks up.'
         },
         /* The wedge was 58° and 12.7 of pace for a long while, and it read as
            the weakest swing in the bag: a full one fell short of the pitch
@@ -735,6 +752,11 @@ G3.CONFIG = {
        at the end of a drive could ever be in play. Fairway is the firm one
        and still gives a hop and a run; rough is soft and the ball sits down. */
     LANDING: {
+        /* Sand: the ball plugs. Next to no bounce, so whatever comes down in
+           a bunker stays down, and some of its run is lost in the splash
+           (the owner, v1.240.0: "the rolling shouldn't be that bad, but it
+           should reduce bounces to almost zero"). */
+        sand:    { grip: 0.65, bounce: 0.04 },
         fairway: { grip: 0.70, bounce: 0.24 },
         rough:   { grip: 0.55, bounce: 0.16 }
     },

@@ -3077,10 +3077,12 @@
                sand does the refusing. The tee stands in line with the end of
                the bar and the pin a little west of that line, right behind
                the gate's track, so the shot at the flag crosses the whole
-               depth of the sand — two and a half units of it — and a full
+               depth of the sand — four and a fifth units of it — and a full
                mallet comes out the other side at a walking pace and stops
                short of the gate's track. (It was two until v1.126.0, when the
-               mallet got stronger and a full one ran through two.) Nothing on the line was added to stop it; it is
+               mallet got stronger and a full one ran through two, and 2.6
+               until v1.240.0, when sand stopped eating a rolling ball whole —
+               CONFIG.FRICTION.sand.) Nothing on the line was added to stop it; it is
                the beach that was always there, and the flag now stands where
                the beach is in the way.
 
@@ -3098,9 +3100,9 @@
             name: 'Harbour Gate', par: 3,
             blurb: 'Through the gap in the beach, then past the gate. It drifts; it never shuts.',
             pads: [
-                pad(0, 0, 6, 4),
-                pad(0, 4, 4, 2.6, 0, 'sand'), pad(4, 4, 2, 2.6),
-                pad(0, 6.6, 6, 5.9)
+                pad(0, 0, 6, 3.4),
+                pad(0, 3.4, 4, 4.2, 0, 'sand'), pad(4, 3.4, 2, 4.2),
+                pad(0, 7.6, 6, 4.9)
             ],
             extra: [slider(1.6, 8.6, 2.0, 0.4, { amp: 1.5, speed: 0.7 })],
             tee: { x: 4, z: 2.4 }, cup: { x: 3.1, z: 9.6 },
@@ -5572,21 +5574,22 @@
             tee: { x: 1.6, z: 1.5 }, cup: { x: 6.4, z: 1.5 }
         }),
         build({
-            /* Grit across the ice, with a gap in it. Sand keeps four
-               thousandths of the ball's speed per second, so the strip is not
+            /* Grit across the ice, with a gap in it. Sand keeps two
+               hundredths of the ball's speed per second, so the strip is not
                an obstacle you cross slowly — it is one you do not cross at
                all. The gap is a metre and a half wide at the far side, which
                makes this the first hole on the course where the line matters
-               as much as the weight. The strip is 2.2 deep: at 1.6, the mallet
+               as much as the weight. The strip is 3.6 deep: at 1.6, the mallet
                of v1.126.0 (CONFIG, EXTRA_CLUBS) crossed it at full swing on
-               the line at the flag and stopped at the pin. */
+               the line at the flag and stopped at the pin, and at 2.2 the
+               softer sand of v1.240.0 let it through again. */
             name: 'The Salt Line', par: 3,
             blurb: 'A bar of grit across the ice with one gap in it. Sand does not let go.',
             pads: [
                 pad(0, 0, 6, 2.5),
                 pad(0, 2.5, 6, 6.5, 0, ice),
-                pad(0, 9, 4.4, 2.2, 0, 'sand'), pad(4.4, 9, 1.6, 2.2, 0, ice),
-                pad(0, 11.2, 6, 7.4, 0, ice),
+                pad(0, 9, 4.4, 3.6, 0, 'sand'), pad(4.4, 9, 1.6, 3.6, 0, ice),
+                pad(0, 12.6, 6, 6, 0, ice),
                 pad(0, 18.6, 6, 5)
             ],
             tee: { x: 2, z: 1.4 }, cup: { x: 3.4, z: 21 }
