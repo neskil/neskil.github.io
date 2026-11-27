@@ -6860,6 +6860,30 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   the flight is 0.50 rad/s there and 0.46 on Before the Fire (0.57 and 0.66
   without it). A pull let go of without a shot eases back.
 
+- **Held, then followed** (v1.238.0, render.js `watchChase` / `follow`,
+  `LONG_CAM.LEASH…SETTLE`). The owner: "the chase camera should be a lot
+  slower. Like keep it static then follow. Especially for short game … felt
+  like it's going back and forth", then "it looks quite ok for driver, but for
+  any other club it's weird". Traced at a fixed 60 Hz, a pitch's camera went
+  back to `DIST` at the strike and forward again to the address after it: three
+  reversals along the line, sixteen units of travel for a six-unit shot. So
+  only the clubs in `RIDE` (the driver) keep the riding chase above
+  (`rideChase`, unchanged, and the backswing move is theirs only). Every other
+  club's eye stands where it was at the strike and only the look turns, until
+  the ball is `LEASH` units off; then it walks after it on a critically damped
+  spring (`FOLLOW`) never faster than `MAX`, and from the landing it walks to
+  the follow seat at the ball (`R.rawSeat`) and hands over inside `ARRIVE`.
+  A shot from inside `NEAR` metres of the flag holds `HOLD` seconds first
+  ("perhaps around 1 s then move the camera"). The same 5-iron: eye at 10
+  u/s at most (17 before), no reversal; the pitch: none, nine units of travel.
+  After any long shot the seat stands `ABOVE` higher and comes down over
+  `ABOVE_T` once the ball is at rest (render.js `stepAbove`).
+- **The dev camera panel** (js/camtune.js, ☰ → Dev → Camera tuning). Sliders
+  over the knobs above, the driver's `DIST`, `LONG_LOOK.SEAT` and
+  `CONFIG.SPEED_LENS`, written straight into `G3.CONFIG` so the next shot
+  shows them; kept per browser in dev mode (`CAM_TUNE_KEY`), with Copy to send
+  the values back. Index.html only: nothing else needs it.
+
 ### The fourth camera, which is not a seat
 
 A hole is a shape before it is a shot, and the one moment a player can be shown
