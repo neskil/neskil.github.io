@@ -147,6 +147,12 @@
                     { shape: 'bush', colour: 0x3f5f2a, size: 0.7 }
                 ],
                 trees: 0.2, conifer: 0.45, leaf: [0x3d7a32, 0x59993f], density: 0.55
+            },
+            /* …and the forest the park is cut out of (render.addWoods): oak,
+               beech and pine in stands, over the country and down the bank. */
+            woods: {
+                density: 0.85, conifer: 0.4, h: [3.4, 6.2], reach: 34,
+                leaf: [0x255a24, 0x2f6328, 0x3a6e2c, 0x1f4a24, 0x447a30]
             }
         },
         links: {
@@ -308,7 +314,9 @@
                     { shape: 'bush', colour: 0x46593a, size: 0.55, bloom: 0xe5bf2e }
                 ],
                 trees: 0.07, conifer: 1, leaf: [0x2f5a36, 0x3b6b3a], density: 0.6
-            }
+            },
+            // A heath with Scots pine in clumps on it, not a forest.
+            woods: { density: 0.3, conifer: 0.85, h: [3, 5], reach: 26, leaf: [0x2f5a36, 0x3b6b3a, 0x34502f] }
         },
         /* ── the adventure courses ──────────────────────────────────────
 
@@ -470,6 +478,8 @@
                 ],
                 trees: 0.3, conifer: 1, leaf: [0x2c5638, 0x335f3e], density: 0.5
             },
+            // Fir forest below the treeline.
+            woods: { density: 0.7, conifer: 1, h: [3.6, 6.4], reach: 30, leaf: [0x2c5638, 0x335f3e, 0x264a33] },
             strata: [
                 [-99, '#55585d'], [-2.5, '#63666b'], [1.2, '#6e7176'], [3.4, '#5e6166'],
                 [5.0, '#76797e'], [7.6, '#84878c'], [10.0, '#eef2f6']
