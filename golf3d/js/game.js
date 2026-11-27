@@ -3558,19 +3558,30 @@
        off again with a `history.back()` whose `popstate` is ours to ignore,
        so the next back after that leaves the page as it always did.
 
-       The course list the game opens on is not a layer: it is the front door,
-       and back from the front door leaves, as it would from any page you have
-       just arrived on. (It is also opened without a tap, and Chrome skips a
-       history entry pushed before the page has been touched, so arming it
-       would leave anyway on some phones and not on others.) `menuFront`
-       marks it, and stays set through the shop and the achievements it can
-       hand over to, until none of the three is up.
+       The hole itself is the bottom layer: back from a round in progress,
+       with nothing open over it, opens the course list rather than dropping
+       the round and the site together. That list is then the front door, and
+       back from the front door leaves, as it would from any page you have
+       just arrived on — so back is never a trap, it is hole → list → out.
+       The course list the game opens on is the front door from the start.
+       `menuFront` marks it, and stays set through the shop and the
+       achievements it can hand over to, until none of the three is up.
+
+       Chrome skips, on the back button, a history entry the page pushed
+       without the user having touched it since the last navigation — and a
+       back is a navigation. The URL does not enter into it (a `#hash` entry
+       is skipped the same way), so the entry is only ever pushed once a real
+       press has landed since the last back: `backTouched`, set by the input
+       listeners in wireBack. Pushing straight after a back (one layer shut,
+       another still up), or on a round started from a link before anyone has
+       touched the page, would arm an entry the back button then jumps over,
+       and the player is off the site from a menu that looked captured.
        What is open is read off the page, not tracked, so no open or close
        path can forget to report itself: an observer on the layers' own class
        and hidden attributes re-asks after anything changes, once the handler
        that changed it has finished — so a close that opens the next layer
        (the shop going back to the menu) is never seen as nothing open. */
-    var backArmed = false, backEating = false, menuFront = false;
+    var backArmed = false, backEating = false, menuFront = false, backTouched = false;
 
     function shown(id) { var el = $(id); return !!el && el.classList.contains('show'); }
     function unhidden(id) { var el = $(id); return !!el && !el.hidden; }
@@ -3589,6 +3600,7 @@
         if ($('topbar-menu') && $('topbar-menu').classList.contains('open')) return 'topbar-menu';
         if (G3.bag && G3.bag.isExpanded()) return 'bag';
         if (miniMapOn) return 'mini-map';
+        if (state && state.world && state.course && !demo && !menuFront && !shown('menu')) return 'round';
         return null;
     }
 
@@ -3607,6 +3619,7 @@
             case 'topbar-menu': closeTopMenu(); break;
             case 'bag': G3.bag.setExpanded(false); syncPicker(); break;
             case 'mini-map': toggleMiniMap(false); break;
+            case 'round': openMenu(); menuFront = true; break;
         }
     }
 
@@ -3615,6 +3628,7 @@
         if (backEating || !window.history || !history.pushState) return;
         var up = !!backLayer();
         if (up && !backArmed) {
+            if (!backTouched) return;
             try { history.pushState({ g3back: true }, ''); backArmed = true; } catch (e) { /* ignore */ }
         } else if (!up && backArmed) {
             backArmed = false;
@@ -3624,6 +3638,7 @@
     }
 
     function onBack() {
+        backTouched = false;
         if (backEating) { backEating = false; syncBack(); return; }
         backArmed = false;
         var which = backLayer();
@@ -3634,6 +3649,13 @@
     function wireBack() {
         if (!window.history || !history.pushState) return;
         window.addEventListener('popstate', onBack);
+        /* The presses Chrome counts as the user's own (keydown, mousedown,
+           and a touch on its way up). The re-ask waits a turn so the click
+           the press becomes has done its opening or shutting first. */
+        var touched = function () { backTouched = true; setTimeout(syncBack, 0); };
+        ['pointerup', 'touchend', 'mousedown', 'keydown'].forEach(function (t) {
+            window.addEventListener(t, touched, true);
+        });
         if (window.MutationObserver) {
             var watch = new MutationObserver(syncBack);
             ['menu', 'howto', 'about', 'scorecard', 'dev-menu', 'forge-form',
