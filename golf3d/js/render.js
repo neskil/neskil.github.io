@@ -680,17 +680,28 @@
             pts.length = 0;
             pts.push(world.origin.x, b.y, world.origin.z);
             R.tracerOn = true;
+            R.tracerFirst = false;  // the first landing is not in the line yet
         }
         if (R.tracerOn) {
-            last = pts.length - 3;
-            var dx = b.x - pts[last], dy = b.y - pts[last + 1], dz = b.z - pts[last + 2];
-            if (dx * dx + dy * dy + dz * dz > T.STEP * T.STEP && pts.length < T.MAX * 3 - 3) pts.push(b.x, b.y, b.z);
-            if (world.firstLand || !world.moving) {
-                // To where it came down, at the height the ball is drawn at.
-                var fl = world.firstLand;
-                if (fl) pts.push(fl.x, fl.y - C.BALL_R * (1 - R.look), fl.z);
-                R.tracerOn = false;
+            /* Through the first bounce to where the hop comes down (the
+               owner, v1.237.0: "have like one bounce after it hits the
+               floor"), or to the first landing if the ball stayed down
+               there. Each touchdown goes in exactly where the physics had
+               it, at the height the ball is drawn at, and before this
+               frame's ball, which may already be past it. */
+            var fl = world.firstLand, hop = world.hopLand, sink = C.BALL_R * (1 - R.look);
+            if (fl && !R.tracerFirst) {
+                R.tracerFirst = true;
+                pts.push(fl.x, fl.y - sink, fl.z);
             }
+            var done = hop || !world.moving || (fl && (world.grounded || !world.inAir));
+            if (hop) pts.push(hop.x, hop.y - sink, hop.z);
+            else if (!done) {
+                last = pts.length - 3;
+                var dx = b.x - pts[last], dy = b.y - pts[last + 1], dz = b.z - pts[last + 2];
+                if (dx * dx + dy * dy + dz * dz > T.STEP * T.STEP && pts.length < T.MAX * 3 - 9) pts.push(b.x, b.y, b.z);
+            }
+            if (done) R.tracerOn = false;
         }
         if (!pts.length) return;
         // Held while the ball is going anywhere; faded after it stops.
@@ -8739,6 +8750,62 @@
         if (W.w > 1) { W.w = 1; W.v = Math.min(0, W.v); }
     }
 
+    /* The follow seat's pitch that keeps the flag in the picture: the
+       steepest one, no steeper than `most`, from which the top of the pin
+       (FIT.TOP over the cup) is still below FIT.NDC of the frame — under the
+       HUD rather than behind it. Measured off seatFor itself, at the aim
+       `yaw` the turn is heading for, rather than off a second copy of the
+       seat arithmetic. Never below FIT.MIN: a pin far down a long hole is a
+       speck either way, and a flat seat would trade the ground in front of
+       the ball for it. Used by game.js's turn to the cup after every stroke
+       (the owner: "the auto adjust aim would also be nice if it adjusted the
+       vertical angle a bit as well"). */
+    var _fitCam = new THREE.PerspectiveCamera(), _fitSeat = {}, _fitP = new THREE.Vector3();
+    function fitPitch(hole, ball, yaw, most) {
+        var c = R.cam, F = C.AIM_PITCH_FIT;
+        if (!hole || !hole.cup || !ball || c.mode !== 'follow' || c.lock) return most;
+        /* Everything seatFor reads that is not the seat itself is set aside
+           and put back: the flinch, the speed pull, the chase and windup
+           weights, and the bank lift's spring, which a seatFor outside
+           updateCamera restarts from wherever it is asked (easedLift). */
+        var keep = { yaw: c.yaw, pitch: c.pitch, kick: c.kick, pull: c.speedPull,
+                     chase: R.chase ? R.chase.w : 0, wind: R.windup ? R.windup.w : 0,
+                     lift: R.liftS ? { y: R.liftS.y, v: R.liftS.v } : null, dt: R.seatDt };
+        c.yaw = yaw; c.kick = 0; c.speedPull = 0; R.seatDt = 0;
+        if (R.chase) R.chase.w = 0;
+        if (R.windup) R.windup.w = 0;
+        _fitCam.fov = R.camera.fov; _fitCam.aspect = R.camera.aspect;
+        _fitCam.near = R.camera.near; _fitCam.far = R.camera.far;
+        _fitCam.updateProjectionMatrix();
+        var top = hole.cup.y + F.TOP, p = most, fits = false, best = most;
+        for (; p > F.MIN; p -= 0.02) {
+            c.pitch = p;
+            seatFor(hole, ball, _fitSeat);
+            /* Flatter is lower, and lower is into whatever stands behind the
+               ball: a bunker's face, a dune. Once the eye or its line to the
+               ball would be in the ground, it goes no flatter. */
+            if (!fitClear(hole, _fitSeat)) break;
+            best = p;
+            _fitCam.position.set(_fitSeat.px, _fitSeat.py, _fitSeat.pz);
+            _fitCam.lookAt(_fitSeat.tx, _fitSeat.ty, _fitSeat.tz);
+            _fitCam.updateMatrixWorld();
+            _fitP.set(hole.cup.x, top, hole.cup.z).project(_fitCam);
+            if (_fitP.z < 1 && _fitP.y <= F.NDC) { fits = true; break; }
+        }
+        c.yaw = keep.yaw; c.pitch = keep.pitch; c.kick = keep.kick; c.speedPull = keep.pull;
+        if (R.chase) R.chase.w = keep.chase;
+        if (R.windup) R.windup.w = keep.wind;
+        R.liftS = keep.lift; R.seatDt = keep.dt;
+        return fits ? p : best;
+    }
+    function fitClear(hole, s) {
+        for (var i = 1; i <= 10; i++) {
+            var k = i / 10, g = P.surfaceTop(hole, s.tx + (s.px - s.tx) * k, s.tz + (s.pz - s.tz) * k);
+            if (g && s.ty + (s.py - s.ty) * k < g.y + 0.25 + 0.35 * k) return false;
+        }
+        return true;
+    }
+
     function seatFor(hole, ball, out) {
         var c = R.cam;
         var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
@@ -10723,6 +10790,7 @@
         enterFlight: enterFlight,
         exitFlight: exitFlight,
         setLock: setLock,
+        fitPitch: fitPitch,
         setWaterQuality: setWaterQuality,
         setQuality: setQuality,
         get quality() { return R.quality; },

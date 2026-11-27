@@ -2747,12 +2747,25 @@
        and a different one means someone else has hold of it. */
     var aimTurn = null;
     var AIM_TURN_SECONDS = 0.65;
+    /* …and it tilts as well, when the flag would be off the top of the
+       picture from the new lie (render.js `fitPitch`, CONFIG.AIM_PITCH_FIT):
+       a seat that came in close for a putt, at the pitch that suited the
+       drive, looks at the turf in front of the ball with the pin cut off
+       behind the HUD. `pitchWant` is the pitch the player last chose, and
+       `pitchSet` the one the turn last wrote: while the camera still sits
+       where the turn left it, the next turn measures from what the player
+       chose, so a seat flattened for one putt goes back up for the next. A
+       drag that tilts the camera is a new choice, and lets go of the turn. */
+    var pitchWant = null, pitchSet = null;
 
     function turnToCup() {
         var b = state.world.ball, cup = state.world.hole.cup;
         if (Math.hypot(cup.x - b.x, cup.z - b.z) < 1e-3) return;
-        var to = Math.atan2(cup.x - b.x, cup.z - b.z);
-        aimTurn = { from: state.aim.yaw, to: turnTowards(state.aim.yaw, to, 1), t: 0, set: state.aim.yaw };
+        var to = turnTowards(state.aim.yaw, Math.atan2(cup.x - b.x, cup.z - b.z), 1);
+        if (pitchSet === null || R.cam.pitch !== pitchSet) pitchWant = R.cam.pitch;
+        var tilt = R.fitPitch ? R.fitPitch(state.world.hole, b, to, pitchWant) : R.cam.pitch;
+        aimTurn = { from: state.aim.yaw, to: to, t: 0, set: state.aim.yaw,
+                    pFrom: R.cam.pitch, pTo: tilt, pSet: R.cam.pitch };
     }
 
     function tickAimTurn(dt) {
@@ -2761,6 +2774,10 @@
         aimTurn.t = Math.min(1, aimTurn.t + dt / AIM_TURN_SECONDS);
         var e = aimTurn.t * aimTurn.t * (3 - 2 * aimTurn.t);
         state.aim.yaw = aimTurn.set = aimTurn.from + (aimTurn.to - aimTurn.from) * e;
+        // The tilt gives way on its own terms: a drag up or down has hold of it.
+        if (aimTurn.pSet !== null && R.cam.pitch === aimTurn.pSet) {
+            R.cam.pitch = aimTurn.pSet = pitchSet = aimTurn.pFrom + (aimTurn.pTo - aimTurn.pFrom) * e;
+        } else aimTurn.pSet = null;
         if (aimTurn.t >= 1) aimTurn = null;
     }
 
@@ -9406,7 +9423,9 @@
         /* Whether the demo is up, for a driver taking a picture of it — and
            for one that has to know it is *not*, which is the question a
            screenshot of anything else silently depends on. */
-        get demo() { return !!demo; }
+        get demo() { return !!demo; },
+        // The turn to the cup after a stroke, for a driver checking its tilt.
+        turnToCup: turnToCup
     };
 
 })(window.G3);

@@ -1845,6 +1845,7 @@
         world.loopFor = 0;
         world.age = 0;
         world.firstLand = null;
+        world.hopLand = null;
         world.carry = 0;
         world.lift = air || topped ? 0 : liftFor(world.hole, l);
         world.air = air ? (topped ? 0 : air.cl) : 0;
@@ -2599,6 +2600,8 @@
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
                 if (!world.firstLand) world.firstLand = { x: b.x, y: b.y, z: b.z };
+                // …and where the hop after it comes down: the tracer draws through one bounce.
+                else if (!world.hopLand) world.hopLand = { x: b.x, y: b.y, z: b.z };
                 world.lift = 0;          // the flight is over; a hop is a plain arc
                 world.air = 0;           // …and in the long game's air, a hop without spin
                 var impact = -b.vy;
