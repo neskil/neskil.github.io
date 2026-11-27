@@ -129,7 +129,7 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | 5 Iron | 3 | 17° | 17.9 | 20.7 | 3.39 | 27.0 | The long iron: the second shot on a par 5, and the long par 3. |
 | 7 Iron | 4 | 22° | 14.4 | 13.9 | 3.21 | 17.9 | The long approach. Carries what the driver runs into. |
 | 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
-| Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper. Stops near where it lands. |
+| Gap Wedge | 6 | 45° | 13.5 | 10.2 | 3.43 | 13.2 | The strong wedge: carries the trouble and still checks up. It was the Pitch (12.3, 10.5 all told) until v1.240.0, when the owner found it weak beside the 52° wedge — the lower loft should be the longer club. |
 | Wedge | 7 | 52° | 13.3 | 8.8 | 3.79 | 11.2 | The lob: straight up, over anything, and it does not run when it lands. |
 | Mallet | 8 | 0° | 20 | — | — | 12.1 (15.8 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
 | Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
@@ -231,7 +231,7 @@ club with that much reach would quietly become the answer to half the course.
 
 Which club is in hand on a mini tee follows from the same split: the mallet,
 because the lane is the hole, except on a hole flagged `needsLoft`, which
-starts with the Pitch (or, where the hole's own bag has no Pitch, the club in
+starts with the Gap Wedge (or, where the hole's own bag has none, the club in
 it that flies the shortest: the Checker on Glass Table) — the mallet is the one club sure to be wrong on a hole
 that cannot be played along the floor (`loftClub` in `game.js`).
 
@@ -2247,12 +2247,18 @@ swing, so where the ball *stops* starts to matter as much as where it is going.
 
 The numbers it is built against, measured off a flat lie at full power:
 
-| | Putter | Driver | 5 Iron | 7 Iron | 9 Iron | Pitch | Wedge |
+| | Putter | Driver | 5 Iron | 7 Iron | 9 Iron | Gap Wedge | Wedge |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Green | 8.0 | 52.6 | 34.6 | 23.2 | 18.4 | 14.0 | 12.9 |
-| Fairway | 5.5 | 41.4 | 27.0 | 17.9 | 14.1 | 10.5 | 9.6 |
-| Rough | 3.4 | 36.1 | 23.6 | 15.8 | 12.4 | 9.2 | 8.5 |
-| Sand | 1.9 | 43.8 | 28.9 | 19.4 | 15.4 | 11.6 | 10.8 |
+| Green | 8.0 | 52.6 | 34.6 | 23.2 | 18.4 | 17.5 | 14.8 |
+| Fairway | 5.5 | 41.4 | 27.0 | 17.9 | 14.1 | 13.2 | 11.2 |
+| Rough | 3.4 | 36.1 | 23.6 | 15.8 | 12.4 | 11.5 | 9.9 |
+| Sand | 2.6 | 34.9 | 23.0 | 15.5 | 12.2 | 11.4 | 9.7 |
+
+The sand row was the wrong way round until v1.240.0: sand landed on the
+felt's bounce, so a drive into a bunker hopped out of it and finished past
+the same drive on the fairway (43.8). It plugs now (`LANDING.sand`: next to
+no bounce) and lets a rolling ball go a little further than it did
+(`FRICTION.sand` 0.004 to 0.02).
 
 (Measured at the current release. The course was first built when the driver was
 a 10° club carrying 19.4, so the figures quoted in the rest of this section are
@@ -7542,10 +7548,12 @@ ends.
 
 On a phone, **back** (the button or the edge swipe) shuts whatever is open —
 a dialog, the ☰ panel, the club picker, the map — one layer at a time, the
-same layer <kbd>Esc</kbd> would, and leaves the site only once nothing is open.
-The course list the game opens on is the exception: back from it leaves, as
-from any page just arrived on. How the history entry is kept is at the site
-(`game.js → syncBack`).
+same layer <kbd>Esc</kbd> would. With nothing open over a round in progress,
+back opens the course list instead of leaving; back from that list — or from
+the one the game opens on — leaves, as from any page just arrived on. So back
+is hole → list → out, never a trap. Chrome jumps over a history entry pushed
+without a press since the last back, so the entry waits for one. How it is
+kept is at the site (`game.js → syncBack`).
 
 ### Under a thumb
 
