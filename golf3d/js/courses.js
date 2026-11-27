@@ -1075,6 +1075,7 @@
         if (o.y === undefined) w.seat = 0.4;      // how far its base sinks
         if (o.palm) w.palm = true;                // drawn as a palm (render.addTree)
         if (o.fir) w.fir = true;                  // …or as a mountain fir
+        if (o.still) w.still = true;              // a thicket's: drawn batched, no sway
         return w;
     }
 
@@ -1100,8 +1101,24 @@
             for (i = 0; i < clear.length && ok; i++) {
                 if (Math.hypot(clear[i].x - x, clear[i].z - z) < clear[i].r) ok = false;
             }
-            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4, fir: o.fir }));
+            if (ok) out.push(tree(x, z, { t: 0.42 + rnd() * 0.3, h: 2.6 + rnd() * 1.4, fir: o.fir, still: o.still }));
         }
+        return out;
+    }
+
+    /* A thicket: one wood out of several overlapping ovals ([cx, cz, rx,
+       rz, n] each), so its edge is ragged rather than an ellipse. Each oval
+       keeps clear of the trunks the ones before it planted, so no two trunks
+       anywhere in it are nearer than `gap`. */
+    function thicket(lobes, seed, opts) {
+        var o = opts || {}, out = [], gap = o.gap || 1.6;
+        lobes.forEach(function (L, i) {
+            var clear = (o.clear || []).concat(out.map(function (t) {
+                return keep(t.x + t.w / 2, t.z + t.d / 2, gap);
+            }));
+            out = out.concat(forest(L[0], L[1], L[2], L[3], L[4], seed + i * 7,
+                { gap: gap, still: o.still, fir: o.fir, clear: clear }));
+        });
         return out;
     }
 
@@ -4317,21 +4334,29 @@
             });
         })(),
         (function () {
-            /* A dogleg that is one. The tee is on a bluff at the east end of
-               the property, the fairway runs north and then turns hard left
-               along the top of the hole to a green on a shelf, and the inside
-               of the corner is a pond behind a line of oaks.
+            /* A dogleg that is one, round a wood. The tee is on a bluff at
+               the east end of the property, the fairway runs north and then
+               turns hard left along the top of the hole to a green on a
+               shelf, and the inside of the corner is forest — a hundred
+               trunks on a knoll and a hollow, where there used to be a pond
+               behind a line of oaks (v1.232.0). Borrowed from the heathland
+               courses cut out of pine woods, where the trees are the hazard
+               and the penalty is the shot out from among them.
 
                Three ways to play it. Round the corner: a drive to the turn,
                short of the bunker that waits for the ones that run through it,
-               and a long iron across. At the flag: a carry over the oaks and
-               the water that leaves a pitch, if it gets there. Or the half-way
-               house that is the actual wager — how much of the corner you are
-               prepared to take on. */
+               and a long iron across. Over the wood: a carry the whole way to
+               the fairway at the turn, which only a full drive off the bluff
+               makes, and leaves a pitch. Or the half-way house — how much of
+               the corner you dare take on — and anything that comes down
+               short of the far side is in among the trunks, chipping out
+               sideways. */
             var field = [].concat(
                 massif(46, 22, 13, 2.3, 5),
                 massif(-11, 30, 12, 2.2, 5),
-                [hill(5.5, 58.5, 2.4, 0.4)]
+                [hill(5.5, 58.5, 2.4, 0.4)],
+                // The wood's own ground: a knoll, a hollow and a rise.
+                [hill(9, 15.5, 4.6, 0.55), hill(11.5, 27, 4.4, -0.42), hill(6, 33, 3.6, 0.35)]
             );
             var park = commons(-6, [
                 [{ d: 6, y: 3.4 },      [20, rgh], [9, fwy], [5, rgh]],
@@ -4346,26 +4371,25 @@
                 [4,                     [34, rgh]]
             ]);
             var ground = shape(scoop(park.pads, { seed: 27 }), field);
-            // The pond inside the corner, its long side under the oaks.
-            var lobes = mere(8.6, 25.8, 4.8, 6.6, 2.0, 5321);
-            var lake = pond(ground, lobes);
-            var wet = clearOf(lobes);
             return build({
                 name: 'The Elbow', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Off the bluff and hard left at the top. Go round the corner, or over the oaks and the pond inside it.',
+                blurb: 'Off the bluff and hard left at the top. Go round the corner, or carry the wood inside it — come down short and you are among the trunks.',
                 pads: ground.concat([
                     inlay(ground, 27, 40.5, 1.8, snd, 1.6),
                     inlay(ground, 15, 51.5, 1.4, snd, 1.6),
                     inlay(ground, 9, 51.5, 4.4, grn, 3.6)
                 ]),
                 fence: widen(park.fence, 6, 6),
-                water: [lake],
                 extra: [].concat(
-                    [tree(17.5, 34.5, { t: 0.9, h: 3 })],
-                    forest(17.2, 23.8, 0.7, 8.6, 8, 5301, { gap: 1.9, clear: wet }),
+                    /* The wood in the corner, thick enough that a ball in it
+                       hits wood more often than not: trunks a unit and a half
+                       apart, right up to the fairway's edge and the turn. */
+                    thicket([[8.5, 15, 7.4, 6.5, 46], [12, 27.5, 6.2, 8, 44], [4.5, 30.5, 3.8, 5.2, 16],
+                             [15.5, 11, 3, 3.4, 8]], 5301, { gap: 1.35, still: true,
+                        clear: [keep(24.5, 22, 5.6), keep(24.5, 34, 5.6), keep(10, 38.5, 2.6)] }),
                     forest(1.5, 46, 0.9, 9.5, 5, 5303, { gap: 2.2 }),
                     forest(32.6, 27, 0.8, 16, 7, 5307, { gap: 2.2 }),
-                    forest(-3, 38, 2.4, 20, 10, 5309, { gap: 2.4, clear: wet }),
+                    forest(-3, 38, 2.4, 20, 10, 5309, { gap: 2.4 }),
                     forest(37, 26, 2.4, 26, 10, 5311, { gap: 2.4, clear: [keep(30, 50, 4)] }),
                     crags(30, 50, 3, 5, 7113, { s: 1.3, h: 1.0 })
                 ),
@@ -4373,50 +4397,64 @@
             });
         })(),
         (function () {
-            /* The pond hole, and the green is a disc now: a round table on a
-               shelf a third of a unit above the water, with sand short-left,
-               sand long-right and a bank behind it that will hold a strong one
-               up. Only the iron carries the water on the line to the flag —
-               carry falls off with the square of the speed, so taking anything
-               off it is how you get wet — and the dry way in is still out to
-               the right, off the tongue of fairway the pond does not reach. */
+            /* The island green (v1.232.0), after the seventeenth at
+               Ponte Vedra that every golfer knows from television: a round
+               table in a lake, water all the way round it, and nothing
+               between the tee and the flag but a short iron and a held
+               breath. The ground falls off the bluff to a lake that fills
+               the floor of the park, and the island is the one piece of it
+               left standing — a ring of hollows round a green they never
+               reach under, with a walkway out to it at the back.
+
+               The dry way is to the left from the tee: a strip of fairway on
+               the east shore, the drop zone, which the iron reaches at three
+               quarters, and from there a pitch over the channel. A stroke
+               for anybody who does not trust the swing. */
             var field = [].concat(
-                ridge(4.5, 27, 13.5, 27, 2.0, 0.45, 5),
-                massif(-9, 20, 11, 2.1, 5),
-                [hill(1.6, 22.5, 1.6, -0.23)]
+                ridge(4.5, 31, 19.5, 31, 2.4, 0.4, 5),
+                massif(-9, 18, 11, 2.1, 5),
+                [hill(23, 9, 2.6, 0.3)]
             );
             var park = commons(0, [
-                [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [6, rgh]],
-                [{ d: 2, sz: -1.35 },   [18, rgh]],
-                [8,                     [2.5, rgh], [7.5, rgh], [2.5, fwy], [5.5, rgh]],
-                [{ d: 2, sz: 0.24 },    [2.5, rgh], [13, fwy], [2.5, rgh]],
-                [3,                     [4.1, rgh], [11.4, fwy], [2.5, rgh]],
-                [6.5,                   [2.5, rgh], [10, fwy], [5.5, rgh]],
-                [4,                     [18, rgh]]
+                [{ d: 3.5, y: 4.2 },    [3, rgh], [9, fwy], [14, rgh]],
+                [{ d: 2.5, sz: -1.1 },  [26, rgh]],
+                [7.5,                   [20, rgh], [6, fwy]],
+                [14,                    [20, rgh], [6, fwy]],
+                [6,                     [26, rgh]]
             ], { w: 22 });
-            var ground = shape(scoop(park.pads, { seed: 23 }), field);
-            /* The pond is three hollows in the floor of the dell rather than a
-               rectangle cut out of it — a blob with a bay on the near side and
-               a long tail towards the green. */
-            var lake = pond(ground, [[6.2, 9.4, 3.3, 1.15], [4.3, 11.0, 2.3, 0.95], [8.0, 7.4, 1.8, 0.8]]);
+            var ground = shape(park.pads, field);
+            var gx = 9.2, gz = 21.6, gr = 3.6;
+            /* The lake: a ring of hollows standing far enough out that not
+               one reaches under the green (a lobe of radius r at 7.2 out
+               touches nothing nearer than 7.2 - r), with a gap at the back
+               for the walkway, and a mere across the front that the ring
+               runs into, so it is one sheet of water at one level. */
+            var lobes = [], k, ang;
+            for (k = 0; k < 26; k++) {
+                ang = k / 26 * Math.PI * 2;
+                if (Math.abs(Math.atan2(Math.sin(ang - 1.25), Math.cos(ang - 1.25))) < 0.2) continue;
+                lobes.push([gx + Math.cos(ang) * 7.2, gz + Math.sin(ang) * 7.2, 2.3, 1.0]);
+            }
+            lobes = lobes.concat(mere(gx, 11.2, 7.6, 4.0, 2.6, 5413).filter(function (L) {
+                return Math.hypot(L[0] - gx, L[1] - gz) - L[2] > gr + 0.5;
+            }));
+            var lake = pond(ground, lobes);
             return build({
                 name: 'Over the Water', par: 3, long: true, shaped: true, open: true,
-                blurb: 'Off a high bluff and over eight units of pond to a round green on a shelf. The dry way is down the right.',
+                blurb: 'An island green: off the bluff, over the lake, and nothing short of the green but water. The drop zone is on the left.',
                 pads: ground.concat([
-                    inlay(ground, 2.8, 17.5, 1.5, snd, 1.4),
-                    inlay(ground, 14, 21.8, 1.6, snd, 2.5),
-                    circle(7.5, 20.5, 3.6, grn, 1.98)
+                    inlay(ground, 23, 26.6, 1.3, snd, 1.1),
+                    inlay(ground, gx, gz, gr, grn)
                 ]),
                 fence: widen(park.fence, 5, 5),
                 water: [lake],
                 extra: [].concat(
-                    forest(16.6, 10, 0.7, 6, 4, 5401, { gap: 2.2 }),
-                    forest(-3, 16, 2, 10, 7, 5403, { gap: 2.4, clear: [keep(-5, 18, 4.5)] }),
-                    forest(21.5, 15, 2, 11, 7, 5407, { gap: 2.4 }),
+                    forest(-3, 16, 2, 10, 7, 5403, { gap: 2.4, clear: [keep(-5, 18, 4.5)].concat(clearOf(lobes)) }),
+                    forest(29.5, 15, 2, 11, 7, 5407, { gap: 2.4 }),
                     crags(-5, 18, 3.5, 5, 7119, { s: 1.4, h: 1.1 }),
                     [tree(1.2, 3)]
                 ),
-                tee: { x: 10.5, z: 1.75 }, cup: { x: 7.5, z: 21 }
+                tee: { x: 7.5, z: 1.75 }, cup: { x: 9.2, z: 22 }
             });
         })(),
         (function () {
@@ -4509,18 +4547,31 @@
                be five boxes in a staircase. Every pool stays a unit or more
                off the mown line, so the shoreline is in the rough. */
             var ground = shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field);
+            /* …and two more since v1.232.0, so the water runs the whole
+               length of the hole the way it does down the last at Ponte
+               Vedra: a fourth pool where a long drive finishes, and the last
+               wrapped round the side and the back of the green, which now
+               stands on a peninsula. The approach is played with water on
+               the side the ground falls to, and long is wet as well. */
+            var wrap = [], k, ang;
+            for (k = 0; k <= 11; k++) {
+                ang = -0.5 + k / 11 * 2.15;
+                wrap.push([12.5 + Math.cos(ang) * 8.6, 48 + Math.sin(ang) * 7.2, 2.3, 1.1]);
+            }
             var pools = [
-                mere(19.0, 8.0, 4.4, 2.4, 3.4, 5611),
-                mere(17.8, 15.6, 4.6, 2.4, 3.6, 5613),
-                mere(18.4, 22.9, 4.4, 2.4, 3.6, 5617)
+                mere(19.0, 8.0, 4.4, 3.3, 4.4, 5611),
+                mere(17.8, 15.6, 4.6, 3.3, 4.6, 5613),
+                mere(18.4, 23.0, 4.4, 3.3, 4.6, 5617),
+                mere(19.4, 31.4, 3.6, 3.3, 4.2, 5619),
+                mere(20.2, 38.0, 3.0, 2.1, 3.6, 5623),
+                wrap
             ];
             var lakes = pools.map(function (L) { return pond(ground, L); });
             return build({
                 name: 'Homeward', par: 4, long: true, shaped: true, open: true,
-                blurb: 'Three pools step down the right and the ground falls into them. Bite off what you dare.',
+                blurb: 'Water the whole way down one side, the ground falling into it, and a green out on a peninsula. Bite off what you dare.',
                 pads: ground.concat([
                     inlay(ground, 6.4, 45.6, 1.3, snd, 1.4),
-                    inlay(ground, 18.9, 50.5, 1.2, snd, 1.5),
                     inlay(ground, 12.5, 48, 4.8, grn, 3.6)
                 ]),
                 fence: widen(park.fence, 6, 3),
@@ -4529,7 +4580,7 @@
                     forest(2, 24, 0.9, 16, 9, 5601, { gap: 2.2 }),
                     forest(-3, 26, 2.4, 24, 11, 5603, { gap: 2.4, clear: [keep(1.4, 46, 4)] }),
                     crags(1.4, 46, 3, 5, 7137, { s: 1.3, h: 1.0 }),
-                    [tree(21.4, 45.5), tree(21.4, 53.5), tree(23.6, 30.5), tree(24.2, 36)]
+                    [tree(24.6, 38.5), tree(25.2, 30.5)]
                 ),
                 tee: { x: 8.5, z: -8 }, cup: { x: 12.5, z: 48 }
             });
@@ -7476,7 +7527,7 @@
             var ford2 = pond(g, burn([[-10, 65.6], [6, 65.0], [18, 66.0], [36, 65.4]], 1.3, 0.55, 9723));
             return alp({
                 name: 'Two Fords', par: 5,
-                blurb: 'Down a valley with the glacier stream across it twice. Carry the first ford off the tee and the second is in reach.',
+                blurb: 'Down a valley with the glacier stream across it twice and a stand of firs between. Carry the first ford, pick a side of the trees, and come in down the chute.',
                 pads: g.concat([
                     inlay(g, 16.4, 78.5, 1.4, snd, 1.2),
                     inlay(g, 10.5, 75, 4.6, grn, 4.2)
@@ -7486,7 +7537,17 @@
                 extra: [].concat(
                     forest(-6, 24, 4, 7, 8, 9725, { fir: true }),
                     forest(32, 56, 4, 7, 8, 9727, { fir: true }),
-                    forest(-6, 76, 4, 6, 7, 9729, { fir: true })
+                    forest(-6, 76, 4, 6, 7, 9729, { fir: true }),
+                    /* A stand of firs left in the middle of the valley
+                       (v1.232.0), where the second shot comes down: the
+                       fairway goes either side of it, and the side is the
+                       choice — the near one is shorter and the far one sees
+                       the green. Then a chute of firs either side of the
+                       second ford, so the approach is played down a lane
+                       of trunks. */
+                    thicket([[15, 48.5, 1.9, 3.6, 10], [14.2, 53.6, 1.4, 1.9, 4]], 9741, { gap: 1.25, fir: true, still: true }),
+                    thicket([[1.6, 66, 2.2, 6.5, 12], [21.5, 66.5, 2.6, 6, 13]], 9747, { gap: 1.35, fir: true, still: true,
+                        clear: [keep(10.5, 75, 6.2)] })
                 ),
                 tee: { x: 11, z: 2 }, cup: { x: 11, z: 75.5 }
             });

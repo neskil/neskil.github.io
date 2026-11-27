@@ -874,6 +874,41 @@
                 R.state.scene.traverse(function (o) { if (/^fringe-/.test(o.name)) n++; });
                 assert('a drawn hole grows no fringe', n === 0, n);
             })();
+
+            /* The woods (render.addWoods, v1.232.0): a forest past the
+               stakes on the courses cut out of one. Scenery only, so the
+               thing to hold is where it stands: never on the play side of
+               the rough's edge (no nearer the stakes than 0.5 + WOODS_IN),
+               never in the tee's clearing, never in water. */
+            section('THE WOODS');
+            ['parkland', 'dunmore', 'alpine'].forEach(function (id) {
+                var c = G3.courseById(id), worst = Infinity, nearTee = Infinity, wet = 0, n = 0;
+                c.holes.forEach(function (h) {
+                    R.buildHole(h, c.theme, null);
+                    var rects = P.fenceRects(h);
+                    R.state.scene.traverse(function (o) {
+                        if (!o.isInstancedMesh || !/^woods-(cone|crown)$/.test(o.name)) return;
+                        for (var i = 0; i < o.count; i++) {
+                            o.getMatrixAt(i, _fm4);
+                            _fv.setFromMatrixPosition(_fm4);
+                            worst = Math.min(worst, fenceDist(rects, _fv.x, _fv.z));
+                            nearTee = Math.min(nearTee, Math.hypot(_fv.x - h.tee.x, _fv.z - h.tee.z));
+                            if (P.waterAt(h, _fv.x, _fv.z)) wet++;
+                            n++;
+                        }
+                    });
+                });
+                assert(id + ': a wood stands round every hole (' + n + ' trees)', n > 6 * 100, n);
+                assert(id + ': none of it nearer the stakes than the rough\'s edge allows', worst >= 2.09, worst.toFixed(2));
+                assert(id + ': none of it in the clearing round the tee', nearTee >= 14.99, nearTee.toFixed(2));
+                assert(id + ': and none of it in the water', wet === 0, wet);
+            });
+            (function () {
+                var c = G3.courseById('whinstone'), n = 0;
+                R.buildHole(c.holes[0], c.theme, null);
+                R.state.scene.traverse(function (o) { if (/^woods-/.test(o.name)) n++; });
+                assert('a links grows no wood', n === 0, n);
+            })();
         }
 
         /* The black holes (render.js "the black hole", v1.129.0): one shader
