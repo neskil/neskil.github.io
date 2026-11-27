@@ -5691,18 +5691,26 @@
         var hz = wall.z + wall.d / 2;
         var rotor = new THREE.Group();
         rotor.position.set(sl.hx, sl.hy, hz);
+        /* Three layers, front (−z, the tee's side) to back, and no two faces
+           at the same depth: the spar, the cross-bars through it, then the
+           cloth behind both. The cloth used to sit *inside* the spar with
+           its front face level with the spar's, and two coplanar faces
+           z-fight — the spar showed through the cloth as a ragged stripe
+           that crawled across the blade as it turned, which on a phone read
+           as a flickering sail that bent (the owner, v1.237.1). The back of
+           the stack stays a hand short of the tower behind it. */
         for (k = 0; k < 4; k++) {
             arm = new THREE.Group();
             arm.rotation.z = k * Math.PI / 2;
             part = new THREE.Mesh(new THREE.BoxGeometry(0.1, L, 0.1), W.sails);
-            part.position.y = -L / 2;
+            part.position.set(0, -L / 2, -0.06);                    // −0.11 … −0.01
             arm.add(part);
-            part = new THREE.Mesh(new THREE.BoxGeometry(sl.width, L * 0.76, 0.04), W.cloth);
-            part.position.set(0, -L * 0.6, -0.03);
+            part = new THREE.Mesh(new THREE.BoxGeometry(sl.width, L * 0.76, 0.025), W.cloth);
+            part.position.set(0, -L * 0.6, 0.0225);                 // +0.01 … +0.035
             arm.add(part);
             for (var b = 0; b < 3; b++) {
-                part = new THREE.Mesh(new THREE.BoxGeometry(sl.width + 0.08, 0.06, 0.08), W.sails);
-                part.position.set(0, -L * (0.3 + b * 0.32), 0.02);
+                part = new THREE.Mesh(new THREE.BoxGeometry(sl.width + 0.08, 0.06, 0.05), W.sails);
+                part.position.set(0, -L * (0.3 + b * 0.32), -0.045); // −0.07 … −0.02
                 arm.add(part);
             }
             arm.traverse(function (o) { o.castShadow = true; });
