@@ -7527,10 +7527,12 @@ ends.
 
 On a phone, **back** (the button or the edge swipe) shuts whatever is open —
 a dialog, the ☰ panel, the club picker, the map — one layer at a time, the
-same layer <kbd>Esc</kbd> would, and leaves the site only once nothing is open.
-The course list the game opens on is the exception: back from it leaves, as
-from any page just arrived on. How the history entry is kept is at the site
-(`game.js → syncBack`).
+same layer <kbd>Esc</kbd> would. With nothing open over a round in progress,
+back opens the course list instead of leaving; back from that list — or from
+the one the game opens on — leaves, as from any page just arrived on. So back
+is hole → list → out, never a trap. Chrome jumps over a history entry pushed
+without a press since the last back, so the entry waits for one. How it is
+kept is at the site (`game.js → syncBack`).
 
 ### Under a thumb
 
