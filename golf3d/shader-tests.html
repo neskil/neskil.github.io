@@ -830,6 +830,50 @@
                     ok && errs.length === 0 && bad.length === 0,
                     why || errs.concat(bad).join(' | ').slice(0, 300));
             });
+
+            /* The fringe (render.addFringe): gorse, heather and the odd tree
+               where a long hole ends. Scenery that nothing collides with, so
+               the one rule it has to keep is distance — a ball is out the
+               moment it crosses the stakes, so a plant well past them is one
+               no ball in play can roll through. Every long theme that has a
+               `fringe` grows one, and a drawn hole grows none. */
+            section('THE FRINGE');
+            var fringeOut = 1.29, _fm4 = new THREE.Matrix4(), _fv = new THREE.Vector3();
+            function fenceDist(rects, x, z) {
+                var d = Infinity;
+                rects.forEach(function (f) {
+                    var dx = Math.max(f.x - x, 0, x - (f.x + f.w));
+                    var dz = Math.max(f.z - z, 0, z - (f.z + f.d));
+                    d = Math.min(d, Math.sqrt(dx * dx + dz * dz));
+                });
+                return d;
+            }
+            ['parkland', 'whinstone', 'dunmore', 'alpine'].forEach(function (id) {
+                var c = G3.courseById(id), worst = Infinity, n = 0;
+                c.holes.forEach(function (h) {
+                    R.buildHole(h, c.theme, null);
+                    var rects = P.fenceRects(h);
+                    R.state.scene.traverse(function (o) {
+                        // The flowers on the gorse sit on their clump; the clump is what is placed.
+                        if (!o.isInstancedMesh || !/^fringe-/.test(o.name) || o.name === 'fringe-bloom') return;
+                        for (var i = 0; i < o.count; i++) {
+                            o.getMatrixAt(i, _fm4);
+                            _fv.setFromMatrixPosition(_fm4);
+                            worst = Math.min(worst, fenceDist(rects, _fv.x, _fv.z));
+                            n++;
+                        }
+                    });
+                });
+                assert(id + ': the fringe grows on every long hole (' + n + ' clumps)', n > 6 * 40, n);
+                assert(id + ': and none of it within ' + fringeOut + ' of the stakes', worst >= fringeOut,
+                    worst.toFixed(2));
+            });
+            (function () {
+                var c = G3.courseById('works'), n = 0;
+                R.buildHole(c.holes[0], c.theme, null);
+                R.state.scene.traverse(function (o) { if (/^fringe-/.test(o.name)) n++; });
+                assert('a drawn hole grows no fringe', n === 0, n);
+            })();
         }
 
         /* The black holes (render.js "the black hole", v1.129.0): one shader

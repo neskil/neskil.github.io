@@ -6338,12 +6338,41 @@ that was twenty-eight bearings out of ninety-six. The start is read off the pads
 which are the ground. It costs 3.4 ms on the worst hole in the file, once, at
 build.
 
+**A shoulder before the fall** (v1.230.0). The bank's first ring is tucked
+under the slab and its second is level with the edge, `SKIRT_SHOULDER` past
+it; only then does the curve start. Without it the triangle from the tuck to
+the first ring of the fall was already dropping where it crossed the slab's
+edge, and the slab's cut face showed above the bank as a thin brown line
+round the whole hole — from every angle but the tee.
+
 **The drawn holes do not get one, and should not.** A slab in the sea is the
 house style on the mini and crazy courses and reads as a model on a table on
 purpose — see PLAN.md §1, which is about what stands *on* the table rather than
 about hiding its edge. `skirtPlan` returns nothing for them, and a course whose
 ground already lies near the country around it gets nothing either: the links is
 half a unit above its own, and half a unit is not a hillside.
+
+#### The fringe
+
+What grows where a long hole ends (`render.addFringe`, `theme.fringe`).
+Drawing the rough past the stakes as country left two lines: the rough's own
+edge, cut by whole triangles and so a saw blade of bright grass from above,
+and the slab's long straight edge. Real country has neither, because
+something grows along both. The hole's rough is sampled on a jittered grid
+and a spot is planted by how much it wants a plant — the rough's edge most,
+a band in from the ground's edge whose distance in wanders (a band hard
+against the edge draws the rectangle it is hiding), the open country thinly —
+times a slow thicket noise, so a hole has a thick side and a thin one. Trees
+go only in the thick of a thicket, three units or more out, so they stand in
+stands rather than rows. The theme names the plants: shapes (`bush`,
+`heather`, `tussock`, `rock`), colours, a `bloom` for gorse in flower, a
+`trees` share and how many are conifers. One `InstancedMesh` per shape and
+colour, so a hole's few hundred clumps are a handful of draw calls.
+
+Nothing in it is solid, and nothing needs to be: a ball is out the moment it
+crosses the stakes and is not simulated past them, and no clump stands within
+`FRINGE_OUT` (1.3) of them. `shader-tests.html` → "The fringe" holds that, and
+that every long theme with a fringe grows one and a drawn hole none.
 
 ### The sky
 
