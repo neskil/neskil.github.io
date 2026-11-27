@@ -2225,14 +2225,14 @@
     // The flat-grass run at a power for the club in hand, capped by the lie.
     function laneRun(power) {
         var club = state.club, hole = state.world.hole;
-        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1, G3.drawnLong(hole));
+        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1, G3.longHole(hole));
         return runAt(t, Math.min(power, P.lieCeiling(club, lieKind())), club);
     }
 
     // The power whose run is `d` units, or -1 past the club's reach.
     function powerFor(d) {
         var club = state.club, hole = state.world.hole;
-        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1, G3.drawnLong(hole));
+        var t = runTable(club, runKind(), shapeNow(), hole.gravity || 1, G3.longHole(hole));
         var top = maxPower(club), cap = P.lieCeiling(club, lieKind());
         for (var i = 1; i <= RUN_STEPS; i++) {
             if (t[i] >= d) {
@@ -2841,7 +2841,7 @@
        shorter run. `kind` null is the fairway, uncapped. */
     var lieCardMemo = {};
     function lieCards(clubs, kind, hole) {
-        var out = null, air = G3.drawnLong(hole);
+        var out = null, air = G3.longHole(hole);
         clubs.forEach(function (club) {
             var cap = kind ? P.lieCeiling(club, kind) : club.power;
             if (!club.total || !(cap < club.power || (air && club.loft > 0))) return;
@@ -3691,7 +3691,7 @@
        at the edge pointing the way. Near the flag, with the flag in view, it
        goes: the flag is plain to see by then.
 
-       The long game has it too (`G3.drawnLong`, v1.223.0): a flag forty
+       The long game has it too (`G3.longHole`, v1.223.0): a flag forty
        units down a fairway is the same hair, and the owner missed it there
        ("missing the flag distance thing that exists in world portals").
 
@@ -3720,7 +3720,7 @@
         if (!pinTag) pinTag = { el: $('pin-tag'), dist: $('pin-tag-dist'), text: null };
         if (!pinTag.el) return;
         var hole = state && state.course && !state.course.isRange && state.course.holes[state.holeIndex];
-        var p = hole && (sculptedHole(hole) || G3.drawnLong(hole)) && !state.world.sunk && pinTagSettled() && R.pinScreen ? R.pinScreen() : null;
+        var p = hole && (sculptedHole(hole) || G3.longHole(hole)) && !state.world.sunk && pinTagSettled() && R.pinScreen ? R.pinScreen() : null;
         var show = !!p && !(p.ahead && p.dist < 14 && p.x > 0 && p.x < p.w && p.y > 0 && p.y < p.h);
         if (show !== pinTagOn) { pinTagOn = show; pinTag.el.hidden = !show; }
         if (!show) return;
@@ -3786,7 +3786,7 @@
         return kind && kind !== 'sand' && C.FRICTION[kind] !== undefined ? kind : 'green';
     }
 
-    // `air`: measured in the long game's air (CONFIG.AIR, G3.drawnLong).
+    // `air`: measured in the long game's air (CONFIG.AIR, G3.longHole).
     function runTable(club, kind, shape, gravity, air) {
         var key = club.id + '|' + kind + '|' + shape + '|' + gravity + '|' + !!air;
         if (runTables[key]) return runTables[key];
@@ -3826,10 +3826,10 @@
         // the readout says so rather than promising the fairway's distance.
         var cap = P.lieCeiling(club, lieKind());
         var capped = cap < club.power;
-        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, G3.drawnLong(hole), capped].join('|');
+        var key = [club.id, shapeNow(), kind, hole.gravity || 1, hole.longGame, G3.longHole(hole), capped].join('|');
         if (key === lastRun) return;
         lastRun = key;
-        var t = runTable(club, kind, shapeNow(), hole.gravity || 1, G3.drawnLong(hole));
+        var t = runTable(club, kind, shapeNow(), hole.gravity || 1, G3.longHole(hole));
         $('power-dist').textContent = (capped ? 'sand: max ' : 'full ') +
             G3.distance.bandText(runAt(t, capped ? cap : club.power, club), hole);
     }

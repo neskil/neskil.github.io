@@ -5096,7 +5096,7 @@ on screen (since batch 4 the forge's maps are, `paint`: see below), and a flagst
 a brass tag stands over the flag with the distance on it, and waits at the
 screen's edge pointing when the flag is out of view (`game.js →
 syncPinTag`, `render.pinScreen`). Close to the flag, with it in view, the
-tag goes. A long-game hole (`G3.drawnLong`) has it too, since v1.223.0.
+tag goes. A long-game hole (`G3.longHole`) has it too, since v1.223.0.
 
 **The holes** are data in `js/forge-maps.js` (generated: the grid, the
 `place.at` anchor, tee, cup, par, `gen`, `metrics`), built by `js/forge.js`
@@ -6520,7 +6520,7 @@ mini golf sizes too: a ball nearly two metres across in the course's own
 metres, a driver bigger than the cart parked behind it, and a camera standing
 over the whole thing like a model on a table (the owner: "scale is a bit off…
 perhaps long game and mini golf have to use different scale"). Now, on a long
-hole that is not a tour hole, the ball, the club in hand (`bag.addressUpdate`'s
+hole (`G3.longHole`, a world's as well as a course's since v1.229.0), the ball, the club in hand (`bag.addressUpdate`'s
 `look`), the trail and the aim strip are drawn at `CONFIG.LONG_LOOK.MIN` of
 themselves, and the follow and side-on seats come in to `SEAT` of their
 distance — render.js `lookFor` and `seatLook`, both read off the ball. The ball
@@ -6532,8 +6532,10 @@ cup (`HOLE_R`) and cannot shrink, and a small ball beside it is a ball beside a
 crater, so the look eases back to 1 between `FAR` and `NEAR` units of the cup.
 The camera comes back with it, so on the screen the ball barely changes size;
 what changes is how big the green looks round it, and a putt looks the way it
-always has. **A tour hole** (`hole.place`): those are fitted to a Portals
-world, seat and all. The drawn ball is lowered by what it lost, so it sits on
+always has. (A long hole hung in a Portals world was a third, kept at the
+picture it was fitted with, until v1.229.0: the owner preferred the long
+game's feel to the worlds', so a tour hole with a fairway and every forged map
+are played as the long game now — air, look, tracer and chase.) The drawn ball is lowered by what it lost, so it sits on
 the ground the physics' ball sits on. Anything that sets the ball's scale
 (the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
 
@@ -6546,7 +6548,7 @@ at — a real flight played three times over speed. Slowing the clock (v1.220.0)
 was not the answer; the owner, v1.224.0: "fix the physics for the long game
 … more better feel for the ball path".
 
-So on a hole `G3.drawnLong` says yes to, a lofted shot flies real air
+So on a hole `G3.longHole` says yes to, a lofted shot flies real air
 (`CONFIG.AIR`, physics.js `airStep`): the earth's gravity, drag as the square
 of the speed, and backspin's lift square to the velocity, also as its square,
 all at `LONG_M` metres to the unit. Each club's launch speed (`v`, per unit of
@@ -6568,8 +6570,9 @@ hops and the roll after it are on the same clock too. A drive is up for 1.9
 seconds, like any other map's. The faster landing runs further, so the
 clubs' `v` were re-solved at that pace for the same cards. The air lasts from the strike through every
 hop until the ball rolls; the roll, slopes, and anything leaving a ledge
-afterwards are the ground's physics as before. A tour or forge hole is fitted
-to its world and keeps the old flight.
+afterwards are the ground's physics as before. A long tour or forge hole flies
+it too since v1.229.0, under its own `gravity` (`airGrav(hole)`: the Cloud
+Kingdom's 0.7 is a floatier drive); a hole of green, a putt, never does.
 
 What it moved: the cards on a long hole are measured in the air (game.js
 `lieCards`, which the tee's `teeClub` reads), and so are the meter's run table
@@ -6578,8 +6581,8 @@ as the square of the speed too (`AIR.VREF`), so a shape turns the ball by the
 ground it covers rather than the seconds, and `physics.bendTime` hands swing.js
 that span — without it a draw, slowed by the drag, finished a unit past its
 line. The aim cone previews 3.4 over `PACE` times the seconds (the same
-ground — at the default pace about the plain flight's), and the low seat climbs `LONG_CAM.RISE` 0.6 of the ball's height, since at 0.3 the top
-of a thirty-metre drive was all sky. tests.html → "The long game's air".
+ground — at the default pace about the plain flight's), and the chase below
+follows it. tests.html → "The long game's air".
 
 ### The long game draws its flight
 
@@ -6601,14 +6604,26 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   dropped somewhere else. The streak still draws at the head of it. It is in
   the scene from the hole's build with a degenerate pair in it, so its program
   is never compiled mid-shot.
-- **The seat stays down** (`CONFIG.LONG_CAM`, render.js `watchAir`). The
+- **The chase** (`CONFIG.LONG_CAM`, render.js `watchChase`, v1.229.0). The
   follow seat is measured off the ball, so it went up with a drive exactly as
-  far as the drive did: the ball sat still in the middle of the frame and the
-  ground fell away under both. While a long shot is up the eye now climbs only
-  `RISE` of the ball's height over the ground it left (or the ground under it,
-  where that is higher), and keeps looking at the ball, so the camera tips back
-  to watch it climb against the sky and come down on to the fairway. It is 0 on
-  the ground, so the seat the intro hands off to is untouched.
+  far as the drive did; then (v1.220.0–v1.228.0) it was held down and given
+  the launch's lag, which fell sixteen units behind a drive by the top,
+  looking up at a speck, and closed on it in a rush on the way down — all of
+  it emergent, a lerp chasing a seat moving at the ball's speed (the owner:
+  "fix the full chase so it feels better"). The chase is a seat of its own,
+  placed rather than eased: from where the camera stood at the strike it drops
+  back to `DIST` behind the ball over `GROW` and rides there, turned along the
+  ball's course; the eye sits `UP` over the ground under the ball (eased, so a
+  raised tee or a bunker lip does not move it) plus `RISE` of the ball's
+  height, and on the way down holds `DIVE` of what the ball has fallen, so the
+  flight ends looking down on the landing — on Parkland 3 a drive goes from
+  −20° at the strike through level at the top to −28° at the landing, six
+  units back the whole way. It is blended in over `IN` and out over `OUT`
+  from the first landing on to the follow seat, and while it holds, the
+  camera's own lerp is taken off it (a lerp on a seat moving at a drive's
+  speed trails it by speed × the lag, a gap that shrinks as the ball slows —
+  the lurch). Follow seat only; the side seat keeps the launch lag, at
+  `RELEASE` times its mini golf length on a long hole.
 
 ### The fourth camera, which is not a seat
 

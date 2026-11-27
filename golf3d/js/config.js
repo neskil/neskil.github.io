@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.228.0';
+G3.VERSION = '1.229.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1401,22 +1401,27 @@ G3.CONFIG.LONG_M = 5.5;
    fitted to a world (`place`), seat and all. */
 G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
 
-/* The seat behind a long shot while it is up (render.js `watchAir`):
-   the eye climbs RISE of the ball's height and looks up at the rest; EASE is
-   the per-second easing base it follows that on. RISE was 0.3 under a
-   nineteen-metre drive; in the long game's air (AIR) a drive tops out near
-   thirty, and at 0.3 the top of it was a picture of nothing but sky.
+/* The chase (render.js `watchChase`): the seat behind a long shot while it
+   is up, on every long hole (G3.longHole). From where the camera stood at
+   the strike it drops back to DIST units behind the ball over GROW seconds
+   and rides there, turning along the ball's course on TURN (the per-second
+   easing base). Its eye sits UP over the ground the ball left plus RISE of
+   the ball's height; on the way down it holds DIVE of what the ball has
+   fallen from the top, so the flight ends looking down on to the landing
+   (the owner, v1.228.0: "pivot down a bit more in the end of the
+   sequence"). The ground it measures from is the ground under the ball,
+   eased on FLOOR. Never under CLEAR over the ground beneath it. It is blended in
+   over IN seconds at the strike and out over OUT from the first landing on
+   to the follow seat.
 
-   On the way down the eye holds DIVE of the height the ball has fallen from
-   the top, so it ends the flight looking down on to where it lands rather
-   than along the grass at it (the owner, v1.228.0: "pivot down a bit more in
-   the end of the sequence"); once the ball is down that lift is given back
-   on SETTLE, gentler than EASE, rather than in a fifth of a second. RELEASE
-   is how many times the mini golf's LAUNCH_CAM.RELEASE the seat takes to
-   catch a long shot up after the strike: given back in a second and a half,
-   it closed on a drive in one lurch half way down ("a bit smoother when
-   getting closer to the ball"). */
-G3.CONFIG.LONG_CAM = { RISE: 0.6, EASE: 0.002, DIVE: 0.25, SETTLE: 0.12, RELEASE: 1.8 };
+   It replaced, in v1.229.0, the follow seat with the launch's lag on it:
+   that fell sixteen units behind a drive by the top, looking up at a speck
+   in the sky, and closed on it in a rush on the way down ("fix the full
+   chase so it feels better"). RELEASE is still the launch lag's, for the
+   side seat on a long hole: how many times LAUNCH_CAM.RELEASE it takes to
+   catch a long shot up. */
+G3.CONFIG.LONG_CAM = { IN: 0.3, GROW: 1.0, DIST: 6, TURN: 0.05, UP: 1.4, RISE: 0.8, DIVE: 0.3,
+    FLOOR: 0.2, CLEAR: 0.6, OUT: 1.4, RELEASE: 1.8 };
 
 /* The ground answering the ball (groundfx.js), all of it at once: AMOUNT of
    the particles each burst asks for, at SIZE of their size and ALPHA of their
@@ -1502,11 +1507,15 @@ G3.CONFIG.LONG_SEAT = { LEAD: 0, DROP: 0, NEAR: 10, FAR: 24 };
 G3.CONFIG.TRACER = { MAX: 480, STEP: 0.12, PX: 1.6, W: 0.004, MAX_W: 0.45, NEAR: 2.5, ALPHA: 0.9,
     HOLD: 0.8, FADE: 1.2, COLOR: 0xfff1d0 };
 
-/* A long hole drawn at the long game's own scale: what LONG_LOOK, the
-   tracer and the low seat are for. A tour hole (or anything else hung in a Portals world) is fitted
-   to that world, seat and all, and keeps the picture it was fitted with. */
-G3.drawnLong = function (hole) {
-    return !!(hole && hole.longGame && !hole.place && !hole.worldId && !hole.inWorld);
+/* A long hole played as the long game: real air (CONFIG.AIR), LONG_LOOK's
+   ball, the tracer, the chase (LONG_CAM) and the pin tag. Until v1.229.0
+   only the drawn long courses were; a long hole hung in a Portals world — a
+   tour hole with a fairway, every forged map — kept the mini golf's air and
+   picture, and the owner preferred the long game's ("although the long game
+   is not perfect I prefer it over the worlds gameplay feel"). So it is a
+   question of the ground, the same as `hole.longGame`, wherever it lies. */
+G3.longHole = function (hole) {
+    return !!(hole && hole.longGame);
 };
 G3.CONFIG.BAND = 0.15;
 G3.CONFIG.NEAR = 20;

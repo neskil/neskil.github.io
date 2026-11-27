@@ -4688,8 +4688,9 @@
                     var dr = club('driver'), la = flight(longF, dr), mi = flight(field, dr);
                     assert('a long hole flies the long game\'s air, a mini fairway does not',
                         P.airy(longF, dr.loft) && !P.airy(field, dr.loft) && !P.airy(longF, 0));
-                    assert('…nor does a tour hole, fitted to its world',
-                        G3.portals.WORLDS.every(function (wd) { return !P.airy(wd.hole, dr.loft); }));
+                    // Since v1.229.0 a long hole in a world flies it too; a green one does not.
+                    assert('…and a tour hole flies it exactly when it is a long hole',
+                        G3.portals.WORLDS.every(function (wd) { return P.airy(wd.hole, dr.loft) === !!wd.hole.longGame; }));
                     /* …played on the game's own clock (AIR.PACE, v1.226.1): at
                        real time a drive hung 6.4 s, three times any other
                        map's, and "felt real off". Speeding it up keeps the
@@ -5986,12 +5987,14 @@
             assert('at the lip it is in slow motion',
                 approx(RE.rate(tape, len, { x: hole.cup.x, z: hole.cup.z }), RP.SLOW, 1e-9));
 
-            // The long game's scale (`G3.drawnLong`): tracer, low seat, pin tag.
+            // The long game's scale (`G3.longHole`): tracer, low seat, pin tag.
             var longH = G3.courseById('parkland').holes[0];
-            assert('a parkland hole is drawn at the long game\'s scale', G3.drawnLong(longH));
-            assert('…a mini lane is not', !G3.drawnLong(hole));
-            assert('…nor is a tour hole, which is fitted to its world',
-                G3.portals.WORLDS.every(function (w) { return !G3.drawnLong(w.hole); }));
+            assert('a parkland hole is drawn at the long game\'s scale', G3.longHole(longH));
+            assert('…a mini lane is not', !G3.longHole(hole));
+            // Since v1.229.0 a long hole in a world is played as the long game too.
+            assert('a tour hole with a fairway is played as the long game, one of green is not',
+                G3.portals.WORLDS.every(function (w) { return G3.longHole(w.hole) === !!w.hole.longGame; }) &&
+                G3.portals.WORLDS.some(function (w) { return G3.longHole(w.hole); }));
 
             // The seats the cup camera may take.
             var seats = RE.seats(hole, { x: hole.cup.x, z: hole.cup.z - 3 }), allAt = true, allUp = true;
