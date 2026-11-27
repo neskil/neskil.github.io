@@ -2668,6 +2668,8 @@
     function dropBack(w) {
         state.world = P.createWorld(w.hole, w.origin, w.time);
         R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
+        // Cut back to it rather than flown back (render.js → dropTo).
+        if (R.dropTo && !demo && !sim) R.dropTo();
     }
 
     /* Stuck. A tour hole is played on a world's own ground, and a world's
@@ -7819,6 +7821,10 @@
         // by exactly the spread physics would apply — the club's ceiling is
         // the only part of that sum the renderer has no way to know.
         intent.over = P.overdraw(state.aim.power, state.club.power);
+        /* The club on its way back — the swipe pulled, or the needle or the
+           arc running — is the camera's cue to get into place for the shot
+           (render.js → setWindup). A press with nothing loaded is not. */
+        if (R.setWindup) R.setWindup(state.phase === 'aim' && !!(swipe || needle || arc) && state.aim.power >= C.MIN_POWER);
         R.frame(dt, state.world, intent);
         syncPinTag();
         if (!loaderGone) {

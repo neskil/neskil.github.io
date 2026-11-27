@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.234.0';
+G3.VERSION = '1.235.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1399,6 +1399,11 @@ G3.CONFIG.LONG_M = 5.5;
    cup the look eases back, and inside NEAR it is the mini golf picture
    exactly — a putt looks the way it always has. Nor on a tour hole: those are
    fitted to a world (`place`), seat and all. */
+/* The follow seat's lift over a bank behind the ball (render.js →
+   easedLift): a critically damped spring of SIGHT_EASE per second, so a lift
+   read off stepped ground never moves the eye in a step. 0 turns it off. */
+G3.CONFIG.SIGHT_EASE = 7;
+
 G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
 
 /* The chase (render.js `watchChase`): the seat behind a long shot while it
@@ -1410,7 +1415,17 @@ G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
    fallen from the top, so the flight ends looking down on to the landing
    (the owner, v1.228.0: "pivot down a bit more in the end of the
    sequence"). The ground it measures from is the ground under the ball,
-   eased on FLOOR. Never under CLEAR over the ground beneath it. It is blended in
+   eased on FLOOR. Never under CLEAR over the ground beneath it. Its look
+   keeps the seat's offset off the ball at the strike and gives it back over
+   LOOK seconds (a tee facing up a hill looks well over the ball, and dropping
+   that in IN whipped the view down and up), and while the chase is on the
+   look rides a critically damped spring of SPRING (per second) that is told
+   the seat's speed, so it never lags a steady flight and only the strike and
+   the bounces are softened. While the club goes back (the swipe pulled,
+   the needle running) the follow seat eases on a spring of WINDUP towards
+   where the chase would be a second in — DIST back, UP over the ball,
+   looking at it — so the strike starts the chase already in place. It is
+   blended in
    over IN seconds at the strike and out over OUT from the first landing on
    to the follow seat.
 
@@ -1420,7 +1435,7 @@ G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
    chase so it feels better"). RELEASE is still the launch lag's, for the
    side seat on a long hole: how many times LAUNCH_CAM.RELEASE it takes to
    catch a long shot up. */
-G3.CONFIG.LONG_CAM = { IN: 0.3, GROW: 1.0, DIST: 6, TURN: 0.05, UP: 1.4, RISE: 0.8, DIVE: 0.3,
+G3.CONFIG.LONG_CAM = { IN: 0.3, LOOK: 1.2, SPRING: 8, WINDUP: 5, GROW: 1.0, DIST: 6, TURN: 0.05, UP: 1.4, RISE: 0.8, DIVE: 0.3,
     FLOOR: 0.2, CLEAR: 0.6, OUT: 1.4, RELEASE: 1.8 };
 
 /* The ground answering the ball (groundfx.js), all of it at once: AMOUNT of
