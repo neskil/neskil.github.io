@@ -3731,7 +3731,7 @@ body.compact-ui .chip-text { display: inline; }
     opacity: 0.7;
 }
 #btn-courses .tm-sub { font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.8; }
-.tm-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
+.tm-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.45rem; }
 .topbar-menu .tm-quick .chip { font-size: 1.1rem; font-weight: 700; padding: 0.8rem 0.3rem 0.7rem; white-space: nowrap; }
 .tm-fico { display: inline-block; width: 1.6rem; margin-right: 0.35rem; text-align: center; }
 .topbar-menu button.chip.tm-fold {

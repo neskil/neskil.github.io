@@ -1435,6 +1435,7 @@
     function setTune(key, value) {
         tune[key] = value;
         if (key === 'pad') tune.padPicked = true;
+        if (key === 'pad') syncPadNow();
         SW.setAssist(tune.assist === 'on');
         try { localStorage.setItem(C.TUNE_KEY, JSON.stringify(tune)); } catch (e) { /* ignore */ }
         if ((key === 'hand' || key === 'club') && G3.bag && G3.bag.address) G3.bag.address.setHand(clubRight());
@@ -1494,6 +1495,11 @@
        is found on the lane itself rather than only in the Swing panel. */
     var PAD_NEXT = { right: 'centre', centre: 'left', left: 'right' };
     var PAD_SAY = { left: 'Pad: left', centre: 'Pad: middle', right: 'Pad: right' };
+    var PAD_WORD = { left: 'left', centre: 'middle', right: 'right' };
+    // The word under the ☰ menu's Swing pad tile: where the pad stands now.
+    function syncPadNow() {
+        if ($('pad-now')) $('pad-now').textContent = PAD_WORD[tune.pad] || 'right';
+    }
     var padSaid = 0;
     function movePad() {
         setTune('pad', PAD_NEXT[tune.pad] || 'right');
@@ -9035,6 +9041,8 @@
         // Taken before the lane sees it, so moving the pad is not a swing.
         $('swipe-move').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
         $('swipe-move').addEventListener('click', function (e) { e.stopPropagation(); movePad(); });
+        $('btn-pad').addEventListener('click', function () { movePad(); });
+        syncPadNow();
         $('swipe').addEventListener('pointerdown', onSwipeDown);
         // The swing card is read, then tapped away (showSwingCard). Taken here
         // so the tap does not also land on the course and turn the aim.
@@ -9189,6 +9197,8 @@
                 t.setAttribute('aria-expanded', o ? 'true' : 'false');
                 return;
             }
+            // The Swing pad tile turns round and says where: the menu stays up.
+            if (t && t.id === 'btn-pad') return;
             if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-about' && t.id !== 'btn-style' && t.id !== 'btn-quality') return;
             closeTopMenu();
         });

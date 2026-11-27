@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.237.0">
+    <link rel="stylesheet" href="style.css?v=1.238.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -140,6 +140,7 @@
         <symbol id="i-water" viewBox="0 0 24 24"><path d="M3 8.5c2.2-1.6 3.8-1.6 6 0s3.8 1.6 6 0 3.8-1.6 6 0M3 13c2.2-1.6 3.8-1.6 6 0s3.8 1.6 6 0 3.8-1.6 6 0M3 17.5c2.2-1.6 3.8-1.6 6 0s3.8 1.6 6 0 3.8-1.6 6 0"/></symbol>
         <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></symbol>
         <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="12.5" height="10" rx="1.5"/><path d="M15.5 10.5l5.5-3v9l-5.5-3"/></symbol>
+        <symbol id="i-pad" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="1.5" stroke-dasharray="1.6 1.8"/><path d="M12 7.5v6"/><circle cx="12" cy="16" r="1.3" fill="currentColor" stroke="none"/><path d="M4.8 9.5L2.5 12l2.3 2.5M19.2 9.5l2.3 2.5-2.3 2.5"/></symbol>
         <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.2 17.5a9 9 0 1 1 15.6 0"/><path d="M12 14.5l4-5"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></symbol>
     </svg>
 
@@ -224,6 +225,10 @@
                         <button class="chip" id="btn-range" title="Driving range practice (T)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-bucket"/></svg></span><span class="chip-text tm-lbl"> Range<span class="tm-sub">practice</span></span></button>
                         <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></span><span class="chip-text tm-lbl"> Map<span class="tm-sub">mini map</span></span></button>
                         <button class="chip" id="btn-balls" title="Pro Shop — balls and club colours (B)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-shop"/></svg></span><span class="chip-text tm-lbl"> Pro Shop<span class="tm-sub">cosmetics</span></span></button>
+                        <!-- The swing pad's ⇆, which is also on the pad itself: right,
+                             middle, left, round again (game.js `movePad`). The
+                             menu stays open so the word under it can be read. -->
+                        <button class="chip" id="btn-pad" title="Move the touch swing pad: right, middle, left"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-pad"/></svg></span><span class="chip-text tm-lbl"> Swing pad<span class="tm-sub" id="pad-now">right</span></span></button>
                     </div>
                     <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-clubs"/></svg></span> Extras</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-more" data-group>
@@ -496,7 +501,7 @@
                 <span class="swipe-read" id="swipe-read" hidden></span>
                 <!-- Where the pad stands, moved from the pad itself (game.js
                      `movePad`): right, middle, left, round again. -->
-                <button type="button" class="swipe-move" id="swipe-move" title="Move the swing pad (also in Settings)">&#x21C6; Move</button>
+                <button type="button" class="swipe-move" id="swipe-move" title="Move the swing pad (also in the ☰ menu)">&#x21C6; Move</button>
             </div>
 
             <!-- The arcade arc (swing.js `arc…`, game.js "swing styles"): a
@@ -1329,48 +1334,48 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.237.0"></script>
-    <script src="js/balls.js?v=1.237.0"></script>
-    <script src="js/celebrate.js?v=1.237.0"></script>
-    <script src="js/themes.js?v=1.237.0"></script>
-    <script src="js/physics.js?v=1.237.0"></script>
-    <script src="js/courses.js?v=1.237.0"></script>
-    <script src="js/tour-ground.js?v=1.237.0"></script>
-    <script src="js/portals.js?v=1.237.0"></script>
-    <script src="js/portal-worlds.js?v=1.237.0"></script>
-    <script src="js/endless.js?v=1.237.0"></script>
-    <script src="js/forge-maps.js?v=1.237.0"></script>
-    <script src="js/forge.js?v=1.237.0"></script>
-    <script src="js/audit.js?v=1.237.0"></script>
-    <script src="js/custom.js?v=1.237.0"></script>
-    <script src="js/scoring.js?v=1.237.0"></script>
-    <script src="js/swing.js?v=1.237.0"></script>
-    <script src="js/school.js?v=1.237.0"></script>
-    <script src="js/audio.js?v=1.237.0"></script>
-    <script src="js/music.js?v=1.237.0"></script>
-    <script src="js/bag.js?v=1.237.0"></script>
-    <script src="js/textures.js?v=1.237.0"></script>
-    <script src="js/shaders.js?v=1.237.0"></script>
-    <script src="js/postfx.js?v=1.237.0"></script>
-    <script src="js/weather.js?v=1.237.0"></script>
-    <script src="js/flyover.js?v=1.237.0"></script>
-    <script src="js/replay.js?v=1.237.0"></script>
-    <script src="js/bot.js?v=1.237.0"></script>
-    <script src="js/models.js?v=1.237.0"></script>
-    <script src="js/life.js?v=1.237.0"></script>
-    <script src="js/worlds.js?v=1.237.0"></script>
-    <script src="js/sandfx.js?v=1.237.0"></script>
-    <script src="js/groundfx.js?v=1.237.0"></script>
-    <script src="js/render.js?v=1.237.0"></script>
-    <script src="js/minimap.js?v=1.237.0"></script>
-    <script src="js/debug.js?v=1.237.0"></script>
-    <script src="js/game.js?v=1.237.0"></script>
+    <script src="js/config.js?v=1.238.0"></script>
+    <script src="js/balls.js?v=1.238.0"></script>
+    <script src="js/celebrate.js?v=1.238.0"></script>
+    <script src="js/themes.js?v=1.238.0"></script>
+    <script src="js/physics.js?v=1.238.0"></script>
+    <script src="js/courses.js?v=1.238.0"></script>
+    <script src="js/tour-ground.js?v=1.238.0"></script>
+    <script src="js/portals.js?v=1.238.0"></script>
+    <script src="js/portal-worlds.js?v=1.238.0"></script>
+    <script src="js/endless.js?v=1.238.0"></script>
+    <script src="js/forge-maps.js?v=1.238.0"></script>
+    <script src="js/forge.js?v=1.238.0"></script>
+    <script src="js/audit.js?v=1.238.0"></script>
+    <script src="js/custom.js?v=1.238.0"></script>
+    <script src="js/scoring.js?v=1.238.0"></script>
+    <script src="js/swing.js?v=1.238.0"></script>
+    <script src="js/school.js?v=1.238.0"></script>
+    <script src="js/audio.js?v=1.238.0"></script>
+    <script src="js/music.js?v=1.238.0"></script>
+    <script src="js/bag.js?v=1.238.0"></script>
+    <script src="js/textures.js?v=1.238.0"></script>
+    <script src="js/shaders.js?v=1.238.0"></script>
+    <script src="js/postfx.js?v=1.238.0"></script>
+    <script src="js/weather.js?v=1.238.0"></script>
+    <script src="js/flyover.js?v=1.238.0"></script>
+    <script src="js/replay.js?v=1.238.0"></script>
+    <script src="js/bot.js?v=1.238.0"></script>
+    <script src="js/models.js?v=1.238.0"></script>
+    <script src="js/life.js?v=1.238.0"></script>
+    <script src="js/worlds.js?v=1.238.0"></script>
+    <script src="js/sandfx.js?v=1.238.0"></script>
+    <script src="js/groundfx.js?v=1.238.0"></script>
+    <script src="js/render.js?v=1.238.0"></script>
+    <script src="js/minimap.js?v=1.238.0"></script>
+    <script src="js/debug.js?v=1.238.0"></script>
+    <script src="js/game.js?v=1.238.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.237.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.238.0"></script>
 </body>
 </html>
