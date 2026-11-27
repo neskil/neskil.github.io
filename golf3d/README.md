@@ -6782,7 +6782,9 @@ owner, "the fake airtime is not feeling that good on the long game map".)
 - **The tracer** (`CONFIG.TRACER`, render.js `stepTracer`). The speed streak
   behind the ball is a fraction of a second long, which on a lane is the shot
   and on a long hole the last few metres of it. So a long-game flight is also
-  drawn as one line from the strike to where it first comes down, a ribbon
+  drawn as one line from the strike through the first bounce to where the hop
+  comes down (`physics` records it as `world.hopLand`; v1.235.0 — it used to
+  stop dead at the first landing), a ribbon
   turned to the camera every frame and never thinner than `PX` pixels however
   far it has gone, faded out where it passes near the lens; it stays while the
   ball runs out, fades once it has stopped, and goes at once if the ball is
@@ -7448,7 +7450,12 @@ with neither: some people want a hole with weather on it and nothing else.
 Drag back from the ball and let go; drag sideways to swing the aim, and the
 camera swings with it. When a stroke comes to rest the aim (and so the camera)
 turns to face the cup from wherever the ball stopped (game.js `turnToCup`),
-giving way at once to a drag, a key or the caddie. Where the camera stands *relative to* that aim is the
+giving way at once to a drag, a key or the caddie. Since v1.235.0 it tilts too
+when the flag would be off the top of the picture from the new lie — a seat
+come in close for a putt at the drive's pitch — flattening the follow seat just
+far enough to bring the pin under the HUD (render.js `fitPitch`,
+`CONFIG.AIM_PITCH_FIT`), never into a bank behind the ball, and going back to
+the pitch you chose once the flag fits at it again. Where the camera stands *relative to* that aim is the
 [view dial](#the-view-dial), not the drag. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>shift</kbd>+<kbd>1</kbd>–<kbd>0</kbd> that
 many tenths of a full swing (<kbd>Home</kbd> empty, <kbd>End</kbd> a full

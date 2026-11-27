@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.234.0';
+G3.VERSION = '1.235.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1500,12 +1500,21 @@ G3.CONFIG.AIR = {
 G3.CONFIG.LONG_SEAT = { LEAD: 0, DROP: 0, NEAR: 10, FAR: 24 };
 
 /* The tracer (render.js `stepTracer`): the long game's flight drawn as a line
-   from the strike to the first landing. MAX points at least STEP apart; half
+   from the strike through the first bounce to where it comes down again
+   (v1.235.0: it used to stop at the first landing). MAX points at least STEP apart; half
    as wide as PX pixels on the screen or W units, whichever is wider, and
    never past MAX_W; faded out inside NEAR units of the camera; held HOLD
    seconds after the ball stops, then gone over FADE. */
-G3.CONFIG.TRACER = { MAX: 480, STEP: 0.12, PX: 1.6, W: 0.004, MAX_W: 0.45, NEAR: 2.5, ALPHA: 0.9,
+G3.CONFIG.TRACER = { MAX: 480, STEP: 0.12, PX: 0.9, W: 0.0025, MAX_W: 0.22, NEAR: 2.5, ALPHA: 0.9,
     HOLD: 0.8, FADE: 1.2, COLOR: 0xfff1d0 };
+
+/* The turn to the cup after a stroke (game.js `turnToCup`) tilts the follow
+   seat as well as turning it, when the flag would otherwise be off the top
+   of the picture (render.js `fitPitch`): the top of the pin, TOP over the
+   cup, kept below NDC of the frame (1 is the top edge; the HUD covers about
+   the top fifth), never flatter than MIN. The pitch the player chose is
+   remembered and gone back to once the flag fits at it again. */
+G3.CONFIG.AIM_PITCH_FIT = { TOP: 2.25, NDC: 0.5, MIN: 0.2 };
 
 /* A long hole played as the long game: real air (CONFIG.AIR), LONG_LOOK's
    ball, the tracer, the chase (LONG_CAM) and the pin tag. Until v1.234.0
