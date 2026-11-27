@@ -44,18 +44,13 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    drums, scree laid at the feet, and the floor's edge let down into the
    country. Still open: height on the other long courses where a hole is flat
    for no reason.
-10. **Alpenglow, more mountain** — "Alpenglow is a bit weird. Why is it gray
-    outside the fairway? … can that map be more 'in the mountains' feeling …
-    some more vertical geometry." The grey is the surround (`surround:
-    'rock'`, a granite floor) showing past the rough. Wants alpine meadow
-    near the hole and real walls and peaks close round it.
-11. **Less out of bounds, and a choice when you are out** — "lessen the out
-    of bounds, it's fun if you try to recover (but perhaps if you are off
-    give option to pick up or rehit ball at penalty". Two parts: the stakes
-    further out on the long game, so more of what is now out is a recovery
-    from the trees; and, when a ball does go out, a choice between a drop
-    where it crossed (a penalty stroke) and replaying from where it was hit
-    (stroke and distance) instead of the one fixed rule.
+11. **A choice when you are out** — the second half of the owner's "lessen
+    the out of bounds, it's fun if you try to recover (but perhaps if you
+    are off give option to pick up or rehit ball at penalty". The first half
+    shipped in v1.234.0 (see "Done"). Still open: when a ball does go out,
+    offer a choice between a drop where it crossed the stakes (one penalty
+    stroke) and replaying from where it was hit (stroke and distance),
+    rather than the one fixed rule.
 
 Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the
@@ -88,6 +83,24 @@ Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **Alpenglow in the mountains, and more room before the stakes** (v1.234.0)
+  — the owner's "Why is it gray outside the fairway? … more 'in the
+  mountains' feeling … some more vertical geometry" and "lessen the out of
+  bounds". The grey was the granite `rock` surround drawn under everything
+  past the rough; the valley floor is alpine meadow now (`surround:
+  'floor'`). The range (render.addRange) stands at the foot of the bank and
+  follows the hole's own outline (`footAt`, off the skirt's march), where it
+  was a circle round the middle that stood seventy units off the side of a
+  long hole; it rises within sixteen units (`range.rise`) to fifty-odd, and
+  the fir woods climb its lower slopes (`R.rangeAt`). Stakes: Alpenglow's
+  stand seven units past the property on both sides (`ALP_ROAM`, not Knife
+  Edge, `tight`), Whinstone's four rectangular fences two to six wider as
+  its ground allows. The bot with hands barely moves (Alpenglow -4.7 →
+  -4.8, Whinstone -7.1 both) — it seldom goes out; the room is for a
+  person's slice. Not done: holes inside the range are not themselves any
+  taller; the turntable's fixed compass cameras now stand inside the
+  mountains on Alpenglow (the game's seats and flyover do not).
 
 - **A forest round the long game, and four holes reworked** (v1.232.0) —
   the owner's "more varied terrain … more trees (feels like in the forest)

@@ -3199,16 +3199,19 @@
         var density = spec.density || 0.6, conifer = spec.conifer === undefined ? 0.5 : spec.conifer;
         var lo = spec.h ? spec.h[0] : 3, hi = spec.h ? spec.h[1] : 5.5;
         var leaves = spec.leaf, wet = R.weather ? (R.weather.wet || 0) : 0;
-        var lots = { trunk: [], cone: [], crown: [] }, count = 0;
+        var lots = { trunk: [], cone: [], crown: [] }, count = 0, trees = [], tr;
+        // Each tree's parts are kept together until the end, so a hole with
+        // more than WOODS_MAX of them can be thinned evenly over the whole
+        // wood rather than cut off along one side of the grid.
         function put(shape, colour, x, y, z, sx, sy, sz, yaw) {
             _fm.makeRotationY(yaw);
             _fm.scale(_fs.set(sx, sy, sz));
             _fm.setPosition(x, y, z);
-            lots[shape].push({ m: _fm.clone(), c: colour });
+            tr.push({ s: shape, m: _fm.clone(), c: colour });
         }
         var gx, gz, x, z, h1, h2, h3, h4, d, s, y, n, want, th, cr, con, leaf, slope, far;
-        for (gx = b.minX - reach; gx <= b.maxX + reach && count < WOODS_MAX; gx += WOODS_STEP) {
-            for (gz = b.minZ - reach; gz <= b.maxZ + reach && count < WOODS_MAX; gz += WOODS_STEP) {
+        for (gx = b.minX - reach; gx <= b.maxX + reach; gx += WOODS_STEP) {
+            for (gz = b.minZ - reach; gz <= b.maxZ + reach; gz += WOODS_STEP) {
                 h1 = treeHash(gx * 0.71 + 13.1, gz * 1.37 - 4.2);
                 h2 = treeHash(gz * 0.67 - 2.9, gx * 1.19 + 8.8);
                 x = gx + (h1 - 0.5) * WOODS_STEP * 0.9;
@@ -3236,6 +3239,16 @@
                 } else {
                     y = skirtAt(plan, theme, x, z);
                     if (y === null) y = R.groundAt ? R.groundAt(x, z) : theme.surroundY;
+                    /* …or up the mountainside, where there is a range: the
+                       forest climbs its lower slopes to the treeline and
+                       leaves the faces too steep to hold a tree. */
+                    var up = R.rangeAt ? R.rangeAt(x, z) : null;
+                    if (up && up.y > y) {
+                        if (up.y > up.tree + (h1 - 0.5) * 3) continue;
+                        var u2 = R.rangeAt(x + 1, z), u3 = R.rangeAt(x, z + 1);
+                        if (u2 && u3 && Math.abs(u2.y - up.y) + Math.abs(u3.y - up.y) > 1.3) continue;
+                        y = up.y - 0.3;
+                    }
                 }
                 y -= 0.1;
                 h4 = treeHash(z * 1.91 - 3.3, x * 0.43 + 5.5);
@@ -3244,7 +3257,7 @@
                 cr = th * (0.24 + h1 * 0.1);
                 con = treeHash(x - 0.7, z + 0.9) < conifer;
                 leaf = leaves[Math.floor(h2 * leaves.length) % leaves.length];
-                count++;
+                trees.push(tr = []);
                 if (con) {
                     // A spruce or a pine: a tall cone on a short bole. Far out
                     // the bole is lost in the wood and is not drawn.
@@ -3255,6 +3268,11 @@
                     put('crown', leaf, x, y + th * 0.68, z, cr * 1.35, cr * 1.1, cr * 1.35, h2 * 6.28);
                 }
             }
+        }
+        var every = Math.max(1, trees.length / WOODS_MAX), q;
+        for (q = 0; q < trees.length; q += every) {
+            trees[Math.floor(q)].forEach(function (part) { lots[part.s].push(part); });
+            count++;
         }
         if (!count) return;
         var shapes = { trunk: new THREE.CylinderGeometry(0.1, 0.16, 1, 5),
@@ -6665,25 +6683,55 @@
             rid = 1 - Math.abs(2 * n - 1);
             h += w[k] * rid * rid;
         }
-        var t = (r - r0) / 30, env = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+        var t = (r - r0) / (R.rise || 30), env = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
         var climb = 0.55 + 0.45 * Math.min(1, (r - r0) / (R.depth || 110));
         return env * climb * R.peak * (0.18 + 0.95 * h);
     }
 
     function addRange(group, hole, theme, plan) {
         var R = theme.range;
+        G3.render.state.rangeAt = null;
         if (!R || !hole.open) return;
         var b = hole.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
-        var r0 = (plan ? plan.outer : Math.hypot(b.maxX - cx, b.maxZ - cz) + 30) + (R.gap || 8);
-        var r1 = r0 + (R.depth || 110), K = 18, N = 168, base = theme.surroundY - 1.5;
-        var rings = [], k, j, rr, a, x, z;
+        var gap = R.gap === undefined ? 8 : R.gap, depth = R.depth || 110;
+        var round = (plan ? plan.outer : Math.hypot(b.maxX - cx, b.maxZ - cz) + 30) + gap;
+        /* Where the range's foot is on a bearing. A circle round the middle
+           of the hole stands seventy units off the side of a long thin one,
+           which from the tee is a skyline and not a valley; so the foot
+           follows the hole's own outline — the ground's edge on that bearing
+           (the skirt's march), past the bank — and the mountains rise just
+           beyond the woods on every side (v1.234.0). Smoothed over a few
+           bearings, so a dogleg's corner does not make a notch. */
+        function footAt(a) {
+            if (!plan) return round;
+            var f = ((a / (Math.PI * 2)) % 1 + 1) % 1 * SKIRT_SECT, sum = 0, wsum = 0, i, e, w;
+            for (i = -3; i <= 3; i++) {
+                e = plan.edge[((Math.floor(f) + i) % SKIRT_SECT + SKIRT_SECT) % SKIRT_SECT];
+                if (!e) continue;
+                w = 4 - Math.abs(i);
+                sum += w * e.r; wsum += w;
+            }
+            return wsum ? sum / wsum + plan.width + gap : round;
+        }
+        var K = 18, N = 168, base = theme.surroundY - 1.5;
+        /* Where the mountainside is, for the woods to stand on (addWoods):
+           the same function the rings are sampled from, so a fir on the
+           lower slopes stands on the slope give or take the facets. Null
+           inside the range's foot. */
+        G3.render.state.rangeAt = function (x, z) {
+            var rr = Math.hypot(x - cx, z - cz), f0 = footAt(Math.atan2(z - cz, x - cx));
+            if (rr <= f0 || rr >= f0 + depth) return null;
+            return { y: base + rangeHeight(R, x, z, rr, f0), tree: base + R.peak * (R.treeline || 0.2) };
+        };
+        var rings = [], k, j, rr, a, x, z, feet = [];
+        for (j = 0; j < N; j++) feet.push(footAt(j / N * Math.PI * 2));
         for (k = 0; k <= K; k++) {
-            rr = r0 + (r1 - r0) * Math.pow(k / K, 1.25);
             var ring = [];
             for (j = 0; j < N; j++) {
                 a = j / N * Math.PI * 2;
+                rr = feet[j] + depth * Math.pow(k / K, 1.25);
                 x = cx + Math.cos(a) * rr; z = cz + Math.sin(a) * rr;
-                ring.push([x, base + rangeHeight(R, x, z, rr, r0), z]);
+                ring.push([x, base + rangeHeight(R, x, z, rr, feet[j]), z]);
             }
             rings.push(ring);
         }

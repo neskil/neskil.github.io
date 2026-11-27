@@ -456,7 +456,10 @@
             sun: 0xfffaf0, sunPos: [-11, 13, 8], ambient: 0xa8c2df, ambientI: 0.6,
             grass: ['#74ad4c', '#679f44'],
             rail: 0xd9d4c8,
-            surroundY: -5.4, surround: 'rock', ground: '#3f5a3a',
+            /* A valley floor of alpine meadow (v1.234.0): it was the
+               granite `rock` surround, which drew everything past the rough
+               — the country, the bank, the floor — as grey stone. */
+            surroundY: -5.4, surround: 'floor', floor: '#56783e',
             relief: 4.6,
             ridge: { colour: '#3e4957', cap: '#f6f9fc', peak: 18, rough: 0.64 },
             /* …and the range itself, near enough to be mountains rather than
@@ -464,7 +467,11 @@
                skirt out a hundred and ten units, up to forty high, snow above
                half of that where the ground is gentle enough to hold it, dark
                forest on the low slopes. */
-            range: { peak: 40, depth: 110, gap: 8, snowline: 0.56, treeline: 0.22,
+            /* Since v1.234.0 it stands at the foot of the bank and is up
+               within sixteen units, so the hole is in the mountains and not
+               on a plain with mountains round it; the woods climb its lower
+               slopes (render.addWoods). */
+            range: { peak: 52, depth: 120, gap: 0, rise: 16, snowline: 0.5, treeline: 0.3,
                 rock: '#5c6067', snow: '#f2f6fa', forest: '#2a4430' },
             water: 0x4cc4c4,
             side: '#6b6e74',
@@ -479,7 +486,7 @@
                 trees: 0.3, conifer: 1, leaf: [0x2c5638, 0x335f3e], density: 0.5
             },
             // Fir forest below the treeline.
-            woods: { density: 0.7, conifer: 1, h: [3.6, 6.4], reach: 30, leaf: [0x2c5638, 0x335f3e, 0x264a33] },
+            woods: { density: 0.7, conifer: 1, h: [3.6, 6.4], reach: 58, leaf: [0x2c5638, 0x335f3e, 0x264a33] },
             strata: [
                 [-99, '#55585d'], [-2.5, '#63666b'], [1.2, '#6e7176'], [3.4, '#5e6166'],
                 [5.0, '#76797e'], [7.6, '#84878c'], [10.0, '#eef2f6']

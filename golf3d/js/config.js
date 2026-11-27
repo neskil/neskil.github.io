@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.233.0';
+G3.VERSION = '1.234.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1414,7 +1414,7 @@ G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.5, NEAR: 4, FAR: 12 };
    over IN seconds at the strike and out over OUT from the first landing on
    to the follow seat.
 
-   It replaced, in v1.232.0, the follow seat with the launch's lag on it:
+   It replaced, in v1.234.0, the follow seat with the launch's lag on it:
    that fell sixteen units behind a drive by the top, looking up at a speck
    in the sky, and closed on it in a rush on the way down ("fix the full
    chase so it feels better"). RELEASE is still the launch lag's, for the
@@ -1508,7 +1508,7 @@ G3.CONFIG.TRACER = { MAX: 480, STEP: 0.12, PX: 1.6, W: 0.004, MAX_W: 0.45, NEAR:
     HOLD: 0.8, FADE: 1.2, COLOR: 0xfff1d0 };
 
 /* A long hole played as the long game: real air (CONFIG.AIR), LONG_LOOK's
-   ball, the tracer, the chase (LONG_CAM) and the pin tag. Until v1.232.0
+   ball, the tracer, the chase (LONG_CAM) and the pin tag. Until v1.234.0
    only the drawn long courses were; a long hole hung in a Portals world — a
    tour hole with a fairway, every forged map — kept the mini golf's air and
    picture, and the owner preferred the long game's ("although the long game

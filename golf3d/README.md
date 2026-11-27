@@ -2660,6 +2660,20 @@ columns by the stakes. Never solid. The ground falls away round the
 edge of every hole as the skirt does on the other long courses, a long way,
 because the valley floor (`surroundY`) is five units down.
 
+Since v1.234.0 the hole is *in* the range rather than on a plain with one
+round it. The foot of the range follows the hole's own outline — the
+ground's edge on each bearing from the skirt's march, past the bank,
+smoothed over seven bearings (`footAt`) — instead of a circle round the
+middle, which on a long thin hole stood seventy units off its side; it rises
+within `range.rise` (sixteen) to a peak of fifty-two; the valley floor and
+bank are alpine meadow (`surround: 'floor'`), where the granite surround had
+drawn everything past the rough as grey rock; and the fir woods
+(`theme.woods`) climb its lower slopes to the treeline, seated through
+`R.rangeAt`, the same function the range's rings are sampled from. The
+stakes stand `ALP_ROAM` (seven) past the property on both sides, so a slice
+is in the firs rather than out — except on Knife Edge (`tight`), whose drop
+is the hole.
+
 The `alpine` theme is clear high air: a deep blue sky, a pale-blue horizon,
 a high white sun, and `air: 2`, which pushes the whole fog fade back (short
 of the surround's rim) so the ranges stand sharp rather than paling into

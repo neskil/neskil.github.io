@@ -4694,7 +4694,7 @@
                     [28.5, 61, 1.9, snd, 1.2]
                 ]
             }),
-            fence: { x: 12, z: 4, w: 34, d: 76 },
+            fence: widen({ x: 12, z: 4, w: 34, d: 76 }, 6, 6),   // wider since v1.234.0
             tee: { x: 31, z: 12 }, cup: { x: 35, z: 67.5 }
         }),
         (function () {
@@ -4734,7 +4734,7 @@
                 inlays: [[28, 62, 5.4, grn], [38, 26, 2.2, snd, 1.6]]
             }),
             water: [pond(ground, lobes)],
-            fence: { x: 12, z: 4, w: 36, d: 76 },
+            fence: widen({ x: 12, z: 4, w: 36, d: 76 }, 6, 6),   // wider since v1.234.0
             tee: { x: 30, z: 10 }, cup: { x: 28.5, z: 62.5 }
           });
         })(),
@@ -4785,7 +4785,7 @@
                 crags(34, 36, 5, 7, 7717, { s: 1.6, h: 1.2 }),
                 crags(30, 22, 4, 4, 7727, { s: 1.2, h: 0.9 })
             ),
-            fence: { x: 4, z: 4, w: 24, d: 74 },
+            fence: widen({ x: 4, z: 4, w: 24, d: 74 }, 2, 2),    // wider since v1.234.0
             tee: { x: 15, z: 8 }, cup: { x: 15, z: 66.5 }
         }),
         (function () {
@@ -4898,7 +4898,7 @@
             ]),
             water: [pond(ground.filter(function (p) { return p !== isle && !p.inlay; }),
                          burn(ring, 2.5, 1.3, 6427))],
-            fence: { x: 8, z: 8, w: 36, d: 52 },
+            fence: widen({ x: 8, z: 8, w: 36, d: 52 }, 4, 4),    // wider since v1.234.0
             tee: { x: 26, z: 22 }, cup: { x: 26, z: 39 }
           });
         })(),
@@ -7411,7 +7411,14 @@
         p.facets = true;
         return p;
     }
+    /* The stakes stand seven units out past the property on both sides
+       (v1.234.0, the owner: "lessen the out of bounds, it's fun if you try
+       to recover"), where they had stood on it: a slice is in the firs and
+       the shot out from among them, not a stroke and distance. `tight`
+       keeps them on the line, for the hole whose drop is the hole. */
+    var ALP_ROAM = 7;
     function alp(h) {
+        if (h.fence && h.fence.w !== undefined && !h.tight) h.fence = widen(h.fence, ALP_ROAM, ALP_ROAM);
         return build(Object.assign({ long: true, shaped: true, open: true }, h));
     }
 
@@ -7639,7 +7646,7 @@
             pit.oob = true;
             var tarn = pond([pit], mere(-9, 34, 10.5, 40, 2.6, 9761));
             return alp({
-                name: 'Knife Edge', par: 4,
+                name: 'Knife Edge', par: 4, tight: true,
                 blurb: 'Down the crest of a ridge with the mountain falling away on one side, to a green out on the edge.',
                 pads: g.concat([
                     granite(28, 35, 5, 16, 13.5, { wild: 0.1 }),
