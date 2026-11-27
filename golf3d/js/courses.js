@@ -7713,7 +7713,7 @@
 
     /* The kinds of golf, and the picker's tabs over them.
 
-       Three kinds and two tabs (the owner, v1.235.0: fewer categories —
+       Three kinds and two tabs (the owner, v1.236.0: fewer categories —
        "world, mini golf, long game", with mini golf split in two). Classic
        mini golf is the ground sitting still and a lane to read: rails,
        ramps, ledges and carries. Adventure is everything where the course

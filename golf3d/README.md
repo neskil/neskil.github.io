@@ -5,7 +5,7 @@ Ethan Mollick's Portals ([The World Tour](#the-world-tour-every-hole-in-a-world)
 — and beside it in the same picker, the game this started as:
 
 Fifteen six-hole courses of 3D golf under two tabs, **Mini golf** and **the
-long game**, and three kinds (since v1.235.0, when crazy golf was folded into
+long game**, and three kinds (since v1.236.0, when crazy golf was folded into
 adventure — the owner: "world, mini golf, long game", mini golf in two).
 **Classic** mini golf: three courses of lanes, rails, ledges, banks and
 carries. **Adventure**: six where the course plays back. Three of
@@ -1186,7 +1186,7 @@ Fifteen, six holes each, filed under three kinds (`course.group`:
 heading each, and Long game (see [The picker](#the-picker)). A classic hole is
 one swing and a putt; an adventure hole is a mechanism you have to time or a
 floor that does something to the ball; a long-game hole is a drive and an
-approach. Until v1.235.0 there were four kinds and four tabs, crazy golf
+approach. Until v1.236.0 there were four kinds and four tabs, crazy golf
 being the three machine courses now first on the adventure shelf.
 
 | Course | Group | Theme | What it is about |
