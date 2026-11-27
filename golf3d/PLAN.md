@@ -44,6 +44,19 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
    drums, scree laid at the feet, and the floor's edge let down into the
    country. Still open: height on the other long courses where a hole is flat
    for no reason.
+10. **Alpenglow, more mountain** — "Alpenglow is a bit weird. Why is it gray
+    outside the fairway? … can that map be more 'in the mountains' feeling …
+    some more vertical geometry." The grey is the surround (`surround:
+    'rock'`, a granite floor) showing past the rough. Wants alpine meadow
+    near the hole and real walls and peaks close round it.
+11. **Less out of bounds, and a choice when you are out** — "lessen the out
+    of bounds, it's fun if you try to recover (but perhaps if you are off
+    give option to pick up or rehit ball at penalty". Two parts: the stakes
+    further out on the long game, so more of what is now out is a recovery
+    from the trees; and, when a ball does go out, a choice between a drop
+    where it crossed (a penalty stroke) and replaying from where it was hit
+    (stroke and distance) instead of the one fixed rule.
+
 Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the
 owner's yes before it is started.
@@ -75,6 +88,22 @@ Still waiting: "Deadline" (a nice biome, maps too simple, water on a table)
 is waiting on the owner to say which course they meant.
 
 Done:
+
+- **A forest round the long game, and four holes reworked** (v1.231.0) —
+  the owner's "more varied terrain … more trees (feels like in the forest)
+  … much denser forest as part of the obstacles … some cool Sawgrass style
+  peninsula map with lots of water". `theme.woods` (render.addWoods): every
+  Ashdown, Alpenglow and Dunmore hole is a clearing in woodland, with the
+  trees going on over the country, down the bank and across the plain.
+  Holes: *The Elbow*'s corner is a thick wood instead of a pond (go round or
+  carry it); *Over the Water* is an island green with a drop zone (bot with
+  hands, 24 rounds: -0.5, the hardest on the course — a ring of hollows at
+  6.1 left no collar and gave a 16); *Homeward* has five pools down its side
+  and a green on a peninsula; *Two Fords* has a stand of firs splitting its
+  fairway and a chute at the second ford (-1.8 → -1.4). Ashdown as a whole
+  went from -6.8 to -6.0 for the bot with hands. Not done: the woods are
+  not solid past the stakes (nothing is simulated there); the in-play
+  thickets do not sway; frame rate not measured on a real phone.
 
 - **The edge of every long hole** (v1.230.0) — the tree line or gorse item
   above, and the two lines it was meant to hide. The faint line was the

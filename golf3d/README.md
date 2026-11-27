@@ -2278,10 +2278,10 @@ no longer drives any green on the course: `tools/par-check.mjs` measures it.
 | --- | --- | --- | --- | --- |
 | 1 | Opening Drive | 4 | Four units down off a bluff and over a crest, with a seven-unit burn lying across the hole exactly where a full drive comes down. Throttle the drive to stop short of it, then carry the water to a green two units up on a shelf. | |
 | 2 | Long Meadow | 5 | A belt of sand twelve units deep where the drive lands, so the tee shot is a lay-up and the second is the one that carries it. A long third to a green with a pond off its left shoulder. | Hell's Half Acre, Pine Valley 7 |
-| 3 | The Elbow | 4 | A real dogleg: north off the east bluff, then hard left along the top to a green on a shelf. The inside of the corner is a pond behind a line of oaks — go round, or take on as much of it as you dare. | |
-| 4 | Over the Water | 3 | Four units above eight units of pond, and a full iron over it to a round green on a shelf. Or the dry tongue down the right and a longer putt. | |
+| 3 | The Elbow | 4 | A real dogleg: north off the east bluff, then hard left along the top to a green on a shelf. The inside of the corner is a thick wood on a knoll and a hollow (v1.231.0) — go round, or carry the whole of it; a ball that comes down short is among a hundred trunks. | Heathland pine courses |
+| 4 | Over the Water | 3 | An island green (v1.231.0): off the bluff, over a lake that fills the floor of the park, to a round green with water all round it and a walkway out at the back. The dry way is the drop zone on the east shore (left from the tee) and a pitch over the channel. | TPC Sawgrass 17 |
 | 5 | The Dell | 3 | Blind, off a bluff into a dell between two hills, with a ring of mounds round the green and the top of the flag all you get. | The Dell, Lahinch 5 |
-| 6 | Homeward | 4 | Three pools step down the right of the tee shot, the whole park tilts into them, and the approach climbs to a green tucked right above the head of them. Bite off as much as you dare. | Cape |
+| 6 | Homeward | 4 | A chain of five pools steps down one side of the hole, the whole park tilts into them, and the last wraps round the side and the back of the green, which stands on a peninsula (v1.231.0). Bite off as much as you dare. | Cape, TPC Sawgrass 18 |
 
 The card climbs (see [The order the holes are in](#the-order-the-holes-are-in)):
 an opener whose only carry is the second shot, then a par 5 that is a grind
@@ -2685,7 +2685,7 @@ What is new to draw:
 | --- | --- | --- | --- |
 | 1 | The Perch | 3 | Off a granite crag seven and a half units up, down on to a meadow green twenty-eight away, with the glacier stream across its front and sand behind it. The fall adds a third to every club; short is wet. |
 | 2 | High Pasture | 4 | Up a climbing meadow: a brook across the flat where a full drive finishes, so the drive is the club that stops short, then over the brook and up a bank to a shelf under a snow-capped cliff band. |
-| 3 | Two Fords | 5 | Down a valley from six units up, with the stream across it twice: carry the first ford off the tee and the second is in reach; lay up and it is three shots with a ford in front of two of them. |
+| 3 | Two Fords | 5 | Down a valley from six units up, with the stream across it twice: carry the first ford off the tee and the second is in reach; lay up and it is three shots with a ford in front of two of them. A stand of firs splits the fairway between the fords and a chute of firs lines the second (v1.231.0). |
 | 4 | The Tarn | 4 | Off a granite knoll over a glacier tarn under a waterfall to the landing beyond, or round it on the fairway out east — and a pool off the green's west side for the short iron from over the lake. |
 | 5 | Knife Edge | 4 | Down the crest of a spur seven and a half up, leaning at a drop that is the whole west side of the hole, a granite crest on the east; the green is out on the edge, so the short way in is along the drop. |
 | 6 | Alpenglow | 4 | Off a crag, round a knoll of firs, over the stream to a green below the chalet, with the chairlift running up the mountain beside it. |
@@ -6373,6 +6373,33 @@ Nothing in it is solid, and nothing needs to be: a ball is out the moment it
 crosses the stakes and is not simulated past them, and no clump stands within
 `FRINGE_OUT` (1.3) of them. `shader-tests.html` → "The fringe" holds that, and
 that every long theme with a fringe grows one and a drawn hole none.
+
+#### The woods
+
+The fringe dresses the edge of a hole; `theme.woods` is the forest behind it
+(render.addWoods, v1.231.0). On Ashdown, Alpenglow and Dunmore a hole is a
+clearing cut out of woodland: trees stand over the country past the stakes,
+down the bank (`skirtAt` reads its height off the skirt's own plan) and out
+across the plain to `reach`, in stands and glades by a slow noise of where
+you are. Ashdown is oak, beech and pine at 0.85; Alpenglow fir at 0.7;
+Dunmore clumps of Scots pine on the heather at 0.3.
+
+Scenery only, never solid, and kept out of three places: the play side of
+the rough's edge plus `WOODS_IN` (the fringe's band), a `WOODS_TEE` clearing
+round the tee where the camera stands for the first shot, and the water.
+`shader-tests.html` → "The woods" holds all three. Instanced with a colour
+per instance, so a forest of up to `WOODS_MAX` trees is three draw calls and
+their shadows. The side seat stands out from the hole, which on these
+courses is among the trees, so the woods' material discards anything within
+`WOODS_NEAR` of the eye — the shadow stays.
+
+The trees that are *in play* are still `forest`/`tree` walls, solid in the
+trunk. A wood dense enough to be the hazard (`thicket`: several overlapping
+ovals, trunks no nearer than `gap`) is a hundred of them, so a tree marked
+`still` has its crown batched with everything else that stands still
+(render.stand) instead of swaying on a pivot of its own: a hundred crowns
+would otherwise be three hundred draw calls. The Elbow's corner and Two
+Fords' stand and chute are built that way.
 
 ### The sky
 

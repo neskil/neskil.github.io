@@ -3131,6 +3131,157 @@
     }
     var _fm = new THREE.Matrix4(), _fs = new THREE.Vector3();
 
+    /* ── the woods: a forest the hole is cut out of ─────────────────────
+
+       The fringe dresses the edge of the hole; this is what stands behind
+       it. On a course that is a park in a forest (Ashdown) or a pass below
+       the treeline (Alpenglow), a hole on a plain with a few trees round it
+       reads as a lawn in a field. A fairway cut through woodland — the view
+       from the tee that every heathland and pine course is remembered by —
+       wants the trees to go on: over the country past the stakes, down the
+       bank and out across the plain until the fog takes them, in stands and
+       glades by a slow noise of where you are.
+
+       Scenery only, like the fringe, and further out than it: never nearer
+       the stakes than the rough's own edge plus WOODS_IN (the fringe's
+       thickets are what stand in that band), and never in a clearing round
+       the tee, where the camera stands behind the first shot. Instanced,
+       with a colour per instance, so a whole forest is three draw calls
+       (trunks, cones, crowns) and a shadow pass each. Which trees and how
+       thick is the theme's (`theme.woods`). */
+    var WOODS_STEP = 1.9;       // the sampling grid, in units
+    var WOODS_IN = 1.6;         // past the rough's edge before a wood starts
+    var WOODS_TEE = 15;         // a clearing this wide round the tee
+    var WOODS_MAX = 2400;       // trees on one hole, at most
+
+    // The height of the bank on a point, read off the skirt's own plan:
+    // null on the slab (the pads answer there) and past the bank.
+    function skirtAt(plan, theme, x, z) {
+        if (!plan) return null;
+        var dx = x - plan.cx, dz = z - plan.cz, r = Math.sqrt(dx * dx + dz * dz);
+        var f = (Math.atan2(dz, dx) / (Math.PI * 2) + 1) % 1 * SKIRT_SECT;
+        var j0 = Math.floor(f) % SKIRT_SECT, j1 = (j0 + 1) % SKIRT_SECT, u = f - Math.floor(f);
+        var a = plan.edge[j0], b = plan.edge[j1];
+        if (!a || !b) return null;
+        var er = a.r + (b.r - a.r) * u, ey = a.y + (b.y - a.y) * u;
+        if (r < er + SKIRT_SHOULDER) return null;
+        if (r > er + plan.width) return null;
+        var t = (r - er - SKIRT_SHOULDER) / (plan.width - SKIRT_SHOULDER);
+        return theme.surroundY + SKIRT_LIP + (1 - t * t * (3 - 2 * t)) * (ey - SKIRT_SINK - theme.surroundY);
+    }
+
+    /* A wood the camera can stand in. The side seat stands out from the
+       hole, square to the shot, and on a course cut out of a forest that is
+       among the trees: so a tree within WOODS_NEAR of the eye is not drawn
+       there (a discard on the distance from the camera, which the vertex
+       shader has for nothing). Its shadow stays, which is right — it is
+       still standing. */
+    var WOODS_NEAR = 4.5;
+    function woodsMaterial() {
+        var m = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        m.onBeforeCompile = function (sh) {
+            sh.vertexShader = sh.vertexShader
+                .replace('#include <common>', '#include <common>\nvarying float vEyeD;')
+                .replace('#include <project_vertex>', '#include <project_vertex>\nvEyeD = length(mvPosition.xyz);');
+            sh.fragmentShader = sh.fragmentShader
+                .replace('#include <common>', '#include <common>\nvarying float vEyeD;')
+                .replace('void main() {', 'void main() {\n\tif (vEyeD < ' + WOODS_NEAR.toFixed(1) + ') discard;');
+        };
+        m.customProgramCacheKey = function () { return 'woods-near'; };
+        return m;
+    }
+
+    function addWoods(group, hole, theme, plan) {
+        var spec = theme.woods;
+        if (!spec || !hole.open || !hole.fence || hole.stakes === false || hole.portal) return;
+        var fences = P.fenceRects(hole), b = hole.bounds, reach = spec.reach || 30;
+        var tee = hole.tee || { x: (b.minX + b.maxX) / 2, z: b.minZ };
+        var density = spec.density || 0.6, conifer = spec.conifer === undefined ? 0.5 : spec.conifer;
+        var lo = spec.h ? spec.h[0] : 3, hi = spec.h ? spec.h[1] : 5.5;
+        var leaves = spec.leaf, wet = R.weather ? (R.weather.wet || 0) : 0;
+        var lots = { trunk: [], cone: [], crown: [] }, count = 0;
+        function put(shape, colour, x, y, z, sx, sy, sz, yaw) {
+            _fm.makeRotationY(yaw);
+            _fm.scale(_fs.set(sx, sy, sz));
+            _fm.setPosition(x, y, z);
+            lots[shape].push({ m: _fm.clone(), c: colour });
+        }
+        var gx, gz, x, z, h1, h2, h3, h4, d, s, y, n, want, th, cr, con, leaf, slope, far;
+        for (gx = b.minX - reach; gx <= b.maxX + reach && count < WOODS_MAX; gx += WOODS_STEP) {
+            for (gz = b.minZ - reach; gz <= b.maxZ + reach && count < WOODS_MAX; gz += WOODS_STEP) {
+                h1 = treeHash(gx * 0.71 + 13.1, gz * 1.37 - 4.2);
+                h2 = treeHash(gz * 0.67 - 2.9, gx * 1.19 + 8.8);
+                x = gx + (h1 - 0.5) * WOODS_STEP * 0.9;
+                z = gz + (h2 - 0.5) * WOODS_STEP * 0.9;
+                d = fenceDist(fences, x, z);
+                if (d < countryLine(x, z) + WOODS_IN) continue;
+                if (Math.hypot(x - tee.x, z - tee.z) < WOODS_TEE) continue;
+                if (P.waterAt(hole, x, z)) continue;
+                /* Stands and glades: a slow noise decides how thick the wood
+                   is here, and a faster one breaks the edge of each stand so
+                   no glade is a circle. */
+                n = surNoise(x * 0.045 - 21, z * 0.045 + 37) * 0.75 + surNoise(x * 0.16 + 3, z * 0.16 - 11) * 0.25;
+                want = density * Math.min(1, Math.max(0, (n - 0.3) * 3.2));
+                h3 = treeHash(x * 3.11 + 1.7, z * 2.29 - 7.3);
+                if (h3 >= want) continue;
+                // On the ground wherever it is: the rough past the stakes,
+                // the bank, or the plain.
+                s = P.surfaceTop(hole, x, z);
+                if (s) {
+                    if (s.pad.kind !== 'rough' || s.pad.inlay || s.pad.oob || s.pad.stands) continue;
+                    slope = Math.abs(P.padHeight(s.pad, x + 0.3, z) - s.y) +
+                            Math.abs(P.padHeight(s.pad, x, z + 0.3) - s.y);
+                    if (slope > 0.4) continue;
+                    y = s.y;
+                } else {
+                    y = skirtAt(plan, theme, x, z);
+                    if (y === null) y = R.groundAt ? R.groundAt(x, z) : theme.surroundY;
+                }
+                y -= 0.1;
+                h4 = treeHash(z * 1.91 - 3.3, x * 0.43 + 5.5);
+                far = d > 14;
+                th = lo + (hi - lo) * h4;
+                cr = th * (0.24 + h1 * 0.1);
+                con = treeHash(x - 0.7, z + 0.9) < conifer;
+                leaf = leaves[Math.floor(h2 * leaves.length) % leaves.length];
+                count++;
+                if (con) {
+                    // A spruce or a pine: a tall cone on a short bole. Far out
+                    // the bole is lost in the wood and is not drawn.
+                    if (!far) put('trunk', 0x5b4330, x, y, z, 1.6, th * 0.3, 1.6, h1 * 6.28);
+                    put('cone', leaf, x, y + th * 0.18, z, cr, th * 0.38, cr, h2 * 6.28);
+                } else {
+                    if (!far) put('trunk', 0x6b503a, x, y, z, 1.9, th * 0.62, 1.9, h1 * 6.28);
+                    put('crown', leaf, x, y + th * 0.68, z, cr * 1.35, cr * 1.1, cr * 1.35, h2 * 6.28);
+                }
+            }
+        }
+        if (!count) return;
+        var shapes = { trunk: new THREE.CylinderGeometry(0.1, 0.16, 1, 5),
+            cone: new THREE.ConeGeometry(1, 2.6, 7), crown: new THREE.IcosahedronGeometry(1, 0) };
+        shapes.trunk.translate(0, 0.5, 0);
+        shapes.cone.translate(0, 1.3, 0);
+        var key, lot, mesh, i, col = new THREE.Color();
+        for (key in lots) {
+            lot = lots[key];
+            if (!lot.length) continue;
+            mesh = new THREE.InstancedMesh(shapes[key], woodsMaterial(), lot.length);
+            for (i = 0; i < lot.length; i++) {
+                mesh.setMatrixAt(i, lot[i].m);
+                // Each tree a shade of its own, so a stand is not one colour.
+                col.setHex(lot[i].c).multiplyScalar((0.86 + treeHash(i * 0.37, i * 1.13) * 0.24) * (1 - wet * 0.22));
+                mesh.setColorAt(i, col);
+            }
+            mesh.instanceMatrix.needsUpdate = true;
+            mesh.instanceColor.needsUpdate = true;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.name = 'woods-' + key;
+            group.add(mesh);
+        }
+        R.woods = count;
+    }
+
     function addTerrain(group, pad, theme, cup, pads) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var cy = P.padHeight(pad, cx, cz);
@@ -4437,6 +4588,20 @@
                 mesh.castShadow = true;
                 crownAt.add(mesh);
             }
+        }
+        /* A tree in a thicket (courses.forest `still`) is one of a hundred,
+           and a hundred crowns each swaying on a pivot are three hundred draw
+           calls. So its crown stands still and is drawn with every other
+           thing that stands still (stand): in a wood that dense nobody is
+           watching one tree move. */
+        if (wall.still && R.standing) {
+            crownAt.children.slice().forEach(function (m) {
+                stand(group, m.geometry, m.material,
+                    crownAt.position.x + m.position.x, crownAt.position.y + m.position.y,
+                    crownAt.position.z + m.position.z, m.rotation.x, m.rotation.y, m.rotation.z);
+            });
+            group.remove(crownAt);
+            return;
         }
         // Conifers are stiffer than broadleaves, and every tree has a beat of
         // its own, off where it stands.
@@ -7078,6 +7243,8 @@
         // What grows where the hole ends (addFringe), with the rest of the place.
         R.fringe = 0;
         addFringe(og, hole, theme);
+        R.woods = 0;
+        addWoods(og, hole, theme, skirt);
         // The grid on the floor is off the course, with the rest of the
         // scenery: in a live world it put a band of lines across the horizon.
         if (theme.grid) addGrid(og, hole, theme);
