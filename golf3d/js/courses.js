@@ -4339,7 +4339,7 @@
                turns hard left along the top of the hole to a green on a
                shelf, and the inside of the corner is forest — a hundred
                trunks on a knoll and a hollow, where there used to be a pond
-               behind a line of oaks (v1.231.0). Borrowed from the heathland
+               behind a line of oaks (v1.232.0). Borrowed from the heathland
                courses cut out of pine woods, where the trees are the hazard
                and the penalty is the shot out from among them.
 
@@ -4397,7 +4397,7 @@
             });
         })(),
         (function () {
-            /* The island green (v1.231.0), after the seventeenth at
+            /* The island green (v1.232.0), after the seventeenth at
                Ponte Vedra that every golfer knows from television: a round
                table in a lake, water all the way round it, and nothing
                between the tee and the flag but a short iron and a held
@@ -4547,7 +4547,7 @@
                be five boxes in a staircase. Every pool stays a unit or more
                off the mown line, so the shoreline is in the rough. */
             var ground = shape(tilt(scoop(park.pads, { seed: 29 }), -0.055, 0, 22, 0), field);
-            /* …and two more since v1.231.0, so the water runs the whole
+            /* …and two more since v1.232.0, so the water runs the whole
                length of the hole the way it does down the last at Ponte
                Vedra: a fourth pool where a long drive finishes, and the last
                wrapped round the side and the back of the green, which now
@@ -7539,7 +7539,7 @@
                     forest(32, 56, 4, 7, 8, 9727, { fir: true }),
                     forest(-6, 76, 4, 6, 7, 9729, { fir: true }),
                     /* A stand of firs left in the middle of the valley
-                       (v1.231.0), where the second shot comes down: the
+                       (v1.232.0), where the second shot comes down: the
                        fairway goes either side of it, and the side is the
                        choice — the near one is shorter and the far one sees
                        the green. Then a chute of firs either side of the
