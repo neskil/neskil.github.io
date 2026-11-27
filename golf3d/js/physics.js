@@ -2810,6 +2810,112 @@
         return dx * dx + dz * dz > r * r;
     }
 
+    /* ── the drop ───────────────────────────────────────────────────────
+
+       After the water or out of play the player may take the shot again from
+       where the last was played (stroke and distance, what the game always
+       did) or drop where the ball left the playable ground (game.js → the
+       penalty card). This is where that is.
+
+       `track` is the ball's path through the shot, in order, as game.js
+       sampled it. The **crossing** is the last point on it over ground a
+       ball may be played from: over land, not under water, inside the
+       stakes, not on an `oob` pad or in a world's out cell. Flown over a
+       pond, that is the bank it last crossed, the way the rule reads.
+
+       From there, the nearest spot a ball will sit still and dry — no
+       nearer the hole than the crossing — tried out to two club lengths
+       round it and then back along the line it came in on. Each candidate is
+       settled on a copy of the world from rest, so a bank too steep to hold a
+       ball, or one that runs it back in, is not offered. Null when nothing
+       is: the card then offers the replay only. */
+    var DROP_RINGS = [0, 0.35, 0.7, 1.1, 1.6, 2.2];
+    var DROP_BEARINGS = 12;
+
+    function dryAt(hole, x, z) {
+        var s = surfaceTop(hole, x, z);
+        if (!s || s.pad.oob) return null;
+        if (outOfBounds(hole, x, z) || outCell(hole, x, z)) return null;
+        var eg = hole.edge;
+        if (eg && (x < eg.x0 || x > eg.x1 || z < eg.z0 || z > eg.z1)) return null;
+        var w = waterAt(hole, x, z);
+        if (w && s.y <= w.y + C.BALL_R * 0.5) {
+            if (!(w.lava && hole.crusts)) return null;
+            var cr = crustAt(hole, x, z);
+            if (!cr) return null;
+        }
+        if (hole.wells) {
+            for (var i = 0; i < hole.wells.length; i++) {
+                var wl = hole.wells[i], r = wl.core * 2 + C.BALL_R;
+                if ((x - wl.x) * (x - wl.x) + (z - wl.z) * (z - wl.z) < r * r) return null;
+            }
+        }
+        return s;
+    }
+
+    function restsAt(hole, x, z, time) {
+        if (!dryAt(hole, x, z)) return null;
+        var w = createWorld(hole, { x: x, z: z }, time);
+        w.moving = true;
+        settle(w, 3);
+        if (w.sunk || w.splash || w.out || w.moving) return null;
+        var b = w.ball, dx = b.x - x, dz = b.z - z;
+        if (dx * dx + dz * dz > 0.25 * 0.25) return null;
+        if (!dryAt(hole, b.x, b.z)) return null;
+        return { x: b.x, y: b.y, z: b.z };
+    }
+
+    function dropSpot(hole, track, time) {
+        if (!track || !track.length) return null;
+        var i, k, at = -1;
+        for (i = track.length - 1; i >= 0; i--) {
+            if (dryAt(hole, track[i].x, track[i].z)) { at = i; break; }
+        }
+        if (at < 0) return null;
+        var cross = track[at], cup = hole.cup;
+        var far = cup ? Math.sqrt((cross.x - cup.x) * (cross.x - cup.x) + (cross.z - cup.z) * (cross.z - cup.z)) : Infinity;
+        // The line in: the way the ball was travelling as it crossed, so the
+        // first ring is laid back up it rather than on into the hazard.
+        var back = { x: 0, z: -1 };
+        for (k = at - 1; k >= 0; k--) {
+            var bx = track[k].x - cross.x, bz = track[k].z - cross.z, bl = Math.sqrt(bx * bx + bz * bz);
+            if (bl > 0.3) { back.x = bx / bl; back.z = bz / bl; break; }
+        }
+        var cands = [], seen = 0;
+        for (i = 0; i < DROP_RINGS.length; i++) {
+            var r = DROP_RINGS[i], n = r ? DROP_BEARINGS : 1;
+            for (k = 0; k < n; k++) {
+                // Bearing 0 is straight back up the line; then alternately
+                // either side of it, so a tie goes to the spot behind.
+                var j = k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2);
+                var a = Math.atan2(back.x, back.z) + j * Math.PI * 2 / DROP_BEARINGS;
+                cands.push({ x: cross.x + Math.sin(a) * r, z: cross.z + Math.cos(a) * r, d: r + Math.abs(j) * 0.001 });
+            }
+        }
+        // …and further back along the track, for a bank with no lie on it.
+        for (k = at - 1; k >= 0 && seen < 40; k--) {
+            var tx = track[k].x - cross.x, tz = track[k].z - cross.z, td = Math.sqrt(tx * tx + tz * tz);
+            if (td <= DROP_RINGS[DROP_RINGS.length - 1]) continue;
+            cands.push({ x: track[k].x, z: track[k].z, d: td + 10 });
+            seen++;
+        }
+        for (i = 0; i < cands.length; i++) {
+            var c = cands[i];
+            if (cup) {
+                var cd = Math.sqrt((c.x - cup.x) * (c.x - cup.x) + (c.z - cup.z) * (c.z - cup.z));
+                if (cd < far || cd < C.HOLE_R * 3) continue;
+            }
+            var spot = restsAt(hole, c.x, c.z, time);
+            // Where it settled, not where it was put, is what is no nearer.
+            if (spot && cup && Math.sqrt((spot.x - cup.x) * (spot.x - cup.x) + (spot.z - cup.z) * (spot.z - cup.z)) < far - 0.05) spot = null;
+            if (spot) {
+                spot.cross = { x: cross.x, y: cross.y, z: cross.z };
+                return spot;
+            }
+        }
+        return null;
+    }
+
     function simulateShot(hole, from, yaw, power, loft, time, bite) {
         var w = createWorld(hole, from, time);
         if (!launch(w, yaw, power, loft, bite)) return w;
@@ -2906,6 +3012,8 @@
         done: done,
         simulateShot: simulateShot,
         escapes: escapes,
+        dropSpot: dropSpot,
+        dryAt: dryAt,
         previewPath: previewPath,
         speedOf: speedOf,
         groundSpeed: groundSpeed,

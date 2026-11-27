@@ -98,6 +98,18 @@
         return SHELL_LAYERS;
     }
 
+    /* How high the grass on a kind of ground stands as drawn: the top shell
+       still showing at this quality (each layer stands at (i + 0.3) / layers
+       of SHELL_HEIGHT, and the lowest `want` are shown). groundfx.js lays its
+       dents, track and bare earth among the blades by it — a mark on the
+       ground itself is under the lawn and cannot be seen. */
+    function grassLift(kind) {
+        var h = SHELL_HEIGHT[kind];
+        if (!h) return 0;
+        var want = Math.min(SHELL_LAYERS, shellCountFor());
+        return want > 0 ? h * (want - 0.7) / SHELL_LAYERS : 0;
+    }
+
     function syncShellLayers() {
         var want = shellCountFor(), i, sh;
         for (i = 0; i < R.shells.length; i++) {
@@ -9226,6 +9238,11 @@
         return true;
     }
 
+    // Where a drop would go, while the penalty card is up (game.js); null hides it.
+    function markDrop(spot) {
+        if (G3.groundfx && R.hole) G3.groundfx.dropMark(R.hole, spot);
+    }
+
     function dropCamera(dt) {
         var d = R.drop, W = C.FLY.WIPE;
         if (!d.arrive) {
@@ -10755,6 +10772,7 @@
     }
 
     G3.render = {
+        grassLift: grassLift,
         pinScreen: pinScreen,
         camSettled: camSettled,
         setBallColour: setBallColour,
@@ -10780,6 +10798,7 @@
         setCam: setCam,
         startDive: startDive,
         dropTo: dropTo,
+        markDrop: markDrop,
         setWindup: setWindup,
         startLap: startLap,
         stopLap: stopLap,

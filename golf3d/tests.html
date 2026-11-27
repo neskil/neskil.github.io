@@ -4918,6 +4918,65 @@
             assert('the why names the real bonus', /\d+% further/.test(SC.WHY), SC.WHY);
         })();
 
+        section('The drop');
+        /* After the water or out of play, game.js offers a drop by where the
+           ball last crossed on to playable ground (physics.dropSpot) beside the
+           replay. A drop must be a lie: dry, inside the stakes, holding a
+           ball, and no nearer the hole than the crossing. */
+        (function () {
+            var A = G3.authoring;
+            // A pond across the line, flown straight into.
+            var h = A.build({ name: 'pond', par: 3, bag: ['putter', 'mallet'],
+                pads: [A.pad(0, 0, 6, 30, 0, 'fairway')],
+                water: [{ x: 0, z: 12, w: 6, d: 6, y: -0.05 }],
+                tee: { x: 3, z: 2 }, cup: { x: 3, z: 26 } });
+            var track = [], z;
+            for (z = 2; z <= 15; z += 0.2) track.push({ x: 3, y: 0.3, z: z });
+            var spot = P.dropSpot(h, track, 0);
+            assert('drop: a shot into a pond is offered a drop', !!spot);
+            assert('…on the near bank, behind where it crossed into the water',
+                !!spot && spot.z < 12 && spot.z > 9 && Math.abs(spot.cross.z - 12) < 0.25,
+                spot ? 'at z ' + spot.z.toFixed(2) + ', crossed at ' + spot.cross.z.toFixed(2) : 'none');
+            assert('…dry ground', !!spot && !!P.dryAt(h, spot.x, spot.z));
+            var wet = [];
+            for (z = 12.5; z <= 16; z += 0.2) wet.push({ x: 3, y: 0, z: z });
+            assert('…and a path that was never on dry ground has no drop', P.dropSpot(h, wet, 0) === null);
+        })();
+        (function () {
+            // Every drawn hole with water or stakes: real shots that end
+            // there, and the drop each is offered.
+            var tried = 0, got = 0, faults = [];
+            ALL.forEach(function (e) {
+                var h = e.hole;
+                if (!(h.water && h.water.length) && !h.fence) return;
+                var bag = G3.bagFor(h), n = 0, yi, ci;
+                for (yi = 0; yi < 16 && n < 2; yi++) for (ci = 0; ci < bag.length && n < 2; ci++) {
+                    var club = bag[ci], w = P.createWorld(h, { x: h.tee.x, z: h.tee.z }, 0);
+                    if (!P.launch(w, yi * Math.PI / 8, club.power, club.loft, club.bite)) continue;
+                    var tr = [{ x: w.ball.x, y: w.ball.y, z: w.ball.z }], i = 0;
+                    while (i++ < 22 * 60 && !P.done(w)) {
+                        P.advance(w, 1 / 60);
+                        var l = tr[tr.length - 1];
+                        if ((w.ball.x - l.x) * (w.ball.x - l.x) + (w.ball.z - l.z) * (w.ball.z - l.z) > 0.0225) tr.push({ x: w.ball.x, y: w.ball.y, z: w.ball.z });
+                    }
+                    if (!w.splash && !w.out) continue;
+                    n++; tried++;
+                    var sp = P.dropSpot(h, tr, w.time);
+                    if (!sp) continue;
+                    got++;
+                    var v = P.createWorld(h, sp, w.time);
+                    v.moving = true;
+                    P.settle(v, 5);
+                    var dc = Math.sqrt((sp.x - h.cup.x) * (sp.x - h.cup.x) + (sp.z - h.cup.z) * (sp.z - h.cup.z));
+                    var xc = Math.sqrt((sp.cross.x - h.cup.x) * (sp.cross.x - h.cup.x) + (sp.cross.z - h.cup.z) * (sp.cross.z - h.cup.z));
+                    if (v.splash || v.out || dc < xc - 0.06 || !P.dryAt(h, sp.x, sp.z)) faults.push(e.course.id + ' ' + h.name);
+                }
+            });
+            assert('drop: real shots into water or out of play on the drawn holes (at least 60)', tried >= 60, tried + ' shots');
+            assert('…nearly all are offered a drop', got >= tried * 0.9, got + ' of ' + tried);
+            assert('…and every drop offered rests dry, in play and no nearer the hole', faults.length === 0, faults.slice(0, 4).join('; '));
+        })();
+
         section('Scoring and the save file');
         (function () {
             assert('one stroke is an ace', S.term(1, 3).kind === 'ace');
