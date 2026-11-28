@@ -862,6 +862,39 @@
         return !!g.on[k * g.nx + i];
     }
 
+    /* …but never where the hole is played. The forge marks a cell out when
+       something of the world stood there from above, and it cleared only a
+       2.2 ring round the cup (tools/forge.mjs → outsOf), so on a 3-wide
+       green there were out cells on the putting surface — the owner's ball
+       came to rest a putt from the cup on The Pop-Up Book and was called
+       out of bounds (v1.245.1, "How can this be out of bounds?"). The tee,
+       the green and the painted fairway are drawn clear of the world's
+       things (backdrop.mjs → sculpt), so there is nothing there to be out
+       among. A cell is dropped when its square touches any of them — every
+       non-ghost pad — which means a ball at rest on one is never out by
+       the grid, wherever on it, and the ground off them keeps every cell
+       the forge gave it. Done once, when the hole is built. */
+    function clearOutsOnPlay(hole) {
+        var g = hole.outGrid;
+        if (!g) return;
+        var played = hole.pads.filter(function (p) { return !p.ghost && p.kind !== 'rough'; });
+        var h = g.d / 2, n = 0, key, k, i, cx, cz, a, b, hit, j;
+        var at = [-h, 0, h];
+        for (key in g.on) {
+            if (!g.on[key]) continue;
+            k = Math.floor(key / g.nx); i = key % g.nx;
+            cx = g.x0 + i * g.d; cz = g.z0 + k * g.d;
+            hit = false;
+            for (j = 0; j < played.length && !hit; j++) {
+                for (a = 0; a < 3 && !hit; a++) for (b = 0; b < 3 && !hit; b++) {
+                    if (padContains(played[j], cx + at[a], cz + at[b])) hit = true;
+                }
+            }
+            if (hit) delete g.on[key]; else n++;
+        }
+        g.n = n;
+    }
+
     /* …and the trunks among them, which the ball hits (batch 3, the Tree
        City: "the tree should have collision"). `hole.solidGrid` is the same
        grid as `outGrid`, its `on` a height over the ground for each cell
@@ -3028,7 +3061,7 @@
         gravityOf: gravityOf,
         padGrad: padGrad,
         slopeAt: slopeAt,
-        outOfBounds: outOfBounds, outCell: outCell,
+        outOfBounds: outOfBounds, outCell: outCell, clearOutsOnPlay: clearOutsOnPlay,
         fenceRects: fenceRects,
         warpUnder: warpUnder,
         warpPoint: warpPoint,

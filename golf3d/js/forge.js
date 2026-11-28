@@ -107,7 +107,10 @@
         });
         // The world's things off the line (forge.mjs → outsOf): grid cells a
         // ball may cross and may not stop in (physics.markOutOfBounds).
-        if (m.outs && m.outs.length) h.outGrid = outGrid(G, m.outs);
+        if (m.outs && m.outs.length) {
+            h.outGrid = outGrid(G, m.outs);
+            G3.physics.clearOutsOnPlay(h);
+        }
         /* …and the middles of them, which the ball strikes (batch 4 on:
            forge.mjs → solidOf; physics.collideSolid): `solid` is
            [cell, height over the ground] pairs. */
