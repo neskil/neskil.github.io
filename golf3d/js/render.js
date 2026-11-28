@@ -32,6 +32,7 @@
     var R = {
         ready: false,
         cupR: G3.CONFIG.HOLE_R, cupD: G3.CONFIG.CUP_DEPTH,   // buildHole: G3.holeR / G3.cupDepth
+        nest: { value: new THREE.Vector4(0, 0, 0, 0) },      // the turf's nest round the ball (nestBall)
         scene: null, camera: null, renderer: null,
         holeGroup: null, ball: null, aimGroup: null, pathCone: null, pathHead: null, arrow: null,
         flagCloth: null, flagPole: null, cupMesh: null,
@@ -1283,6 +1284,9 @@
         shader.uniforms.mowK = { value: this.userData.mowK };
         // …and the far colour rides on it for the same reason.
         shader.uniforms.shellFar = { value: this.userData.shellFar };
+        // …and the nest round the ball, one object every layer shares, so
+        // the frame moves it once for all of them (nestBall).
+        shader.uniforms.turfNest = R.nest;
         shader.vertexShader = SH.TURF_VS_HEAD +
             shader.vertexShader.replace('#include <begin_vertex>', SH.TURF_VS_BODY);
         shader.fragmentShader = SH.TURF_FS_HEAD +
@@ -8255,6 +8259,18 @@
         R.lastBall.set(pos.x, pos.y, pos.z);
         R.ball.scale.setScalar(s);
         R.ball.position.set(pos.x, pos.y, pos.z);
+        nestBall(pos);
+    }
+
+    /* The grass parted round the ball (shaders.js → the turf's nest): on a
+       long hole only, NEST balls across, at the ball's underside. The mini
+       golf ball stands over its green's mat and needs none. */
+    var NEST = 5;
+    function nestBall(pos) {
+        var n = R.nest.value;
+        if (!R.hole || !G3.longHole(R.hole)) { n.w = 0; return; }
+        var br = G3.ballR(R.hole);
+        n.set(pos.x, pos.y - br, pos.z, br * NEST);
     }
 
     /* The aiming furniture: a wedge on the ground pointing where the ball will
@@ -8725,8 +8741,30 @@
             need = g.y + SIGHT_CLEAR - (ty + (py - ty) * s);
             if (need > 0) lift = Math.max(lift, need / s);
         }
+        /* …and on a long hole, the top of the ball over a rise, grass and
+           all. The long game's ball is under half the mini golf one
+           (CONFIG.LONG_BALL), so its middle is barely over the turf, and the
+           test above lets through every crest that is lower than that middle
+           while still higher than the ball's top: from the seat, which on a
+           long hole is low and close (LONG_BALL.SEAT), the ball and the club
+           head behind it went under the rise, the shaft ending in the grass
+           (the owner, v1.254.1: "some clipping now"). So here the line is to
+           the top of the ball, and the ground stands as tall as the grass
+           drawn on it (grassLift). Level ground asks for nothing: from the
+           first sample out the line is already over the tallest rough. */
+        if (G3.longHole(hole)) {
+            var bt = ball.y + G3.ballR(hole);
+            for (i = 1; i <= 8; i++) {
+                s = i / 9;
+                g = P.surfaceTop(hole, ball.x + (px - ball.x) * s, ball.z + (pz - ball.z) * s);
+                if (!g) continue;
+                need = g.y + grassLift(g.pad.kind) + SIGHT_TOP - (bt + (py - bt) * s);
+                if (need > 0) lift = Math.max(lift, need / s);
+            }
+        }
         return Math.min(lift, 8);
     }
+    var SIGHT_TOP = 0.03;
 
     /* The lift over a bank, eased (CONFIG.SIGHT_EASE). It is read off the
        ground a few points along the line to the ball, so on ground that

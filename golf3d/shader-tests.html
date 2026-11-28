@@ -256,7 +256,7 @@
                 lod < 0 ? 'no fwidth() found' : 'nested ' + depth + ' deep');
             assert('the turf LOD closes the gaps and takes the far colour with it',
                 /diffuseColor\.a = mix\(/.test(body) && /shellFar/.test(body));
-            ['mowK', 'shellFar'].forEach(function (n) {
+            ['mowK', 'shellFar', 'turfNest'].forEach(function (n) {
                 assert('the turf declares `' + n + '` and reads it',
                     declaredUniforms(head).indexOf(n) > -1 && usesName(head + body, n));
             });
