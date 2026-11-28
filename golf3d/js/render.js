@@ -833,7 +833,125 @@
        walks hidden objects too), so a celebration costs no program and no
        light mid-hole: two point clouds — light, drawn additively, and matter
        (paper, dust), drawn over — four flat rings and two beams. */
-    var CELE_LIGHT = 1500, CELE_MATTER = 420, CELE_DUCKS = 80;
+    var CELE_LIGHT = 1500, CELE_MATTER = 420, CELE_DUCKS = 24;
+
+    /* A rubber duck, modelled: one geometry with its colours in it, a unit
+       long, its origin under its middle and its beak to +x — the shape
+       celebrate.js's ducks collide as (DUCK_SHAPE), dressed. Shared by the
+       course's flock and the shop's picture of it. */
+    var _duckGeo = null;
+    function duckGeometry() {
+        if (_duckGeo) return _duckGeo;
+        var S = (G3.celebrate && G3.celebrate.DUCK_SHAPE) || {
+            body: { c: [-0.04, 0.30, 0], r: [0.46, 0.30, 0.34] }, head: { c: [0.24, 0.70, 0], r: 0.21 } };
+        var parts = [], YEL = 0xffd21f, DEEP = 0xf2b705, ORANGE = 0xff7a1a, INK = 0x15110a, WHITE = 0xffffff;
+        function blob(c, r, rot, hex, ws, hs) {
+            var g = new THREE.SphereGeometry(1, ws || 24, hs || 16);
+            var m = new THREE.Matrix4().compose(new THREE.Vector3(c[0], c[1], c[2]),
+                new THREE.Quaternion().setFromEuler(new THREE.Euler(rot ? rot[0] : 0, rot ? rot[1] : 0, rot ? rot[2] : 0)),
+                new THREE.Vector3(r[0], r[1], r[2]));
+            g.applyMatrix4(m);
+            parts.push({ g: g.toNonIndexed(), c: new THREE.Color(hex) });
+        }
+        var B = S.body, H = S.head;
+        blob(B.c, B.r, null, YEL, 28, 18);
+        // The tail, turned up behind.
+        blob([B.c[0] - 0.36, B.c[1] + 0.12, 0], [0.17, 0.11, 0.15], [0, 0, 0.75], YEL, 14, 10);
+        blob(H.c, [H.r, H.r, H.r], null, YEL, 24, 16);
+        // Wings, a shade deeper, lying along the flanks.
+        [1, -1].forEach(function (k) {
+            blob([B.c[0] - 0.02, B.c[1] + 0.06, k * (B.r[2] - 0.035)], [0.22, 0.12, 0.05], [k * 0.12, 0, 0.22], DEEP, 16, 10);
+        });
+        // The beak: an upper and a lower bill.
+        blob([H.c[0] + 0.21, H.c[1] - 0.025, 0], [0.13, 0.045, 0.10], [0, 0, -0.08], ORANGE, 16, 10);
+        blob([H.c[0] + 0.18, H.c[1] - 0.075, 0], [0.10, 0.03, 0.08], [0, 0, 0.12], ORANGE, 14, 8);
+        // Eyes with a glint.
+        [1, -1].forEach(function (k) {
+            blob([H.c[0] + 0.13, H.c[1] + 0.07, k * 0.125], [0.038, 0.042, 0.03], null, INK, 10, 8);
+            blob([H.c[0] + 0.155, H.c[1] + 0.088, k * 0.142], [0.012, 0.012, 0.01], null, WHITE, 6, 4);
+        });
+        var n = 0;
+        parts.forEach(function (p) { n += p.g.attributes.position.count; });
+        var pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3), o = 0;
+        parts.forEach(function (p) {
+            var pa = p.g.attributes.position.array, na = p.g.attributes.normal.array;
+            pos.set(pa, o * 3);
+            nor.set(na, o * 3);
+            for (var i = 0; i < p.g.attributes.position.count; i++) {
+                col[(o + i) * 3] = p.c.r; col[(o + i) * 3 + 1] = p.c.g; col[(o + i) * 3 + 2] = p.c.b;
+            }
+            o += p.g.attributes.position.count;
+            p.g.dispose();
+        });
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        geo.computeBoundingSphere();
+        _duckGeo = geo;
+        return geo;
+    }
+    // Gloss rubber: lit, a soft highlight, nothing of metal.
+    function duckMaterial() {
+        return new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0 });
+    }
+    // A soft dark pool under each duck, so a duck on the green is on it.
+    var _duckShadowTex = null;
+    function duckShadowTex() {
+        if (_duckShadowTex) return _duckShadowTex;
+        _duckShadowTex = celeCanvas(function (x) {
+            var gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gr.addColorStop(0, 'rgba(0,0,0,0.55)');
+            gr.addColorStop(0.6, 'rgba(0,0,0,0.25)');
+            gr.addColorStop(1, 'rgba(0,0,0,0)');
+            x.fillStyle = gr;
+            x.fillRect(0, 0, 128, 128);
+        });
+        return _duckShadowTex;
+    }
+    function duckFlock(n) {
+        var flock = new THREE.InstancedMesh(duckGeometry(), duckMaterial(), n);
+        flock.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        flock.frustumCulled = false;
+        flock.count = 0;
+        var sg = new THREE.PlaneGeometry(1, 1);
+        sg.rotateX(-Math.PI / 2);
+        var shade = new THREE.InstancedMesh(sg, new THREE.MeshBasicMaterial({
+            map: duckShadowTex(), transparent: true, depthWrite: false, fog: false,
+            polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+        }), n);
+        shade.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        shade.frustumCulled = false;
+        shade.renderOrder = 3;
+        shade.count = 0;
+        return { mesh: flock, shade: shade, n: n };
+    }
+    var _dm = null, _dq = null, _dv = null, _ds = null;
+    // Lay the effect's ducks into a flock's instances; `k` is the effect's drawn scale.
+    function poseFlock(F, parts) {
+        if (!_dm) { _dm = new THREE.Matrix4(); _dq = new THREE.Quaternion(); _dv = new THREE.Vector3(); _ds = new THREE.Vector3(); }
+        var n = 0;
+        for (var i = 0; i < parts.length && n < F.n; i++) {
+            var p = parts[i];
+            if (!p.duck || p.oa <= 0.002 || p.os <= 0.001) continue;
+            _dq.set(p.oq[0], p.oq[1], p.oq[2], p.oq[3]);
+            _dv.set(p.ox, p.oy, p.oz);
+            _ds.set(p.os, p.os, p.os);
+            _dm.compose(_dv, _dq, _ds);
+            F.mesh.setMatrixAt(n, _dm);
+            // The shadow: under it on the green, smaller and fainter the higher it is.
+            var lift = Math.max(0, p.oy), fade = Math.max(0.15, 1 - lift / 3.5);
+            _dq.set(0, 0, 0, 1);
+            _dv.set(p.ox, 0.012, p.oz);
+            _ds.set(p.os * 1.05 * fade, 1, p.os * 0.85 * fade);
+            _dm.compose(_dv, _dq, _ds);
+            F.shade.setMatrixAt(n, _dm);
+            n++;
+        }
+        F.mesh.count = F.shade.count = n;
+        F.mesh.instanceMatrix.needsUpdate = F.shade.instanceMatrix.needsUpdate = true;
+        F.mesh.visible = F.shade.visible = n > 0;
+    }
     var CELE_VS = [
         'attribute float size;',
         'attribute float alpha;',
@@ -841,14 +959,11 @@
         'uniform float uHalfH;',
         'varying vec3 vTint;',
         'varying float vAlpha;',
-        'varying float vFlip;',
         'void main() {',
         '    vec4 mv = modelViewMatrix * vec4(position, 1.0);',
         '    gl_Position = projectionMatrix * mv;',
         // World-true size: the projection's own focal length, over the depth.
-        // (A negative size is a picture facing the other way: the duck.)
         '    gl_PointSize = clamp(abs(size) * projectionMatrix[1][1] * uHalfH / max(0.05, -mv.z), 0.0, 256.0);',
-        '    vFlip = size < 0.0 ? 1.0 : 0.0;',
         '    vTint = tint;',
         '    vAlpha = alpha;',
         '}'
@@ -876,21 +991,7 @@
         '}'
     ].join('\n');
 
-    // A picture on a point (the Easter egg's duck), turned round when it faces left.
-    var CELE_FS_SPRITE = [
-        'uniform sampler2D map;',
-        'varying vec3 vTint;',
-        'varying float vAlpha;',
-        'varying float vFlip;',
-        'void main() {',
-        '    vec2 uv = vec2(mix(gl_PointCoord.x, 1.0 - gl_PointCoord.x, vFlip), 1.0 - gl_PointCoord.y);',
-        '    vec4 c = texture2D(map, uv);',
-        '    if (c.a < 0.04) discard;',
-        '    gl_FragColor = vec4(c.rgb * vTint, c.a * vAlpha);',
-        '}'
-    ].join('\n');
-
-    function celeCloud(n, light, sprite) {
+    function celeCloud(n, light) {
         var g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
         g.setAttribute('tint', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
@@ -898,9 +999,9 @@
         g.setAttribute('size', new THREE.Float32BufferAttribute(new Float32Array(n), 1));
         g.setDrawRange(0, 0);
         var m = new THREE.ShaderMaterial({
-            uniforms: { uHalfH: { value: 400 }, map: { value: sprite || null } },
+            uniforms: { uHalfH: { value: 400 } },
             vertexShader: CELE_VS,
-            fragmentShader: sprite ? CELE_FS_SPRITE : light ? CELE_FS_LIGHT : CELE_FS_MATTER,
+            fragmentShader: light ? CELE_FS_LIGHT : CELE_FS_MATTER,
             transparent: true, depthWrite: false,
             blending: light ? THREE.AdditiveBlending : THREE.NormalBlending
         });
@@ -926,13 +1027,12 @@
         var grp = new THREE.Group();
         grp.visible = false;
         var light = celeCloud(CELE_LIGHT, true), matter = celeCloud(CELE_MATTER, false);
-        // The duck, drawn once by the same hand the shop draws its ducks with.
-        var duckTex = celeCanvas(function (x) {
-            if (G3.celebrate && G3.celebrate.drawDuck) G3.celebrate.drawDuck(x, 64, 70, 118, 1);
-        });
-        var ducks = celeCloud(CELE_DUCKS, false, duckTex);
-        ducks.renderOrder = 5;
-        grp.add(ducks);
+        /* The Easter egg's ducks, in 3D: one instanced mesh, built and warmed
+           with the hole like everything else here, so the first duck costs no
+           compile. Lit by the course's own lights, which it adds none to. */
+        var ducks = duckFlock(CELE_DUCKS);
+        grp.add(ducks.shade);
+        grp.add(ducks.mesh);
         grp.add(matter);
         grp.add(light);
         // A soft ring: bright at its rim, nothing inside or out.
@@ -1031,15 +1131,16 @@
         if (!c || !c.fx) return;
         var live = G3.celebrate.step(c.fx, Math.min(dt, 0.05));
         var fx = c.fx;
-        [[c.light, true, CELE_LIGHT, null], [c.matter, false, CELE_MATTER, null], [c.ducks, false, CELE_DUCKS, 'duck']].forEach(function (e) {
+        poseFlock(c.ducks, fx.parts);
+        [[c.light, true, CELE_LIGHT], [c.matter, false, CELE_MATTER]].forEach(function (e) {
             var g = e[0].geometry, pos = g.attributes.position.array, tint = g.attributes.tint.array;
             var al = g.attributes.alpha.array, sz = g.attributes.size.array, n = 0;
             for (var i = 0; i < fx.parts.length && n < e[2]; i++) {
                 var p = fx.parts[i];
-                if (p.add !== e[1] || (p.sprite || null) !== e[3] || p.oa <= 0.002) continue;
+                if (p.duck || p.add !== e[1] || p.oa <= 0.002) continue;
                 pos[n * 3] = p.ox; pos[n * 3 + 1] = p.oy; pos[n * 3 + 2] = p.oz;
                 tint[n * 3] = p.or; tint[n * 3 + 1] = p.og; tint[n * 3 + 2] = p.ob;
-                al[n] = p.oa; sz[n] = p.os * c.scale * (p.flip < 0 ? -1 : 1);
+                al[n] = p.oa; sz[n] = p.os * c.scale;
                 n++;
             }
             g.setDrawRange(0, n);
@@ -11021,7 +11122,13 @@
 
     /* Interactive 3D preview renderer for the Pro Shop modal — uses the exact
        same geodesic shaders on one lightweight WebGL context so every ball
-       can be spun and inspected up close before buying. */
+       can be spun and inspected up close before buying.
+
+       The Clubs and Bags shelves use it too (one context for the whole shop:
+       a phone allows only a handful). Their subjects are the real models —
+       bag.js → showClub / showBag, the same heads and the same bag the game
+       draws — lit by the same studio room, which this context filters for
+       itself (a PMREM from one context cannot be sampled by another). */
     function createBallPreview(canvas) {
         if (!canvas || typeof THREE === 'undefined') return null;
         var gl;
@@ -11068,12 +11175,131 @@
         syncBallUniforms(bundle, 0, sunDir, th, null, 20, 100);
         applyBallStyleTo(ballMesh, bundle, R.ballStyleId || 'tour-white', 0xffffff);
 
-        var clock = 0, rotY = 0.4, rotX = 0.15;
-        return {
+        /* ── the gear stage: a club or a bag on a round of turf ── */
+        var gear = new THREE.Group();
+        gear.visible = false;
+        sc.add(gear);
+        var spin = new THREE.Group();
+        gear.add(spin);
+        var mat = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshStandardMaterial({
+            color: 0x1d3a1f, roughness: 0.95, metalness: 0
+        }));
+        mat.geometry.rotateX(-Math.PI / 2);
+        mat.visible = false;     // the stage's own dark gradient reads better than a disc of turf
+        gear.add(mat);
+        var env = null;
+        function gearEnv() {
+            if (env !== null) return env;
+            env = false;
+            if (G3.bag && G3.bag.studioEnv && THREE.PMREMGenerator) {
+                try {
+                    var gen = new THREE.PMREMGenerator(gl);
+                    env = gen.fromEquirectangular(G3.bag.studioEnv()).texture;
+                    gen.dispose();
+                } catch (e) { env = false; }
+            }
+            return env;
+        }
+        var clubs = {}, bagShow = null, subject = 'ball', clubId = 'iron', finish = null, skin = null;
+        var fit = { r: 0.1, y: 0.05, k: 2.6 };
+        function showSubject(kind) {
+            subject = kind;
+            ballMesh.visible = plinth.visible = kind === 'ball';
+            gear.visible = kind !== 'ball';
+        }
+        function clubFor(id) {
+            if (!clubs[id] && G3.bag && G3.bag.showClub) clubs[id] = G3.bag.showClub(id, finish, gearEnv() || null);
+            return clubs[id];
+        }
+        function mount(obj) {
+            while (spin.children.length) spin.remove(spin.children[0]);
+            if (obj) spin.add(obj);
+            spin.updateMatrixWorld(true);
+            var box = new THREE.Box3().setFromObject(spin), sph = new THREE.Sphere();
+            box.getBoundingSphere(sph);
+            return { box: box, sph: sph };
+        }
+        function frameClub() {
+            var c = clubFor(clubId);
+            if (!c) return false;
+            c.paint(finish);
+            mount(c.group);
+            /* Framed on the head and its face (the owner: "focus on the club
+               face … ignore the shaft"): the shaft runs on out of the top of
+               the frame. The head is centred on the axis it turns about, so
+               turning never takes it out of shot. */
+            var hs = new THREE.Sphere();
+            c.head.getBoundingSphere(hs);
+            fit = { r: hs.radius, y: hs.center.y, k: 3.5, pitch: 0.28, drop: 0.12 };
+            mat.scale.setScalar(Math.max(0.09, (c.head.max.x - c.head.min.x) * 1.1));
+            mat.position.y = -0.0005;
+            return true;
+        }
+        function frameBag() {
+            if (!bagShow && G3.bag && G3.bag.showBag) bagShow = G3.bag.showBag(skin, gearEnv() || null);
+            if (!bagShow) return false;
+            bagShow.paint(skin);
+            var b = mount(bagShow.group);
+            fit = { r: b.sph.radius, y: b.sph.center.y, k: 3.6, pitch: 0.2, drop: 0 };
+            mat.scale.setScalar(0.24);
+            mat.position.y = -0.0005;
+            return true;
+        }
+        // The camera on the subject, at `k` of its bounding radius, tipped down by `pitch`.
+        function aimGear(aspect) {
+            var d = fit.r * fit.k / Math.max(0.75, Math.min(1, aspect));
+            // `drop` looks a little below the middle, so the club stands clear of the picker under it.
+            var ly = fit.y - (fit.drop || 0) * fit.r;
+            cam.position.set(0, ly + Math.sin(fit.pitch) * d, Math.cos(fit.pitch) * d);
+            cam.near = Math.max(0.005, d - fit.r * 3);
+            cam.far = d + fit.r * 4;
+            cam.lookAt(0, ly, 0);
+        }
+        function aimBall() {
+            cam.position.set(0, 0.13, 0.78);
+            cam.near = 0.1; cam.far = 20;
+            cam.lookAt(0, -0.02, 0);
+        }
+
+        var clock = 0, rotY = 0.4, rotX = 0.15, gearY = 0.9, gearX = 0;
+        // The shop's flat duck picture borrows this context at its own size (`ducks`); the next tick takes it back.
+        var duckStage = null, sized = false;
+        var api = {
             setStyle: function (id) {
+                showSubject('ball');
+                aimBall();
+                cam.updateProjectionMatrix();
                 applyBallStyleTo(ballMesh, bundle, id, 0xffffff);
             },
+            /* A club finish (balls.js → CLUB_FINISHES) on one club of the set. */
+            setClub: function (f, id) {
+                finish = f || null;
+                // A new subject starts with its face to the camera, three-quarters on.
+                if (subject !== 'club' || (id && id !== clubId)) gearY = -1.05;
+                if (id) clubId = id;
+                if (!frameClub()) return false;
+                showSubject('club');
+                aimGear(cam.aspect);
+                cam.updateProjectionMatrix();
+                return true;
+            },
+            /* A bag skin (balls.js → BAG_SKINS). */
+            setBag: function (k) {
+                skin = k || null;
+                if (!frameBag()) return false;
+                showSubject('bag');
+                aimGear(cam.aspect);
+                cam.updateProjectionMatrix();
+                return true;
+            },
+            get subject() { return subject; },
+            get clubId() { return clubId; },
             rotate: function (dx, dy) {
+                if (subject !== 'ball') {
+                    gearY += dx;
+                    gearX = Math.max(-0.5, Math.min(0.6, gearX + dy * 0.6));
+                    return;
+                }
                 rotY += dx;
                 rotX = Math.max(-1.1, Math.min(1.1, rotX + dy));
             },
@@ -11084,33 +11310,69 @@
                     gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
                     gl.setSize(cw, ch, false);
                     cam.aspect = cw / ch;
+                    if (subject !== 'ball') aimGear(cam.aspect);
                     cam.updateProjectionMatrix();
                 }
             },
             tick: function (dt, dragging) {
                 clock += dt;
+                if (sized) { sized = false; api.resize(); }
+                if (subject !== 'ball') {
+                    if (!dragging) gearY += dt * (subject === 'club' ? 0.35 : 0.5);
+                    spin.rotation.set(0, gearY, 0);
+                    gear.rotation.x = gearX;
+                    if (subject === 'club' && clubs[clubId]) clubs[clubId].tick(dt);
+                    gl.render(sc, cam);
+                    return;
+                }
                 if (!dragging) rotY += dt * 0.65;
                 ballMesh.rotation.set(rotX, rotY, 0);
                 bundle.uniforms.uGbTime.value = clock;
                 bundle.uniforms.time.value = clock;
                 gl.render(sc, cam);
             },
-            /* A still of one ball for the shop's grid, drawn by these same
-               shaders on this same context so a thumbnail is the ball you
-               get rather than a 2D painting of it. Straight on, no coaster,
-               the ball filling the frame; copied into `out` (a 2D canvas)
-               before the browser composites, so the live preview never shows
-               it. The caller re-ticks the preview afterwards. */
+            /* A still of one item for the shop's grid, drawn by these same
+               shaders on this same context so a thumbnail is the thing you
+               get rather than a 2D painting of it. Copied into `out` (a 2D
+               canvas) before the browser composites, so the live preview never
+               shows it. The caller puts the live preview back afterwards
+               (setStyle / setClub / setBag, resize, tick). */
             snapshot: function (id, out, rot) {
                 var ctx = out && out.getContext('2d');
                 if (!ctx) return false;
-                var n = out.width;
+                var n = out.width, m = out.height;
+                var club = G3.CLUB_FINISHES && G3.CLUB_FINISHES.filter(function (f) { return f.id === id; })[0];
+                var bag = !club && G3.BAG_SKINS && G3.BAG_SKINS.filter(function (f) { return f.id === id; })[0];
                 gl.setPixelRatio(1);
-                gl.setSize(n, n, false);
-                var pos = cam.position.clone(), fov = cam.fov, asp = cam.aspect;
+                gl.setSize(n, m, false);
+                var asp = cam.aspect;
+                if (club || bag) {
+                    var was = { subject: subject, finish: finish, skin: skin, clubId: clubId };
+                    if (club) { finish = club; clubId = 'iron'; if (!frameClub()) return false; showSubject('club'); }
+                    else { skin = bag; if (!frameBag()) return false; showSubject('bag'); }
+                    cam.aspect = n / m;
+                    var k0 = fit.k;
+                    fit.k *= club ? 0.92 : 0.95;
+                    aimGear(cam.aspect);
+                    cam.updateProjectionMatrix();
+                    spin.rotation.set(0, club ? -1.05 : 0.35, 0);
+                    gear.rotation.x = 0;
+                    if (club && clubs.iron) clubs.iron.tick(0.4);
+                    gl.render(sc, cam);
+                    fit.k = k0;
+                    ctx.clearRect(0, 0, n, m);
+                    ctx.drawImage(canvas, 0, 0, n, m);
+                    finish = was.finish; skin = was.skin; clubId = was.clubId;
+                    showSubject(was.subject);
+                    cam.aspect = asp;
+                    return true;
+                }
+                var pos = cam.position.clone(), fov = cam.fov, sub = subject;
+                showSubject('ball');
                 // Fit the sphere to 84% of the frame: half-angle off its radius.
                 var dist = 0.6;
                 cam.position.set(0, 0, dist);
+                cam.near = 0.1; cam.far = 20;
                 cam.fov = 2 * Math.atan(C.BALL_R / 0.84 / Math.sqrt(dist * dist - C.BALL_R * C.BALL_R)) * 180 / Math.PI;
                 cam.aspect = 1;
                 cam.lookAt(0, 0, 0);
@@ -11134,6 +11396,45 @@
                 cam.aspect = asp;
                 cam.lookAt(0, -0.02, 0);
                 cam.updateProjectionMatrix();
+                showSubject(sub);
+                return true;
+            },
+            /* The Easter egg's ducks for the shop's flat celebration picture
+               (game.js → drawCeleFrame): the same 3D ducks the course drops,
+               drawn through `view` — the flat picture's own oblique mapping
+               from effect units to its pixels — into `out` over whatever is
+               already there. False when there is nothing to draw with. */
+            ducks: function (fx, out, view) {
+                var ctx = out && out.getContext('2d');
+                if (!ctx || !duckFlock) return false;
+                if (!duckStage) {
+                    duckStage = { scene: new THREE.Scene(), flock: duckFlock(CELE_DUCKS), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1) };
+                    var ds = duckStage.scene;
+                    ds.add(duckStage.flock.shade);
+                    ds.add(duckStage.flock.mesh);
+                    var key = new THREE.DirectionalLight(0xfff4de, 1.05);
+                    key.position.set(0.6, 1.4, 1.2);
+                    ds.add(key);
+                    ds.add(new THREE.HemisphereLight(0xdfeaf6, 0x3a4a2a, 0.75));
+                }
+                poseFlock(duckStage.flock, fx.parts);
+                if (!duckStage.flock.mesh.count) return true;
+                var W = out.width, H = out.height, k = view.k;
+                /* The flat picture's own mapping, as a projection: x across and
+                   z leaning right, y up and z coming down the frame — so the 3D
+                   ducks land exactly where its flags and rings are drawn. */
+                var P = duckStage.cam.projectionMatrix;
+                P.set(2 * k / W, 0, 0.36 * k / W, 2 * view.cx / W - 1,
+                      0, 2 * k / H, -0.56 * k / H, 1 - 2 * view.gy / H,
+                      0, -0.02, -0.07, 0,
+                      0, 0, 0, 1);
+                duckStage.cam.projectionMatrixInverse.copy(P).invert();
+                gl.setPixelRatio(1);
+                gl.setSize(W, H, false);
+                sized = true;
+                gl.setClearColor(0x000000, 0);
+                gl.render(duckStage.scene, duckStage.cam);
+                ctx.drawImage(canvas, 0, 0, W, H);
                 return true;
             },
             dispose: function () {
@@ -11143,9 +11444,12 @@
                 bundle.phong.dispose();
                 if (bundle.glass !== bundle.phong) bundle.glass.dispose();
                 if (bundle.voidMat !== bundle.phong) bundle.voidMat.dispose();
+                Object.keys(clubs).forEach(function (k) { clubs[k].dispose(); });
+                if (bagShow) bagShow.dispose();
                 gl.dispose();
             }
         };
+        return api;
     }
 
     /* Where the top of the flag is on the screen, in the canvas's CSS

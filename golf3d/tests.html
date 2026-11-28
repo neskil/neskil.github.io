@@ -6974,10 +6974,13 @@
                 squeaks += duckFx.events.filter(function (e) { return e === 'squeak'; }).length;
                 duckFx.events.length = 0;
                 ducksSeen = Math.max(ducksSeen, duckFx.parts.filter(function (p) { return p.duckling; }).length);
-                marching = Math.max(marching, duckFx.parts.filter(function (p) { return p.duckling && p.mode === 4; }).length);
+                // In the parade: a duckling on its feet (its up within 30° of the sky) while the ring turns.
+                if (duckFx.ring) marching = Math.max(marching, duckFx.parts.filter(function (p) {
+                    return p.duckling && p.duck && 1 - 2 * (p.q[0] * p.q[0] + p.q[2] * p.q[2]) > 0.86;
+                }).length);
                 if (duckFx.mother) mumUp = Math.max(mumUp, duckFx.mother.oy);
             }
-            assert('Mother Duck rises, the ducklings land, parade round the flag squeaking, and it is all over by itself',
+            assert('Mother Duck rises, the ducklings land, get back on their feet, parade round the flag squeaking, and it is all over by itself',
                 duckFx.done && ducksSeen >= 12 && marching >= 12 && squeaks >= 10 && mumUp > 1,
                 ducksSeen + ' ducklings, ' + marching + ' marching, ' + squeaks + ' squeaks, mother at ' + mumUp.toFixed(2));
 
