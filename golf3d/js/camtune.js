@@ -9,7 +9,8 @@
    browser (CONFIG.CAM_TUNE_KEY) and put back on the next visit while dev mode
    is on; "Copy" puts the values on the clipboard to paste into a message, and
    "Reset" goes back to the shipped ones. Nothing here is read by the game
-   with dev mode off. */
+   with dev mode off — except the presets, which are also the Camera chip
+   in ☰ → Settings for everyone (CONFIG.CAM_PRESET_KEY). */
 (function (G3) {
     'use strict';
     var C = G3.CONFIG;
@@ -38,6 +39,18 @@
           says: 'Which clubs the camera flies behind. The rest are held, then followed.' },
         { path: 'LONG_CAM.DIST', label: 'Distance behind the ball', min: 3, max: 16, step: 0.5, unit: ' u',
           says: 'How far behind a riding shot it flies, and where the backswing puts it.' },
+        { path: 'LONG_CAM.UP', label: 'Height behind the ball', min: 0.3, max: 4, step: 0.1, unit: ' u',
+          says: 'How high over the ground it rides, before the ball climbs.' },
+        { path: 'LONG_CAM.RISE', label: 'Climbs with the ball', min: 0, max: 1.2, step: 0.05, unit: '×',
+          says: 'How much of the ball\'s height it climbs. Lower stays under the ball and looks up at it.' },
+        { path: 'LONG_CAM.DIVE', label: 'Stays up on the way down', min: 0, max: 1, step: 0.05, unit: '×',
+          says: 'How much of the fall it keeps, so the landing is looked down on. 0 comes down with the ball.' },
+        { path: 'LONG_CAM.AIM_LOW', label: 'Looks down the hole', min: 0, max: 1, step: 0.05, unit: '×',
+          says: 'Where it looks while the ball is up: 0 is at the ball. Higher looks down the hole, with the ball high in the picture.' },
+        { path: 'LONG_CAM.TURN', label: 'Turns with the curve', min: 0.01, max: 0.9, step: 0.01,
+          says: 'How lazily it turns after a draw or a fade. Higher lets the bend show.' },
+        { path: 'LONG_CAM.OUT', label: 'Hands back after landing', min: 0.3, max: 3, step: 0.1, unit: ' s',
+          says: 'How long from the first bounce to the walk-up seat.' },
         { head: 'After the shot' },
         { path: 'LONG_CAM.ABOVE', label: 'Come down from above', min: 0, max: 5, step: 0.25, unit: ' u',
           says: 'How high the camera arrives over the ball before it settles. 0 is off.' },
@@ -67,24 +80,34 @@
        zooms nobody asked for. A preset names only what it changes; the
        rest is put back to the shipped value, so they never mix. */
     var PRESETS = [
-        { id: 'now', name: 'Now', says: 'What ships today, zooms and all. The one to compare against.', set: {} },
-        { id: 'steady', name: '1 Steady', says: 'Waits a moment, then follows close and quick, so the ball barely shrinks. No zooms.',
+        { id: 'now', menu: 'Normal', name: 'Standard', says: 'What ships today, zooms and all. The one to compare against.', set: {} },
+        { id: 'steady', menu: 'Steady', name: '1 Steady', says: 'Waits a moment, then follows close and quick, so the ball barely shrinks. No zooms.',
           set: { 'LONG_CAM.LEASH': 3, 'LONG_CAM.FOLLOW': 2.4, 'LONG_CAM.MAX': 20, 'LONG_CAM.GAZE': 6, 'LONG_CAM.HOLD': 0.8,
                  'LONG_CAM.ABOVE': 0.5, 'LONG_CAM.ABOVE_T': 1.6, 'LONG_CAM.TRACK': 0.3, 'LONG_CAM.PUNCH': 0,
                  'SPEED_LENS': 0 } },
-        { id: 'ride', name: '2 Ride along', says: 'The camera flies behind every shot, irons and wedges too. The ball stays one size the whole way.',
+        { id: 'ride', menu: 'Ride', name: '2 Ride along', says: 'The camera flies behind every shot, irons and wedges too. The ball stays one size the whole way.',
           set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 7, 'LONG_CAM.FOV': 55, 'LONG_CAM.ABOVE': 0.75,
                  'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        { id: 'tripod', name: '3 Tripod', says: 'Stands where you hit it and only turns to watch, the whole flight. Walks up once the ball is down.',
+        { id: 'tripod', menu: 'Tripod', name: '3 Tripod', says: 'Stands where you hit it and only turns to watch, the whole flight. Walks up once the ball is down.',
           set: { 'LONG_CAM.RIDE': [], 'LONG_CAM.LEASH': 50, 'LONG_CAM.FOLLOW': 1.6, 'LONG_CAM.MAX': 14, 'LONG_CAM.GAZE': 5,
                  'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        { id: 'tv', name: '4 Broadcast', says: 'Tripod, but it zooms in after the ball like a TV camera, so it never gets small. Zooms back out as it walks up.',
+        { id: 'tv', menu: 'TV', name: '4 Broadcast', says: 'Tripod, but it zooms in after the ball like a TV camera, so it never gets small. Zooms back out as it walks up.',
           set: { 'LONG_CAM.RIDE': [], 'LONG_CAM.LEASH': 50, 'LONG_CAM.FOLLOW': 1.6, 'LONG_CAM.MAX': 14, 'LONG_CAM.GAZE': 6,
                  'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.TRACK': 0.85, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        { id: 'film', name: '5 Cinematic', says: 'Slow and floaty: a longer wait, a soft glide after the ball, a half zoom with it, and a slow settle from above.',
+        { id: 'film', menu: 'Film', name: '5 Cinematic', says: 'Slow and floaty: a longer wait, a soft glide after the ball, a half zoom with it, and a slow settle from above.',
           set: { 'LONG_CAM.LEASH': 10, 'LONG_CAM.FOLLOW': 1.1, 'LONG_CAM.MAX': 9, 'LONG_CAM.GAZE': 3.5, 'LONG_CAM.HOLD': 1.2,
                  'LONG_CAM.DIST': 10, 'LONG_CAM.ABOVE': 1.5, 'LONG_CAM.ABOVE_T': 2.2, 'LONG_CAM.FOV': 48,
-                 'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } }
+                 'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
+        /* After a recording of another golf game's camera (v1.251.0, the
+           owner: "I really like that camera … give me a preset for that"):
+           it flies behind every shot from the strike, trailing and under the
+           ball, looking down the hole with the ball high in the picture; it
+           turns lazily so a draw is seen to draw; it comes down with the ball
+           and hands back quickly once it is down. */
+        { id: 'chase', menu: 'Chase', name: '6 Chase', says: 'Flies behind every shot, trailing low and looking down the hole, so the ball climbs up the picture and the bend shows. Hands back fast on landing.',
+          set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 11, 'LONG_CAM.UP': 1, 'LONG_CAM.RISE': 0.45, 'LONG_CAM.DIVE': 0.1,
+                 'LONG_CAM.AIM_LOW': 0.35, 'LONG_CAM.TURN': 0.35, 'LONG_CAM.OUT': 0.8, 'LONG_CAM.FOV': 50,
+                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } }
     ];
 
     function get(path) {
@@ -116,6 +139,25 @@
         });
         try { localStorage.setItem(C.CAM_TUNE_KEY, JSON.stringify(out)); } catch (e) { /* no storage */ }
     }
+    /* The camera everyone picks, in ☰ → Settings (v1.251.0, the owner: "the
+       camera preset should be in the normal menu as well"): a preset by id,
+       kept in this browser (CONFIG.CAM_PRESET_KEY) and put on at every visit.
+       Dev mode's own dialled-in knobs go on over it. */
+    function chosen() {
+        try { return localStorage.getItem(C.CAM_PRESET_KEY) || 'now'; } catch (e) { return 'now'; }
+    }
+    // Short enough for the chip: "Camera: Broadcast" did not fit on a phone.
+    function menuName(pr) { return pr ? pr.menu : 'Custom'; }
+    (function () {
+        var id = chosen();
+        if (id === 'now') return;
+        PRESETS.forEach(function (pr) {
+            if (pr.id !== id) return;
+            ROWS.forEach(function (r) {
+                if (r.path && pr.set[r.path] !== undefined) set(r.path, JSON.parse(JSON.stringify(pr.set[r.path])));
+            });
+        });
+    })();
     // Put back what was dialled in, dev mode only, and only paths still here.
     if (devOn()) {
         var kept = load();
@@ -250,6 +292,21 @@
         if (r.out) r.out.textContent = at >= 0 ? r.pick[at][0] : 'Custom';
     }
     // Every knob back on its slider, after something other than a slider set it.
+    /* The Settings chip: says the camera on now, and a press goes on to the
+       next one. The menu stays open (game.js), so it can be pressed round. */
+    var chip = document.getElementById('btn-cam'), chipNow = document.getElementById('cam-now');
+    function showChip() {
+        if (!chipNow) return;
+        var pr = current();
+        chipNow.textContent = menuName(pr);
+        if (chip) chip.title = pr ? pr.says : 'Your own camera, from the dev panel.';
+    }
+    function nextCamera() {
+        var at = PRESETS.indexOf(current());
+        apply(PRESETS[(at + 1) % PRESETS.length].id);
+    }
+    if (chip) chip.addEventListener('click', nextCamera);
+
     function refresh() {
         ROWS.forEach(function (r) {
             if (!r.path || !r.input) return;
@@ -257,6 +314,7 @@
             else { r.input.value = get(r.path); r.out.textContent = fmt(r, get(r.path)); }
         });
         markPreset();
+        showChip();
     }
     // The preset the knobs are on now, if they are on one.
     function current() {
@@ -289,6 +347,7 @@
             set(r.path, JSON.parse(JSON.stringify(v)));
         });
         save();
+        try { localStorage.setItem(C.CAM_PRESET_KEY, id); } catch (e) { /* no storage */ }
         refresh();
         return true;
     }
@@ -321,7 +380,7 @@
         ROWS.forEach(function (r) {
             if (r.path) set(r.path, JSON.parse(JSON.stringify(SHIPPED[r.path])));
         });
-        try { localStorage.removeItem(C.CAM_TUNE_KEY); } catch (e) { /* no storage */ }
+        try { localStorage.removeItem(C.CAM_TUNE_KEY); localStorage.removeItem(C.CAM_PRESET_KEY); } catch (e) { /* no storage */ }
         refresh();
     }
 
@@ -332,6 +391,7 @@
     }
     function close() { if (panel) panel.hidden = true; }
 
-    G3.camTune = { open: open, close: close, values: values, rows: ROWS, presets: PRESETS, apply: apply,
+    showChip();
+    G3.camTune = { open: open, close: close, values: values, rows: ROWS, presets: PRESETS, apply: apply, next: nextCamera,
                    get preset() { var p = current(); return p ? p.id : null; } };
 })(window.G3);

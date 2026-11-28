@@ -1483,10 +1483,16 @@ G3.CONFIG.SIGHT_EASE = 7;
    which a ball flying away from a camera standing still shrinks to a third
    of its size and grows back as the camera walks up — which is itself a
    zoom out and in. The dev camera panel's presets (js/camtune.js) are
-   sets of these and the knobs above. */
+   sets of these and the knobs above.
+
+   AIM_LOW is where a riding chase looks: that share of the ball's height
+   over the ground under it, below the ball (v1.251.0, the owner, after a
+   recording of another golf game's camera: "I really like that camera").
+   0 is at the ball, centred; a half looks down the hole with the ball high
+   in the picture while it climbs, and comes back to the ball as it lands. */
 G3.CONFIG.LONG_CAM = { RIDE: ['driver'], LEASH: 6, FOLLOW: 1.8, MAX: 13, ARRIVE: 1.5, SETTLE: 6, NEAR: 20, HOLD: 1, ABOVE: 1, ABOVE_T: 1.4,
     IN: 0.3, GROW: 1.0, TURN: 0.05, OUT: 1.4, LOOK: 1.2, SPRING: 8, GAZE: 8, WINDUP: 5, DIST: 8, UP: 1.4, RISE: 0.8, DIVE: 0.3,
-    FLOOR: 0.2, CLEAR: 0.6, RELEASE: 1.8, PUNCH: 1, FOV: 52, TRACK: 0, TRACK_MIN: 12 };
+    FLOOR: 0.2, CLEAR: 0.6, RELEASE: 1.8, PUNCH: 1, FOV: 52, TRACK: 0, TRACK_MIN: 12, AIM_LOW: 0 };
 
 /* How much the lens opens and the seat eases back with the ball's speed
    (render.js → frame): 1 is as it always was, 0 is a lens that never moves.
@@ -1499,6 +1505,8 @@ G3.CONFIG.SPEED_LENS = 1;
 
 /* Where the dev camera panel keeps what was dialled in (js/camtune.js). */
 G3.CONFIG.CAM_TUNE_KEY = 'loftLinks.camTune';
+/* The camera preset picked in ☰ → Settings (js/camtune.js), by id. */
+G3.CONFIG.CAM_PRESET_KEY = 'loftLinks.camPreset';
 
 /* The ground answering the ball (groundfx.js), all of it at once: AMOUNT of
    the particles each burst asks for, at SIZE of their size and ALPHA of their

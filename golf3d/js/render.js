@@ -9061,7 +9061,7 @@
                 px += (ch.px - px) * ch.w; py += (ch.py - py) * ch.w; pz += (ch.pz - pz) * ch.w;
                 var lk = ch.lk === undefined ? 0 : ch.lk;
                 tx += (ball.x + ch.lx * lk - tx) * ch.w;
-                ty += (ball.y + ch.ly * lk - ty) * ch.w;
+                ty += (ball.y + ch.ly * lk - (ch.drop || 0) - ty) * ch.w;
                 tz += (ball.z + ch.lz * lk - tz) * ch.w;
             }
         }
@@ -10128,6 +10128,10 @@
         var under = P.surfaceTop(world.hole, ch.px, ch.pz);
         if (under && ch.py < under.y + LC.CLEAR) ch.py = under.y + LC.CLEAR;
         ch.lk = 1 - smooth01(ch.t / LC.LOOK);
+        // Looking AIM_LOW of the ball's height under it: down the hole, with
+        // the ball high in the picture while it climbs, and level with it again
+        // as it comes down.
+        ch.drop = (LC.AIM_LOW || 0) * h;
     }
 
     /* The chase's eye after `g…`: a critically damped spring of FOLLOW per
