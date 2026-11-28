@@ -7021,8 +7021,19 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   And the presets are now for everyone: **☰ → Settings & help → Camera** says
   the one on now and a press goes on to the next (each preset's `menu` is its
   short name — "Camera: Broadcast" did not fit on a phone); the choice is kept
-  in `CONFIG.CAM_PRESET_KEY` and put on at every visit, with dev mode's own
-  dialled-in knobs over it.
+  in this browser and put on at every visit.
+- **Chase is the default, and the camera is sticky** (v1.253.0, the owner:
+  "make the new chase camera you developed default. But make the camera
+  settings sticky per local storage"). `CONFIG.LONG_CAM` is still the old
+  camera — now the preset **Classic**, last on the chip — because every
+  preset is written as changes to it; camtune.js puts `DEFAULT` (Chase) on
+  at load when this browser has kept nothing. What it keeps
+  (`CONFIG.CAM_KEY`) is every knob that differs from CONFIG, whether a
+  preset from the chip or the dev panel's sliders, and it is put back for
+  everyone, not only in dev mode; Reset goes back to Chase and forgets it.
+  The two keys before it (the panel's and the chip's) are dropped at load
+  rather than read, so a camera tried out before Chase was the default does
+  not come back.
 
 ### The fourth camera, which is not a seat
 

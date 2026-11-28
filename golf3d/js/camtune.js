@@ -3,14 +3,18 @@
    dev controls for this so I can control it easier … give me some feedback
    and sliders and I'll get back to you").
 
-   Dev mode only (☰ → Dev → Camera tuning). Every slider writes straight
-   into G3.CONFIG, which render.js reads every frame, so a change is seen on
-   the next shot with nothing to reload. What is dialled in is kept in this
-   browser (CONFIG.CAM_TUNE_KEY) and put back on the next visit while dev mode
-   is on; "Copy" puts the values on the clipboard to paste into a message, and
-   "Reset" goes back to the shipped ones. Nothing here is read by the game
-   with dev mode off — except the presets, which are also the Camera chip
-   in ☰ → Settings for everyone (CONFIG.CAM_PRESET_KEY). */
+   The panel is dev mode's (☰ → Dev → Camera tuning); its presets are also
+   the Camera chip in ☰ → Settings, for everyone. Every slider and preset
+   writes straight into G3.CONFIG, which render.js reads every frame, so a
+   change is seen on the next shot with nothing to reload.
+
+   The camera is sticky (v1.253.0, the owner: "make the camera settings
+   sticky per local storage"): whatever it is set to — a preset from the
+   chip, or the panel's knobs — is kept in this browser (CONFIG.CAM_KEY) and
+   put back on every visit, dev mode or not. With nothing kept it is DEFAULT,
+   Chase ("make the new chase camera you developed default"). "Copy" puts the
+   values on the clipboard to paste into a message, and "Reset" goes back to
+   the default. */
 (function (G3) {
     'use strict';
     var C = G3.CONFIG;
@@ -80,21 +84,20 @@
        zooms nobody asked for. A preset names only what it changes; the
        rest is put back to the shipped value, so they never mix. */
     var PRESETS = [
-        { id: 'now', menu: 'Normal', name: 'Standard', says: 'What ships today, zooms and all. The one to compare against.', set: {} },
-        { id: 'steady', menu: 'Steady', name: '1 Steady', says: 'Waits a moment, then follows close and quick, so the ball barely shrinks. No zooms.',
+        { id: 'steady', menu: 'Steady', name: 'Steady', says: 'Waits a moment, then follows close and quick, so the ball barely shrinks. No zooms.',
           set: { 'LONG_CAM.LEASH': 3, 'LONG_CAM.FOLLOW': 2.4, 'LONG_CAM.MAX': 20, 'LONG_CAM.GAZE': 6, 'LONG_CAM.HOLD': 0.8,
                  'LONG_CAM.ABOVE': 0.5, 'LONG_CAM.ABOVE_T': 1.6, 'LONG_CAM.TRACK': 0.3, 'LONG_CAM.PUNCH': 0,
                  'SPEED_LENS': 0 } },
-        { id: 'ride', menu: 'Ride', name: '2 Ride along', says: 'The camera flies behind every shot, irons and wedges too. The ball stays one size the whole way.',
+        { id: 'ride', menu: 'Ride', name: 'Ride along', says: 'The camera flies behind every shot, irons and wedges too. The ball stays one size the whole way.',
           set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 7, 'LONG_CAM.FOV': 55, 'LONG_CAM.ABOVE': 0.75,
                  'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        { id: 'tripod', menu: 'Tripod', name: '3 Tripod', says: 'Stands where you hit it and only turns to watch, the whole flight. Walks up once the ball is down.',
+        { id: 'tripod', menu: 'Tripod', name: 'Tripod', says: 'Stands where you hit it and only turns to watch, the whole flight. Walks up once the ball is down.',
           set: { 'LONG_CAM.RIDE': [], 'LONG_CAM.LEASH': 50, 'LONG_CAM.FOLLOW': 1.6, 'LONG_CAM.MAX': 14, 'LONG_CAM.GAZE': 5,
                  'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        { id: 'tv', menu: 'TV', name: '4 Broadcast', says: 'Tripod, but it zooms in after the ball like a TV camera, so it never gets small. Zooms back out as it walks up.',
+        { id: 'tv', menu: 'TV', name: 'Broadcast', says: 'Tripod, but it zooms in after the ball like a TV camera, so it never gets small. Zooms back out as it walks up.',
           set: { 'LONG_CAM.RIDE': [], 'LONG_CAM.LEASH': 50, 'LONG_CAM.FOLLOW': 1.6, 'LONG_CAM.MAX': 14, 'LONG_CAM.GAZE': 6,
                  'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.TRACK': 0.85, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        { id: 'film', menu: 'Film', name: '5 Cinematic', says: 'Slow and floaty: a longer wait, a soft glide after the ball, a half zoom with it, and a slow settle from above.',
+        { id: 'film', menu: 'Film', name: 'Cinematic', says: 'Slow and floaty: a longer wait, a soft glide after the ball, a half zoom with it, and a slow settle from above.',
           set: { 'LONG_CAM.LEASH': 10, 'LONG_CAM.FOLLOW': 1.1, 'LONG_CAM.MAX': 9, 'LONG_CAM.GAZE': 3.5, 'LONG_CAM.HOLD': 1.2,
                  'LONG_CAM.DIST': 10, 'LONG_CAM.ABOVE': 1.5, 'LONG_CAM.ABOVE_T': 2.2, 'LONG_CAM.FOV': 48,
                  'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
@@ -104,11 +107,16 @@
            ball, looking down the hole with the ball high in the picture; it
            turns lazily so a draw is seen to draw; it comes down with the ball
            and hands back quickly once it is down. */
-        { id: 'chase', menu: 'Chase', name: '6 Chase', says: 'Flies behind every shot, trailing low and looking down the hole, so the ball climbs up the picture and the bend shows. Hands back fast on landing.',
+        { id: 'chase', menu: 'Chase', name: 'Chase', says: 'Flies behind every shot, trailing low and looking down the hole, so the ball climbs up the picture and the bend shows. Hands back fast on landing.',
           set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 11, 'LONG_CAM.UP': 1, 'LONG_CAM.RISE': 0.45, 'LONG_CAM.DIVE': 0.1,
                  'LONG_CAM.AIM_LOW': 0.35, 'LONG_CAM.TURN': 0.35, 'LONG_CAM.OUT': 0.8, 'LONG_CAM.FOV': 50,
-                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } }
+                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
+        // CONFIG's own values: the camera every preset is written against.
+        { id: 'now', menu: 'Classic', name: 'Classic', says: 'The camera before Chase: the driver rides, the rest are held then followed, zooms and all.', set: {} }
     ];
+    // Chase first, so the chip goes round from the default.
+    PRESETS.unshift(PRESETS.splice(PRESETS.length - 2, 1)[0]);
+    var DEFAULT = 'chase';
 
     function get(path) {
         var o = C, k = path.split('.'), i;
@@ -122,47 +130,41 @@
     }
     function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
-    // The shipped values, read before anything stored is put back.
+    // CONFIG's values, read before anything is put on: what presets are written against.
     var SHIPPED = {};
     ROWS.forEach(function (r) { if (r.path) SHIPPED[r.path] = JSON.parse(JSON.stringify(get(r.path))); });
 
-    function devOn() {
-        try { return localStorage.getItem(C.DEV_KEY) === '1'; } catch (e) { return false; }
-    }
-    function load() {
-        try { return JSON.parse(localStorage.getItem(C.CAM_TUNE_KEY) || '{}') || {}; } catch (e) { return {}; }
-    }
     function save() {
         var out = {};
         ROWS.forEach(function (r) {
             if (r.path && JSON.stringify(get(r.path)) !== JSON.stringify(SHIPPED[r.path])) out[r.path] = get(r.path);
         });
-        try { localStorage.setItem(C.CAM_TUNE_KEY, JSON.stringify(out)); } catch (e) { /* no storage */ }
-    }
-    /* The camera everyone picks, in ☰ → Settings (v1.252.0, the owner: "the
-       camera preset should be in the normal menu as well"): a preset by id,
-       kept in this browser (CONFIG.CAM_PRESET_KEY) and put on at every visit.
-       Dev mode's own dialled-in knobs go on over it. */
-    function chosen() {
-        try { return localStorage.getItem(C.CAM_PRESET_KEY) || 'now'; } catch (e) { return 'now'; }
+        try { localStorage.setItem(C.CAM_KEY, JSON.stringify(out)); } catch (e) { /* no storage */ }
     }
     // Short enough for the chip: "Camera: Broadcast" did not fit on a phone.
     function menuName(pr) { return pr ? pr.menu : 'Custom'; }
-    (function () {
-        var id = chosen();
-        if (id === 'now') return;
+    function putOn(id) {
         PRESETS.forEach(function (pr) {
             if (pr.id !== id) return;
             ROWS.forEach(function (r) {
-                if (r.path && pr.set[r.path] !== undefined) set(r.path, JSON.parse(JSON.stringify(pr.set[r.path])));
+                if (!r.path) return;
+                var v = pr.set[r.path] !== undefined ? pr.set[r.path] : SHIPPED[r.path];
+                set(r.path, JSON.parse(JSON.stringify(v)));
             });
         });
-    })();
-    // Put back what was dialled in, dev mode only, and only paths still here.
-    if (devOn()) {
-        var kept = load();
-        ROWS.forEach(function (r) { if (r.path && kept[r.path] !== undefined) set(r.path, kept[r.path]); });
     }
+    /* At load: what this browser kept, over CONFIG — every knob it differs
+       on, so it is the whole camera — or the default with nothing kept. The
+       two keys before v1.253.0 were the panel's (dev mode only) and the
+       chip's preset; they are dropped rather than read, so a camera tried
+       out on the panel before Chase was the default does not come back. */
+    (function () {
+        var kept = null;
+        try { kept = JSON.parse(localStorage.getItem(C.CAM_KEY) || 'null'); } catch (e) { kept = null; }
+        try { localStorage.removeItem('loftLinks.camTune'); localStorage.removeItem('loftLinks.camPreset'); } catch (e) { /* no storage */ }
+        if (!kept || typeof kept !== 'object') { putOn(DEFAULT); return; }
+        ROWS.forEach(function (r) { if (r.path && kept[r.path] !== undefined) set(r.path, kept[r.path]); });
+    })();
 
     function fmt(row, v) {
         var d = row.step < 0.1 ? 2 : row.step < 1 ? 1 : 0;
@@ -341,13 +343,8 @@
         var pr = null;
         PRESETS.forEach(function (p) { if (p.id === id) pr = p; });
         if (!pr) return false;
-        ROWS.forEach(function (r) {
-            if (!r.path) return;
-            var v = pr.set[r.path] !== undefined ? pr.set[r.path] : SHIPPED[r.path];
-            set(r.path, JSON.parse(JSON.stringify(v)));
-        });
+        putOn(id);
         save();
-        try { localStorage.setItem(C.CAM_PRESET_KEY, id); } catch (e) { /* no storage */ }
         refresh();
         return true;
     }
@@ -376,11 +373,10 @@
         try { document.execCommand('copy'); } catch (e) { /* nothing more to try */ }
         document.body.removeChild(t);
     }
+    // Back to the default camera, and nothing kept, so a later default is had too.
     function reset() {
-        ROWS.forEach(function (r) {
-            if (r.path) set(r.path, JSON.parse(JSON.stringify(SHIPPED[r.path])));
-        });
-        try { localStorage.removeItem(C.CAM_TUNE_KEY); localStorage.removeItem(C.CAM_PRESET_KEY); } catch (e) { /* no storage */ }
+        putOn(DEFAULT);
+        try { localStorage.removeItem(C.CAM_KEY); } catch (e) { /* no storage */ }
         refresh();
     }
 
