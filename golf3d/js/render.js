@@ -8224,11 +8224,38 @@
         var t = Math.max(0, Math.min(1, (d - L.NEAR) / (L.FAR - L.NEAR)));
         return t * t * (3 - 2 * t);
     }
-    function lookFor(hole, ball) { return 1 + (C.LONG_LOOK.MIN - 1) * lookT(hole, ball); }
+    function lookFor(hole, ball) { return 1 + (C.LONG_LOOK.MIN - 1) * lookK(hole, ball); }
     /* The seat comes in by a little less than the ball shrinks (SEAT), so the
        ball and the club take a little less of the screen than on a lane and
        the course a little more. */
-    function seatLook(hole, ball) { return 1 + (C.LONG_LOOK.SEAT - 1) * lookT(hole, ball); }
+    function seatLook(hole, ball) { return 1 + (C.LONG_LOOK.SEAT - 1) * lookK(hole, ball); }
+    /* The look the picture is drawn at, which is not lookT read off the ball
+       every frame: that grew the ball to three times its size in the air on
+       any shot that came down near the flag — under a camera that was standing
+       still, so nothing hid it (the owner, v1.243.0: "the ball size and zoom
+       have a bit of uncanny valley thing"). So it is held while the ball is
+       moving and only goes over to the new lie's once the ball is at rest, on
+       a critically damped spring of LONG_LOOK.EASE per second, while the
+       camera walks up to it. A ball put somewhere (a drop, a new hole) is
+       snapped to it rather than grown. Read for the live ball only; anything
+       asking about another point gets lookT. */
+    R.lookK = 0; R.lookV = 0; R.lookHole = null;
+    function lookK(hole, ball) { return hole && hole === R.lookHole ? R.lookK : lookT(hole, ball); }
+    function stepLook(world, dt) {
+        var b = world.ball, want = lookT(R.hole, b);
+        var jump = Math.abs(b.x - R.lastBall.x) + Math.abs(b.z - R.lastBall.z) > 1;
+        if (R.lookHole !== R.hole || (jump && !world.moving)) {
+            R.lookHole = R.hole; R.lookK = want; R.lookV = 0;
+            return;
+        }
+        if (world.moving) { R.lookV = 0; return; }
+        var w = C.LONG_LOOK.EASE, n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n, i;
+        for (i = 0; i < n; i++) {
+            R.lookV += (w * w * (want - R.lookK) - 2 * w * R.lookV) * h;
+            R.lookK += R.lookV * h;
+        }
+        if (Math.abs(want - R.lookK) < 1e-4 && Math.abs(R.lookV) < 1e-3) { R.lookK = want; R.lookV = 0; }
+    }
     /* How far the follow seat leads down the line (CONFIG.LONG_SEAT): 0 on
        anything but the long game and near the cup, 1 far from it. Drawn long
        holes and the ones hung in a world alike: it is a question of how much
@@ -8792,7 +8819,9 @@
         var keep = { yaw: c.yaw, pitch: c.pitch, kick: c.kick, pull: c.speedPull,
                      chase: R.chase ? R.chase.w : 0, wind: R.windup ? R.windup.w : 0,
                      lift: R.liftS ? { y: R.liftS.y, v: R.liftS.v } : null, dt: R.seatDt };
+        keep.lookK = R.lookK;
         c.yaw = yaw; c.kick = 0; c.speedPull = 0; R.seatDt = 0;
+        R.lookK = lookT(hole, ball);
         if (R.chase) R.chase.w = 0;
         if (R.windup) R.windup.w = 0;
         _fitCam.fov = R.camera.fov; _fitCam.aspect = R.camera.aspect;
@@ -8816,7 +8845,7 @@
         c.yaw = keep.yaw; c.pitch = keep.pitch; c.kick = keep.kick; c.speedPull = keep.pull;
         if (R.chase) R.chase.w = keep.chase;
         if (R.windup) R.windup.w = keep.wind;
-        R.liftS = keep.lift; R.seatDt = keep.dt;
+        R.liftS = keep.lift; R.seatDt = keep.dt; R.lookK = keep.lookK;
         return fits ? p : best;
     }
     function fitClear(hole, s) {
@@ -10423,6 +10452,7 @@
         if (aim && aim.club) R.aimClub = aim.club;
 
         syncMovers(world.time);
+        stepLook(world, dt);
         rollBall(world.ball);
         if (R.ballMats) {
             R.ballMats.uniforms.uGbTime.value = R.clock;
@@ -10432,9 +10462,14 @@
         }
 
         /* Speed, spent two ways: the camera eases back and the lens opens a
-           little, both of which read as "this one is going somewhere". */
+           little, both of which read as "this one is going somewhere".
+           Not on a long hole, except under the driver's riding chase: there
+           the camera stands still while the ball goes, and a lens opening
+           and closing under a camera that is not moving is a zoom out and
+           back in for no reason anyone can see (v1.243.0). */
         var speed = Math.hypot(world.ball.vx, world.ball.vy, world.ball.vz);
         var lens = C.SPEED_LENS === undefined ? 1 : C.SPEED_LENS;
+        if (G3.longHole(world.hole) && !(R.chase && R.chase.rides)) lens = 0;
         var wantPull = Math.min(3.2, speed * 0.14) * lens;
         var wantFov = 52 + Math.min(7, speed * 0.4) * lens;
         var ease = 1 - Math.pow(0.06, dt);

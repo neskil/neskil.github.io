@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.242.0';
+G3.VERSION = '1.243.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1420,13 +1420,19 @@ G3.CONFIG.LONG_M = 5.5;
    and a small ball beside it is a ball beside a crater; so inside FAR of the
    cup the look eases back, and inside NEAR it is the mini golf picture
    exactly — a putt looks the way it always has. Nor on a tour hole: those are
-   fitted to a world (`place`), seat and all. */
+   fitted to a world (`place`), seat and all.
+
+   It never changes while the ball is moving (render.js `stepLook`): a shot
+   that comes down near the flag keeps the size it was struck at, and the
+   ball and seat go over to the new lie's look once it is at rest, on a
+   critically damped spring of EASE per second (v1.243.0: "the ball size and
+   zoom have a bit of uncanny valley thing"). */
 /* The follow seat's lift over a bank behind the ball (render.js →
    easedLift): a critically damped spring of SIGHT_EASE per second, so a lift
    read off stepped ground never moves the eye in a step. 0 turns it off. */
 G3.CONFIG.SIGHT_EASE = 7;
 
-G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.6, NEAR: 4, FAR: 12 };
+G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.6, NEAR: 4, FAR: 12, EASE: 3.5 };
 
 /* The chase (render.js `watchChase`): the camera behind a long shot while
    it is up, on every long hole (G3.longHole). Held, then followed (v1.238.0,

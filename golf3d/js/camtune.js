@@ -45,7 +45,12 @@
         { path: 'LONG_LOOK.SEAT', label: 'Address distance', min: 0.3, max: 1.2, step: 0.05, unit: '×',
           says: 'How far behind the ball you stand to hit, on a long hole. Higher is further out.' },
         { path: 'SPEED_LENS', label: 'Speed zoom', min: 0, max: 1.5, step: 0.1, unit: '×',
-          says: 'How much the view widens while the ball is fast. 0 keeps one zoom throughout.' }
+          says: 'How much the view widens while the ball is fast: mini golf, and a drive while the camera rides. Every other long shot keeps one zoom.' },
+        { head: 'Ball size' },
+        { path: 'LONG_LOOK.MIN', label: 'Ball size on the course', min: 0.2, max: 1, step: 0.02, unit: '×',
+          says: 'How big the ball is drawn away from the green. On the green it is always 1. It only changes once the ball has stopped.' },
+        { path: 'LONG_LOOK.EASE', label: 'Size settles', min: 1, max: 8, step: 0.5,
+          says: 'How quickly the ball and the camera go over to the new size once the ball has stopped. Lower is softer.' }
     ];
 
     function get(path) {
