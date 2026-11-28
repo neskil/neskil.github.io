@@ -6233,10 +6233,9 @@
         id: 'all', name: 'Everything', icon: '\u2756', tint: '#e4dcc4',
         blurb: 'Every world and every course, side by side.'
     };
-    var WORLDS_GROUP = {
-        id: 'worlds', name: 'Worlds', icon: '\u25CE', tint: '#dcc28a',
-        blurb: 'The World Tour\u2019s holes, each inside a world from Portals, one at a time.'
-    };
+    /* The same object the draw's row of ticks names the worlds by
+       (courses.js → WORLDS_KIND), so the tab and the tick are one shelf. */
+    var WORLDS_GROUP = G3.WORLDS_KIND;
     /* …and the last *kind* tab that was, which is not always the same thing:
        the draw is a tab of its own now, and "same kind" still has to mean a
        kind of golf. So the shuffle tab borrows the one you were last looking
@@ -6273,6 +6272,14 @@
         return g === WORLDS_GROUP.id || g === ALL_GROUP.id ? G3.COURSE_GROUPS[0].id : g;
     }
 
+    /* …and the kind the draw means by "same kind", where the worlds are a
+       kind: a world, or a tour of them, is the worlds' kind. */
+    function drawKindOf(id) {
+        var c = G3.courseById(id);
+        if (c && c.isPortals && !c.isEndless) return G3.WORLDS_KIND.id;
+        return kindOf(id);
+    }
+
     // …and the tab it is shown under: a kind is a shelf inside a tab
     // (G3.COURSE_TABS), and Mini golf holds two of them.
     function tabOf(id) {
@@ -6290,8 +6297,8 @@
            playing it, with its own kind's tab behind it. */
         menuGroup = suggestId ? tabOf(suggestId) : ALL_GROUP.id;
         menuPick = suggestId || null;
-        menuKind = state && state.course ? kindOf(state.course.id) : G3.COURSE_GROUPS[0].id;
-        if (suggestId) menuKind = kindOf(suggestId);
+        menuKind = state && state.course ? drawKindOf(state.course.id) : G3.COURSE_GROUPS[0].id;
+        if (suggestId) menuKind = drawKindOf(suggestId);
         $('menu').className = 'modal show';
         drawMenu();
     }
@@ -6653,6 +6660,7 @@
             // not a kind, leaves that pointing where it last was.
             // A tab of two kinds keeps the one you were on if it is one of them.
             if (group.kinds && group.kinds.indexOf(menuKind) < 0) menuKind = group.kinds[0];
+            if (group === WORLDS_GROUP) menuKind = WORLDS_GROUP.id;
             drawShuffle();
             drawTabs();
             drawCourses();
@@ -6719,7 +6727,7 @@
        off should stop the game choosing for you, not forget how you liked it
        chosen. */
 
-    var shuffleMode = 'any';
+    var shuffleMode = G3.SHUFFLE_MODES[0].id;
     var shuffleOn = false;
     /* Which kinds of golf the draw is *not* allowed to reach for, as a set of
        group ids. Empty is every kind, which is the default — see
@@ -6738,7 +6746,7 @@
                     // Only ids a group still answers to: a renamed or retired
                     // group left in a save file would otherwise be a tick
                     // nothing on screen can ever untick.
-                    if (G3.groupById(id)) shuffleSkip[id] = true;
+                    if (G3.drawKindById(id)) shuffleSkip[id] = true;
                 });
             }
         } catch (e) { /* storage off: the defaults above are the answer */ }
@@ -6755,7 +6763,7 @@
     // The other side of the same set: what the draw *may* use, which is what
     // courses.js asks for.
     function shuffleKindIds() {
-        return G3.COURSE_GROUPS.filter(function (g) { return !shuffleSkip[g.id]; })
+        return G3.drawKindList().filter(function (g) { return !shuffleSkip[g.id]; })
             .map(function (g) { return g.id; });
     }
 
@@ -6773,7 +6781,7 @@
         return {
             mode: shuffleMode,
             from: state && state.course ? state.course.id : null,
-            group: menuKind || (state && state.course ? kindOf(state.course.id) : null),
+            group: menuKind || (state && state.course ? drawKindOf(state.course.id) : null),
             kinds: shuffleKindIds(),
             save: state ? state.save : null
         };
@@ -6814,11 +6822,10 @@
                 kinds: opts.kinds,
                 save: opts.save
             });
-            var n = draw.courses.length;
             chip.innerHTML =
                 '<span class="sh-mode-icon" aria-hidden="true">' + mode.icon + '</span>' +
                 '<span class="sh-mode-name">' + mode.name + '</span>' +
-                '<span class="sh-mode-n">' + n + (n === 1 ? ' course' : ' courses') + '</span>' +
+                '<span class="sh-mode-n">' + drawCount(draw.courses) + '</span>' +
                 '<span class="sh-mode-says">' + modeSays(mode, draw, opts.group) + '</span>';
             chip.addEventListener('click', function () {
                 if (shuffleMode === mode.id) return;
@@ -6838,6 +6845,18 @@
         $('shuffle-sub').textContent = 'Loads a course straight away \u2014 no list, no second tap.';
 
         drawKinds(opts);
+
+        /* The tile on the front page says what it is about to do: the
+           preset, and the kinds if they have been narrowed. It used to be a
+           fixed sentence describing the one way the draw used to work. */
+        var mode = G3.shuffleModeById(shuffleMode);
+        var kinds = G3.shuffleKinds(shuffleKindIds());
+        var front = $('menu-surprise') && $('menu-surprise').querySelector('.sh-sub');
+        if (front) {
+            front.textContent = mode.name + ': ' + mode.blurb.charAt(0).toLowerCase() + mode.blurb.slice(1) +
+                (kinds.length && kinds.length < G3.drawKindList().length
+                    ? ' ' + kindNames(kinds).charAt(0).toUpperCase() + kindNames(kinds).slice(1) + ' only.' : '');
+        }
 
         /* Named on the element as well as in it: the words beside the toggle
            are display:none on a phone, which takes them out of the
@@ -6861,7 +6880,7 @@
        mode; this picks which one is true right now. */
     function modeSays(mode, draw, group) {
         if (draw.eased) return mode.eased;
-        var g = mode.blurbKind ? G3.groupById(group) : null;
+        var g = mode.blurbKind ? G3.drawKindById(group) : null;
         return mode.blurb + (g ? ' ' + mode.blurbKind.replace('%s', g.name.toLowerCase()) : '');
     }
 
@@ -6888,8 +6907,9 @@
     function drawKinds(opts) {
         var host = $('shuffle-kinds');
         host.innerHTML = '';
-        G3.COURSE_GROUPS.forEach(function (group) {
-            var courses = G3.coursesInGroup(group.id);
+        var pool = G3.drawPool();
+        G3.drawKindList().forEach(function (group) {
+            var courses = pool.filter(function (c) { return c.group === group.id; });
             // A group with nothing filed under it is not a choice — the tabs
             // skip it for the same reason.
             if (!courses.length) return;
@@ -6935,10 +6955,8 @@
             return 'Nothing is ticked, so the draw is back to every kind. ' +
                 'Tick the ones you want it to reach for.';
         }
-        if (kinds.length === G3.COURSE_GROUPS.length) return 'Every kind is in the draw.';
-        var names = kinds.map(function (g) { return g.name.toLowerCase(); });
-        var last = names.pop();
-        var said = names.length ? names.join(', ') + ' and ' + last : last;
+        if (kinds.length === G3.drawKindList().length) return 'Every kind is in the draw.';
+        var said = kindNames(kinds);
         /* Ticked, and still nothing to draw: the one kind left is the one
            course you are standing on. It cannot happen with seventeen courses
            filed three and four to a shelf, and it is one sentence — the
@@ -6948,6 +6966,25 @@
                 ', so the draw is back to every kind.';
         }
         return 'Drawing from ' + said + ' only.';
+    }
+
+    // "worlds, classic and long game", for a sentence.
+    function kindNames(kinds) {
+        var names = kinds.map(function (g) { return g.name.toLowerCase(); });
+        var last = names.pop();
+        return names.length ? names.join(', ') + ' and ' + last : last;
+    }
+
+    /* How much a draw holds, with nouns: the worlds and the courses are
+       different sizes of thing — one hole against six — so they are counted
+       apart rather than added into one number that is neither. */
+    function drawCount(list) {
+        var w = 0, c = 0;
+        list.forEach(function (x) { if (x.isWorld) w++; else c++; });
+        var out = [];
+        if (w) out.push(w + (w === 1 ? ' world' : ' worlds'));
+        if (c || !w) out.push(c + (c === 1 ? ' course' : ' courses'));
+        return out.join(' \u00b7 ');
     }
 
     /* The three showcase buttons, one per G3.SHOWCASE_KINDS entry, each
@@ -7190,6 +7227,8 @@
                outranks the shuffle switch: the deal is the surprise. */
             next.textContent = state.course.isEndless
                 ? '\u221E A new endless round'
+                : state.course.single && shuffleOn
+                ? '\uD83C\uDFB2 Surprise me'
                 : state.course.isPortals
                 ? '\u25CE Six new holes'
                 : state.course.isShowcase
@@ -7719,7 +7758,7 @@
             loadHole(state.holeIndex + 1);
             return;
         }
-        if (state.course.isPortals) {
+        if (state.course.isPortals && !(state.course.single && shuffleOn)) {
             newJourney();
             toast('Autoplay — another tour');
             return;
@@ -9461,6 +9500,9 @@
         $('card-next').addEventListener('click', function () {
             $('scorecard').className = 'modal';
             if (state.course.isEndless) { newEndless(); return; }
+            // A world played on its own, which the draw may have handed you:
+            // with shuffle on, the next is drawn too.
+            if (state.course.single && shuffleOn) { menuTaking = false; takeRandom(); return; }
             if (state.course.isPortals) {
                 // Six worlds this tour did not have, leaning (as every deal
                 // does) to the ones this save has played least.

@@ -2800,17 +2800,32 @@ its own. The count on it is what the current mode could hand you *right now*,
 not a shelf of courses filed under it: nothing is filed under it, and
 `coursesInGroup('shuffle')` is empty on purpose.
 
-The four modes exist because "random" on its own answers the wrong question
-after the first few rounds:
+The draw holds **every world as well as every course** (v1.257.0, the owner:
+"its missing the worlds here"): each of the World Tour's holes is in it as
+itself, a one-hole `world-<id>` the way its own card plays it, and the worlds
+are a fourth kind in the row of ticks (`G3.WORLDS_KIND`, `G3.drawPool()`,
+`G3.drawKindList()`). A world counts as played, starred and recorded off its
+one hole; a course off its finished rounds and every hole's stars.
 
-| Mode | Draws from | When it runs out |
+The six presets ("How it picks") exist because "random" on its own answers the
+wrong question after the first few rounds:
+
+| Preset | Draws from | When it runs out |
 | --- | --- | --- |
-| **Anything** | all fifteen | — |
-| **Same kind** | the last *kind* tab you looked at, not the kind you are standing in | widens to anything |
-| **New to you** | courses with no finished round on them | the ones you have played *least* |
-| **Beat a best** | courses that already have a record on them | widens to anything |
+| **Smart shuffle** (id `any`, the default) | everything, kind first, leaning towards what you have played least | — |
+| **Pure luck** (`luck`) | everything, kind first, nothing weighed by the save | — |
+| **New to you** | what you have never played | what you have played *least* |
+| **Stars to win** | what does not hold three stars on every hole | widens to anything |
+| **Beat a best** | what already has a record on it | widens to anything |
+| **Same kind** | the last *kind* tab you looked at (a world means the worlds) | widens to anything |
 
-**Each of the four says all of that on itself**, in a sentence under its own
+Smart shuffle keeps the old "Anything"'s id because it is the same draw, so a
+save that chose that keeps it. Every preset but Pure luck leans
+(`mode.lean`, read by `randomCourseId`). The count on each is split into
+worlds and courses, which are different sizes of thing. The front page's
+Surprise me tile says which preset (and which kinds, if narrowed) it will use.
+
+**Each of them says all of that on itself**, in a sentence under its own
 name, with the number of courses it would actually hand you on the same line.
 They used to be four chips carrying a name and a bare figure, with the meaning
 in a `title` — which is a tooltip, which a phone does not have, which made the

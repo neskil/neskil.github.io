@@ -2,7 +2,7 @@
 
    Two halves, and only the first touches a canvas.
 
-   **The print.** Every course flies its own flag (the owner, v1.257.0: "make
+   **The print.** Every course flies its own flag (the owner, v1.258.0: "make
    the flag a bit more fun, a text on it 'neskil golf inc' … vary them per
    map/set of courses"). A design is a cloth colour, an ink, an accent, a
    motif and up to two lines of type plus a small line under them; `paint`

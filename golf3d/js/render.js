@@ -10816,7 +10816,7 @@
     }
 
     /* The flag. It **points downwind**, it **ripples** harder the harder it
-       blows, and on a still day it **hangs** — and since v1.257.0 all three
+       blows, and on a still day it **hangs** — and since v1.258.0 all three
        come out of a cloth simulation (flag.js) rather than being drawn on:
        the air is the weather's wind in metres a second (weather.js reads
        `speed × 34` as km/h), less the pin's own movement, turned into the
