@@ -31,13 +31,15 @@ keyed `1:<id>`.
 | --- | --- | --- |
 | `edges` | couldn't see where the hole was | the hole needs marking. Since v1.214.0 a pin tag points at the flag (README → "Where the flag is"), and since v1.222.0 a forged map's tee, fairway and green are painted on the world (`paint`, README → "Batch 4"); if it still comes back, the next step is a kerb or posts — a code change, not a recipe number |
 | `bumpy` | ground too bumpy | `smooth` up, `maxSlope` down |
-| `flat` | the ground has no shape (until v1.229.0 the chip read "Too flat / boring" and was ticked for `dull` too: read old ones by their note) | `relief` up, `reliefMin` up — but see "What five batches taught" first: raising relief has never fixed a `flat` |
-| `dull` | nothing to decide, no challenge (since v1.229.0) | not height: what the hole asks — `rough`/`fairwayW`, hazards a person reaches (`wet`), the cup by the bot with hands (`overPar`) |
+| `flat` | the ground has no shape (until v1.229.0 the chip read "Too flat / boring" and was ticked for `dull` too: read old ones by their note) | `relief` up, `reliefMin` up — but see "What the batches taught" first: raising relief has never fixed a `flat` |
+| `dull` | nothing to decide, no challenge (since v1.229.0) | not height: what the hole asks — the shape (`bend`, lesson 10), `rough`/`fairwayW`, hazards a person reaches (`wet`), the cup by the bot with hands (`overPar`). "Too straight" in a note is `bend` |
 | `layout` | the tee or the cup is in the wrong place (since v1.229.0) | `forge-finish --tee/--cup` on that map, or `pin`'s choice if it recurs |
 | `long` / `short` | length | `L` down / up |
 | `hard` / `easy` | difficulty | `ace` up / down (target ace share), `L`, `relief` |
-| `clip` | clipping or floating | the world's things on the hole, which the ball rolls through: compare with `gen.clutter` (batch 2 on), raise or lower `stand`, `bump`, `lane` (README → "Clutter"). Since batch 4 the middles of them are hard (`solid`, `gen.solid`): a `clip` there is a trunk struck where nothing is drawn, or a crown rolled through. Otherwise a sculpt or anchor fault: `tools/forge-sculpt.mjs <id> --map` shows where the drawn ground leaves the played one, then look at that world live (`?course=forge-<id>&live=1`) |
+| `clip` | clipping or floating (water lying across the world's things is lesson 11, not this) | the world's things on the hole, which the ball rolls through: compare with `gen.clutter` (batch 2 on), raise or lower `stand`, `bump`, `lane` (README → "Clutter"). Since batch 4 the middles of them are hard (`solid`, `gen.solid`): a `clip` there is a trunk struck where nothing is drawn, or a crown rolled through. Otherwise a sculpt or anchor fault: `tools/forge-sculpt.mjs <id> --map` shows where the drawn ground leaves the played one, then look at that world live (`?course=forge-<id>&live=1`) |
 | `fell` | the ball fell through the ground (since v1.229.0; before, a `clip` with a note) | a fault, never a recipe number. b4-06's was the patch's edge, where the played ground stopped and the drawn world ran on (`hole.edge` now). Find where with shots over every line and club, not only towards the cup (`vet()` only looks at where balls stop) |
+| `straight` | the hole has no shape (since v1.247.0; before, a note: "too straight") | `bend` up (lesson 10); past what a 24-wide patch allows, `W` |
+| `water` | a pond looks wrong, or lies across the world's things (since v1.247.0) | lesson 11: find which cells of `outs`/`solid` are under the water and move or drop the pond. Never a recipe number |
 | `stuck` | ball got stuck | a vetting gap: run the stuck sweep on that map and tighten `vet()` |
 | `camera` | bad view | the tee's heading (`turn`) or `ahead`; perhaps prefer `turn: 0` |
 | `paint` | the fairway or green paint looks wrong (since v1.229.0; before, `ugly`) | `render.js` → the plate's paint, which takes its colour from the world's own picture. Look at it on a dark, a bright and a busy world before shipping |
@@ -55,7 +57,7 @@ keyed `1:<id>`.
   left out); a forge map already sent shows as `(sent already: <verdict>)`.
   Don't treat a missing note as a change of mind.
 
-## What five batches taught
+## What the batches taught
 
 Standing lessons, from batches 1 to 4 and the copy that sent batch 4 back
 (v1.229.0, the owner: "Lots of recurring issues, take some general
@@ -130,6 +132,24 @@ loop that went round more than once before it was seen.
 9. **Variety.** Since v1.229.0 about one map in four is a mini-golf hole in
    its world (the owner: "some of the new maps can be mini golf style for
    the worlds as well"), forged on a `mini` lean.
+10. **A straight hole is a dull hole, however it looks** (batch 5's copy,
+   v1.247.0: "too straight", "too straight. What is the challenge?" on the
+   two best-looking maps, look 4 and 5, fun 1 and 2). Every forged hole until
+   then was one band from the tee to the cup, and a tie-break pulled the cup
+   to the middle of the patch, so every one ran straight up it. A long hole
+   bends now (`bend`): the band turns at an elbow, the tee faces the elbow,
+   and the pond is dug inside the corner where the straight line comes down,
+   or the world's own trees are there. If "straight" comes back, the patch
+   (24 wide) is the limit, not the number: widen `W`.
+11. **Never lay water over the world's things** (batch 5's copy: "water
+   occlusion issue with the placed water obstacle" on the House of Four
+   Seasons, and the owner's own picture of A Great Huge Game of Chess, "this
+   I don't like": the pond lying across the knight's pedestal). A dug basin
+   presses the world's ground, never what stands on it, so a snowman or a
+   chess piece stands up through the water. The forge digs and floods only
+   where nothing of the world's stands (`digPond`, `ponds`), and
+   `forge-finish --dig` says when a basin lands on something. Before
+   shipping, check every map for cells of its `outs`/`solid` under its water.
 
 ## What to do
 

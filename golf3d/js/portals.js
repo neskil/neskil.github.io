@@ -186,7 +186,7 @@
        `u` is how far along that world's own flight path the tee stands,
        `scale` its units to one of ours, `lift` and `turn` a nudge up and
        round (backdrop.mjs → anchorFor). */
-    var PLACES = {"breakfast": ["breakfast-table", {"u": 0.2, "at": {"x": -82.95, "z": -58.9, "y": 45.3, "yaw": 3.1416, "scale": 1.4}}], "turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0, "flyLine": false}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.9}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "lift": 0.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "at": {"x": 0, "z": 24, "y": 0, "yaw": 3.1416, "scale": 1.5}}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}], "popup": ["paper-kingdom", {"reach": 2.5, "u": 0.35, "at": {"x": 299.3, "z": 190.32, "y": 1.23, "yaw": -1.1232, "scale": 3}}]};
+    var PLACES = {"turtle": ["world-turtle", {"reach": 4, "u": 0.02, "at": {"x": -95.58, "z": 148.41, "y": 150, "yaw": 0.6981, "scale": 2.5}}], "gasgiant": ["storm-bands", {"u": 0.44, "scale": 2.2, "ground": false}], "abyss": ["kelp-cathedral", {"u": 0.55, "scale": 2.2}], "carnival": ["carnival-on-the-frozen-river", {"u": 0.72, "scale": 1.8, "lift": 1}], "mushroom": ["spore-rain", {"u": 0.5, "scale": 1.8, "lift": 2}], "orrery": ["long-library", {"u": 0.12, "scale": 1.8}], "stairs": ["stairway-everywhere", {"u": 0.55, "scale": 2.0, "flyLine": false}], "attic": ["the-toppling", {"u": 0.16, "scale": 0.85, "event": {"from": -0.035, "to": 0.09, "secs": 6, "gate": [14.9, 2.4, 1.7], "say": "The dominoes are going over."}}], "threebody": ["airbrush-black-hole", {"u": 0.2, "scale": 1.8, "turn": -0.5, "hide": ["ship"]}], "clouds": ["cloud-armada", {"u": 0.35, "scale": 2.0, "ground": false}], "forge": ["obsidian-forge", {"u": 0.52, "scale": 2.3}], "table": ["breakfast-table", {"press": false, "u": 0.3, "at": {"x": -90, "z": -47, "y": 45, "yaw": 3.1416, "scale": 3.5}}], "nave": ["kelp-cathedral", {"u": 0.3, "at": {"x": 0, "z": 50, "y": -41, "yaw": 3.1416, "scale": 3}}], "rapids": ["paper-boat-rapids", {"u": 0.8, "scale": 1.4, "lift": 0.3}], "railway": ["attic-railway", {"u": 0.6, "at": {"x": -278, "z": 156.8, "y": 6.1, "yaw": 3.1416, "scale": 2.8}, "hide": ["clockwork-cars"]}], "custard": ["islands-in-custard", {"u": 0.5, "scale": 1.3, "lift": 0.9}], "pyramid": ["pyramid-of-khufu", {"u": 0.5, "scale": 2.2, "turn": -0.5}], "drydock": ["moon-in-dry-dock", {"u": 0.18, "scale": 1.8, "lift": 0.8, "event": {"from": 0.42, "to": 0.64, "secs": 10, "sink": true, "look": [0, 98, 0], "say": "The moorings are slipping. The Moon is going back up."}}], "ironriver": ["obsidian-forge", {"u": 0.5, "at": {"x": -45, "z": 2.5, "y": 0, "yaw": 0, "scale": 2.5}}], "maelstrom": ["maelstrom-descent", {"u": 0.5, "at": {"x": 139.7, "z": -52.06, "y": -25.63, "yaw": 0.3713, "scale": 1.8}}], "globe": ["shaken-globe", {"u": 0.5, "at": {"x": 0, "z": 24, "y": 0, "yaw": 3.1416, "scale": 1.5}}], "pins": ["country-of-pins", {"u": 0.5, "scale": 1.8}], "savanna": ["storm-savanna", {"reach": 2.5, "u": 0.35, "at": {"x": -35.17, "z": 408.21, "y": -3.29, "yaw": 2.142, "scale": 3}}], "fire": ["the-fire-comes-round", {"reach": 2.5, "u": 0.65, "at": {"x": -980.51, "z": 552.84, "y": 1.47, "yaw": -1.8326, "scale": 3}}], "popup": ["paper-kingdom", {"reach": 2.5, "u": 0.35, "at": {"x": 299.3, "z": 190.32, "y": 1.23, "yaw": -1.1232, "scale": 3}}]};
     function add(w) {
         w.hole.scene = w.scene || w.id; w.hole.worldId = w.id; w.hole.theme = w.theme;
         var q = PLACES[w.id];
@@ -196,34 +196,11 @@
         WORLDS.push(w);
     }
 
-    /* Breakfast, at the size of a crumb. The table stops, the placemat is
-       three and a half units off across nothing, and the butter knife
-       somebody left on the edge is a ramp. Up it with most of a mallet and
-       the ball flies the gap; the teaspoon lying across is the other way,
-       a plank a ball wide. Sugar cubes on the mat. */
-    add({
-        id: 'breakfast', title: 'The Butter Knife', world: 'Breakfast Kingdom', kind: 'home', tier: 1,
-        caption: 'A table the size of a county. Up the butter knife and over the edge, or across the teaspoon.',
-        theme: 'breakfast',
-        hole: world({
-            name: 'The Butter Knife', par: 3, bag: ROLL,
-            blurb: 'Up the butter knife and fly the gap to the placemat — or walk the teaspoon, a ball wide.',
-            pads: [
-                pad(0, 0, 9, 8, 0, 'wood'),
-                pad(3, 8, 3, 3.5, 0, 'wood', 0, 0.2),
-                pad(7.3, 8, 1.0, 7, 0, 'wood'),
-                pad(0.5, 15, 8, 7.5, 0, 'green')
-            ],
-            extra: [
-                wall(4.4, 18.2, 0.9, 0.9, 0.8, { base: -0.1, kind: 'meteor' }),
-                wall(2.6, 19.6, 0.9, 0.9, 0.8, { base: -0.1, kind: 'meteor' }),
-                kerb(0.5, 22.5, 8.5, 22.5), kerb(0.5, 15, 0.5, 22.5), kerb(8.5, 15, 8.5, 22.5),
-                kerb(0, 0, 9, 0), kerb(0, 0, 0, 8), kerb(9, 0, 9, 8)
-            ],
-            tee: { x: 4.5, z: 2 }, cup: { x: 3.4, z: 21 }
-        })
-    });
-
+    /* The Butter Knife (the breakfast table's mini hole, a butter knife for
+       a ramp over the gap to the placemat) was taken out in v1.247.0, on
+       the owner's word: "It's the same as the much better one which is long
+       game type for this same world. Please remove this one." The table's
+       hole is The Sugar Gate, below; its palette is still `breakfast`'s. */
     /* Sculpted to its world, and the first of the tour that is. The ground
        here is not drawn by anybody: it is the country on the turtle's back
        itself — a headland on the south coast of the shell-world, sampled
@@ -1224,10 +1201,20 @@
        outsOf), so they come with the ground (tour-ground.js → `outs`,
        `solid`; `marks` below), and the first with its fairway and green
        painted on the world (`paint`), as it was rated. Nothing moved: a
-       keep with no note. */
+       keep with no note.
+
+       v1.247.0 (the owner: fun 1, difficulty 1, look 1, `bumpy, hard, clip,
+       fell, mini, nice-spot`; eight strokes and a give-up). It was a par
+       three of 32 units handed the whole long bag, so the driver a tee
+       shot is handed carried it off the end of the page, out at the edge
+       (`hole.edge`), which reads as falling through the world. It is the
+       mini golf hole the owner's `mini` asked for now: the mini bag, the tee
+       past the first fold, 21.5 units. The bot with a person's hands plays
+       it in 2.9 (it played the long version in 2.7 and the owner took
+       eight). */
     add({
         id: 'popup', title: 'The Pop-Up Book', world: 'The Pop-Up Book Opens', kind: 'bizarre', tier: 2,
-        caption: 'A long par three across one sheet of paper folded into a kingdom, with a paper river down the right. The folds are the world\'s own.',
+        caption: 'Mini golf across one sheet of paper folded into a kingdom, with a paper river down the right. The folds are the world\'s own.',
         theme: 'popup',
         hole: (function () {
             var G = (G3.TOUR_GROUND || {}).popup, field = G ? [{ grid: G }] : [];
@@ -1235,18 +1222,18 @@
             var ground = on(pad(-12, -3, 24, 56, 0, 'fairway'));
             ground.ghost = true;
             var h = world({
-                name: 'The Pop-Up Book', par: 3, long: true,
+                name: 'The Pop-Up Book', par: 3, bag: LOFT,
                 blurb: 'Down the page between the folds. The river runs the whole right side; the card kingdom stands on the left, and its towers are paper you can hit. The green sits left, against the fold.',
                 pads: [
                     ground,
-                    on(pad(-4, -1, 2, 2, 0, 'fairway'), true),
-                    on(pad(-7.5, 1, 7, 15.23, 0, 'fairway'), true),
+                    on(pad(-9, 10, 2, 2, 0, 'fairway'), true),
+                    on(pad(-7.5, 12, 7, 4.23, 0, 'fairway'), true),
                     on(pad(-9.5, 16.23, 7, 13.13, 0, 'fairway'), true),
                     on(pad(-10, 29.46, 6, 6, 0, 'green'), true)
                 ],
                 // Drawn to its waterline on the grid (render.js → addPondOnGrid).
                 water: G ? [Object.assign(A.rect(4.5, -3.5, 8, 52, 0.586), { grid: G })] : [],
-                tee: { x: -3, z: 0 }, cup: { x: -7, z: 32.46 }
+                tee: { x: -8, z: 11 }, cup: { x: -7, z: 32.46 }
             });
             marks(h, G);
             h.paint = true;

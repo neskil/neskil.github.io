@@ -35,7 +35,7 @@ screenshots. His standing asks, each quoted from a message:
 
 | Hole (`?world=`) | Kind | State |
 | --- | --- | --- |
-| The Butter Knife (`breakfast`) | placed | "completely broken" (v1.157.0): it stood in the toast rack, and after The Sugar Gate the cloth was still pressed to that hole's shape. Now placed exactly on a clear patch of cloth (`place.at`, scale 1.4) and a world is un-sculpted between holes. **Not yet seen by him.** |
+| ~~The Butter Knife~~ (`breakfast`) | removed | Taken out in v1.247.0 (the owner: "It's the same as the much better one which is long game type for this same world. Please remove this one."). The table's hole is The Sugar Gate. |
 | Across the Shell (`turtle`) | sculpted | "a lot better geometry wise but still hard with all the hills and a bit weird geometry between the hills that you get stuck on". The line of play is groomed now (`tools/groom-ground.mjs`), the dip filled. **Not yet seen.** |
 | Balloon Hop (`gasgiant`) | placed | "clipping the geometry": it sat in the cloud deck. Lifted clear (`lift`). **Not yet seen.** |
 | Slack Water (`abyss`) | placed | "too easy with pitch and impossible with mallet. Needs redesign, but world background is cool." Redesigned: two currents across the line and a slack bank between; putters only. **Not yet seen.** |
@@ -287,6 +287,21 @@ lines, six of them asking for something:
 - Keeps with nothing asked: Stone Bridge and Long Way Round (`redstone:2`,
   `redstone:3`), The Knuckles, Balloon Hop, Slack Water (fun 4), The
   Three-Body Problem (fun 5, look 4, holed in one).
+
+## From the forge's feedback (batch 5 copy, v1.247.0)
+
+Three released holes:
+
+- **Shoot the Rapids** (`rapids`, keep, fun 4, look 4, an ace): nothing asked.
+- **The Butter Knife** (`breakfast`, drop): removed (table above).
+- **The Pop-Up Book** (`popup`, fix, fun 1, difficulty 1, look 1, eight
+  strokes and a give-up, `bumpy, hard, clip, fell, mini, nice-spot`): a par
+  three of 32 units handed the long bag, whose tee club carried off the end
+  of the page and out at the patch's edge, which reads as falling through.
+  Made the mini hole `mini` asked for: the mini bag, the tee past the first
+  fold (21.5 units); the bot with hands 2.9. If `bumpy` comes back on the mini
+  bag, the folds are the world's: smooth the grid's line of play
+  (`tools/groom-ground.mjs`) rather than move the tee again.
 
 ## The owner's ideas waiting their turn
 

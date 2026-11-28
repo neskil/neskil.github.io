@@ -60,7 +60,7 @@ them.
 | `js/courses.js` | The ninety holes, as data, plus the rail generator, the band layout the long-game courses are written in — rows that tilt and carry their level into the next one, and a cross-fall that puts a whole hole on the side of a hill — the dune fields the links is made of, the landforms the two parkland courses are shaped by, the bag each hole is played out of, and the [draw](#the-draw) behind the picker's die. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/forge.js`, `js/forge-maps.js` | [The forge](#the-forge-new-tour-holes-made-by-a-tool-and-rated-in-dev-mode): new tour holes made by `tools/forge.mjs` from Portals worlds' own ground (`forge-maps.js`, generated), built and kept here with the owner's verdicts on them (localStorage, dev mode). Loaded after `endless.js`. |
-| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-six holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
+| `js/portals.js` | [The World Tour](#the-world-tour-every-hole-in-a-world): the twenty-five holes — hole, palette, shelf, caption and the Portals world each is played in — the tour's deal, and `courseById` taught to answer `portals`, `portal-library` and `world-<id>`. Written with `G3.authoring`; loaded straight after `courses.js` on every page that loads that. |
 | `js/worlds.js` | The tour holes' stand-in set pieces, for when the live world is not drawn. three.js primitives only. Loaded before `render.js`. |
 | `js/backdrop.mjs`, `vendor/portals/` | The live worlds: Portals' own engine, kit, twelve worlds and three.js r170 (vendored unmodified, CC BY-NC-SA 4.0), and the module that builds one behind a hole and fits the hole into it. |
 | `js/tour-ground.js`, `tools/world-ground.mjs`, `tools/bake-ground.mjs` | Ground baked from a Portals world for a hole sculpted to it (generated), the tool that reads a world's terrain, and the one that bakes a piece of it. |
@@ -5431,6 +5431,67 @@ world put them, and not yet where a person aims. All five were loaded live
 and looked at from the tee: the paint reads on each in the world's own
 colours, and none is on water. b5-01 to b5-04 are the fixes, b5-10 to b5-14
 batch 4's carried maps (keys unchanged).
+
+**Batch 6: a hole with a shape, and no water over the world's things**
+(v1.247.0). Batch 5's copy rated twelve of fourteen, and kept none. The
+notes: "too straight" (the Tree City, fun 1), "great paint, more like that,
+but too straight. What is the challenge?" (glowwood, look 5), "if longer
+then ok" (the Fields of Gazing Grain), "water occlusion issue with the
+placed water obstacle" (the House of Four Seasons), and the owner's
+picture of A Great Huge Game of Chess with its pond lying across the
+knight's pedestal: "this I don't like". The lessons are FORGE-FEEDBACK.md's
+10 and 11.
+
+- **`bend`** (forge.mjs → `elbowsFor`, forge.js → holeOf, game.js → the
+  aim). A long hole's fairway turns at an elbow `bend` (9) off the straight
+  line from the tee to the cup, `bendAt` (0.55) of the way up, on the side
+  away from the cup: `fairway` is `[x0, z0, ex, ez, w, x1, z1]`, two roads
+  with round ends that meet in one curve. The tee faces the elbow
+  (`hole.aim`). The pond is dug inside the corner first, on the straight
+  line where a drive across the corner comes down; where the world's trees
+  already stand there, they are the hazard. Only the fairway's second leg
+  and the elbow have to be clear of the world's things; the straight line
+  across the corner is the gamble. The tie-break that pulled every cup to
+  the middle of the patch is off for a dogleg. Par is measured round the
+  elbow.
+- **No water over the world's things** (`digPond`, `ponds`). A basin
+  presses the world's ground and never what stands on it, so the forge had
+  dug ponds round the House's snowmen and the chess knight. It digs and
+  floods only where nothing of the world's stands now; `forge-finish --dig`
+  warns when a basin lands on something, and `--fill x,z,r` relaxes a dug
+  basin back to the ground round it.
+- **The band is cleared along its shape** (render.js → the clearing,
+  backdrop.mjs → sculpt). The world took its trees out of each fairway pad's
+  bounding box, so a slanted leg cleared a box twice its width while the hole
+  still had those trees hard or out. A straight road is cleared as a capsule
+  now, and `outsOf` leaves the band itself in play.
+- **Lengths.** The shortest lean is 0.9 of `L` (was 0.75), so no long hole
+  is under about 77 units.
+- **The form**: `straight` and `water` chips, for the two notes that came
+  with no chip.
+- **The maps.** Finished by hand (`forge-finish`, lesson 5, all third or
+  fourth fixes): glowwood (cup to the left, the band round an elbow on the
+  right, the willows inside the corner, its old pond filled: 3.1 for the bot
+  with hands), the House (snowmen's pond filled, a dogleg of 86 round the
+  hill and the trees at the corner: 3.6), Chess (the pond round the knight
+  filled, the tee off the low corner: 2.7), the Field in Thick Paint ("remove
+  the waters": filled, 2.2). Re-forged on their own patches with the bend:
+  the Tree City (3.3), Wool on the Thorn (3.2), and the Fields of Gazing
+  Grain on the longest lean, a par four of 91 that needs two drives (3.3).
+  New: Mended Country, The City That Left, Every Wingbeat Stays (its basin
+  had fallen on the band and was taken out), Mara Crossing (mini). Canyon of
+  Three Airs was forged and left out: its fairway ran through a lake.
+  Carried, unplayed: Raku Aspens, the Bamboo Sea (its pond had 75 cells of
+  bamboo standing in it and was taken out), Still Waving. Dropped: the Wood
+  Behind the Coats (fourth fix, `fell`, river clipping), the Standing Wave
+  and the Long Necks' Ford (drops), Four Stone Kings (laid on the world's
+  river, which its sample did not name).
+
+The batch: `forge.mjs --batch 6 --count 5 --skip <batch 5's skips, every
+batch 5 world and batch 5's passed-over list>`, the three re-forges each
+with `--worlds <id> --count 1 --lean <n>` (`--recipe '{"us":[u],"turns":[t]}'`
+for their own patch), then `--with` all fourteen into the batch.
+20 worlds sampled from nothing in about eight minutes.
 
 **In the game.** The last chip in ☰ is **Dev mode**, the game's existing
 dev mode (it was five taps on About; it also gives the free Pro Shop

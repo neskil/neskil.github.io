@@ -354,7 +354,12 @@ function sculpt(W, place) {
         return (h[k] * (1 - ux) + h[k + 1] * ux) * (1 - uz) + (h[k + G.nx] * (1 - ux) + h[k + G.nx + 1] * ux) * uz;
     };
     const rects = place.clear || [];
-    const inStrip = (gx, gz) => rects.some((r) => gx > r[0] && gx < r[2] && gz > r[1] && gz < r[3]);
+    // A box, or a road's band: [x0, z0, x1, z1, 'cap', radius] (render.js → the clearing).
+    const inCap = (gx, gz, r) => {
+        const ax = r[2] - r[0], az = r[3] - r[1], t = Math.max(0, Math.min(1, ((gx - r[0]) * ax + (gz - r[1]) * az) / (ax * ax + az * az || 1)));
+        return Math.hypot(gx - r[0] - ax * t, gz - r[1] - az * t) < r[5];
+    };
+    const inStrip = (gx, gz) => rects.some((r) => r[4] === 'cap' ? inCap(gx, gz, r) : gx > r[0] && gx < r[2] && gz > r[1] && gz < r[3]);
     W.scene.updateMatrixWorld(true);
     let moved = 0, cleared = 0;
     const undo = W.undo = [];

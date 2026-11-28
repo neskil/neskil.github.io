@@ -132,18 +132,32 @@ const RECIPE = Object.assign({
     // the worlds as well". A lean marked `mini` makes a short hole out of
     // the mini bag with these over the recipe: gentle ground, a narrow
     // painted lane, all of it fairway, a small dug pond.
+    /* Batch 6 (from batch 5's verdicts, README → "The forge", Batch 6): the
+       notes were "too straight" (the Tree City, fun 1), "too straight. What
+       is the challenge?" (glowwood, look 5) and "if longer then ok" (the
+       Fields of Gazing Grain, a par three of 43). Every forged hole until
+       now was one straight band from the tee to the cup, the cup pulled to
+       the middle of the patch on a tie, so nothing on it was a choice.
+       `bend`: a long hole's fairway turns at an elbow `bend` units off the
+       straight line from the tee to the cup, `bendAt` of the way up it, and
+       the pond is dug on the inside of the corner, where the straight line
+       comes down — cut it and carry the water, or play round (`pin`). */
+    bend: 9, bendAt: 0.55,
     mini: { L: 26, relief: 1.2, reliefMin: 0.5, reliefMax: 3, maxSlope: 0.35, minSlope: 0.08, long: false, rough: false,
-            fairwayW: 3.5, ace: 0.004, dig: 0.35, digR: 2.5, lane: 1, overPar: -0.2 }
+            fairwayW: 3.5, ace: 0.004, dig: 0.35, digR: 2.5, lane: 1, overPar: -0.2, bend: 0 }
 }, JSON.parse(one('--recipe', '{}')));
 // …and how each map of the batch leans off it, so a verdict can be read
 // against a setting: four lengths, three reliefs.
 // Since batch 5 a quarter of the maps are mini-golf holes (`mini`), two of
 // the first five, since a copy is played from the top (FORGE-FEEDBACK.md,
 // lesson 4). Leans 1 and 3 are where they were, for `--lean`.
+// Batch 6: the shortest lean 0.75 → 0.9 (the Fields of Gazing Grain, a par
+// three at the 64-unit lean: "if longer then ok … the challenge to hit two
+// straight drivers in a row").
 const LEAN = [
-    { L: 0.75, relief: 0.6 }, { L: 1, relief: 1 }, { mini: true }, { L: 1.25, relief: 1.5 },
-    { mini: true }, { L: 0.75, relief: 1.5 }, { L: 1, relief: 0.6 }, { L: 1.25, relief: 1 },
-    { mini: true }, { L: 1, relief: 1.5 }, { L: 0.75, relief: 1 }, { L: 1.25, relief: 0.6 }
+    { L: 0.9, relief: 0.6 }, { L: 1, relief: 1 }, { mini: true }, { L: 1.25, relief: 1.5 },
+    { mini: true }, { L: 0.9, relief: 1.5 }, { L: 1, relief: 0.6 }, { L: 1.25, relief: 1 },
+    { mini: true }, { L: 1, relief: 1.5 }, { L: 0.9, relief: 1 }, { L: 1.25, relief: 0.6 }
 ];
 const leanL = (l) => l.mini ? RECIPE.mini.L : Math.round(RECIPE.L * l.L);
 // Par by length for a long-game hole (CONFIG.CLUBS: a driver runs about
@@ -152,8 +166,10 @@ const leanL = (l) => l.mini ? RECIPE.mini.L : Math.round(RECIPE.L * l.L);
 // in three and its par five in three, a drive and a drive: a forged hole is
 // open land twenty-four units wide with no rough, so it is stricter now —
 // a four from 34 units, a five from 72 (`par`: [34, 72]).
-function parFor(tee, cup, r) {
-    const d = Math.hypot(cup.x - tee.x, cup.z - tee.z), p = (r && r.par) || [28, 60];
+// Measured along the fairway since batch 6: round the elbow when it bends.
+function parFor(tee, cup, r, elbow) {
+    const d = elbow ? Math.hypot(elbow.x - tee.x, elbow.z - tee.z) + Math.hypot(cup.x - elbow.x, cup.z - elbow.z) : Math.hypot(cup.x - tee.x, cup.z - tee.z),
+        p = (r && r.par) || [28, 60];
     return d < p[0] ? 3 : d < p[1] ? 4 : 5;
 }
 
@@ -224,7 +240,20 @@ function clutter(q, raw, r) {
     return { mask, standing, covered };
 }
 // Is the way from tee to cup clear: the lane along the line, the tee's pad and the green?
-function clearLine(mask, g, tee, cup, r) {
+/* With an elbow (batch 6, `bend`) the line that has to be clear is the
+   fairway's second leg, where the approach comes down and runs, and the
+   elbow where the drive lands; the straight line across the corner is the
+   gamble, and the world's things on it are welcome. */
+function clearLine(mask, g, tee, cup, r, elbow) {
+    if (elbow) {
+        for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+            if (!mask[k * g.nx + i]) continue;
+            const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
+            if (segDist(x, z, [elbow.x, elbow.z, cup.x, cup.z]) <= r.lane || Math.hypot(x - elbow.x, z - elbow.z) <= 2.5) return false;
+            if (Math.hypot(x - cup.x, z - cup.z) <= 2.2 || Math.hypot(x - tee.x, z - tee.z) <= 1.2) return false;
+        }
+        return true;
+    }
     const ax = cup.x - tee.x, az = cup.z - tee.z, L2 = ax * ax + az * az;
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
         if (!mask[k * g.nx + i]) continue;
@@ -270,7 +299,7 @@ const round = (h, p) => Array.from(h, (x) => +x.toFixed(p));
    that level: the ball drowns only where the ground is under it, so a dry
    rise inside the rectangle stays dry, and on the world the plane shows
    only where its ground dips below it — a pond, not a sheet. */
-function ponds(h, g, tee, cup, share, greenR) {
+function ponds(h, g, tee, cup, share, greenR, standing) {
     if (!share) return null;
     const keep = [], low = [];
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
@@ -290,17 +319,28 @@ function ponds(h, g, tee, cup, share, greenR) {
         x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); n++;
     }
     if (n < 6) return null;
+    /* Not over the world's things (batch 6, the owner's picture of A Great
+       Huge Game of Chess: a pond lying across the knight's pedestal). A
+       hollow with anything of the world's standing in its water is left dry. */
+    if (standing) for (let c = 0; c < h.length; c++) if (standing[c] && h[c] < lvl) {
+        const x = g.x0 + (c % g.nx) * g.d, z = g.z0 + Math.floor(c / g.nx) * g.d;
+        if (x >= x0 && x <= x1 && z >= z0 && z <= z1) return null;
+    }
     const e = g.d / 2;
     return { rect: [+(x0 - e).toFixed(2), +(z0 - e).toFixed(2), +(x1 - x0 + 2 * e).toFixed(2), +(z1 - z0 + 2 * e).toFixed(2), +lvl.toFixed(3)], cells: n };
 }
 // The world's things off the line, as out-of-bounds cells (sparse indices into the grid).
-function outsOf(standing, g, tee, cup, greenR) {
+/* Not on the fairway band either (batch 6): the world clears its trees from
+   the band (render.js → the clearing), and a cell left out there is out of
+   bounds on open fairway, where nothing is drawn. */
+function outsOf(standing, g, tee, cup, greenR, fw) {
     if (!standing) return [];
     const out = [];
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
         if (!standing[k * g.nx + i]) continue;
         const x = g.x0 + i * g.d, z = g.z0 + k * g.d;
         if (Math.hypot(x - tee.x, z - tee.z) < 1.2 || Math.hypot(x - cup.x, z - cup.z) < 2.2) continue;
+        if (fw && fwDist(x, z, fw) < fw[4] / 2 + 0.8) continue;
         out.push(k * g.nx + i);
     }
     return out;
@@ -322,7 +362,7 @@ function solidOf(standing, stood, g, tee, cup, greenR, strips, fw, wet) {
     if (!standing || !stood) return [];
     const n = g.nx * g.nz, on = new Uint8Array(n);
     const inStrip = (x, z) => (strips || []).some((r) => x > r[0] - 0.8 && x < r[2] + 0.8 && z > r[1] - 0.8 && z < r[3] + 0.8) ||
-        (fw && segDist(x, z, fw) < fw[4] / 2 + 0.8) ||
+        (fw && fwDist(x, z, fw) < fw[4] / 2 + 0.8) ||
         Math.hypot(x - cup.x, z - cup.z) < greenR + 1.1 || Math.hypot(x - tee.x, z - tee.z) < 2;
     for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
         const c = k * g.nx + i;
@@ -382,7 +422,7 @@ function solidOf(standing, stood, g, tee, cup, greenR, strips, fw, wet) {
    comes down, on the side of the line the ground already falls to; the
    first site that holds twelve cells of water wins. The tee and the green
    stay dry. Returns the dug ground and the water, or null. */
-function digPond(h, g, tee, cup, greenR, r) {
+function digPond(h, g, tee, cup, greenR, r, first, standing) {
     if (!r.dig) return null;
     const R = r.digR || 3.5, ax = cup.x - tee.x, az = cup.z - tee.z, L = Math.hypot(ax, az), ux = ax / L, uz = az / L;
     const back = greenR + R + 0.6, x1 = g.x0 + (g.nx - 1) * g.d, z1 = g.z0 + (g.nz - 1) * g.d;
@@ -391,12 +431,20 @@ function digPond(h, g, tee, cup, greenR, r) {
     // down (55% of the way) either side and on the line; each pair the
     // lower side first, where the ground already falls.
     const at = (t, side, off) => ({ cx: tee.x + ax * t + side * uz * off, cz: tee.z + az * t - side * ux * off });
-    const tg = 1 - back / L, groups = [[at(tg, -1, R * 0.75), at(tg, 1, R * 0.75)], [at(0.55, -1, R), at(0.55, 1, R)], [at(0.55, 0, 0)]];
+    const tg = 1 - back / L, groups = first ? [first] : [[at(tg, -1, R * 0.75), at(tg, 1, R * 0.75)], [at(0.55, -1, R), at(0.55, 1, R)], [at(0.55, 0, 0)]];
     for (const grp of groups) {
         for (const s of grp.map((p) => Object.assign(p, { low: mean(p.cx, p.cz) })).sort((p, q) => p.low - q.low)) {
             const { cx, cz } = s;
             if (cx - R < g.x0 + 1 || cx + R > x1 - 1 || cz - R < g.z0 + 1 || cz + R > z1 - 1) continue;
             if (Math.hypot(cx - tee.x, cz - tee.z) < R + 5 || Math.hypot(cx - cup.x, cz - cup.z) < greenR + R + 0.5) continue;
+            // The inside of a dogleg's corner: the fairway stays dry.
+            if (s.fw && fwDist(cx, cz, s.fw) < R + s.fw[4] / 2 + 0.2) continue;
+            /* Never where the world's things stand (batch 6: b5-01's pond was
+               dug round the House of Four Seasons' snowmen, which stood up
+               through the water — "water occlusion issue with the placed
+               water obstacle"). The basin presses the world's ground, not
+               what stands on it. */
+            if (standing && standingNear(standing, g, cx, cz, R * 1.15)) continue;
             let rim = Infinity, keep = Infinity;
             for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
                 const x = g.x0 + i * g.d, z = g.z0 + k * g.d, q = Math.hypot(x - cx, z - cz), c = k * g.nx + i;
@@ -418,6 +466,13 @@ function digPond(h, g, tee, cup, greenR, r) {
         }
     }
     return null;
+}
+
+function standingNear(standing, g, cx, cz, R) {
+    for (let k = 0; k < g.nz; k++) for (let i = 0; i < g.nx; i++) {
+        if (standing[k * g.nx + i] && Math.hypot(g.x0 + i * g.d - cx, g.z0 + k * g.d - cz) < R) return true;
+    }
+    return false;
 }
 
 /* A basin with a level floor: pressed `depth` under the water's level `lvl`
@@ -451,9 +506,42 @@ function strips(tee, cup, w, gr) {
 /* The fairway band (batch 5): from just in front of the tee to the
    green's middle, `w` wide, round-ended (forge.js → holeOf lays it as a
    road, render.js paints the same shape). */
-function fairwayOf(tee, cup, gr, w) {
-    const ax = cup.x - tee.x, az = cup.z - tee.z, L = Math.hypot(ax, az) || 1;
-    return [+(tee.x + ax / L * 1.2).toFixed(2), +(tee.z + az / L * 1.2).toFixed(2), cup.x, cup.z, w];
+/* With an elbow (batch 6) it is [x0, z0, ex, ez, width, x1, z1]: the band
+   runs on from the elbow to the green, a second road (forge.js → holeOf). */
+function fairwayOf(tee, cup, gr, w, elbow) {
+    const to = elbow || cup, ax = to.x - tee.x, az = to.z - tee.z, L = Math.hypot(ax, az) || 1;
+    const f = [+(tee.x + ax / L * 1.2).toFixed(2), +(tee.z + az / L * 1.2).toFixed(2), to.x, to.z, w];
+    if (elbow) f.push(cup.x, cup.z);
+    return f;
+}
+// The distance from the fairway band's centreline, round the elbow if it has one.
+function fwDist(x, z, f) {
+    const a = segDist(x, z, f);
+    return f.length >= 7 ? Math.min(a, segDist(x, z, [f[2], f[3], f[5], f[6]])) : a;
+}
+/* Where a dogleg's elbow goes for a cup (batch 6, `bend`): `bendAt` of the
+   way up, `bend` off the straight line on the side away from the cup (both
+   sides for a cup near the middle), inside the patch with room for the
+   band. Returns the elbows worth trying, each with the inside of its corner
+   (where the pond is dug: on the straight line, pushed just far enough off
+   the band to leave it dry). */
+function elbowsFor(tee, cup, r) {
+    if (!r.bend || !r.long) return [null];
+    const out = [], t = r.bendAt || 0.55, lim = r.W / 2 - r.fairwayW / 2 - 1;
+    const sides = Math.abs(cup.x - tee.x) < 2 ? [-1, 1] : [cup.x > tee.x ? -1 : 1];
+    const lx = tee.x + (cup.x - tee.x) * t, lz = tee.z + (cup.z - tee.z) * t;
+    for (const s of sides) {
+        const ex = Math.max(-lim, Math.min(lim, lx + s * r.bend));
+        if (Math.abs(ex - lx) < r.bend * 0.6) continue;
+        const e = { x: +ex.toFixed(2), z: +lz.toFixed(2), off: +(ex - lx).toFixed(2) };
+        // Stepped off the band until the basin clears it (the legs slant, so the offset alone is short).
+        const R = r.digR || 3.5, fw = fairwayOf(tee, cup, 3, r.fairwayW, e);
+        let cx = lx;
+        while (fwDist(cx, lz, fw) < R + r.fairwayW / 2 + 0.4 && Math.abs(cx) < r.W / 2) cx -= s * 0.25;
+        e.inside = { cx: +cx.toFixed(2), cz: +lz.toFixed(2) };
+        out.push(e);
+    }
+    return out.length ? out : [null];
 }
 function segDist(x, z, f) {
     const ax = f[2] - f[0], az = f[3] - f[1], t = Math.max(0, Math.min(1, ((x - f[0]) * ax + (z - f[1]) * az) / (ax * ax + az * az || 1)));
@@ -545,26 +633,35 @@ function pin(q, base, r) {
     for (let z = r.L * 0.55; z <= r.L * 0.92; z += step) {
         for (let x = -(r.W / 2 - gr - 2); x <= r.W / 2 - gr - 2 + 1e-6; x += step) {
             const cup = { x: +x.toFixed(2), z: +z.toFixed(2) };
-            if (base.clutter && !clearLine(base.clutter, g, tee, cup, r)) {
+            for (const elbow of elbowsFor(tee, cup, r)) {
+            if (base.clutter && !clearLine(base.clutter, g, tee, cup, r, elbow)) {
                 why.line++;
                 continue;
             }
             let h = level(teed, g, x, z, gr + 0.3, gr + 2.2);
-            // Dug on a mini hole too since batch 5 (a mini hole is never `long`).
-            const pond = ponds(h, g, tee, cup, r.pond, gr), dug = !pond && (r.long || r.isMini) ? digPond(h, g, tee, cup, gr, r) : null;
+            const fw = r.fairwayW ? fairwayOf(tee, cup, gr, r.fairwayW, elbow) : null;
+            /* A dogleg's pond is dug on the inside of its corner first (batch
+               6), whatever hollow the patch has: it is what makes the corner
+               a choice. Failing that, as before: the patch's own hollow, or a
+               basin short of the green. Dug on a mini hole too since batch 5
+               (a mini hole is never `long`). */
+            let dug = elbow ? digPond(h, g, tee, cup, gr, r, [Object.assign({ fw }, elbow.inside)], base.standing) : null;
+            const pond = dug ? null : ponds(h, g, tee, cup, r.pond, gr, base.standing);
+            if (!dug && !pond && (r.long || r.isMini)) dug = digPond(h, g, tee, cup, gr, r, null, base.standing);
             if (dug) h = dug.h;
             const map = {
-                id: 'probe', title: 'probe', world: q.world, u: q.u, par: r.long ? parFor(tee, cup, r) : 3,
+                id: 'probe', title: 'probe', world: q.world, u: q.u, par: r.long ? parFor(tee, cup, r, elbow) : 3,
                 bag: r.long ? 'long' : 'loft', grid: Object.assign({}, g, { h: round(h, 3) }), tee, cup,
                 strips: r.fairwayW ? undefined : strips(tee, cup, r.strip, gr)
             };
             if (!map.strips) delete map.strips;
-            if (r.fairwayW) map.fairway = fairwayOf(tee, cup, gr, r.fairwayW);
+            if (fw) map.fairway = fw;
+            if (elbow) map.bend = elbow.off;
             if (r.rough) map.rough = true;
             if (r.long) { map.long = true; map.green = gr; }
             if (pond) map.water = [pond.rect];
             if (dug) { map.water = [dug.rect]; map.dug = true; }
-            const outs = r.outs ? outsOf(base.standing, g, tee, cup, gr) : [];
+            const outs = r.outs ? outsOf(base.standing, g, tee, cup, gr, fw) : [];
             if (outs.length) map.outs = outs;
             const solid = r.solid ? solidOf(base.standing, q.stood, g, tee, cup, gr, map.strips, map.fairway, base.wet) : [];
             if (solid.length) map.solid = solid;
@@ -586,7 +683,10 @@ function pin(q, base, r) {
                    birdie — the easy ones — before anything else was asked.
                    The bot with hands judges difficulty now (below); here
                    only the hazards in play and the tie to the middle. */
-                const sc = (r.hands ? 0 : Math.abs(m.bot - (map.par - 1))) + 3 * Math.abs(m.risk - r.risk) + 0.1 * Math.abs(x) / (r.W / 2);
+                /* A dogleg is not pulled to the middle (batch 6): the tie-break
+                   to the middle is what laid every hole of batch 5 straight up
+                   its patch. */
+                const sc = (r.hands ? 0 : Math.abs(m.bot - (map.par - 1))) + 3 * Math.abs(m.risk - r.risk) + (elbow ? 0 : 0.1 * Math.abs(x) / (r.W / 2));
                 cands.push({ sc, map, m });
                 continue;
             }
@@ -598,6 +698,7 @@ function pin(q, base, r) {
             // left edge, on six maps of ten. Between equals, nearer the middle.
             const sc = Math.abs(Math.log((m.share + 1e-4) / r.ace)) + (m.straight ? 0.8 : 0) + (m.share === 0 ? 1.5 : 0) + 0.1 * Math.abs(x) / (r.W / 2);
             cands.push({ sc, map, m });
+            }
         }
     }
     /* The bot with hands (batch 5): the best few cups by the perfect bot's
@@ -818,6 +919,7 @@ async function forgeOne(row, li) {
         if (map.solid) map.gen.solid = map.solid.length;
         if (c.b.wetShare) map.gen.water = +c.b.wetShare.toFixed(2);
         if (map.dug) { map.gen.dug = true; delete map.dug; }
+        if (map.bend) { map.gen.bend = map.bend; delete map.bend; }
         map.metrics = { bot: p.m.bot, ace: +(p.m.share * 100).toFixed(3), straight: p.m.straight };
         if (map.long) map.metrics.risk = +(p.m.risk * 100).toFixed(1);
         return { map, log };
