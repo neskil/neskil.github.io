@@ -55,7 +55,7 @@
     }
 
     function emptySave() {
-        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white', club: 'club-stock', cele: 'cele-classic' };
+        return { courses: {}, holes: {}, rounds: 0, aces: 0, balls: ['tour-white'], freeBalls: [], ball: 'tour-white', club: 'club-stock', cele: 'cele-classic', bag: 'bag-stock' };
     }
 
     /* ── stars, and the holes behind them ──────────────────────────────
@@ -159,7 +159,8 @@
             freeBalls: normIdList(prev.freeBalls, null),
             ball: typeof prev.ball === 'string' && prev.ball ? prev.ball : 'tour-white',
             club: typeof prev.club === 'string' && prev.club ? prev.club : 'club-stock',
-            cele: typeof prev.cele === 'string' && prev.cele ? prev.cele : 'cele-classic'
+            cele: typeof prev.cele === 'string' && prev.cele ? prev.cele : 'cele-classic',
+            bag: typeof prev.bag === 'string' && prev.bag ? prev.bag : 'bag-stock'
         }, id;
         for (id in prev.courses) {
             if (Object.prototype.hasOwnProperty.call(prev.courses, id)) next.courses[id] = prev.courses[id];
@@ -170,6 +171,7 @@
         if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
         if (!ownsBall(next, next.club)) next.club = 'club-stock';
         if (!ownsBall(next, next.cele)) next.cele = 'cele-classic';
+        if (!ownsBall(next, next.bag)) next.bag = 'bag-stock';
         return next;
     }
 
@@ -186,6 +188,7 @@
             if (typeof d.ball === 'string' && ownsBall(s, d.ball)) s.ball = d.ball;
             if (typeof d.club === 'string' && ownsBall(s, d.club)) s.club = d.club;
             if (typeof d.cele === 'string' && ownsBall(s, d.cele)) s.cele = d.cele;
+            if (typeof d.bag === 'string' && ownsBall(s, d.bag)) s.bag = d.bag;
             if (d.courses && typeof d.courses === 'object') {
                 for (var id in d.courses) {
                     if (!Object.prototype.hasOwnProperty.call(d.courses, id)) continue;
@@ -295,11 +298,11 @@
         return null;
     }
 
-    // The three free items, one per shelf, that every save owns.
-    function isFree(id) { return id === 'tour-white' || id === 'club-stock' || id === 'cele-classic'; }
+    // The four free items, one per shelf, that every save owns.
+    function isFree(id) { return id === 'tour-white' || id === 'club-stock' || id === 'cele-classic' || id === 'bag-stock'; }
 
     // Which slot of the save an item is equipped on.
-    function slotOf(b) { return b && b.kind === 'club' ? 'club' : b && b.kind === 'cele' ? 'cele' : 'ball'; }
+    function slotOf(b) { return b && (b.kind === 'club' || b.kind === 'cele' || b.kind === 'bag') ? b.kind : 'ball'; }
 
     function ownsBall(saveData, ballId) {
         if (isFree(ballId)) return true;
@@ -464,6 +467,13 @@
         return { save: next, given: given };
     }
 
+    function equippedBag(saveData) {
+        var id = saveData && typeof saveData.bag === 'string' ? saveData.bag : 'bag-stock';
+        var f = findBall(null, id);
+        if (!ownsBall(saveData, id) || !f || f.kind !== 'bag') return 'bag-stock';
+        return id;
+    }
+
     function equippedCele(saveData) {
         var id = saveData && typeof saveData.cele === 'string' ? saveData.cele : 'cele-classic';
         var f = findBall(null, id);
@@ -498,6 +508,7 @@
         if (!ownsBall(next, next.ball)) next.ball = 'tour-white';
         if (!ownsBall(next, next.club)) next.club = 'club-stock';
         if (!ownsBall(next, next.cele)) next.cele = 'cele-classic';
+        if (!ownsBall(next, next.bag)) next.bag = 'bag-stock';
         return { ok: true, save: next };
     }
 
@@ -527,6 +538,7 @@
         equipBall: equipBall,
         equippedClub: equippedClub,
         equippedCele: equippedCele,
+        equippedBag: equippedBag,
         grantSecrets: grantSecrets,
         lockProgress: lockProgress,
         lockStatus: lockStatus,

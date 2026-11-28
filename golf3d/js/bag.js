@@ -340,7 +340,12 @@
        unfiltered: every finish then reads as the same polished one, which is
        a worse-looking bag and still a bag. */
     var _radiance = null, _radianceTried = false;
+    /* The shop's showcase (below) builds its clubs and bags for a second
+       WebGL context, which cannot sample this one's filtered room: it hands
+       its own in here for the length of the build. */
+    var _envOverride = null;
     function studioRadiance() {
+        if (_envOverride) return _envOverride;
         if (_radianceTried) return _radiance || studioEnv();
         _radianceTried = true;
         var renderer = G3.render && G3.render.state && G3.render.state.renderer;
@@ -469,6 +474,9 @@
             // Polished weights and screws.
             chrome: metal(0xd4dce4, FINISH.chrome, { rough: 0.08 })
         };
+        // A showcase's set is its own: painted with the finish it is showing,
+        // never with the one the bag is wearing.
+        if (_show) return out;
         _sets.push({ club: club || null, M: out });
         paintSet(_sets[_sets.length - 1]);
         return out;
@@ -481,8 +489,8 @@
        colour", which is how the bag ships. */
     var _sets = [];
     var _finish = null;
-    function paintSet(set) {
-        var L = set.club ? look(set.club.id) : null, f = _finish, M = set.M;
+    function paintSet(set, finish) {
+        var L = set.club ? look(set.club.id) : null, f = finish === undefined ? _finish : finish, M = set.M;
         M.paint.color.copy(ink(f && f.paint != null ? f.paint : (L ? L.metal : 0x38bdf8)));
         M.head.color.copy(ink(f && f.head != null ? f.head : (L ? L.steel : 0x929daa)));
         M.crown.color.copy(ink(f && f.head != null ? f.head : (L ? L.steel : 0x36435a)));
@@ -503,20 +511,21 @@
     /* Fire flickers, ice breathes. Only intensities change — no colour, no
        material, no recompile — and nothing at all unless the finish glows. */
     var _glowT = 0;
+    function glowLevel(finish, t) {
+        if (finish.glow === 'fire') {
+            return 0.78 + 0.16 * Math.sin(t * 9.1) + 0.10 * Math.sin(t * 23.7 + 1.3) + 0.06 * Math.sin(t * 41.0);
+        }
+        return 0.80 + 0.20 * Math.sin(t * 1.6);
+    }
+    function glowSet(M, k) {
+        M.paint.emissiveIntensity = k;
+        M.head.emissiveIntensity = M.crown.emissiveIntensity = 0.6 + 0.4 * k;
+    }
     function glowTick(dt) {
         if (!_finish || !_finish.glow) return;
         _glowT += dt || 0;
-        var t = _glowT, k;
-        if (_finish.glow === 'fire') {
-            k = 0.78 + 0.16 * Math.sin(t * 9.1) + 0.10 * Math.sin(t * 23.7 + 1.3) + 0.06 * Math.sin(t * 41.0);
-        } else {
-            k = 0.80 + 0.20 * Math.sin(t * 1.6);
-        }
-        for (var i = 0; i < _sets.length; i++) {
-            var M = _sets[i].M;
-            M.paint.emissiveIntensity = k;
-            M.head.emissiveIntensity = M.crown.emissiveIntensity = 0.6 + 0.4 * k;
-        }
+        var k = glowLevel(_finish, _glowT);
+        for (var i = 0; i < _sets.length; i++) glowSet(_sets[i].M, k);
     }
 
     // Daylight falling into an open bag, drawn: a strip, light at the top.
@@ -698,7 +707,7 @@
 
     function buildClub(club, M) {
         var g = new THREE.Group();
-        var len = (LENGTHS[club.id] || 0.95) * (_forBall ? BALL_SHAFT : 1);
+        var len = _show ? _show.len : (LENGTHS[club.id] || 0.95) * (_forBall ? BALL_SHAFT : 1);
 
         var fullGeo = taperedShaft(len, len);
         var stubLen = Math.min(len, STUB);
@@ -1236,7 +1245,7 @@
        and the coarse one otherwise. The fine one is only made when it is
        first wanted — by a hole whose bag has a driver in it (`warm`), or by
        the row opening. */
-    var _drvFine = [], _fineOn = false, _forBall = false;
+    var _drvFine = [], _fineOn = false, _forBall = false, _show = null;
     function shownAll(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
     /* Asked per driver and every frame rather than once per opening: the
        club in hand comes back into the row a few frames after the row
@@ -1505,10 +1514,11 @@
     function buildDriver(a, M, club) {
         var L = look(club.id);
         var tl = Math.tan(club.loft || 0);
-        var shell = driverShellOnce(tl, true);
+        // The shop's showcase is a close-up: it is the fine shell from the start.
+        var shell = driverShellOnce(tl, !_show);
         var skinned = new THREE.Mesh(shell, driverSkin(L, tl, shell.userData.face));
         a.add(skinned);
-        if (!_forBall) _drvFine.push({ mesh: skinned, tl: tl });
+        if (!_forBall && !_show) _drvFine.push({ mesh: skinned, tl: tl });
 
         // Gloss black: the keel and the neck.
         var gloss = new THREE.MeshPhysicalMaterial({
@@ -1947,9 +1957,10 @@
        patch. A bag with nothing on it is a container; a bag with a maker on
        it is somebody's. The canvas is transparent round the letters, so the
        band shows through and the name reads as ink, not as a label. */
-    var _mono = null;
-    function monogramTexture() {
-        if (_mono) return _mono;
+    var _monos = {};
+    function monogramTexture(inkHex, accentHex) {
+        var main = inkHex || BAG_INK.navy, acc = accentHex || BAG_INK.accent, key = main + acc;
+        if (_monos[key]) return _monos[key];
         var cv = document.createElement('canvas');
         cv.width = 512; cv.height = 320;
         var g = cv.getContext('2d');
@@ -1957,17 +1968,17 @@
         g.textBaseline = 'middle';
         // Big enough to survive being a centimetre of curved canvas on a
         // laptop: a maker's mark nobody can read is a smudge.
-        g.fillStyle = BAG_INK.navy;
+        g.fillStyle = main;
         g.font = '800 178px ' + FACE;
         g.fillText('LOFT', 256, 108);
-        g.fillStyle = BAG_INK.accent;
+        g.fillStyle = acc;
         g.fillRect(96, 200, 320, 12);
-        g.fillStyle = BAG_INK.navy;
+        g.fillStyle = main;
         g.font = '700 84px ' + FACE;
         if ('letterSpacing' in g) g.letterSpacing = '18px';
         g.fillText('LINKS', 265, 266);
-        _mono = srgbCanvas(cv);
-        return _mono;
+        _monos[key] = srgbCanvas(cv);
+        return _monos[key];
     }
 
     /* The bag's own palette, which is a tour bag's: a deep navy body, a white
@@ -1994,13 +2005,279 @@
         });
     }
 
-    function buildBody(M) {
+    /* ── the bag's skins (the Pro Shop's Bags shelf, balls.js → BAG_SKINS) ──
+
+       A skin is a repaint of the five materials the body is made of plus a
+       print on the body's cloth, and never a rebuild: every one of the five
+       carries a `map` from the start (a white texel when the skin is plain),
+       so changing skins swaps a texture and a few numbers and compiles
+       nothing (CLAUDE.md, "Nothing is compiled while a hole is played").
+
+       The prints are drawn once each, tileable, and laid round the body by
+       cylindrical UVs (`wrapUV`): four repeats round, about four and a half
+       up, so a leopard's rosettes are the size of a hand on a real bag. */
+    var BAG_REPEAT = [4, 4.4];
+    var _white1 = null;
+    function whiteTexel() {
+        if (_white1) return _white1;
+        var cv = document.createElement('canvas');
+        cv.width = cv.height = 2;
+        var g = cv.getContext('2d');
+        g.fillStyle = '#fff';
+        g.fillRect(0, 0, 2, 2);
+        _white1 = srgbCanvas(cv);
+        return _white1;
+    }
+
+    function seededRnd(seed) {
+        var s = seed >>> 0 || 1;
+        return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    }
+
+    /* Draw `fn(g, ox, oy)` nine times, offset a tile each way, so whatever
+       crosses an edge comes back in on the far one and the print tiles. */
+    function tiled(g, N, fn) {
+        for (var oy = -N; oy <= N; oy += N) for (var ox = -N; ox <= N; ox += N) fn(ox, oy);
+    }
+
+    function blob(g, x, y, r, n, rnd, wob) {
+        g.beginPath();
+        var pts = [];
+        for (var i = 0; i < n; i++) {
+            var a = i / n * Math.PI * 2, rr = r * (1 - wob / 2 + rnd() * wob);
+            pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]);
+        }
+        for (i = 0; i <= n; i++) {
+            var p = pts[i % n], q = pts[(i + 1) % n];
+            var mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+            if (i === 0) g.moveTo(mx, my); else g.quadraticCurveTo(p[0], p[1], mx, my);
+        }
+        g.closePath();
+    }
+
+    var PRINTS = {
+        /* Leopard: a warm tan hide, each rosette a broken ring of near-black
+           spots round a centre a shade deeper than the ground, and a scatter
+           of small solid spots between. */
+        leopard: function (g, N) {
+            var rnd = seededRnd(11), i;
+            var base = g.createLinearGradient(0, 0, N, N);
+            base.addColorStop(0, '#d7a15a'); base.addColorStop(0.5, '#e2b06a'); base.addColorStop(1, '#cf9650');
+            g.fillStyle = base; g.fillRect(0, 0, N, N);
+            for (i = 0; i < 900; i++) {
+                g.fillStyle = rnd() < 0.5 ? 'rgba(255,236,190,0.10)' : 'rgba(120,70,20,0.10)';
+                g.fillRect(rnd() * N, rnd() * N, 2 + rnd() * 5, 1 + rnd() * 2);
+            }
+            var ros = [];
+            // Jittered grid, so rosettes never pile up or leave a bald patch.
+            var cells = 5;
+            for (var cy = 0; cy < cells; cy++) for (var cx = 0; cx < cells; cx++) {
+                ros.push([(cx + 0.2 + rnd() * 0.6 + (cy % 2) * 0.5) * N / cells, (cy + 0.2 + rnd() * 0.6) * N / cells, N / cells * (0.26 + rnd() * 0.1)]);
+            }
+            ros.forEach(function (r) {
+                var seg = 4 + Math.floor(rnd() * 3), rot = rnd() * 6.28, sh = [];
+                for (var k = 0; k < seg; k++) sh.push([rot + k / seg * 6.28 + (rnd() - 0.5) * 0.4, 0.55 + rnd() * 0.3]);
+                var spin = rnd() * 6.28, sq = 0.75 + rnd() * 0.25;
+                tiled(g, N, function (ox, oy) {
+                    g.save();
+                    g.translate(r[0] + ox, r[1] + oy);
+                    g.rotate(spin);
+                    g.scale(1, sq);
+                    g.fillStyle = '#b8742e';
+                    blob(g, 0, 0, r[2] * 0.85, 9, seededRnd(r[0] * 7 | 0), 0.35); g.fill();
+                    g.fillStyle = '#20150c';
+                    sh.forEach(function (q) {
+                        g.save();
+                        g.rotate(q[0]);
+                        g.beginPath();
+                        g.ellipse(r[2], 0, r[2] * 0.26, r[2] * q[1] * 0.9, 0, 0, Math.PI * 2);
+                        g.fill();
+                        g.restore();
+                    });
+                    g.restore();
+                });
+            });
+            for (i = 0; i < 46; i++) {
+                var x = rnd() * N, y = rnd() * N, rr = 3 + rnd() * 6;
+                tiled(g, N, function (ox, oy) {
+                    g.fillStyle = '#24170d';
+                    blob(g, x + ox, y + oy, rr, 6, seededRnd(i + 3), 0.5); g.fill();
+                });
+            }
+        },
+        /* Zebra: bold black stripes that wander and fork across a cream hide. */
+        zebra: function (g, N) {
+            var rnd = seededRnd(5), i;
+            g.fillStyle = '#efe8da'; g.fillRect(0, 0, N, N);
+            g.fillStyle = '#16161a';
+            for (i = 0; i < 9; i++) {
+                var y0 = (i + rnd() * 0.3) * N / 9, a1 = rnd() * 6.28, a2 = rnd() * 6.28, w = N / 9 * (0.32 + rnd() * 0.18);
+                tiled(g, N, function (ox, oy) {
+                    g.beginPath();
+                    for (var x = 0; x <= N; x += 8) {
+                        var y = y0 + Math.sin(x / N * 6.28 + a1) * N * 0.035 + Math.sin(x / N * 12.57 + a2) * N * 0.018;
+                        var ww = w * (0.6 + 0.4 * Math.sin(x / N * 6.28 * 2 + a2));
+                        if (x === 0) g.moveTo(x + ox, y - ww / 2 + oy); else g.lineTo(x + ox, y - ww / 2 + oy);
+                    }
+                    for (x = N; x >= 0; x -= 8) {
+                        var y2 = y0 + Math.sin(x / N * 6.28 + a1) * N * 0.035 + Math.sin(x / N * 12.57 + a2) * N * 0.018;
+                        var w2 = w * (0.6 + 0.4 * Math.sin(x / N * 6.28 * 2 + a2));
+                        g.lineTo(x + ox, y2 + w2 / 2 + oy);
+                    }
+                    g.closePath();
+                    g.fill();
+                });
+            }
+        },
+        /* The clubhouse tartan: a red ground, dark green and navy bands
+           woven over it both ways, a thin yellow overcheck. */
+        tartan: function (g, N) {
+            g.fillStyle = '#9e1b22'; g.fillRect(0, 0, N, N);
+            var bands = [[0.00, 0.18, 'rgba(18,52,32,0.72)'], [0.30, 0.10, 'rgba(14,24,52,0.70)'],
+                [0.50, 0.18, 'rgba(18,52,32,0.72)'], [0.80, 0.10, 'rgba(14,24,52,0.70)'],
+                [0.245, 0.012, 'rgba(240,200,70,0.85)'], [0.745, 0.012, 'rgba(240,240,230,0.7)']];
+            bands.forEach(function (b) {
+                g.fillStyle = b[2];
+                g.fillRect(b[0] * N, 0, b[1] * N, N);
+                g.fillRect(0, b[0] * N, N, b[1] * N);
+            });
+            // The twill: fine diagonals, so it reads as cloth and not as a grid.
+            g.strokeStyle = 'rgba(0,0,0,0.12)';
+            g.lineWidth = 1;
+            for (var d = -N; d < N; d += 4) { g.beginPath(); g.moveTo(d, 0); g.lineTo(d + N, N); g.stroke(); }
+        },
+        /* Embossed crocodile: rows of rounded scales, each lighter in the
+           middle and dark in the creases between. */
+        croc: function (g, N) {
+            var rnd = seededRnd(23);
+            g.fillStyle = '#0d1f16'; g.fillRect(0, 0, N, N);
+            var rows = 8, cols = 6;
+            for (var r = 0; r < rows; r++) {
+                for (var c = 0; c < cols; c++) {
+                    var w = N / cols, h = N / rows, x = (c + (r % 2) * 0.5) * w, y = r * h;
+                    var ww = w * (0.82 + rnd() * 0.1), hh = h * (0.78 + rnd() * 0.1);
+                    tiled(g, N, function (ox, oy) {
+                        var gr = g.createRadialGradient(x + ox + w / 2, y + oy + h / 2, 1, x + ox + w / 2, y + oy + h / 2, ww * 0.6);
+                        gr.addColorStop(0, '#3f6e4c'); gr.addColorStop(0.7, '#21402c'); gr.addColorStop(1, '#13281b');
+                        g.fillStyle = gr;
+                        g.beginPath();
+                        if (g.roundRect) g.roundRect(x + ox + (w - ww) / 2, y + oy + (h - hh) / 2, ww, hh, Math.min(ww, hh) * 0.35);
+                        else g.rect(x + ox + (w - ww) / 2, y + oy + (h - hh) / 2, ww, hh);
+                        g.fill();
+                    });
+                }
+            }
+        },
+        /* Woodland camo in fairway greens. */
+        camo: function (g, N) {
+            var rnd = seededRnd(41);
+            g.fillStyle = '#5b6b3a'; g.fillRect(0, 0, N, N);
+            [['#3b4a26', 16], ['#8a8a55', 12], ['#24301a', 12]].forEach(function (layer) {
+                for (var i = 0; i < layer[1]; i++) {
+                    var x = rnd() * N, y = rnd() * N, r = N * (0.05 + rnd() * 0.07), sx = 1 + rnd() * 0.8;
+                    var sd = (rnd() * 1e6) | 0;
+                    tiled(g, N, function (ox, oy) {
+                        g.save(); g.translate(x + ox, y + oy); g.scale(sx, 1);
+                        g.fillStyle = layer[0];
+                        blob(g, 0, 0, r, 9, seededRnd(sd), 0.7); g.fill();
+                        g.restore();
+                    });
+                }
+            });
+        },
+        /* Carbon fibre: a two-by-two twill of dark tows, each with a sheen
+           across its weave. */
+        carbon: function (g, N) {
+            var n = 16, s = N / n;
+            g.fillStyle = '#101216'; g.fillRect(0, 0, N, N);
+            for (var y = 0; y < n; y++) {
+                for (var x = 0; x < n; x++) {
+                    var along = ((x + y) >> 1) % 2 === 0;
+                    var gr = along ? g.createLinearGradient(x * s, 0, x * s + s, 0) : g.createLinearGradient(0, y * s, 0, y * s + s);
+                    gr.addColorStop(0, '#15181d'); gr.addColorStop(0.5, '#3a4048'); gr.addColorStop(1, '#15181d');
+                    g.fillStyle = gr;
+                    g.fillRect(x * s + 0.5, y * s + 0.5, s - 1, s - 1);
+                }
+            }
+        }
+    };
+    var _prints = {};
+    function printTexture(id) {
+        if (!id || !PRINTS[id]) return whiteTexel();
+        if (_prints[id]) return _prints[id];
+        var cv = document.createElement('canvas');
+        cv.width = cv.height = 512;
+        PRINTS[id](cv.getContext('2d'), 512);
+        var t = srgbCanvas(cv);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(BAG_REPEAT[0], BAG_REPEAT[1]);
+        _prints[id] = t;
+        return t;
+    }
+
+    /* UVs for a print: once round the bag in u, metres up it in v (over the
+       bag's height), whatever the geometry's own were. */
+    function wrapUV(geo) {
+        var p = geo.attributes.position, uv = new Float32Array(p.count * 2);
+        var old = geo.attributes.uv;
+        for (var i = 0; i < p.count; i++) {
+            var x = p.getX(i), z = p.getZ(i), a = Math.atan2(x, z);
+            if (a < 0) a += Math.PI * 2;
+            // A lathe keeps its own u, which already runs 0 to 1 round with the seam split.
+            uv[i * 2] = old && geo.type === 'LatheGeometry' ? old.getX(i) : a / (Math.PI * 2);
+            uv[i * 2 + 1] = p.getY(i) / BAG_H;
+        }
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        return geo;
+    }
+
+    var STOCK_SKIN = { body: 0x1b2b4b, band: 0xeef2f7, accent: 0x38bdf8, trim: 0x191e26, ink: 0x1b2b4b, inkAccent: 0x38bdf8 };
+    function hexStr(n) { return '#' + ('000000' + (n >>> 0).toString(16)).slice(-6); }
+
+    function bagMats() {
+        function mk(rough, env) {
+            return new THREE.MeshStandardMaterial({
+                color: 0xffffff, map: whiteTexel(), metalness: 0, roughness: rough,
+                envMap: studioRadiance(), envMapIntensity: env
+            });
+        }
+        var BM = {
+            body: mk(0.52, 1.0), white: mk(0.6, 0.75), accent: mk(0.5, 0.45),
+            rubber: mk(0.7, 0.8), lid: mk(0.4, 1.0),
+            mono: new THREE.MeshStandardMaterial({
+                map: monogramTexture(), transparent: true, metalness: 0, roughness: 0.6,
+                envMap: studioRadiance(), envMapIntensity: 0.75,
+                polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+            })
+        };
+        BM.body.side = THREE.DoubleSide;
+        return BM;
+    }
+
+    /* Put a skin on a set of bag materials. `skin` null is the stock bag. */
+    function paintBag(BM, skin) {
+        var k = skin || STOCK_SKIN;
+        function v(name) { return k[name] != null ? k[name] : STOCK_SKIN[name]; }
+        BM.body.map = printTexture(k.print);
+        BM.body.color.copy(k.print ? new THREE.Color(0xffffff) : ink(v('body')));
+        BM.body.roughness = k.rough != null ? k.rough : 0.52;
+        BM.body.metalness = k.metal || 0;
+        BM.white.map = k.bandPrint ? printTexture(k.bandPrint) : whiteTexel();
+        BM.white.color.copy(k.bandPrint ? new THREE.Color(0xffffff) : ink(v('band')));
+        BM.accent.color.copy(ink(v('accent')));
+        BM.accent.metalness = k.accentMetal ? 0.85 : 0;
+        BM.accent.roughness = k.accentMetal ? 0.28 : 0.5;
+        BM.rubber.color.copy(ink(v('trim')));
+        BM.lid.color.copy(ink(k.lid != null ? k.lid : v('trim')));
+        BM.lid.metalness = k.lidMetal ? 0.85 : 0;
+        BM.lid.roughness = k.lidMetal ? 0.25 : 0.4;
+        BM.mono.map = monogramTexture(hexStr(v('ink')), hexStr(v('inkAccent')));
+    }
+
+    function buildBody(M, BM) {
         var g = new THREE.Group();
-        var body = nylon(BAG_INK.navy, 0.52, 1.0);
-        var white = nylon(BAG_INK.white, 0.6, 0.75);
-        var accent = nylon(BAG_INK.accent, 0.5, 0.45);
-        var rubber = nylon(BAG_INK.black, 0.7, 0.8);
-        var lid = nylon(BAG_INK.black, 0.4, 1.0);
+        BM = BM || bagMats();
+        var body = BM.body, white = BM.white, accent = BM.accent, rubber = BM.rubber, lid = BM.lid;
         var side = { side: THREE.DoubleSide };
         body.setValues(side);
 
@@ -2009,7 +2286,9 @@
            the lid rather than standing in the bag, which is most of why the
            first pass read as a bin with sticks in it. The lining below is what
            the mouth shows now. */
-        g.add(lathe(BODY_LINE.map(function (p) { return [p[0], p[1]]; }), body));
+        var cloth = lathe(BODY_LINE.map(function (p) { return [p[0], p[1]]; }), body);
+        wrapUV(cloth.geometry);
+        g.add(cloth);
 
         // The lining, and the floor of the well the grips rest on. Both exist
         // only so that the mouth reads as an inside.
@@ -2046,12 +2325,8 @@
            bag's own front: the rig stands turned off-axis so it reads as an
            object with sides, and a mark centred on local +z spent half of
            itself round the side. FACING is that turn. */
-        _monoMat = new THREE.MeshStandardMaterial({
-            map: monogramTexture(), transparent: true, metalness: 0, roughness: 0.6,
-            envMap: studioRadiance(), envMapIntensity: 0.75,
-            polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
-        });
-        g.add(wrap(0.605, 0.745, 0.0022, _monoMat, FACING - 0.7, 1.4));
+        if (!_show) _monoMat = BM.mono;
+        g.add(wrap(0.605, 0.745, 0.0022, BM.mono, FACING - 0.7, 1.4));
 
         /* The carry handle over the mouth. It is the one part of a bag nobody
            mistakes for anything else, and at this crop it is right in the
@@ -2082,11 +2357,11 @@
            told apart from it by their shape alone: a white pocket was tried,
            and flat white on a curve reads as a sticker, not a pad. */
         var front = [0.16, 0.44, FACING + 0.08, 1.0, 0.034];
-        g.add(puff(front[0], front[1], front[2], front[3], front[4], body));
+        g.add(wrapPuff(puff(front[0], front[1], front[2], front[3], front[4], body)));
         g.add(zip(0.40, front[0], front[1], front[2], front[3], front[4], rubber));
         g.add(piping(0.13, accent));
         var flank = [0.12, 0.54, FACING + 1.35, 0.85, 0.032];
-        g.add(puff(flank[0], flank[1], flank[2], flank[3], flank[4], body));
+        g.add(wrapPuff(puff(flank[0], flank[1], flank[2], flank[3], flank[4], body)));
         g.add(zip(0.5, flank[0], flank[1], flank[2], flank[3], flank[4], accent));
 
         /* The strap, slung off the far side: anchored under the band and above
@@ -2113,6 +2388,7 @@
 
         return { group: g, hit: hit };
     }
+    function wrapPuff(mesh) { wrapUV(mesh.geometry); return mesh; }
 
     /* ── labels ────────────────────────────────────────────────────────── */
 
@@ -2152,11 +2428,10 @@
         document.fonts.ready.then(function () {
             reletterArt(true);
             redrawCards();
-            if (_monoMat) {
-                _mono = null;
-                _monoMat.map = monogramTexture();
-                _monoMat.needsUpdate = true;
-            }
+            // The name on the bag, inked again in the face that has arrived.
+            Object.keys(_monos).forEach(function (k) { _monos[k].dispose(); });
+            _monos = {};
+            if (B.bagMats) paintBag(B.bagMats, _skin);
         })['catch'](function () { /* no fonts API, no redraw, no harm */ });
     }
 
@@ -2905,7 +3180,9 @@
         B.clubs = [];
         _labelled = [];
 
-        var body = buildBody(M);
+        B.bagMats = bagMats();
+        paintBag(B.bagMats, _skin);
+        var body = buildBody(M, B.bagMats);
         B.rig.add(body.group);
         B.pickables.push(body.hit);
         B.bodyHit = body.hit;
@@ -3904,7 +4181,101 @@
         state: AD
     };
 
+    /* The Pro Shop's bag skin (balls.js → BAG_SKINS), worn by the bag in the
+       corner. A repaint of materials that already exist: see `paintBag`. */
+    var _skin = null;
+    function setSkin(skin) {
+        _skin = skin || null;
+        if (B.bagMats) paintBag(B.bagMats, _skin);
+    }
+
+    /* ── the shop's showcase ────────────────────────────────────────────
+
+       The real club and the real bag, built for the Pro Shop's preview
+       (render.js → createBallPreview), which draws on a WebGL context of its
+       own. So: its own materials (`_show` keeps them out of `_sets`, and so
+       out of `setFinish`, which paints what the bag is wearing — the shop
+       shows what is on the shelf), the room it can sample handed in as
+       `env`, and the fine driver shell from the start.
+
+       A club is stood at address, sole on the floor, as `addressClub` stands
+       one at the ball; its shaft is cut to SHOW_LEN with the grip shortened
+       to match, so the head, the ferrule and the grip all fit one frame at a
+       size where the paint can be seen. */
+    var SHOW_LEN = 0.40;
+    function showClub(id, finish, env) {
+        var club = C.ALL_CLUBS.filter(function (k) { return k.id === id; })[0];
+        if (!club) return null;
+        _show = { len: SHOW_LEN };
+        _envOverride = env || null;
+        var c, M;
+        try { M = mats(club); c = buildClub(club, M); } finally { _show = null; _envOverride = null; }
+        c.group.remove(c.hit);
+        c.group.remove(c.pivot);
+        c.grip.scale.y = 0.56;
+        c.grip.position.y = 0.125 * 0.56;
+        var turn = -(c.at.lie + Math.PI / 2);
+        var holder = new THREE.Group();
+        holder.add(c.group);
+        c.group.rotation.x = turn;
+        var seat = v3(0, c.len - 0.004 + HOSEL_SEAT, 0).applyAxisAngle(v3(1, 0, 0), turn);
+        c.group.position.copy(c.at.top).sub(seat);
+        holder.updateMatrixWorld(true);
+        var box = new THREE.Box3().setFromObject(c.head);
+        // The middle of the head on the origin, its sole on the floor.
+        holder.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
+        var root = new THREE.Group();
+        root.add(holder);
+        var set = { club: club, M: M };
+        paintSet(set, finish || null);
+        var t = 0;
+        return {
+            group: root,
+            head: box.translate(holder.position.clone()),
+            paint: function (f) { finish = f || null; paintSet(set, finish); },
+            tick: function (dt) {
+                if (!finish || !finish.glow) return;
+                t += dt || 0;
+                glowSet(M, glowLevel(finish, t));
+            },
+            dispose: function () { disposeTree(root); }
+        };
+    }
+
+    function showBag(skin, env) {
+        _show = {};
+        _envOverride = env || null;
+        var body, BM;
+        try {
+            BM = bagMats();
+            body = buildBody(mats(), BM);
+        } finally { _show = null; _envOverride = null; }
+        body.group.remove(body.hit);
+        paintBag(BM, skin || null);
+        return {
+            group: body.group,
+            paint: function (k) { paintBag(BM, k || null); },
+            dispose: function () { disposeTree(body.group); }
+        };
+    }
+
+    /* Materials only. The geometry may be the file's shared cache (a
+       driver's shell is built once and worn by every driver), and the
+       textures certainly are; disposing either would pull them out from
+       under the bag in the corner. */
+    function disposeTree(root) {
+        root.traverse(function (o) {
+            if (!o.isMesh) return;
+            [].concat(o.material || []).forEach(function (m) { m.dispose(); });
+        });
+    }
+
     G3.bag = {
+        setSkin: setSkin,
+        showClub: showClub,
+        showBag: showBag,
+        studioEnv: studioEnv,
+        PRINTS: Object.keys(PRINTS),
         setFinish: setFinish,
         address: address,
         addressUpdate: addressUpdate,

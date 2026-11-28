@@ -273,62 +273,68 @@ window.G3 = window.G3 || {};
         },
 
         /* The Easter egg (balls.js: a "???" until twenty different holes
-           are finished). Mother Duck rises out of the cup and bobs there,
-           waddling from foot to foot; her ducklings drop in round the flag in
-           a ring, bounce, and then waddle round it in a parade, squeaking as
-           they go — until everybody jumps at once, and pop. */
+           are finished), and since v1.257.0 real ducks rather than pictures
+           of them: rigid bodies (`stepDucks`) that render.js draws as rubber
+           ducks in 3D. Mother Duck is fired out of the cup and lands beside
+           it; her ducklings rain down round the flag, bounce, tumble and
+           knock each other over, wobble back on to their bottoms — and then
+           hop round the flag in a parade, squeaking as they land, until
+           everybody jumps at once: pop, and Mother hops home into the cup. */
         'cele-ducks': {
             peek: 2.3,
             dur: 4.3,
             run: function (fx) {
-                var rnd = fx.rnd, i, p, t = fx.t, PARADE = 1.0, JUMP = 3.4, POP = 3.8, N = 16;
+                var rnd = fx.rnd, i, p, t = fx.t, PARADE = 1.55, JUMP = 3.3, POP = 3.75, N = 16;
                 if (at(fx, 0)) {
-                    fx.mother = part(fx, { mode: 5, y: 0, life: 9, c: [1, 1, 1], size: 1.9, add: false,
-                        sprite: 'duck', keep: true });
+                    fx.ducks = [];
+                    fx.mother = duck(fx, {
+                        s: 1.55, x: 0, y: 0.12, z: 0, vx: 0.75, vy: 6.6, vz: 0.35, grow: 0.25,
+                        yaw: rnd() * TAU, wx: 0, wy: 2.2, wz: 1.4, rise: 0.3
+                    });
                     fx.events.push('quack');
                     burstOf(fx, 34, { upper: true, speed: 3.2, lift: 2, grav: 7, drag: 0.6, life: 0.9,
                         c: function () { return rnd() < 0.5 ? hex(0xbfefff) : hex(0xffffff); }, size: 0.2, land: true });
                     ring(fx, { r0: 0.2, r1: 2.8, dur: 0.7, c: hex(0x9fe2ff), a: 0.8 });
                 }
-                // The ducklings, one to a place on the ring, dropped in one after another.
+                // The ducklings, out of the sky, every one turning over as it falls.
                 for (i = 0; i < N; i++) {
-                    if (!at(fx, 0.2 + i * 0.045)) continue;
-                    var ang = i / N * TAU + (rnd() - 0.5) * 0.15, r = 2.5 + (rnd() - 0.5) * 0.3;
-                    part(fx, {
-                        x: Math.cos(ang) * r, z: Math.sin(ang) * r, y: 3 + rnd() * 1.2, vy: -1 - rnd(),
-                        grav: 9, life: 9, c: [1, 1, 1], size: 0.85 + rnd() * 0.2, add: false,
-                        sprite: 'duck', flip: rnd() < 0.5 ? -1 : 1, bounce: 0.3, squeak: true, keep: true, duckling: true
+                    if (!at(fx, 0.22 + i * 0.045)) continue;
+                    var ang = i / N * TAU + (rnd() - 0.5) * 0.5, r = 1.1 + rnd() * 1.7;
+                    duck(fx, {
+                        s: 0.72 + rnd() * 0.2, x: Math.cos(ang) * r, z: Math.sin(ang) * r, y: 3.4 + rnd() * 1.6,
+                        vx: (rnd() - 0.5) * 1.6, vy: -1 - rnd() * 2, vz: (rnd() - 0.5) * 1.6,
+                        yaw: rnd() * TAU, pitch: (rnd() - 0.5) * 2.4, roll: (rnd() - 0.5) * 2.4,
+                        wx: (rnd() - 0.5) * 14, wy: (rnd() - 0.5) * 8, wz: (rnd() - 0.5) * 14,
+                        duckling: true, slot: i / N * TAU
                     });
                 }
-                // Landed ducklings fall in and march round the flag.
+                // The parade: every duckling hops for its place on a ring round the flag, and the ring turns.
                 if (t > PARADE && t < JUMP) {
-                    for (i = 0; i < fx.parts.length; i++) {
-                        p = fx.parts[i];
-                        if (!p.duckling || p.mode !== 0 || p.vy !== 0 || p.y !== 0) continue;
-                        p.mode = 4;
-                        p.ang = Math.atan2(p.z, p.x);
-                        p.rad = Math.sqrt(p.x * p.x + p.z * p.z);
-                        p.angV = 1.25;
-                    }
-                    if (stream(fx, PARADE, JUMP, 7) && fx.events.length < 40) fx.events.push('squeak');
-                }
-                if (at(fx, 2.4)) fx.events.push('quack');
+                    fx.ring = { r: 2.15, spin: 1.05 * (t - PARADE) };
+                    if (at(fx, 2.4)) fx.events.push('quack');
+                } else fx.ring = null;
                 // Everybody jumps…
                 if (at(fx, JUMP)) {
                     fx.events.push('quack');
-                    for (i = 0; i < fx.parts.length; i++) {
-                        p = fx.parts[i];
-                        if (!p.duckling && p !== fx.mother) continue;
-                        p.mode = 0; p.bounce = 0; p.squeak = false;
-                        p.vx = p.duckling ? Math.cos(p.ang || 0) * 1.2 : 0;
-                        p.vz = p.duckling ? Math.sin(p.ang || 0) * 1.2 : 0;
-                        p.vy = p.duckling ? 4.4 + rnd() * 0.6 : 3.2;
+                    for (i = 0; i < fx.ducks.length; i++) {
+                        p = fx.ducks[i];
+                        if (p === fx.mother) {
+                            // Mother hops for the cup, timed to come down on it.
+                            var vy = 4.6, T = 2 * vy / G;
+                            p.vx = -p.x / T; p.vz = -p.z / T; p.vy = vy;
+                            p.home = true;
+                            continue;
+                        }
+                        var d = Math.sqrt(p.x * p.x + p.z * p.z) || 1;
+                        p.vx += p.x / d * 0.9; p.vz += p.z / d * 0.9;
+                        p.vy = 5.6 + rnd() * 1.2;
+                        p.wx += (rnd() - 0.5) * 16; p.wy += (rnd() - 0.5) * 6; p.wz += (rnd() - 0.5) * 16;
                     }
                 }
                 // …and, at the top of it, pop — all but Mother, who goes home.
                 if (at(fx, POP)) {
-                    for (i = 0; i < fx.parts.length; i++) {
-                        p = fx.parts[i];
+                    for (i = 0; i < fx.ducks.length; i++) {
+                        p = fx.ducks[i];
                         if (!p.duckling || p.age >= p.life) continue;
                         burstOf(fx, 9, { x: p.x, y: p.y, z: p.z, speed: 2.2, grav: 3, drag: 1.4, life: 0.7,
                             c: function () { return rnd() < 0.4 ? hex(0xffd21f) : hex(0xdff6ff); }, size: 0.2 });
@@ -378,34 +384,271 @@ window.G3 = window.G3 || {};
         }
     };
 
+    /* ── the ducks: rigid bodies on the green ─────────────────────────────
+
+       Each duck is a body with a position (its centre of mass), a velocity,
+       an orientation (a quaternion) and a spin, in the effect's own units
+       with y up from the cup's lip. Its shape is the toy's, in units of its
+       size `s` with the origin under its middle and its beak to +x: a body
+       that is an ellipsoid, a head that is a ball, and the points of its tail
+       and beak. The green is the plane y = 0, the flagstick a post at the
+       origin, and the ducks are balls to each other. Contacts are impulses
+       with a rubber duck's bounce and friction, so a duck that lands on its
+       head tumbles; a weighted bottom (a torque toward upright while it is on
+       the ground) is what stands it back up, which is what a rubber duck
+       does and a ball does not.
+
+       Kept here, pure, so the course (render.js), the shop's picture
+       (game.js → drawCeleFrame) and the tests all run the same ducks. */
+    var G = 13;                                        // units/s², a toy's hurry rather than the moon's
+    var D_BODY = { c: [-0.04, 0.30, 0], r: [0.46, 0.30, 0.34] };
+    var D_HEAD = { c: [0.24, 0.70, 0], r: 0.21 };
+    var D_TIPS = [[-0.52, 0.50, 0], [0.50, 0.66, 0]]; // tail, beak
+    var D_COM = [0, 0.26, 0];
+    var D_BALL = 0.36;                                 // as a ball to the others, about its centre of mass
+    var POLE_R = 0.05, POLE_H = 2.2;
+
+    function qmul(a, b) {
+        return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+                a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+                a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+                a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+    }
+    function qaxis(x, y, z, a) { var h = a / 2, sn = Math.sin(h); return [x * sn, y * sn, z * sn, Math.cos(h)]; }
+    function qnorm(q) { var l = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]) || 1; q[0] /= l; q[1] /= l; q[2] /= l; q[3] /= l; return q; }
+    // v rotated by q, and by its inverse.
+    function qrot(q, v) {
+        var x = q[0], y = q[1], z = q[2], w = q[3];
+        var tx = 2 * (y * v[2] - z * v[1]), ty = 2 * (z * v[0] - x * v[2]), tz = 2 * (x * v[1] - y * v[0]);
+        return [v[0] + w * tx + y * tz - z * ty, v[1] + w * ty + z * tx - x * tz, v[2] + w * tz + x * ty - y * tx];
+    }
+    function qinv(q, v) { return qrot([-q[0], -q[1], -q[2], q[3]], v); }
+
+    function duck(fx, o) {
+        var q = qmul(qaxis(0, 1, 0, o.yaw || 0), qmul(qaxis(0, 0, 1, o.pitch || 0), qaxis(1, 0, 0, o.roll || 0)));
+        var p = part(fx, { mode: 6, x: o.x, y: o.y, z: o.z, vx: o.vx, vy: o.vy, vz: o.vz, grav: 0,
+            life: 9, c: [1, 1, 1], size: o.s, add: false, keep: true, squeak: true, duckling: !!o.duckling });
+        p.duck = true;
+        p.s = o.s;
+        p.m = o.s * o.s * o.s;
+        p.I = 0.085 * p.m * o.s * o.s;
+        p.q = qnorm(q);
+        p.wx = o.wx || 0; p.wy = o.wy || 0; p.wz = o.wz || 0;
+        p.slot = o.slot || 0;
+        p.rise = o.rise || 0;          // Mother, on her way out of the cup: the green is not under her yet
+        p.hop = 0;                     // time since its feet last pushed off
+        p.ground = false;
+        // Out of the cup small and growing (Mother), or full size from the start.
+        p.shrink = o.grow || 1;
+        fx.ducks.push(p);
+        return p;
+    }
+
+    // Where a point of the duck's shape (in units of its size, model frame) is in the world.
+    function dWorld(p, local, k) {
+        var s = p.s * (k || 1);
+        var r = qrot(p.q, [(local[0] - D_COM[0]) * s, (local[1] - D_COM[1]) * s, (local[2] - D_COM[2]) * s]);
+        return [p.x + r[0], p.y + r[1], p.z + r[2]];
+    }
+    // The lowest point of the duck: its body's, its head's, or the tip of its tail or its beak.
+    function dLowest(p) {
+        var dl = qinv(p.q, [0, -1, 0]);
+        var a = D_BODY.r, e = [a[0] * dl[0], a[1] * dl[1], a[2] * dl[2]];
+        var n = Math.sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]) || 1;
+        var cands = [
+            dWorld(p, [D_BODY.c[0] + a[0] * e[0] / n, D_BODY.c[1] + a[1] * e[1] / n, D_BODY.c[2] + a[2] * e[2] / n]),
+            (function () { var h = dWorld(p, D_HEAD.c); h[1] -= D_HEAD.r * p.s; return h; })(),
+            dWorld(p, D_TIPS[0]), dWorld(p, D_TIPS[1])
+        ];
+        return cands;
+    }
+
+    // An impulse J (world) at the world point `at`.
+    function dPush(p, at, jx, jy, jz) {
+        var rx = at[0] - p.x, ry = at[1] - p.y, rz = at[2] - p.z;
+        p.vx += jx / p.m; p.vy += jy / p.m; p.vz += jz / p.m;
+        p.wx += (ry * jz - rz * jy) / p.I;
+        p.wy += (rz * jx - rx * jz) / p.I;
+        p.wz += (rx * jy - ry * jx) / p.I;
+    }
+
+    function dGround(fx, p) {
+        var cs = dLowest(p), hit = false, big = 0;
+        for (var k = 0; k < cs.length; k++) {
+            var c = cs[k];
+            if (c[1] >= 0) continue;
+            hit = true;
+            p.y -= c[1];
+            for (var j = k + 1; j < cs.length; j++) cs[j][1] -= c[1];
+            c[1] = 0;
+            var rx = c[0] - p.x, ry = c[1] - p.y, rz = c[2] - p.z;
+            // Velocity of the contact point: v + w × r.
+            var vcx = p.vx + p.wy * rz - p.wz * ry;
+            var vcy = p.vy + p.wz * rx - p.wx * rz;
+            var vcz = p.vz + p.wx * ry - p.wy * rx;
+            if (vcy >= 0) continue;
+            var e = vcy < -1.4 ? 0.42 : 0;
+            var jn = -(1 + e) * vcy / (1 / p.m + (rx * rx + rz * rz) / p.I);
+            dPush(p, c, 0, jn, 0);
+            if (-vcy > big) big = -vcy;
+            // Friction against the slide, no more than the rubber's grip allows.
+            vcx = p.vx + p.wy * rz - p.wz * ry;
+            vcz = p.vz + p.wx * ry - p.wy * rx;
+            var vt = Math.sqrt(vcx * vcx + vcz * vcz);
+            if (vt > 1e-5) {
+                var tx = vcx / vt, tz = vcz / vt;
+                // |r × t|² for t in the plane.
+                var cx = ry * tz, cy = rz * tx - rx * tz, cz = -ry * tx;
+                var jt = Math.min(vt / (1 / p.m + (cx * cx + cy * cy + cz * cz) / p.I), 0.7 * jn);
+                dPush(p, c, -tx * jt, 0, -tz * jt);
+            }
+        }
+        if (big > 2.2 && p.squeak && fx.events.length < 40) fx.events.push('squeak');
+        return hit;
+    }
+
+    function stepDucks(fx, dt) {
+        var list = fx.ducks, n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n, i, j, p, o;
+        for (var sub = 0; sub < n; sub++) {
+            for (i = 0; i < list.length; i++) {
+                p = list[i];
+                if (p.age >= p.life) continue;
+                if (p.gone) {
+                    // Into the cup: down the hole and smaller as it goes.
+                    p.shrink = Math.max(0, p.shrink - h / 0.3);
+                    var keep = Math.exp(-14 * h);
+                    p.x *= keep; p.z *= keep;
+                    p.y = Math.max(D_COM[1] * p.s * p.shrink, p.y - 5 * h);
+                    if (p.shrink <= 0) p.life = p.age;
+                    continue;
+                }
+                p.vy -= G * h;
+                p.x += p.vx * h; p.y += p.vy * h; p.z += p.vz * h;
+                var wl = Math.sqrt(p.wx * p.wx + p.wy * p.wy + p.wz * p.wz);
+                if (wl > 1e-6) p.q = qnorm(qmul(qaxis(p.wx / wl, p.wy / wl, p.wz / wl, wl * h), p.q));
+                if (p.shrink < 1 && !p.home) p.shrink = Math.min(1, p.shrink + h / 0.3);
+                if (p.rise > 0) { p.rise -= h; p.ground = false; continue; }
+                p.ground = dGround(fx, p);
+                if (p.home && p.vy < 0 && p.x * p.x + p.z * p.z < 0.8 && p.y < 0.9 * p.s) { p.gone = true; continue; }
+                // The flagstick (which Mother, going home, is aimed down beside).
+                var pr = Math.sqrt(p.x * p.x + p.z * p.z), reach = D_BALL * p.s + POLE_R;
+                if (!p.home && pr < reach && pr > 1e-6 && p.y < POLE_H) {
+                    var nx = p.x / pr, nz = p.z / pr, vn = p.vx * nx + p.vz * nz;
+                    p.x = nx * reach; p.z = nz * reach;
+                    if (vn < 0) { p.vx -= 1.4 * vn * nx; p.vz -= 1.4 * vn * nz; }
+                }
+                var up = qrot(p.q, [0, 1, 0]);
+                if (p.ground) {
+                    // The weighted bottom: back up on its base, and the rocking dies away.
+                    var k = 46 * h;
+                    p.wx += -up[2] * k; p.wz += up[0] * k;
+                    var damp = Math.exp(-6 * h);
+                    p.wx *= damp; p.wz *= damp; p.wy *= Math.exp(-3 * h);
+                    p.vx *= Math.exp(-1.2 * h); p.vz *= Math.exp(-1.2 * h);
+                }
+                p.hop += h;
+            }
+            // Ducks bump each other, as balls about their middles.
+            for (i = 0; i < list.length; i++) {
+                p = list[i];
+                if (p.age >= p.life || p.gone || p.rise > 0) continue;
+                for (j = i + 1; j < list.length; j++) {
+                    o = list[j];
+                    if (o.age >= o.life || o.gone || o.rise > 0) continue;
+                    var dx = o.x - p.x, dy = o.y - p.y, dz = o.z - p.z, rr = D_BALL * (p.s + o.s);
+                    var d2 = dx * dx + dy * dy + dz * dz;
+                    if (d2 >= rr * rr || d2 < 1e-9) continue;
+                    var d = Math.sqrt(d2), ux = dx / d, uy = dy / d, uz = dz / d, over = rr - d;
+                    var ip = 1 / p.m, io = 1 / o.m, wsum = ip + io;
+                    p.x -= ux * over * ip / wsum; p.y -= uy * over * ip / wsum; p.z -= uz * over * ip / wsum;
+                    o.x += ux * over * io / wsum; o.y += uy * over * io / wsum; o.z += uz * over * io / wsum;
+                    var rv = (o.vx - p.vx) * ux + (o.vy - p.vy) * uy + (o.vz - p.vz) * uz;
+                    if (rv >= 0) continue;
+                    var jj = -1.45 * rv / wsum;
+                    p.vx -= ux * jj * ip; p.vy -= uy * jj * ip; p.vz -= uz * jj * ip;
+                    o.vx += ux * jj * io; o.vy += uy * jj * io; o.vz += uz * jj * io;
+                    // A glancing knock sets it turning.
+                    p.wy += (rv * 0.6) * (ux * 0.5 - uz * 0.5); o.wy -= (rv * 0.6) * (ux * 0.5 - uz * 0.5);
+                    if (-rv > 2.5 && fx.events.length < 40) fx.events.push('squeak');
+                }
+            }
+            // A knock from above may have pressed one into the green: stand it back on it.
+            for (i = 0; i < list.length; i++) {
+                p = list[i];
+                if (p.age >= p.life || p.gone || p.rise > 0) continue;
+                var cs = dLowest(p), lo = 0;
+                for (j = 0; j < cs.length; j++) lo = Math.min(lo, cs[j][1]);
+                p.y -= lo;
+            }
+        }
+        // The legs: a duck on its feet hops for where it wants to be.
+        for (i = 0; i < list.length; i++) {
+            p = list[i];
+            if (p.age >= p.life || p.gone || !p.ground || p.home) continue;
+            var upv = qrot(p.q, [0, 1, 0]);
+            if (upv[1] < 0.86 || p.hop < 0.3) continue;
+            var tx = p.x, tz = p.z, want = false;
+            if (fx.ring && p.duckling) {
+                var a = p.slot + fx.ring.spin;
+                tx = Math.cos(a) * fx.ring.r; tz = Math.sin(a) * fx.ring.r;
+                want = true;
+            } else if (fx.ring && p === fx.mother && p.hop > 0.85) {
+                // Mother bobs on the spot, turning to watch the parade go round.
+                tx = p.x + Math.cos(fx.ring.spin + p.slot + 1.2); tz = p.z + Math.sin(fx.ring.spin + p.slot + 1.2);
+                want = 'still';
+            }
+            if (!want) continue;
+            var dx2 = tx - p.x, dz2 = tz - p.z, dist = Math.sqrt(dx2 * dx2 + dz2 * dz2) || 1e-6;
+            var fwd = qrot(p.q, [1, 0, 0]);
+            var head = Math.atan2(-fwd[2], fwd[0]), wantH = Math.atan2(-dz2, dx2);
+            var turn = wantH - head;
+            while (turn > Math.PI) turn -= TAU;
+            while (turn < -Math.PI) turn += TAU;
+            p.hop = fx.rnd() * 0.08;
+            p.vy = want === 'still' ? 2.4 : 2.5 + fx.rnd() * 0.5;
+            var sp = want === 'still' ? 0 : Math.min(2.6, dist * 2.2);
+            p.vx = dx2 / dist * sp; p.vz = dz2 / dist * sp;
+            // Turned to face the way it is going by the time it comes down.
+            p.wy = Math.max(-8, Math.min(8, turn * G / (2 * p.vy)));
+            // A waddle: a rock from foot to foot with every hop, and nothing else to tip it.
+            p.waddle = -(p.waddle || 1);
+            p.wx = fwd[0] * 1.6 * p.waddle; p.wz = fwd[2] * 1.6 * p.waddle;
+        }
+    }
+
+    // A duck's drawn values: where its origin (under its middle) is, which way it faces, how big.
+    function duckOut(p) {
+        var o = dWorld(p, [0, 0, 0], p.shrink);
+        p.ox = o[0]; p.oy = o[1]; p.oz = o[2];
+        p.oq = p.q;
+        p.os = p.s * p.shrink;
+        p.or = p.og = p.ob = 1;
+        p.oa = p.age < p.life ? 1 : 0;
+        // For a flat picture: which way it faces across the screen, and how far it is tipped.
+        var fwd = qrot(p.q, [1, 0, 0]), up = qrot(p.q, [0, 1, 0]);
+        p.flip = fwd[0] < 0 ? -1 : 1;
+        p.roll = Math.atan2(-up[0], up[1]) * (p.flip < 0 ? -1 : 1);
+    }
+
     function start(id, rnd) {
         var s = SCRIPTS[id] || SCRIPTS['cele-classic'];
         return {
             id: SCRIPTS[id] ? id : 'cele-classic', script: s,
             t: -1e-6, t0: -1e-6, acc: 0, rnd: rnd || Math.random,
-            parts: [], rings: [], beams: [], lenses: [], hole: null, events: [], done: false
+            parts: [], rings: [], beams: [], lenses: [], hole: null, events: [], done: false,
+            ducks: null, ring: null, mother: null
         };
     }
 
     function stepPart(fx, p, dt) {
         p.age += dt;
+        if (p.duck) { duckOut(p); return; }
         if (p.mode === 1) {
             p.ang += p.angV * dt;
             p.rad += p.radV * dt;
             p.y += p.vy * dt;
             p.x = Math.cos(p.ang) * p.rad;
             p.z = Math.sin(p.ang) * p.rad;
-        } else if (p.mode === 4) {
-            // A duckling in the parade: round the flag, hopping, facing the way it walks.
-            p.ang += p.angV * dt;
-            p.x = Math.cos(p.ang) * p.rad;
-            p.z = Math.sin(p.ang) * p.rad;
-            p.y = Math.abs(Math.sin(p.age * 11 + p.ph)) * 0.16;
-            p.flip = Math.sin(p.ang) > 0 ? -1 : 1;
-        } else if (p.mode === 5) {
-            // Mother Duck: up out of the cup, then bobbing on the spot from foot to foot.
-            p.y = 1.3 * smooth(p.age / 0.45) + 0.1 * Math.sin(p.age * 5);
-            p.flip = Math.floor(p.age / 0.42) % 2 ? -1 : 1;
         } else if (p.mode === 2) {
             var u = Math.min(1, p.age / p.life), k = 1 - u;
             var rr = p.rad0 * k * k;
@@ -477,6 +720,10 @@ window.G3 = window.G3 || {};
         fx.t0 = fx.t;
         fx.t += dt;
         fx.script.run(fx);
+        if (fx.ducks) {
+            stepDucks(fx, dt);
+            fx.ducks = fx.ducks.filter(function (p) { return p.age + dt < p.life; });
+        }
         var i, keep = [];
         for (i = 0; i < fx.parts.length; i++) {
             var p = fx.parts[i];
@@ -584,5 +831,9 @@ window.G3 = window.G3 || {};
         ctx.restore();
     }
 
-    G3.celebrate = { drawDuck: drawDuck, start: start, step: step, peek: peek, seeded: seeded, ids: Object.keys(SCRIPTS) };
+    /* The duck's shape, for render.js to model and the tests to measure
+       against (units of a duck's size, origin under its middle, beak to +x). */
+    var DUCK_SHAPE = { body: D_BODY, head: D_HEAD, tips: D_TIPS, com: D_COM, ball: D_BALL };
+
+    G3.celebrate = { DUCK_SHAPE: DUCK_SHAPE, drawDuck: drawDuck, start: start, step: step, peek: peek, seeded: seeded, ids: Object.keys(SCRIPTS) };
 })(window.G3);

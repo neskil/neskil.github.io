@@ -453,6 +453,65 @@ window.G3 = window.G3 || {};
         }
     ];
 
+    /* Bag skins: the fourth shelf, worn by the bag in the corner (bag.js →
+       setSkin / paintBag). `print` is one of bag.js's tileable PRINTS laid
+       over the body's cloth; without one the body is `body`. `band` is the
+       ring under the cuff that carries the name, `accent` the piping, `trim`
+       the moulded top, foot and strap (`lid` the top alone when it differs),
+       and `ink` / `inkAccent` the name and the rule under it. Kept in
+       `save.balls` like everything else, equipped on `save.bag`. */
+    var BAG_SKINS = [
+        {
+            id: 'bag-stock', kind: 'bag', name: 'Tour Navy', cost: 0, badge: 'Classic',
+            blurb: 'The bag it came in: navy nylon, a white band with the name on it and sky-blue piping.',
+            colors: ['#1b2b4b', '#eef2f7', '#38bdf8']
+        },
+        {
+            id: 'bag-staff', kind: 'bag', name: 'Staff White', cost: 2, badge: 'Tour',
+            blurb: 'A tour staff bag: gloss white with a red band and black trim, made to be seen on television.',
+            body: 0xf1f3f5, band: 0xc8202e, accent: 0x15171b, trim: 0x15171b, ink: 0xffffff, inkAccent: 0x15171b, rough: 0.34,
+            colors: ['#f1f3f5', '#c8202e', '#15171b']
+        },
+        {
+            id: 'bag-tartan', kind: 'bag', name: 'Clubhouse Tartan', cost: 3, badge: 'Heritage',
+            blurb: 'Red tartan woven with green and navy, a cream band and brass piping — the bag in the members’ locker room.',
+            print: 'tartan', band: 0xeee3c8, accent: 0xc9a352, accentMetal: true, trim: 0x1d1a16, ink: 0x6d1218, inkAccent: 0xc9a352, rough: 0.75,
+            colors: ['#9e1b22', '#123420', '#c9a352']
+        },
+        {
+            id: 'bag-camo', kind: 'bag', name: 'Fairway Camo', cost: 4, badge: 'Outdoor',
+            blurb: 'Woodland camouflage in fairway greens with an olive band. Lose it in the rough on purpose.',
+            print: 'camo', band: 0x3b4a26, accent: 0xd8c690, trim: 0x22281a, ink: 0xd8c690, inkAccent: 0xe9b44c, rough: 0.8,
+            colors: ['#5b6b3a', '#3b4a26', '#8a8a55']
+        },
+        {
+            id: 'bag-leopard', kind: 'bag', name: 'Leopard Leather', cost: 6, badge: 'Leather',
+            blurb: 'Leopard-print leather, black patent trim, a cream band and gold piping. Loud, and it knows it.',
+            print: 'leopard', band: 0xf3e8d2, accent: 0xd8aa48, accentMetal: true, trim: 0x111112, ink: 0x111112, inkAccent: 0xd8aa48, rough: 0.42,
+            colors: ['#e2b06a', '#20150c', '#d8aa48']
+        },
+        {
+            id: 'bag-zebra', kind: 'bag', name: 'Zebra Hide', cost: 7, badge: 'Leather',
+            blurb: 'Black and cream zebra stripes on soft hide, a black band and silver piping.',
+            print: 'zebra', band: 0x16161a, accent: 0xd5dbe2, accentMetal: true, trim: 0x16161a, ink: 0xefe8da, inkAccent: 0xd5dbe2, rough: 0.5,
+            colors: ['#efe8da', '#16161a', '#d5dbe2']
+        },
+        {
+            id: 'bag-croc', kind: 'bag', name: 'Emerald Croc', cost: 9, badge: 'Leather',
+            blurb: 'Embossed crocodile in deep emerald, with gold hardware and a gold top. The one in the pro’s office.',
+            print: 'croc', band: 0x0e2318, accent: 0xd9b25a, accentMetal: true, trim: 0x0b140f, lid: 0xd9b25a, lidMetal: true,
+            ink: 0xd9b25a, inkAccent: 0xf0d58a, rough: 0.3,
+            colors: ['#21402c', '#d9b25a', '#0d1f16']
+        },
+        {
+            id: 'bag-carbon', kind: 'bag', name: 'Carbon Weave', cost: 12, badge: 'Trophy', lock: 'courses',
+            blurb: 'Carbon-fibre twill with a chrome top and electric-lime piping, for the player who has been everywhere.',
+            print: 'carbon', band: 0x15181d, accent: 0xc6ff3d, trim: 0x0c0d10, lid: 0xc9d1d9, lidMetal: true,
+            ink: 0xc6ff3d, inkAccent: 0xffffff, rough: 0.28, metal: 0.25,
+            colors: ['#3a4048', '#101216', '#c6ff3d']
+        }
+    ];
+
     /* Hole-in celebrations: the third shelf. What goes off over the cup on a
        hole in one — the equipped one, in the ace's replay (any other drop
        gets the plain pop). How each one moves is js/celebrate.js; this is what
@@ -526,6 +585,12 @@ window.G3 = window.G3 || {};
         return (id && CLUB_BY_ID[id]) ? CLUB_BY_ID[id] : CLUB_FINISHES[0];
     }
 
+    var BAG_BY_ID = {};
+    for (i = 0; i < BAG_SKINS.length; i++) BAG_BY_ID[BAG_SKINS[i].id] = BAG_SKINS[i];
+    function bagSkinById(id) {
+        return (id && BAG_BY_ID[id]) ? BAG_BY_ID[id] : BAG_SKINS[0];
+    }
+
     var CELE_BY_ID = {};
     for (i = 0; i < CELEBRATIONS.length; i++) CELE_BY_ID[CELEBRATIONS[i].id] = CELEBRATIONS[i];
     function celebrationById(id) {
@@ -540,7 +605,9 @@ window.G3 = window.G3 || {};
     // Everything the one wallet buys: what scoring's spentStars counts.
     G3.CELEBRATIONS = CELEBRATIONS;
     G3.celebrationById = celebrationById;
-    G3.SHOP_ITEMS = BALLS.concat(CLUB_FINISHES, CELEBRATIONS);
+    G3.BAG_SKINS = BAG_SKINS;
+    G3.bagSkinById = bagSkinById;
+    G3.SHOP_ITEMS = BALLS.concat(CLUB_FINISHES, CELEBRATIONS, BAG_SKINS);
     G3.SHOP_LOCKS = LOCKS;
     G3.SHOP_LOCK_ORDER = LOCK_ORDER;
 
