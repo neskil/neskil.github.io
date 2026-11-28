@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.242.0">
+    <link rel="stylesheet" href="style.css?v=1.243.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -994,7 +994,16 @@
                  to each other"). game.js → drawMenu. -->
             <div class="menu-featured" id="menu-featured">
                 <button type="button" class="door" id="menu-portals">
-                    <span class="door-eye" aria-hidden="true"></span>
+                    <!-- The eye is a black hole: two sets of log-spiral arms
+                         turning at different speeds read as matter pouring
+                         in, sparks spiral down, and the horizon sits black in
+                         a lit photon ring. style.css → .bh-*. -->
+                    <span class="door-eye tour-eye" aria-hidden="true">
+                        <svg class="bh-arms bh-arms-wide" viewBox="-50 -50 100 100" focusable="false"><path d="M52.0 0.0L49.4 8.6L45.5 16.4L40.5 23.1L34.6 28.6L28.1 32.9L21.2 35.9L14.2 37.6L7.3 38.1L0.6 37.4L-5.6 35.6L-11.3 32.9L-16.1 29.4L-20.2 25.2L-23.3 20.6L-25.6 15.7L-26.9 10.6L-27.3 5.7L-26.9 0.8L-25.7 -3.7L-23.8 -7.7L-21.3 -11.3L-18.3 -14.2L-15.1 -16.6L-11.6 -18.2L-8.0 -19.2L-4.4 -19.6L-0.9 -19.3L2.3 -18.5L5.3 -17.2L7.9 -15.4L10.0 -13.3L11.7 -11.0L13.0 -8.5L13.7 -5.9L14.0 -3.4L13.9 -0.9L13.3 1.5L12.4 3.6L11.2 5.5L9.7 7.1L9.7 7.1L11.2 5.5L12.4 3.6L13.3 1.5L13.9 -0.9L14.0 -3.4L13.7 -5.9L13.0 -8.5L11.7 -11.0L10.0 -13.3L7.9 -15.4L5.3 -17.2L2.3 -18.5L-0.9 -19.3L-4.4 -19.6L-8.0 -19.2L-11.6 -18.2L-15.1 -16.6L-18.3 -14.2L-21.1 -11.7L-22.9 -10.0L-24.6 -8.2L-26.1 -6.3L-27.6 -4.2L-28.9 -1.9L-30.0 0.6L-30.9 3.3L-31.6 6.4L-32.0 9.9L-31.9 13.7L-31.2 18.0L-29.7 22.7L-27.2 27.7L-23.4 32.7L-18.1 37.6L-11.0 41.9L-2.2 44.9L8.3 45.8L20.0 44.0L32.0 38.5L43.2 28.9ZM-26.0 45.0L-32.2 38.5L-36.9 31.2L-40.2 23.5L-42.1 15.7L-42.6 7.9L-41.7 0.4L-39.7 -6.5L-36.6 -12.8L-32.7 -18.2L-28.0 -22.7L-22.8 -26.2L-17.4 -28.6L-11.7 -30.1L-6.2 -30.5L-0.8 -30.0L4.2 -28.6L8.8 -26.5L12.7 -23.7L16.0 -20.4L18.6 -16.7L20.4 -12.8L21.5 -8.8L21.9 -4.8L21.6 -0.9L20.6 2.7L19.1 6.0L17.2 8.9L14.8 11.3L12.2 13.2L9.4 14.5L6.5 15.4L3.7 15.7L0.9 15.5L-1.7 14.9L-4.1 13.8L-6.2 12.4L-7.9 10.8L-9.3 8.9L-10.3 6.9L-11.0 4.9L-11.0 4.9L-10.3 6.9L-9.3 8.9L-7.9 10.8L-6.2 12.4L-4.1 13.8L-1.7 14.9L0.9 15.5L3.7 15.7L6.5 15.4L9.4 14.5L12.2 13.2L14.8 11.3L17.2 8.9L19.1 6.0L20.6 2.7L21.6 -0.9L21.9 -4.8L21.5 -8.8L20.6 -12.4L20.1 -14.8L19.4 -17.2L18.5 -19.5L17.4 -21.8L16.1 -24.0L14.5 -26.3L12.6 -28.5L10.2 -30.6L7.4 -32.7L4.0 -34.5L-0.0 -36.0L-4.8 -37.1L-10.4 -37.4L-16.7 -36.6L-23.6 -34.5L-30.7 -30.5L-37.7 -24.3L-43.8 -15.7L-48.1 -4.7L-49.4 8.5L-46.7 22.9ZM-26.0 -45.0L-17.2 -47.1L-8.6 -47.6L-0.2 -46.6L7.5 -44.3L14.5 -40.8L20.5 -36.4L25.5 -31.1L29.4 -25.3L32.1 -19.2L33.6 -12.9L34.1 -6.7L33.5 -0.7L31.9 4.9L29.5 9.9L26.4 14.3L22.7 18.0L18.5 20.8L14.2 22.8L9.7 24.0L5.2 24.4L0.9 24.1L-3.2 23.0L-6.8 21.3L-10.0 19.1L-12.7 16.5L-14.8 13.6L-16.3 10.4L-17.2 7.2L-17.5 4.0L-17.3 0.9L-16.6 -2.0L-15.4 -4.7L-13.9 -7.0L-12.0 -8.9L-9.9 -10.5L-7.7 -11.6L-5.4 -12.3L-3.1 -12.5L-0.8 -12.4L1.3 -11.9L1.3 -11.9L-0.8 -12.4L-3.1 -12.5L-5.4 -12.3L-7.7 -11.6L-9.9 -10.5L-12.0 -8.9L-13.9 -7.0L-15.4 -4.7L-16.6 -2.0L-17.3 0.9L-17.5 4.0L-17.2 7.2L-16.3 10.4L-14.8 13.6L-12.7 16.5L-10.0 19.1L-6.8 21.3L-3.2 23.0L0.4 24.1L2.8 24.8L5.2 25.4L7.6 25.8L10.2 26.0L12.8 26.0L15.5 25.7L18.4 25.1L21.4 24.2L24.6 22.8L27.9 20.8L31.2 18.0L34.5 14.4L37.5 9.7L40.0 3.9L41.6 -3.2L41.8 -11.4L39.9 -20.5L35.6 -30.1L28.1 -39.3L17.4 -47.0L3.5 -51.9Z"/></svg>
+                        <svg class="bh-arms bh-arms-thin" viewBox="-50 -50 100 100" focusable="false"><path d="M42.9 29.4L37.0 33.9L30.7 37.3L24.2 39.8L17.7 41.3L11.3 41.8L5.1 41.4L-0.8 40.2L-6.2 38.3L-11.1 35.7L-15.4 32.6L-19.2 29.0L-22.2 25.1L-24.6 20.9L-26.3 16.6L-27.4 12.3L-27.8 8.0L-27.6 3.8L-26.9 -0.1L-25.6 -3.7L-24.0 -7.0L-21.9 -10.0L-19.6 -12.5L-17.0 -14.6L-14.2 -16.2L-11.4 -17.4L-8.5 -18.2L-5.6 -18.5L-2.9 -18.4L-0.2 -18.0L2.2 -17.2L4.5 -16.1L6.4 -14.7L8.1 -13.2L9.6 -11.5L10.7 -9.7L11.5 -7.8L12.0 -5.9L12.3 -4.0L12.3 -2.1L12.0 -0.3L12.0 -0.3L12.3 -2.1L12.3 -4.0L12.0 -5.9L11.5 -7.8L10.7 -9.7L9.6 -11.5L8.1 -13.2L6.4 -14.7L4.5 -16.1L2.2 -17.2L-0.2 -18.0L-2.9 -18.4L-5.6 -18.5L-8.5 -18.2L-11.4 -17.4L-14.2 -16.2L-17.0 -14.6L-19.6 -12.5L-21.8 -10.1L-23.7 -7.9L-25.3 -5.5L-26.7 -2.8L-27.9 0.0L-28.8 3.2L-29.3 6.5L-29.5 10.0L-29.3 13.7L-28.6 17.5L-27.3 21.5L-25.5 25.5L-22.9 29.5L-19.7 33.4L-15.5 37.1L-10.5 40.4L-4.6 43.0L2.2 44.9L9.7 45.6L18.0 44.9L26.6 42.5L35.2 38.3ZM-14.7 49.9L-20.8 45.6L-26.0 40.7L-30.4 35.3L-33.8 29.6L-36.3 23.7L-37.8 17.7L-38.5 11.7L-38.3 5.9L-37.4 0.5L-35.7 -4.6L-33.5 -9.3L-30.7 -13.4L-27.5 -17.0L-23.9 -19.9L-20.1 -22.3L-16.2 -24.0L-12.2 -25.1L-8.2 -25.6L-4.4 -25.5L-0.7 -25.0L2.7 -23.9L5.8 -22.5L8.6 -20.6L11.0 -18.5L13.1 -16.2L14.7 -13.7L15.8 -11.1L16.6 -8.4L17.0 -5.8L17.0 -3.2L16.7 -0.7L16.0 1.6L15.1 3.7L13.9 5.5L12.5 7.2L11.0 8.6L9.3 9.6L7.6 10.5L5.8 11.0L4.0 11.3L4.0 11.3L5.8 11.0L7.6 10.5L9.3 9.6L11.0 8.6L12.5 7.2L13.9 5.5L15.1 3.7L16.0 1.6L16.7 -0.7L17.0 -3.2L17.0 -5.8L16.6 -8.4L15.8 -11.1L14.7 -13.7L13.1 -16.2L11.0 -18.5L8.6 -20.6L5.8 -22.5L2.9 -23.9L0.2 -25.0L-2.6 -25.8L-5.6 -26.3L-8.7 -26.5L-11.9 -26.4L-15.2 -25.9L-18.6 -25.0L-22.0 -23.6L-25.5 -21.8L-28.9 -19.4L-32.1 -16.4L-35.2 -12.7L-37.9 -8.4L-40.1 -3.3L-41.7 2.5L-42.4 8.9L-42.0 15.9L-40.3 23.3L-37.1 30.9L-32.2 38.4L-25.5 45.3ZM-52.0 1.5L-49.8 -5.7L-46.8 -12.2L-43.0 -18.0L-38.6 -23.0L-33.7 -27.2L-28.5 -30.5L-23.0 -33.0L-17.5 -34.6L-12.0 -35.4L-6.6 -35.4L-1.5 -34.7L3.3 -33.3L7.6 -31.4L11.5 -28.9L14.9 -26.0L17.8 -22.8L20.1 -19.3L21.8 -15.7L22.9 -12.1L23.5 -8.4L23.6 -4.8L23.2 -1.4L22.3 1.8L21.0 4.8L19.4 7.4L17.5 9.7L15.4 11.7L13.1 13.2L10.7 14.4L8.3 15.2L5.9 15.6L3.5 15.7L1.2 15.5L-1.0 14.9L-3.0 14.1L-4.7 13.1L-6.3 11.8L-7.6 10.4L-8.7 8.9L-9.5 7.3L-9.5 7.3L-8.7 8.9L-7.6 10.4L-6.3 11.8L-4.7 13.1L-3.0 14.1L-1.0 14.9L1.2 15.5L3.5 15.7L5.9 15.6L8.3 15.2L10.7 14.4L13.1 13.2L15.4 11.7L17.5 9.7L19.4 7.4L21.0 4.8L22.3 1.8L23.2 -1.4L23.6 -4.6L23.8 -7.5L23.7 -10.4L23.3 -13.4L22.5 -16.4L21.4 -19.5L19.9 -22.4L18.0 -25.4L15.6 -28.2L12.8 -30.9L9.5 -33.4L5.6 -35.6L1.2 -37.4L-3.8 -38.6L-9.2 -39.2L-15.2 -38.9L-21.6 -37.5L-28.1 -35.0L-34.7 -31.1L-40.9 -25.7L-46.5 -18.8L-51.0 -10.3ZM-17.5 -49.0L-10.0 -49.1L-2.9 -48.2L3.8 -46.4L9.9 -43.8L15.4 -40.4L20.2 -36.5L24.3 -32.1L27.5 -27.3L30.0 -22.4L31.6 -17.3L32.5 -12.2L32.7 -7.2L32.2 -2.4L31.1 2.1L29.4 6.2L27.2 9.9L24.6 13.1L21.7 15.9L18.6 18.1L15.2 19.8L11.9 21.0L8.5 21.6L5.2 21.8L2.0 21.5L-1.0 20.8L-3.8 19.7L-6.3 18.3L-8.5 16.6L-10.4 14.7L-11.9 12.6L-13.1 10.4L-13.9 8.1L-14.3 5.9L-14.5 3.7L-14.3 1.5L-13.9 -0.5L-13.2 -2.3L-12.3 -4.0L-11.2 -5.5L-9.9 -6.8L-9.9 -6.8L-11.2 -5.5L-12.3 -4.0L-13.2 -2.3L-13.9 -0.5L-14.3 1.5L-14.5 3.7L-14.3 5.9L-13.9 8.1L-13.1 10.4L-11.9 12.6L-10.4 14.7L-8.5 16.6L-6.3 18.3L-3.8 19.7L-1.0 20.8L2.0 21.5L5.2 21.8L8.5 21.6L11.7 21.0L14.5 20.3L17.3 19.3L20.0 18.0L22.6 16.3L25.1 14.4L27.5 12.0L29.7 9.3L31.7 6.2L33.4 2.6L34.7 -1.3L35.6 -5.6L35.9 -10.4L35.6 -15.5L34.4 -20.9L32.3 -26.5L29.0 -32.1L24.6 -37.6L18.9 -42.6L11.8 -46.9L3.5 -50.0L-6.0 -51.7ZM41.2 -31.7L43.6 -24.7L45.0 -17.6L45.3 -10.7L44.7 -4.1L43.2 2.2L41.0 7.9L38.0 13.1L34.5 17.7L30.5 21.6L26.2 24.8L21.6 27.2L17.0 28.9L12.3 29.9L7.6 30.2L3.2 29.8L-1.0 28.9L-4.9 27.5L-8.4 25.5L-11.5 23.2L-14.1 20.6L-16.3 17.8L-17.9 14.7L-19.1 11.6L-19.8 8.5L-20.1 5.4L-19.9 2.5L-19.3 -0.4L-18.4 -3.0L-17.1 -5.3L-15.6 -7.4L-13.9 -9.2L-12.0 -10.7L-10.0 -11.8L-8.0 -12.6L-5.9 -13.2L-3.8 -13.4L-1.8 -13.3L0.0 -12.9L1.8 -12.3L3.4 -11.5L3.4 -11.5L1.8 -12.3L0.0 -12.9L-1.8 -13.3L-3.8 -13.4L-5.9 -13.2L-8.0 -12.6L-10.0 -11.8L-12.0 -10.7L-13.9 -9.2L-15.6 -7.4L-17.1 -5.3L-18.4 -3.0L-19.3 -0.4L-19.9 2.5L-20.1 5.4L-19.8 8.5L-19.1 11.6L-17.9 14.7L-16.4 17.6L-14.9 20.1L-13.1 22.4L-11.0 24.5L-8.6 26.5L-5.9 28.3L-2.9 29.9L0.4 31.1L3.9 32.0L7.8 32.6L12.0 32.6L16.4 32.1L21.0 30.9L25.7 29.0L30.5 26.2L35.2 22.5L39.5 17.7L43.3 11.8L46.3 4.8L48.2 -3.2L48.6 -12.1L47.3 -21.7Z"/></svg>
+                        <span class="bh-fall"></span><span class="bh-fall"></span><span class="bh-fall"></span><span class="bh-fall"></span><span class="bh-fall"></span>
+                        <span class="bh-core"></span>
+                    </span>
                     <span class="door-text">
                         <b id="menu-portals-title">Play the World Tour</b>
                         <span class="door-sub" id="menu-portals-sub">Six holes, each in a different world, and a new six every round.</span>
@@ -1346,49 +1355,49 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.242.0"></script>
-    <script src="js/camtune.js?v=1.242.0"></script>
-    <script src="js/balls.js?v=1.242.0"></script>
-    <script src="js/celebrate.js?v=1.242.0"></script>
-    <script src="js/themes.js?v=1.242.0"></script>
-    <script src="js/physics.js?v=1.242.0"></script>
-    <script src="js/courses.js?v=1.242.0"></script>
-    <script src="js/tour-ground.js?v=1.242.0"></script>
-    <script src="js/portals.js?v=1.242.0"></script>
-    <script src="js/portal-worlds.js?v=1.242.0"></script>
-    <script src="js/endless.js?v=1.242.0"></script>
-    <script src="js/forge-maps.js?v=1.242.0"></script>
-    <script src="js/forge.js?v=1.242.0"></script>
-    <script src="js/audit.js?v=1.242.0"></script>
-    <script src="js/custom.js?v=1.242.0"></script>
-    <script src="js/scoring.js?v=1.242.0"></script>
-    <script src="js/swing.js?v=1.242.0"></script>
-    <script src="js/school.js?v=1.242.0"></script>
-    <script src="js/audio.js?v=1.242.0"></script>
-    <script src="js/music.js?v=1.242.0"></script>
-    <script src="js/bag.js?v=1.242.0"></script>
-    <script src="js/textures.js?v=1.242.0"></script>
-    <script src="js/shaders.js?v=1.242.0"></script>
-    <script src="js/postfx.js?v=1.242.0"></script>
-    <script src="js/weather.js?v=1.242.0"></script>
-    <script src="js/flyover.js?v=1.242.0"></script>
-    <script src="js/replay.js?v=1.242.0"></script>
-    <script src="js/bot.js?v=1.242.0"></script>
-    <script src="js/models.js?v=1.242.0"></script>
-    <script src="js/life.js?v=1.242.0"></script>
-    <script src="js/worlds.js?v=1.242.0"></script>
-    <script src="js/sandfx.js?v=1.242.0"></script>
-    <script src="js/groundfx.js?v=1.242.0"></script>
-    <script src="js/render.js?v=1.242.0"></script>
-    <script src="js/minimap.js?v=1.242.0"></script>
-    <script src="js/debug.js?v=1.242.0"></script>
-    <script src="js/game.js?v=1.242.0"></script>
+    <script src="js/config.js?v=1.243.0"></script>
+    <script src="js/camtune.js?v=1.243.0"></script>
+    <script src="js/balls.js?v=1.243.0"></script>
+    <script src="js/celebrate.js?v=1.243.0"></script>
+    <script src="js/themes.js?v=1.243.0"></script>
+    <script src="js/physics.js?v=1.243.0"></script>
+    <script src="js/courses.js?v=1.243.0"></script>
+    <script src="js/tour-ground.js?v=1.243.0"></script>
+    <script src="js/portals.js?v=1.243.0"></script>
+    <script src="js/portal-worlds.js?v=1.243.0"></script>
+    <script src="js/endless.js?v=1.243.0"></script>
+    <script src="js/forge-maps.js?v=1.243.0"></script>
+    <script src="js/forge.js?v=1.243.0"></script>
+    <script src="js/audit.js?v=1.243.0"></script>
+    <script src="js/custom.js?v=1.243.0"></script>
+    <script src="js/scoring.js?v=1.243.0"></script>
+    <script src="js/swing.js?v=1.243.0"></script>
+    <script src="js/school.js?v=1.243.0"></script>
+    <script src="js/audio.js?v=1.243.0"></script>
+    <script src="js/music.js?v=1.243.0"></script>
+    <script src="js/bag.js?v=1.243.0"></script>
+    <script src="js/textures.js?v=1.243.0"></script>
+    <script src="js/shaders.js?v=1.243.0"></script>
+    <script src="js/postfx.js?v=1.243.0"></script>
+    <script src="js/weather.js?v=1.243.0"></script>
+    <script src="js/flyover.js?v=1.243.0"></script>
+    <script src="js/replay.js?v=1.243.0"></script>
+    <script src="js/bot.js?v=1.243.0"></script>
+    <script src="js/models.js?v=1.243.0"></script>
+    <script src="js/life.js?v=1.243.0"></script>
+    <script src="js/worlds.js?v=1.243.0"></script>
+    <script src="js/sandfx.js?v=1.243.0"></script>
+    <script src="js/groundfx.js?v=1.243.0"></script>
+    <script src="js/render.js?v=1.243.0"></script>
+    <script src="js/minimap.js?v=1.243.0"></script>
+    <script src="js/debug.js?v=1.243.0"></script>
+    <script src="js/game.js?v=1.243.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.242.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.243.0"></script>
 </body>
 </html>

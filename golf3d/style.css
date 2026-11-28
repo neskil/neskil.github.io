@@ -4980,6 +4980,11 @@ body.lane-swing .swipe-hint {
 
 .door {
     --cg-tint: #dcc28a;
+    /* The eye's colours live on the door, because that is where game.js sets
+       them: declared on the eye itself they shadowed the inherited pair and
+       every world showed these two. */
+    --eye-a: #2b1a4a;
+    --eye-b: #f0a868;
     width: 100%;
     display: flex;
     align-items: center;
@@ -5006,8 +5011,6 @@ body.lane-swing .swipe-hint {
 /* The eye: the sky of the world the door would open on first, wound round
    (game.js sets --eye-a and --eye-b). */
 .door-eye {
-    --eye-a: #2b1a4a;
-    --eye-b: #f0a868;
     flex: none;
     width: 3.4rem;
     height: 3.4rem;
@@ -5017,6 +5020,90 @@ body.lane-swing .swipe-hint {
     animation: door-turn 9s linear infinite;
 }
 @keyframes door-turn { to { transform: rotate(360deg); } }
+/* The World Tour's eye is a black hole (the owner: "more portal black hole
+   like"). Nothing in it turns as a whole: two sets of log-spiral arms in the
+   first world's sky (warmed towards accretion orange, so a pale sky or a
+   near-black one both still burn) turn the way that makes a spiral read as pouring inward,
+   the thin set twice as fast; five sparks fall in on an accelerating spiral
+   and go out under the horizon; the horizon is a black disc in a lit photon
+   ring. The light is the one exception to the clubhouse's no-glow rule, and
+   it stays inside the brass rim. Markup: index.html → #menu-portals. */
+.tour-eye {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: radial-gradient(circle at 50% 50%, #000 0 20%, color-mix(in srgb, var(--eye-a) 45%, #000) 52%, #040306 100%);
+    box-shadow: inset 0 0 0.7rem rgba(0, 0, 0, 0.9);
+    animation: none;
+    transition: transform 0.25s ease-out;
+}
+.door:hover .tour-eye { transform: scale(1.06); }
+.bh-arms {
+    position: absolute;
+    left: -8%; top: -8%;
+    width: 116%; height: 116%;
+    -webkit-mask: radial-gradient(circle, transparent 17%, #000 29%, #000 50%, transparent 70%);
+    mask: radial-gradient(circle, transparent 17%, #000 29%, #000 50%, transparent 70%);
+}
+.bh-arms-wide {
+    fill: color-mix(in srgb, var(--eye-b) 45%, #ffa95e);
+    opacity: 0.85;
+    animation: bh-swirl 5.2s linear infinite;
+}
+.bh-arms-thin {
+    fill: color-mix(in srgb, var(--eye-b) 25%, #fff3dc);
+    opacity: 0.7;
+    mix-blend-mode: screen;
+    animation: bh-swirl 2.6s linear infinite;
+}
+/* Negative: the arms wind clockwise inward, so turning them anticlockwise
+   moves every point of an arm towards the middle. */
+@keyframes bh-swirl { to { transform: rotate(-360deg); } }
+.bh-fall {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    animation: bh-fall 2.5s cubic-bezier(0.55, 0, 0.9, 0.55) infinite;
+}
+.bh-fall::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 6%;
+    width: 3px; height: 3px;
+    margin-left: -1.5px;
+    border-radius: 50%;
+    background: #fff6e2;
+    box-shadow: 0 0 4px 1px color-mix(in srgb, var(--eye-b) 45%, #ffa95e);
+}
+.bh-fall:nth-of-type(1) { rotate: 0deg; }
+.bh-fall:nth-of-type(2) { rotate: 144deg; animation-delay: -0.5s; }
+.bh-fall:nth-of-type(3) { rotate: 288deg; animation-delay: -1s; }
+.bh-fall:nth-of-type(4) { rotate: 72deg;  animation-delay: -1.5s; }
+.bh-fall:nth-of-type(5) { rotate: 216deg; animation-delay: -2s; }
+@keyframes bh-fall {
+    0%   { transform: rotate(0deg) scale(1); opacity: 0; }
+    15%  { opacity: 1; }
+    100% { transform: rotate(-400deg) scale(0.22); opacity: 0.9; }
+}
+.bh-core {
+    position: absolute;
+    inset: 33%;
+    border-radius: 50%;
+    background: radial-gradient(circle, #000 0 62%, #0a0610 100%);
+    box-shadow:
+        0 0 0 1.5px color-mix(in srgb, var(--eye-b) 25%, #fff3dc),
+        0 0 5px 2px color-mix(in srgb, var(--eye-b) 45%, #ffa95e),
+        0 0 12px 5px color-mix(in srgb, color-mix(in srgb, var(--eye-b) 45%, #ffa95e) 40%, transparent);
+    animation: bh-breathe 2.6s ease-in-out infinite;
+}
+@keyframes bh-breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bh-arms, .bh-core { animation: none; }
+    .bh-fall { display: none; }
+}
 /* Endless: the same door in verdigris, its eye a slow turn of the brass
    accent with the sign for for ever on it, held still while the ring turns. */
 .endless-door { --cg-tint: #8fc9b0; }
