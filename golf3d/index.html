@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.254.1">
+    <link rel="stylesheet" href="style.css?v=1.255.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -216,19 +216,32 @@
                          grouping (display: contents) and shows every chip in
                          the bar as before. Ids are unchanged: game.js binds
                          them by name. -->
+                    <!-- Courses on its own, then the three game controls in one
+                         row, the Pro Shop as a lit plate of its own, and where
+                         the swing pad stands as a three-way switch (owner,
+                         v1.255.0: "Restart, score card, and map is the same
+                         game controls and can be one row"). The range is on
+                         the Courses list (menu-btn-range) and T. -->
                     <div class="tm-primary">
                         <button class="chip" id="btn-courses" title="Pick a course"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-flag"/></svg></span> <span class="tm-lbl">Courses<span class="tm-sub">World Tour · Endless · fifteen courses</span></span></button>
-                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span> <span class="tm-lbl"><span class="chip-text">Restart </span>Hole</span></button>
-                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span> <span class="tm-lbl">Scorecard</span></button>
                     </div>
                     <div class="tm-quick">
-                        <button class="chip" id="btn-range" title="Driving range practice (T)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-bucket"/></svg></span><span class="chip-text tm-lbl"> Range<span class="tm-sub">practice</span></span></button>
+                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span><span class="chip-text tm-lbl"> Restart<span class="tm-sub">hole</span></span></button>
+                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span><span class="chip-text tm-lbl"> Scorecard<span class="tm-sub">round</span></span></button>
                         <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></span><span class="chip-text tm-lbl"> Map<span class="tm-sub">mini map</span></span></button>
-                        <button class="chip" id="btn-balls" title="Pro Shop — balls and club colours (B)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-shop"/></svg></span><span class="chip-text tm-lbl"> Pro Shop<span class="tm-sub">cosmetics</span></span></button>
-                        <!-- The swing pad's ⇆, which is also on the pad itself: right,
-                             middle, left, round again (game.js `movePad`). The
-                             menu stays open so the word under it can be read. -->
-                        <button class="chip" id="btn-pad" title="Move the touch swing pad: right, middle, left"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-pad"/></svg></span><span class="chip-text tm-lbl"> Swing pad<span class="tm-sub" id="pad-now">right</span></span></button>
+                    </div>
+                    <button class="chip tm-shop" id="btn-balls" title="Pro Shop — balls and club colours (B)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-shop"/></svg></span> <span class="tm-lbl">Pro Shop<span class="tm-sub"><span id="tm-shop-stars">★ 0</span> to spend · balls, clubs, celebrations</span></span><span class="tm-go" aria-hidden="true">›</span></button>
+                    <!-- Where the touch swing pad stands, all three places in one
+                         row like the Swing panel's switches (game.js syncPadNow;
+                         the ⇆ on the pad itself still turns it round). The menu
+                         stays open so the choice can be seen. -->
+                    <div class="tm-pad" id="tm-pad">
+                        <span class="tm-pad-lbl"><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-pad"/></svg></span> Swing pad</span>
+                        <div class="tn-seg" role="group" aria-label="Where the swing pad stands">
+                            <button type="button" data-pad="left">Left</button>
+                            <button type="button" data-pad="centre">Middle</button>
+                            <button type="button" data-pad="right" class="on">Right</button>
+                        </div>
                     </div>
                     <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-clubs"/></svg></span> Extras</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-more" data-group>
@@ -1364,49 +1377,49 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.254.1"></script>
-    <script src="js/camtune.js?v=1.254.1"></script>
-    <script src="js/balls.js?v=1.254.1"></script>
-    <script src="js/celebrate.js?v=1.254.1"></script>
-    <script src="js/themes.js?v=1.254.1"></script>
-    <script src="js/physics.js?v=1.254.1"></script>
-    <script src="js/courses.js?v=1.254.1"></script>
-    <script src="js/tour-ground.js?v=1.254.1"></script>
-    <script src="js/portals.js?v=1.254.1"></script>
-    <script src="js/portal-worlds.js?v=1.254.1"></script>
-    <script src="js/endless.js?v=1.254.1"></script>
-    <script src="js/forge-maps.js?v=1.254.1"></script>
-    <script src="js/forge.js?v=1.254.1"></script>
-    <script src="js/audit.js?v=1.254.1"></script>
-    <script src="js/custom.js?v=1.254.1"></script>
-    <script src="js/scoring.js?v=1.254.1"></script>
-    <script src="js/swing.js?v=1.254.1"></script>
-    <script src="js/school.js?v=1.254.1"></script>
-    <script src="js/audio.js?v=1.254.1"></script>
-    <script src="js/music.js?v=1.254.1"></script>
-    <script src="js/bag.js?v=1.254.1"></script>
-    <script src="js/textures.js?v=1.254.1"></script>
-    <script src="js/shaders.js?v=1.254.1"></script>
-    <script src="js/postfx.js?v=1.254.1"></script>
-    <script src="js/weather.js?v=1.254.1"></script>
-    <script src="js/flyover.js?v=1.254.1"></script>
-    <script src="js/replay.js?v=1.254.1"></script>
-    <script src="js/bot.js?v=1.254.1"></script>
-    <script src="js/models.js?v=1.254.1"></script>
-    <script src="js/life.js?v=1.254.1"></script>
-    <script src="js/worlds.js?v=1.254.1"></script>
-    <script src="js/sandfx.js?v=1.254.1"></script>
-    <script src="js/groundfx.js?v=1.254.1"></script>
-    <script src="js/render.js?v=1.254.1"></script>
-    <script src="js/minimap.js?v=1.254.1"></script>
-    <script src="js/debug.js?v=1.254.1"></script>
-    <script src="js/game.js?v=1.254.1"></script>
+    <script src="js/config.js?v=1.255.0"></script>
+    <script src="js/camtune.js?v=1.255.0"></script>
+    <script src="js/balls.js?v=1.255.0"></script>
+    <script src="js/celebrate.js?v=1.255.0"></script>
+    <script src="js/themes.js?v=1.255.0"></script>
+    <script src="js/physics.js?v=1.255.0"></script>
+    <script src="js/courses.js?v=1.255.0"></script>
+    <script src="js/tour-ground.js?v=1.255.0"></script>
+    <script src="js/portals.js?v=1.255.0"></script>
+    <script src="js/portal-worlds.js?v=1.255.0"></script>
+    <script src="js/endless.js?v=1.255.0"></script>
+    <script src="js/forge-maps.js?v=1.255.0"></script>
+    <script src="js/forge.js?v=1.255.0"></script>
+    <script src="js/audit.js?v=1.255.0"></script>
+    <script src="js/custom.js?v=1.255.0"></script>
+    <script src="js/scoring.js?v=1.255.0"></script>
+    <script src="js/swing.js?v=1.255.0"></script>
+    <script src="js/school.js?v=1.255.0"></script>
+    <script src="js/audio.js?v=1.255.0"></script>
+    <script src="js/music.js?v=1.255.0"></script>
+    <script src="js/bag.js?v=1.255.0"></script>
+    <script src="js/textures.js?v=1.255.0"></script>
+    <script src="js/shaders.js?v=1.255.0"></script>
+    <script src="js/postfx.js?v=1.255.0"></script>
+    <script src="js/weather.js?v=1.255.0"></script>
+    <script src="js/flyover.js?v=1.255.0"></script>
+    <script src="js/replay.js?v=1.255.0"></script>
+    <script src="js/bot.js?v=1.255.0"></script>
+    <script src="js/models.js?v=1.255.0"></script>
+    <script src="js/life.js?v=1.255.0"></script>
+    <script src="js/worlds.js?v=1.255.0"></script>
+    <script src="js/sandfx.js?v=1.255.0"></script>
+    <script src="js/groundfx.js?v=1.255.0"></script>
+    <script src="js/render.js?v=1.255.0"></script>
+    <script src="js/minimap.js?v=1.255.0"></script>
+    <script src="js/debug.js?v=1.255.0"></script>
+    <script src="js/game.js?v=1.255.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.254.1"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.255.0"></script>
 </body>
 </html>
