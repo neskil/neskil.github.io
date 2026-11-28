@@ -1501,14 +1501,9 @@
     var PAD_NEXT = { right: 'centre', centre: 'left', left: 'right' };
     var PAD_SAY = { left: 'Pad: left', centre: 'Pad: middle', right: 'Pad: right' };
     var PAD_WORD = { left: 'left', centre: 'middle', right: 'right' };
-    // The ☰ menu's Swing pad switch: which of the three is lit.
+    // The word under the ☰ menu's Swing pad tile: where the pad stands now.
     function syncPadNow() {
-        var now = PAD_WORD[tune.pad] ? tune.pad : 'right';
-        Array.prototype.forEach.call(document.querySelectorAll('#tm-pad [data-pad]'), function (b) {
-            var on = b.dataset.pad === now;
-            b.classList.toggle('on', on);
-            b.setAttribute('aria-pressed', on ? 'true' : 'false');
-        });
+        if ($('pad-now')) $('pad-now').textContent = PAD_WORD[tune.pad] || 'right';
     }
     var padSaid = 0;
     function movePad() {
@@ -9196,6 +9191,10 @@
                 G3.forge.clear(); syncForgeChip(); drawMaps();
             });
             // The camera panel floats over the hole, so the menu gets out of its way.
+            // Settings → Camera tuning is the same panel, for everyone.
+            if ($('btn-camadv')) $('btn-camadv').addEventListener('click', function () {
+                if (G3.camTune) G3.camTune.open();
+            });
             if ($('dev-camera')) $('dev-camera').addEventListener('click', function () {
                 closeDev();
                 if (G3.camTune) G3.camTune.open();
@@ -9267,9 +9266,7 @@
         // Taken before the lane sees it, so moving the pad is not a swing.
         $('swipe-move').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
         $('swipe-move').addEventListener('click', function (e) { e.stopPropagation(); movePad(); });
-        Array.prototype.forEach.call(document.querySelectorAll('#tm-pad [data-pad]'), function (b) {
-            b.addEventListener('click', function () { setTune('pad', b.dataset.pad); });
-        });
+        $('btn-pad').addEventListener('click', function () { movePad(); });
         syncPadNow();
         $('swipe').addEventListener('pointerdown', onSwipeDown);
         // The swing card is read, then tapped away (showSwingCard). Taken here
@@ -9425,9 +9422,9 @@
                 t.setAttribute('aria-expanded', o ? 'true' : 'false');
                 return;
             }
-            // The Swing pad switch shows where it went: the menu stays up.
-            if (t && $('tm-pad').contains(t)) return;
-            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-about' && t.id !== 'btn-style' && t.id !== 'btn-quality') return;
+            // The swing pad and camera tiles go round and say where: the menu stays up.
+            if (t && $('tm-cycle').contains(t)) return;
+            if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-about' && t.id !== 'btn-style' && t.id !== 'btn-quality' && t.id !== 'btn-camadv') return;
             closeTopMenu();
         });
         // A press anywhere else shuts it, the way a menu should.

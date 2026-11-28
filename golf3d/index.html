@@ -38,7 +38,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.255.0">
+    <link rel="stylesheet" href="style.css?v=1.256.0">
     <!-- The live worlds' module (js/backdrop.mjs, at the foot of the page)
          imports Portals' engine and its three.js, which import more, four
          levels deep — and a browser only learns of each level by fetching and
@@ -141,6 +141,8 @@
         <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></symbol>
         <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="12.5" height="10" rx="1.5"/><path d="M15.5 10.5l5.5-3v9l-5.5-3"/></symbol>
         <symbol id="i-pad" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="1.5" stroke-dasharray="1.6 1.8"/><path d="M12 7.5v6"/><circle cx="12" cy="16" r="1.3" fill="currentColor" stroke="none"/><path d="M4.8 9.5L2.5 12l2.3 2.5M19.2 9.5l2.3 2.5-2.3 2.5"/></symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="M8 6.5L2.8 12 8 17.5M16 6.5l5.2 5.5-5.2 5.5M13.6 4.5l-3.2 15"/></symbol>
+        <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
         <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.2 17.5a9 9 0 1 1 15.6 0"/><path d="M12 14.5l4-5"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></symbol>
     </svg>
 
@@ -216,39 +218,29 @@
                          grouping (display: contents) and shows every chip in
                          the bar as before. Ids are unchanged: game.js binds
                          them by name. -->
-                    <!-- Courses on its own, then the three game controls in one
-                         row, the Pro Shop as a lit plate of its own, and where
-                         the swing pad stands as a three-way switch (owner,
+                    <!-- Courses, the Pro Shop as a plate of its own, the three
+                         game controls in one row, then the swing pad and the
+                         camera (owner,
                          v1.255.0: "Restart, score card, and map is the same
                          game controls and can be one row"). The range is on
                          the Courses list (menu-btn-range) and T. -->
                     <div class="tm-primary">
                         <button class="chip" id="btn-courses" title="Pick a course"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-flag"/></svg></span> <span class="tm-lbl">Courses<span class="tm-sub">World Tour · Endless · fifteen courses</span></span></button>
                     </div>
-                    <div class="tm-quick">
-                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span><span class="chip-text tm-lbl"> Restart<span class="tm-sub">hole</span></span></button>
-                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span><span class="chip-text tm-lbl"> Scorecard<span class="tm-sub">round</span></span></button>
-                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></span><span class="chip-text tm-lbl"> Map<span class="tm-sub">mini map</span></span></button>
-                    </div>
                     <button class="chip tm-shop" id="btn-balls" title="Pro Shop — balls and club colours (B)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-shop"/></svg></span> <span class="tm-lbl">Pro Shop<span class="tm-sub"><span id="tm-shop-stars">★ 0</span> to spend · balls, clubs, celebrations</span></span><span class="tm-go" aria-hidden="true">›</span></button>
-                    <!-- Where the touch swing pad stands, all three places in one
-                         row like the Swing panel's switches (game.js syncPadNow;
-                         the ⇆ on the pad itself still turns it round). The menu
-                         stays open so the choice can be seen. -->
-                    <div class="tm-pad" id="tm-pad">
-                        <span class="tm-pad-lbl"><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-pad"/></svg></span> Swing pad</span>
-                        <div class="tn-seg" role="group" aria-label="Where the swing pad stands">
-                            <button type="button" data-pad="left">Left</button>
-                            <button type="button" data-pad="centre">Middle</button>
-                            <button type="button" data-pad="right" class="on">Right</button>
-                        </div>
+                    <div class="tm-quick">
+                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span><span class="chip-text tm-lbl"> Restart</span></button>
+                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span><span class="chip-text tm-lbl"> Scorecard</span></button>
+                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></span><span class="chip-text tm-lbl"> Map</span></button>
                     </div>
-                    <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-clubs"/></svg></span> Extras</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
-                    <div class="tm-group" id="tm-more" data-group>
-                        <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false"><svg class="ico"><use href="#i-players"/></svg><span class="chip-text"> Players</span> <span id="players-count">1</span></button>
-                        <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false"><svg class="ico"><use href="#i-caddie"/></svg><span class="chip-text"> Autoplay</span></button>
-                        <button class="chip" id="btn-flight" title="Free-fly camera around the course (`)" aria-pressed="false" hidden><svg class="ico"><use href="#i-fly"/></svg><span class="chip-text"> Flight</span></button>
-                        <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own"><svg class="ico"><use href="#i-pencil"/></svg><span class="chip-text"> Editor</span></a>
+                    <!-- Two settings you change mid-round, side by side: where the
+                         touch swing pad stands and how the camera follows. Each
+                         says what it is on now and a press goes on to the next
+                         (game.js movePad, camtune.js nextCamera). The menu
+                         stays open so the new word can be read. -->
+                    <div class="tm-cycle" id="tm-cycle">
+                        <button class="chip" id="btn-pad" title="Move the touch swing pad: right, middle, left"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-pad"/></svg></span><span class="chip-text tm-lbl"> Swing pad<span class="tm-sub" id="pad-now">right</span></span><span class="tm-cyc" aria-hidden="true">⇆</span></button>
+                        <button class="chip" id="btn-cam" title="How the camera follows a long shot"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-camera"/></svg></span><span class="chip-text tm-lbl"> Camera<span class="tm-sub" id="cam-now">Chase</span></span><span class="tm-cyc" aria-hidden="true">⇆</span></button>
                     </div>
                     <button type="button" class="chip tm-fold" data-fold="tm-settings" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-gear"/></svg></span> Settings &amp; help</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-settings" data-group>
@@ -261,8 +253,15 @@
                         <button class="chip" id="btn-water" title="Reflections, foam and glitter on the water (O)" aria-label="Turn the fancy water off"><span id="water-icon"><svg class="ico"><use href="#i-water"/></svg></span><span class="chip-text"> Water</span></button>
                         <button class="chip" id="btn-live" title="The live world around each World Tour hole — off is kinder to a slow phone" aria-pressed="true"><svg class="ico"><use href="#i-globe"/></svg><span class="chip-text"> Live worlds</span></button>
                         <button class="chip" id="btn-fly" title="A look at the hole before you play it" aria-pressed="true"><svg class="ico"><use href="#i-camera"/></svg><span class="chip-text"> Flyover</span></button>
-                        <button class="chip" id="btn-cam" title="How the camera follows a long shot"><svg class="ico"><use href="#i-camera"/></svg><span class="chip-text"> Camera: <span id="cam-now">Chase</span></span></button>
+                        <button class="chip" id="btn-camadv" title="Camera tuning: how far back, how high and how it follows"><svg class="ico"><use href="#i-sliders"/></svg><span class="chip-text"> Camera tuning</span></button>
                         <button class="chip" id="btn-fps" title="Show the frame rate (P)" aria-pressed="false"><span id="fps-icon"><svg class="ico"><use href="#i-gauge"/></svg></span><span class="chip-text"> FPS</span></button>
+                    </div>
+                    <button type="button" class="chip tm-fold" data-fold="tm-more" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-clubs"/></svg></span> Extras</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
+                    <div class="tm-group" id="tm-more" data-group>
+                        <button class="chip" id="btn-players" title="Pass and play — players sharing this device (1–4)" aria-pressed="false"><svg class="ico"><use href="#i-players"/></svg><span class="chip-text"> Players</span> <span id="players-count">1</span></button>
+                        <button class="chip" id="btn-sim" title="Let the caddie play on — hole after hole, course after course" aria-pressed="false"><svg class="ico"><use href="#i-caddie"/></svg><span class="chip-text"> Autoplay</span></button>
+                        <button class="chip" id="btn-flight" title="Free-fly camera around the course (`)" aria-pressed="false" hidden><svg class="ico"><use href="#i-fly"/></svg><span class="chip-text"> Flight</span></button>
+                        <a class="chip" id="chip-editor" href="level-editor.html" title="Build a hole of your own"><svg class="ico"><use href="#i-pencil"/></svg><span class="chip-text"> Editor</span></a>
                     </div>
                     <button type="button" class="chip tm-fold" data-fold="tm-about" aria-expanded="false"><span><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-book"/></svg></span> About</span> <span class="tm-caret" aria-hidden="true">▾</span></button>
                     <div class="tm-group" id="tm-about" data-group>
@@ -272,7 +271,7 @@
                          switches it on; on, it opens the Dev menu, where
                          everything dev lives (the forge's maps, played maps
                          and feedback, swing styles, unlocks, turning it off). -->
-                    <button class="chip tm-dev" id="btn-dev" title="Dev mode: new maps, feedback, play stats, swing styles, free unlocks"><span class="tm-fico" aria-hidden="true">🛠</span> <span id="dev-label">Dev mode</span> <span class="tm-dev-sub" id="dev-sub"></span></button>
+                    <button class="chip tm-dev" id="btn-dev" title="Dev mode: new maps, feedback, play stats, swing styles, free unlocks"><span class="tm-fico" aria-hidden="true"><svg class="ico"><use href="#i-code"/></svg></span> <span id="dev-label">Dev mode</span> <span class="tm-dev-sub" id="dev-sub"></span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
                         aria-expanded="false" aria-controls="topbar-menu">☰</button>
@@ -1377,49 +1376,49 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.255.0"></script>
-    <script src="js/camtune.js?v=1.255.0"></script>
-    <script src="js/balls.js?v=1.255.0"></script>
-    <script src="js/celebrate.js?v=1.255.0"></script>
-    <script src="js/themes.js?v=1.255.0"></script>
-    <script src="js/physics.js?v=1.255.0"></script>
-    <script src="js/courses.js?v=1.255.0"></script>
-    <script src="js/tour-ground.js?v=1.255.0"></script>
-    <script src="js/portals.js?v=1.255.0"></script>
-    <script src="js/portal-worlds.js?v=1.255.0"></script>
-    <script src="js/endless.js?v=1.255.0"></script>
-    <script src="js/forge-maps.js?v=1.255.0"></script>
-    <script src="js/forge.js?v=1.255.0"></script>
-    <script src="js/audit.js?v=1.255.0"></script>
-    <script src="js/custom.js?v=1.255.0"></script>
-    <script src="js/scoring.js?v=1.255.0"></script>
-    <script src="js/swing.js?v=1.255.0"></script>
-    <script src="js/school.js?v=1.255.0"></script>
-    <script src="js/audio.js?v=1.255.0"></script>
-    <script src="js/music.js?v=1.255.0"></script>
-    <script src="js/bag.js?v=1.255.0"></script>
-    <script src="js/textures.js?v=1.255.0"></script>
-    <script src="js/shaders.js?v=1.255.0"></script>
-    <script src="js/postfx.js?v=1.255.0"></script>
-    <script src="js/weather.js?v=1.255.0"></script>
-    <script src="js/flyover.js?v=1.255.0"></script>
-    <script src="js/replay.js?v=1.255.0"></script>
-    <script src="js/bot.js?v=1.255.0"></script>
-    <script src="js/models.js?v=1.255.0"></script>
-    <script src="js/life.js?v=1.255.0"></script>
-    <script src="js/worlds.js?v=1.255.0"></script>
-    <script src="js/sandfx.js?v=1.255.0"></script>
-    <script src="js/groundfx.js?v=1.255.0"></script>
-    <script src="js/render.js?v=1.255.0"></script>
-    <script src="js/minimap.js?v=1.255.0"></script>
-    <script src="js/debug.js?v=1.255.0"></script>
-    <script src="js/game.js?v=1.255.0"></script>
+    <script src="js/config.js?v=1.256.0"></script>
+    <script src="js/camtune.js?v=1.256.0"></script>
+    <script src="js/balls.js?v=1.256.0"></script>
+    <script src="js/celebrate.js?v=1.256.0"></script>
+    <script src="js/themes.js?v=1.256.0"></script>
+    <script src="js/physics.js?v=1.256.0"></script>
+    <script src="js/courses.js?v=1.256.0"></script>
+    <script src="js/tour-ground.js?v=1.256.0"></script>
+    <script src="js/portals.js?v=1.256.0"></script>
+    <script src="js/portal-worlds.js?v=1.256.0"></script>
+    <script src="js/endless.js?v=1.256.0"></script>
+    <script src="js/forge-maps.js?v=1.256.0"></script>
+    <script src="js/forge.js?v=1.256.0"></script>
+    <script src="js/audit.js?v=1.256.0"></script>
+    <script src="js/custom.js?v=1.256.0"></script>
+    <script src="js/scoring.js?v=1.256.0"></script>
+    <script src="js/swing.js?v=1.256.0"></script>
+    <script src="js/school.js?v=1.256.0"></script>
+    <script src="js/audio.js?v=1.256.0"></script>
+    <script src="js/music.js?v=1.256.0"></script>
+    <script src="js/bag.js?v=1.256.0"></script>
+    <script src="js/textures.js?v=1.256.0"></script>
+    <script src="js/shaders.js?v=1.256.0"></script>
+    <script src="js/postfx.js?v=1.256.0"></script>
+    <script src="js/weather.js?v=1.256.0"></script>
+    <script src="js/flyover.js?v=1.256.0"></script>
+    <script src="js/replay.js?v=1.256.0"></script>
+    <script src="js/bot.js?v=1.256.0"></script>
+    <script src="js/models.js?v=1.256.0"></script>
+    <script src="js/life.js?v=1.256.0"></script>
+    <script src="js/worlds.js?v=1.256.0"></script>
+    <script src="js/sandfx.js?v=1.256.0"></script>
+    <script src="js/groundfx.js?v=1.256.0"></script>
+    <script src="js/render.js?v=1.256.0"></script>
+    <script src="js/minimap.js?v=1.256.0"></script>
+    <script src="js/debug.js?v=1.256.0"></script>
+    <script src="js/game.js?v=1.256.0"></script>
 
     <!-- The live worlds behind the tour's holes: Portals' own engine and its
          own three.js (r170, a module), drawing into a canvas render.js uses as
          the background. Last, a module, and nothing waits for it. Its import
          map and the files it pulls in are named in the head, so they are on
          their way before this line is reached. -->
-    <script type="module" src="js/backdrop.mjs?v=1.255.0"></script>
+    <script type="module" src="js/backdrop.mjs?v=1.256.0"></script>
 </body>
 </html>

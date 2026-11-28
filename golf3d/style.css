@@ -3826,11 +3826,10 @@ body.compact-ui .chip-text { display: inline; }
 .tm-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
 .topbar-menu .tm-quick .chip { font-size: 1.15rem; font-weight: 700; padding: 0.85rem 0.3rem 0.75rem; white-space: nowrap; }
 
-/* The Pro Shop: a plate of its own, bigger than a tile and the one thing in
-   the panel with a shine on it — polished brass with a glint that crosses it
-   now and then. The owner asked for it ("pro shop bigger (and a little
-   shiny)", v1.255.0); it is the second exception to the matte rule after the
-   picker's doors (AGENTS.md → golf3d). */
+/* The Pro Shop: a plate of its own, wider and taller than a tile, in the
+   panel's own matte with a brass edge and a faint warm wash, and a soft glint
+   that crosses it now and then. The owner asked for it "bigger (and a little
+   shiny)" (v1.255.0), then "a bit more subtle and in line" (v1.256.0). */
 .topbar-menu button.chip.tm-shop {
     position: relative;
     overflow: hidden;
@@ -3841,54 +3840,60 @@ body.compact-ui .chip-text { display: inline; }
     font-size: 1.3rem;
     font-weight: 700;
     text-align: left;
-    color: #1a1608;
-    border: 1px solid rgba(255, 240, 200, 0.55);
-    background: #d4ac58 linear-gradient(160deg, #f2dc9a 0%, #d9b45e 38%, #b98c34 70%, #e4c477 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 250, 230, 0.75), inset 0 -2px 0 rgba(90, 62, 12, 0.35);
+    border-color: rgba(201, 163, 82, 0.55);
+    background: #1f2016 linear-gradient(115deg, rgba(201, 163, 82, 0.16), rgba(201, 163, 82, 0.04) 60%, rgba(201, 163, 82, 0.10));
 }
-.topbar-menu button.chip.tm-shop:hover { filter: brightness(1.05); }
+.topbar-menu button.chip.tm-shop:hover { border-color: var(--accent); }
 .tm-shop .tm-ico { font-size: 2rem; line-height: 1; }
 .tm-shop .tm-lbl { flex: 1 1 auto; min-width: 0; }
 .tm-shop .tm-sub {
-    font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.8;
+    font-size: 0.78rem; text-transform: none; letter-spacing: 0; opacity: 0.75;
     white-space: normal;
 }
-.tm-shop .tm-go { font-size: 1.8rem; line-height: 1; opacity: 0.7; }
+.tm-shop .tm-go { font-size: 1.8rem; line-height: 1; color: var(--accent); opacity: 0.8; }
 .tm-shop::after {
     content: '';
     position: absolute;
     top: -20%;
     bottom: -20%;
     left: -40%;
-    width: 30%;
-    background: linear-gradient(100deg, transparent, rgba(255, 255, 245, 0.55), transparent);
+    width: 26%;
+    background: linear-gradient(100deg, transparent, rgba(240, 220, 160, 0.10), transparent);
     transform: skewX(-18deg) translateX(-120%);
-    animation: tmShopGlint 4.5s ease-in-out infinite;
+    animation: tmShopGlint 7s ease-in-out infinite;
     pointer-events: none;
 }
 @keyframes tmShopGlint {
-    0%, 62% { transform: skewX(-18deg) translateX(-120%); }
+    0%, 70% { transform: skewX(-18deg) translateX(-120%); }
     100% { transform: skewX(-18deg) translateX(560%); }
 }
 @media (prefers-reduced-motion: reduce) {
     .tm-shop::after { animation: none; display: none; }
 }
 
-/* Where the swing pad stands: a label and the three places in one row, the
-   Swing panel's switch at the menu's size. */
-.tm-pad {
+/* Swing pad and camera, side by side: icon, name, what it is on now, and a
+   ⇆ to say a press goes on to the next (v1.256.0). */
+.tm-cycle { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.topbar-menu .tm-cycle .chip {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.55rem 0.6rem 0.55rem 1rem;
-    border: 1px solid var(--ov-border);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.04);
+    padding: 0.8rem 0.7rem 0.8rem 0.85rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    min-width: 0;
 }
-.tm-pad-lbl { flex: none; font-size: 1.15rem; font-weight: 700; white-space: nowrap; }
-.tm-pad-lbl .ico { color: var(--accent); }
-.tm-pad .tn-seg { padding: 3px; }
-.tm-pad .tn-seg button { font-size: 1rem; padding: 0.7rem 0.3rem; border-radius: 4px; }
+.tm-cycle .tm-ico { font-size: 1.7rem; line-height: 1; }
+.tm-cycle .tm-lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tm-cycle .tm-sub { color: var(--accent); opacity: 0.9; }
+.tm-cycle .tm-cyc { font-size: 1.1rem; color: var(--accent); opacity: 0.7; }
+/* A 360px phone has room for the name or the ⇆, not both: the word under it
+   changing on a press says the same thing. */
+@media (max-width: 399px) {
+    .topbar-menu .tm-cycle .chip { gap: 0.45rem; padding: 0.75rem 0.5rem 0.75rem 0.6rem; }
+    .tm-cycle .tm-ico { font-size: 1.5rem; }
+    .tm-cycle .tm-cyc { display: none; }
+}
 .tm-fico { display: inline-block; width: 1.6rem; margin-right: 0.35rem; text-align: center; }
 .topbar-menu button.chip.tm-fold {
     display: flex;
@@ -3962,7 +3967,7 @@ body.tm-open .topbar::before {
 .topbar-menu .chip .ico { color: var(--accent); margin-right: 0.35em; }
 .topbar-menu .tm-ico .ico, .topbar-menu .tm-fico .ico { width: 1em; height: 1em; margin: 0; vertical-align: middle; }
 .topbar-menu .tm-ico .ico { stroke-width: 1.5; }
-.topbar-menu .chip.on .ico, .topbar-menu #btn-courses .ico, .topbar-menu #btn-balls .ico { color: inherit; }
+.topbar-menu .chip.on .ico, .topbar-menu #btn-courses .ico { color: inherit; }
 .tm-fico { font-size: 1.5rem; line-height: 1; vertical-align: middle; }
 
 body.compact-ui button.chip.on, body.compact-ui a.chip.on,
