@@ -6986,6 +6986,23 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   `EASE`, and `CONFIG.SPEED_LENS`, written straight into `G3.CONFIG` so the next shot
   shows them; kept per browser in dev mode (`CAM_TUNE_KEY`), with Copy to send
   the values back. Index.html only: nothing else needs it.
+- **The lens, and the presets** (v1.248.0, the owner: "the feeling for the
+  camera chase is still strange … is there a weird zoom effect?"). There were
+  three, measured on Ashdown Park 1: a drive's speed lens went 52° → 58.5° and
+  snapped back to 52° in the third of a second after the riding chase let go;
+  the strike's flinch (`R.cam.kick`) lunged the seat at the ball and back on
+  every stroke; and under a held chase a seven-iron shrank on the screen from
+  16 px to 6 px while the camera stood still, then grew back to 14 as it
+  walked up — a zoom out and in made by a fixed lens. The speed lens now goes
+  by the riding chase's weight (`render.js → frame`), and three knobs went
+  in: `LONG_CAM.PUNCH` (the flinch on a long hole), `LONG_CAM.FOV` (the long
+  game's lens) and `LONG_CAM.TRACK`, which zooms a held chase in as the ball
+  leaves so it keeps that share of its size (`trackFov`, a TV camera on a
+  tripod at 1). The panel's six preset buttons — Now, Steady, Ride along,
+  Tripod, Broadcast, Cinematic — are whole sets of the knobs (`PRESETS` in
+  camtune.js); each one writes every knob, its own values over the shipped
+  ones, so nothing is left over from the last. The shipped values are still
+  Now's until the owner picks one.
 
 ### The fourth camera, which is not a seat
 
