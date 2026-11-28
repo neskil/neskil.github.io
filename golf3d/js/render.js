@@ -833,7 +833,7 @@
        walks hidden objects too), so a celebration costs no program and no
        light mid-hole: two point clouds — light, drawn additively, and matter
        (paper, dust), drawn over — four flat rings and two beams. */
-    var CELE_LIGHT = 1500, CELE_MATTER = 420, CELE_DUCKS = 24;
+    var CELE_LIGHT = 1500, CELE_MATTER = 420, CELE_DUCKS = 32;
 
     /* A rubber duck, modelled: one geometry with its colours in it, a unit
        long, its origin under its middle and its beak to +x — the shape
@@ -1116,8 +1116,14 @@
     // Which one goes off: the equipped celebration (game.js, from the save).
     function setCelebration(id) { R.celeId = id || 'cele-classic'; }
 
+    /* Now and then, whatever is equipped, the ducks come out instead (the
+       owner: "have it also as random chance … for all celebrations"). Only
+       for the equipped one — a named celebration (the shop, a test) is what
+       it says it is. */
+    var DUCK_CHANCE = 0.06;
     function celebrate(x, y, z, id) {
         if (!R.cele || !G3.celebrate) return false;
+        if (!id && Math.random() < DUCK_CHANCE) id = 'cele-ducks';
         R.cele.fx = G3.celebrate.start(id || R.celeId);
         R.cele.at.set(x, y, z);
         R.cele.group.position.set(x, y, z);

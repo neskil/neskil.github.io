@@ -284,7 +284,7 @@ window.G3 = window.G3 || {};
             peek: 2.3,
             dur: 4.3,
             run: function (fx) {
-                var rnd = fx.rnd, i, p, t = fx.t, PARADE = 1.55, JUMP = 3.3, POP = 3.75, N = 16;
+                var rnd = fx.rnd, i, p, t = fx.t, PARADE = 1.75, JUMP = 3.3, POP = 3.75, N = 28;
                 if (at(fx, 0)) {
                     fx.ducks = [];
                     fx.mother = duck(fx, {
@@ -296,13 +296,13 @@ window.G3 = window.G3 || {};
                         c: function () { return rnd() < 0.5 ? hex(0xbfefff) : hex(0xffffff); }, size: 0.2, land: true });
                     ring(fx, { r0: 0.2, r1: 2.8, dur: 0.7, c: hex(0x9fe2ff), a: 0.8 });
                 }
-                // The ducklings, out of the sky, every one turning over as it falls.
+                // The ducklings: a fountain of them out of the cup, every one turning over as it flies.
                 for (i = 0; i < N; i++) {
-                    if (!at(fx, 0.22 + i * 0.045)) continue;
-                    var ang = i / N * TAU + (rnd() - 0.5) * 0.5, r = 1.1 + rnd() * 1.7;
+                    if (!at(fx, 0.2 + i * 0.032)) continue;
+                    var ang = i * 2.39996 + (rnd() - 0.5) * 0.4, out = 1.1 + rnd() * 1.6;
                     duck(fx, {
-                        s: 0.72 + rnd() * 0.2, x: Math.cos(ang) * r, z: Math.sin(ang) * r, y: 3.4 + rnd() * 1.6,
-                        vx: (rnd() - 0.5) * 1.6, vy: -1 - rnd() * 2, vz: (rnd() - 0.5) * 1.6,
+                        s: 0.62 + rnd() * 0.2, x: Math.cos(ang) * 0.15, z: Math.sin(ang) * 0.15, y: 0.5,
+                        vx: Math.cos(ang) * out, vy: 6.5 + rnd() * 2.2, vz: Math.sin(ang) * out, rise: 0.12,
                         yaw: rnd() * TAU, pitch: (rnd() - 0.5) * 2.4, roll: (rnd() - 0.5) * 2.4,
                         wx: (rnd() - 0.5) * 14, wy: (rnd() - 0.5) * 8, wz: (rnd() - 0.5) * 14,
                         duckling: true, slot: i / N * TAU
