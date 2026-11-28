@@ -80,7 +80,9 @@ Folder-based routing — each major page or app is fully isolated with its own
   - **`/golf3d/`** (Loft Links) is a clubhouse at dusk on the owner's
     request: peat and moss grounds, chalk ink, brass as the one accent,
     opaque matte plates with small radii, Barlow Semi Condensed. No blur, no
-    glow, no gloss: do not bring the glass back. The palette is the `:root`
+    glow, no gloss: do not bring the glass back. The one exception, on the
+    owner's request, is the picker's World Tour and Endless doors (a lit black
+    hole, a shining card, a warp tunnel) — leave those lit. The palette is the `:root`
     block in `golf3d/style.css`.
   - **`/orbit/`** is a 1957 space-programme control room on the owner's
     request: matte enamel-green riveted plates, cream bakelite keys with
