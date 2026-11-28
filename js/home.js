@@ -96,9 +96,8 @@ function activateCardTheme(cardId) {
     const themeHues = {
         'card-car-hub': 165,
         'card-units-hub': 205,
-        'card-name-song': 275,
+        'card-fika-hub': 32,
         'card-gait': 158,
-        'card-fika': 30,
         'card-paper-plane': 52,
         'card-orbit': 8,
         'card-elevator': 38,

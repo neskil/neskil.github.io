@@ -1,4 +1,4 @@
-# Data Room — standing instructions
+# 3D Observatory — standing instructions
 
 Ten 3D visualizations behind one scene switcher (Black Hole first, followed by
 Trade Flows, Site as a City, Particle Field, Nebula, Flocking, Mandelbulb,

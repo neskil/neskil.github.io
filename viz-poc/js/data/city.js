@@ -21,15 +21,15 @@ window.VizCity = (function () {
     /* id, label, href, files, loc, touched (ISO), commits */
     var RAW = [
         ['surprise',     'Surprise',          '../surprise/index.html',             37, 169640, '2026-11-20',   1],
-        ['golf3d',       'Loft Links',        '../golf3d/index.html',               73,  92131, '2026-11-28', 122],
+        ['golf3d',       'Loft Links',        '../golf3d/index.html',               73,  92325, '2026-11-28', 130],
         ['cargo-lander', 'Cargo Lander',      '../cargo-lander/index.html',         59,  33840, '2026-11-20',   1],
         ['golf',         'Pocket Links',      '../golf/index.html',                 25,  30938, '2026-11-20',   1],
         ['supply-chain', 'Supply Chain',      '../supply-chain/index.html',         36,  18979, '2026-11-20',   1],
         ['3d-engine',    'Yard Master',       '../3d-engine-poc/index.html',        48,  18205, '2026-11-20',   1],
         ['car',          'Car Costs',         '../car/index.html',                  14,   9498, '2026-11-20',   1],
         ['cargo-packer', 'Cargo Packer',      '../cargo-packer/index.html',         28,   9041, '2026-11-20',   1],
-        ['viz-poc',      'Data Room',         'index.html',                         20,   7357, '2026-11-20',   1],
-        ['home',         'Landing page',      '../index.html',                       3,   6739, '2026-11-28',  72],
+        ['viz-poc',      '3D Observatory',    'index.html',                         20,   7372, '2026-11-28',   2],
+        ['home',         'Landing page',      '../index.html',                       3,   6678, '2026-11-28',  80],
         ['paper-plane',  'Paper Plane',       '../paper-plane/index.html',          12,   5437, '2026-11-20',   1],
         ['bil',          'Leasa · Hyra · Köpa', '../bil/index.html',                   9,   4244, '2026-11-20',   1],
         ['terrarium',    'Terrarium',         '../terrarium/index.html',             6,   3412, '2026-11-20',   1],
@@ -42,7 +42,7 @@ window.VizCity = (function () {
         ['cv',           'CV',                '../cv/index.html',                    2,   1190, '2026-11-20',   1],
         ['games',        'Game Library',      '../games/index.html',                 2,   1168, '2026-11-20',   1],
         ['fika',         'Fika Generator',    '../fika/index.html',                  5,   1107, '2026-11-20',   1],
-        ['gait',         'Gait Lab',          '../gait/index.html',                  4,   1058, '2026-11-20',   1],
+        ['gait',         'Darwin\'s Walkers', '../gait/index.html',                  4,   1058, '2026-11-20',   1],
         ['math',         'Unit Cheatsheet',   '../math/index.html',                  1,    980, '2026-11-20',   1],
         ['name-song',    'Sound of Name',     '../name-song/index.html',             4,    934, '2026-11-20',   1],
         ['sc-legacy',    'Supply Chain 1',    '../supply-chain-legacy/index.html',   2,    837, '2026-11-20',   1]
