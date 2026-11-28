@@ -98,7 +98,7 @@
           set: { 'LONG_CAM.LEASH': 10, 'LONG_CAM.FOLLOW': 1.1, 'LONG_CAM.MAX': 9, 'LONG_CAM.GAZE': 3.5, 'LONG_CAM.HOLD': 1.2,
                  'LONG_CAM.DIST': 10, 'LONG_CAM.ABOVE': 1.5, 'LONG_CAM.ABOVE_T': 2.2, 'LONG_CAM.FOV': 48,
                  'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
-        /* After a recording of another golf game's camera (v1.251.0, the
+        /* After a recording of another golf game's camera (v1.252.0, the
            owner: "I really like that camera … give me a preset for that"):
            it flies behind every shot from the strike, trailing and under the
            ball, looking down the hole with the ball high in the picture; it
@@ -139,7 +139,7 @@
         });
         try { localStorage.setItem(C.CAM_TUNE_KEY, JSON.stringify(out)); } catch (e) { /* no storage */ }
     }
-    /* The camera everyone picks, in ☰ → Settings (v1.251.0, the owner: "the
+    /* The camera everyone picks, in ☰ → Settings (v1.252.0, the owner: "the
        camera preset should be in the normal menu as well"): a preset by id,
        kept in this browser (CONFIG.CAM_PRESET_KEY) and put on at every visit.
        Dev mode's own dialled-in knobs go on over it. */

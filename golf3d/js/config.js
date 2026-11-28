@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.251.0';
+G3.VERSION = '1.252.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1486,7 +1486,7 @@ G3.CONFIG.SIGHT_EASE = 7;
    sets of these and the knobs above.
 
    AIM_LOW is where a riding chase looks: that share of the ball's height
-   over the ground under it, below the ball (v1.251.0, the owner, after a
+   over the ground under it, below the ball (v1.252.0, the owner, after a
    recording of another golf game's camera: "I really like that camera").
    0 is at the ball, centred; a half looks down the hole with the ball high
    in the picture while it climbs, and comes back to the ball as it lands. */
