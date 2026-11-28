@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.248.0';
+G3.VERSION = '1.249.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1458,14 +1458,30 @@ G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.6, NEAR: 4, FAR: 12, EASE: 3.5 };
    the ball, looking at it — the place the shot is then watched from.
 
    RELEASE is the launch lag's, for the side seat on a long hole: how many
-   times LAUNCH_CAM.RELEASE it takes to catch a long shot up. */
+   times LAUNCH_CAM.RELEASE it takes to catch a long shot up.
+
+   Three for the lens (v1.249.0, the owner: "the feeling for the camera chase
+   is still strange … is there a weird zoom effect?"). PUNCH is how much of
+   the strike's flinch (`R.cam.kick`, a lunge at the ball and back) a long
+   hole gets: 1 is the mini golf's. FOV is the long game's lens, in degrees.
+   TRACK zooms a held chase in as the ball leaves it, so the ball keeps
+   TRACK of its size on the screen (1 holds it exactly, a TV camera on a
+   tripod; never tighter than TRACK_MIN degrees); 0 is a fixed lens, under
+   which a ball flying away from a camera standing still shrinks to a third
+   of its size and grows back as the camera walks up — which is itself a
+   zoom out and in. The dev camera panel's presets (js/camtune.js) are
+   sets of these and the knobs above. */
 G3.CONFIG.LONG_CAM = { RIDE: ['driver'], LEASH: 6, FOLLOW: 1.8, MAX: 13, ARRIVE: 1.5, SETTLE: 6, NEAR: 20, HOLD: 1, ABOVE: 1, ABOVE_T: 1.4,
     IN: 0.3, GROW: 1.0, TURN: 0.05, OUT: 1.4, LOOK: 1.2, SPRING: 8, GAZE: 8, WINDUP: 5, DIST: 8, UP: 1.4, RISE: 0.8, DIVE: 0.3,
-    FLOOR: 0.2, CLEAR: 0.6, RELEASE: 1.8 };
+    FLOOR: 0.2, CLEAR: 0.6, RELEASE: 1.8, PUNCH: 1, FOV: 52, TRACK: 0, TRACK_MIN: 12 };
 
 /* How much the lens opens and the seat eases back with the ball's speed
    (render.js → frame): 1 is as it always was, 0 is a lens that never moves.
-   On the dev camera panel (js/camtune.js). */
+   On a long hole only under the driver's riding chase, and by that chase's
+   weight, so it closes as the chase hands back rather than in the third of a
+   second after it lets go (v1.249.0: a drive's lens went 52° → 58.5° and
+   snapped back to 52° on the landing). On the dev camera panel
+   (js/camtune.js). */
 G3.CONFIG.SPEED_LENS = 1;
 
 /* Where the dev camera panel keeps what was dialled in (js/camtune.js). */

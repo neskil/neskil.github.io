@@ -8862,6 +8862,14 @@
         return true;
     }
 
+    /* How much of the flinch a hole gets: all of it on a lane, LONG_CAM.PUNCH
+       of it on a long hole, where a lunge at the ball and back at the strike
+       is one more zoom under the chase (v1.249.0). */
+    function punchOf(hole) {
+        if (!G3.longHole(hole)) return 1;
+        return C.LONG_CAM.PUNCH === undefined ? 1 : C.LONG_CAM.PUNCH;
+    }
+
     function seatFor(hole, ball, out) {
         var c = R.cam;
         var yaw = (c.lock ? c.bearing : c.yaw) - c.view;
@@ -8995,7 +9003,7 @@
             var want = outward >= 0 ? 1 : -1;
             if (c.sideSign !== want && Math.abs(outward) > 0.6) c.sideSign = want;
 
-            dist -= c.kick * C.KICK * 4;
+            dist -= c.kick * C.KICK * 4 * punchOf(hole);
             // Low: about fourteen degrees above the shot. Any higher and the
             // arc starts flattening into a plan view, which is the one thing
             // this seat exists not to be.
@@ -9007,7 +9015,7 @@
                the ball is struck, and it drifts back as the ball gets quick, so
                a hard shot feels quick rather than merely distant. */
             var look = seatLook(hole, ball);
-            dist = (c.dist + c.speedPull - c.kick * C.KICK * 4) * look;
+            dist = (c.dist + c.speedPull - c.kick * C.KICK * 4 * punchOf(hole)) * look;
             /* Lifted by the hill in front of it, if there is one. See
                CONFIG.AIM_LOOK for why: a seat that looks a little over the
                ball is looking straight into the slope on a hole that climbs,
@@ -10024,6 +10032,7 @@
             ch = R.chase = { hold: fromCup < LC.NEAR ? LC.HOLD : 0, t: 0, out: -1, w: rides ? 0 : 1, peak: 0, floor: world.origin.y, rides: rides,
                 on: false, vx: 0, vy: 0, vz: 0,
                 yaw: Math.atan2(b.vx, b.vz), d0: Math.hypot(cp.x - b.x, cp.z - b.z), y0: cp.y - b.y,
+                d3: Math.hypot(cp.x - b.x, cp.y - b.y, cp.z - b.z),
                 px: cp.x, py: cp.y, pz: cp.z,
                 lx: st.x - b.x, ly: st.y - b.y, lz: st.z - b.z, lk: 1,
                 ox: cp.x - b.x, oy: cp.y - b.y, oz: cp.z - b.z };
@@ -10452,6 +10461,26 @@
         R.markCupHalo.material.opacity = 0.36 * R.lift * (1.44 - pulse);
     }
 
+    /* The tracking lens (LONG_CAM.TRACK): under a held chase the camera
+       stands still while the ball flies away from it, so on a fixed lens the
+       ball shrank to a third of its size and grew back as the eye walked up
+       after it — a zoom out and in made by the camera standing still. This
+       zooms in as the ball leaves, the way a camera on a tripod at a
+       tournament does, so the ball keeps TRACK of its size: the lens's
+       half-angle goes as (distance at the strike / distance now) ^ TRACK.
+       By the chase's weight, so it opens back as the eye arrives at the
+       seat — where the distance is the strike's again anyway. */
+    function trackFov(world, base) {
+        var ch = R.chase, LC = C.LONG_CAM;
+        if (!ch || ch.rides || !(LC.TRACK > 0) || !ch.d3 || R.cam.mode !== 'follow') return base;
+        var b = world.ball, cp = R.camera.position;
+        var d = Math.sqrt((cp.x - b.x) * (cp.x - b.x) + (cp.y - b.y) * (cp.y - b.y) + (cp.z - b.z) * (cp.z - b.z));
+        var r = Math.min(1, ch.d3 / Math.max(d, 1e-3));
+        var tight = 2 * Math.atan(Math.tan(base * Math.PI / 360) * Math.pow(r, LC.TRACK)) * 180 / Math.PI;
+        tight = Math.max(LC.TRACK_MIN || 12, tight);
+        return base + (tight - base) * Math.max(0, Math.min(1, ch.w));
+    }
+
     function frame(dt, world, aim) {
         if (!R.ready || !R.holeGroup) return;
         R.clock += dt;
@@ -10475,13 +10504,27 @@
            back in for no reason anyone can see (v1.245.0). */
         var speed = Math.hypot(world.ball.vx, world.ball.vy, world.ball.vz);
         var lens = C.SPEED_LENS === undefined ? 1 : C.SPEED_LENS;
-        if (G3.longHole(world.hole) && !(R.chase && R.chase.rides)) lens = 0;
+        var longH = G3.longHole(world.hole);
+        /* …and under it only by its weight, so the lens closes as the chase
+           hands back to the follow seat, not in a third of a second after it
+           has gone (v1.249.0: 58.5° back to 52° on a drive's landing). */
+        if (longH) lens *= R.chase && R.chase.rides ? R.chase.w : 0;
         var wantPull = Math.min(3.2, speed * 0.14) * lens;
-        var wantFov = 52 + Math.min(7, speed * 0.4) * lens;
         var ease = 1 - Math.pow(0.06, dt);
         R.cam.speedPull += (wantPull - R.cam.speedPull) * ease;
-        if (Math.abs(R.camera.fov - wantFov) > 0.05) {
-            R.camera.fov += (wantFov - R.camera.fov) * ease;
+        /* The lens is three parts: the hole's (eased, so a long hole's own
+           FOV comes in gently), the speed's (eased), and the tracking lens on
+           top of the first, which is not eased again — it is read off the
+           camera's smoothed distance from the ball, and a lag on it left the
+           lens tight while the camera walked up, so the ball overshot to
+           bigger than it was struck at. */
+        var baseFov = longH && C.LONG_CAM.FOV ? C.LONG_CAM.FOV : 52;
+        if (R.cam.baseFov === undefined) { R.cam.baseFov = baseFov; R.cam.speedFov = 0; }
+        R.cam.baseFov += (baseFov - R.cam.baseFov) * ease;
+        R.cam.speedFov += (Math.min(7, speed * 0.4) * lens - R.cam.speedFov) * ease;
+        var wantFov = trackFov(world, R.cam.baseFov) + R.cam.speedFov;
+        if (Math.abs(R.camera.fov - wantFov) > 0.01) {
+            R.camera.fov = wantFov;
             R.camera.updateProjectionMatrix();
         }
         R.cam.kick *= Math.pow(0.008, dt);
