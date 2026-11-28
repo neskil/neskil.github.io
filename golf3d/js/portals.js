@@ -145,6 +145,7 @@
             var o = {};
             G.outs.forEach(function (k) { o[k] = 1; });
             h.outGrid = Object.assign({ on: o, n: G.outs.length }, sub);
+            P.clearOutsOnPlay(h);
         }
         if (G.solid && G.solid.length) {
             var s = {};

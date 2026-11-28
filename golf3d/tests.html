@@ -6174,6 +6174,34 @@
             var o = stopAt(-6, 10), by = stopAt(-4, 10);
             assert('…a ball that stops among the world\'s things is out, and one beside them is not',
                 o.out && !by.out && P.outCell(h, -6, 10) && !P.outCell(h, -4, 10) && !P.outCell(h, -60, 10));
+            /* v1.246.1 (the owner, a ball a putt from the cup on The
+               Pop-Up Book: "How can this be out of bounds?"): the forge
+               cleared its out cells only 2.2 round the cup, so a 3-wide green
+               had them on its putting surface. Nothing is out where the hole
+               is played — the green, the tee and the painted fairway — on
+               this map, on every forged map and on every tour hole. */
+            var mg = JSON.parse(JSON.stringify(m));
+            mg.water = []; mg.outs = [(32 + 3) * nx + (2 + 10), (32 + 3) * nx + (-6 + 10), (10 + 3) * nx + (-6 + 10)];
+            var hg = F.holeOf(mg);
+            assert('…an out cell on the green or the tee is dropped, one off them kept',
+                !P.outCell(hg, 2, 32) && !P.outCell(hg, 0, 32.5) && P.outCell(hg, -6, 32) && P.outCell(hg, -6, 10) && hg.outGrid.n === 2,
+                'n ' + hg.outGrid.n);
+            var onPlay = [];
+            function sweepPlayed(label, H) {
+                if (!H.outGrid) return;
+                H.pads.forEach(function (p) {
+                    if (p.ghost || p.kind === 'rough') return;
+                    for (var x = p.x; x <= p.x + p.w; x += 0.25) for (var z = p.z; z <= p.z + p.d; z += 0.25) {
+                        if (P.padContains(p, x, z) && P.outCell(H, x, z)) { onPlay.push(label + ' ' + p.kind + ' ' + x.toFixed(2) + ',' + z.toFixed(2)); return; }
+                    }
+                });
+            }
+            (G3.FORGE && G3.FORGE.maps || []).forEach(function (fm) { sweepPlayed(fm.id, F.holeOf(fm)); });
+            G3.portals.WORLDS.forEach(function (w) { sweepPlayed(w.id, w.hole); });
+            assert('…no forged map or tour hole has an out cell on its green, tee or fairway', onPlay.length === 0, onPlay.slice(0, 6).join('; '));
+            var pop = G3.portals.byId('popup').hole, pw = P.createWorld(pop, { x: -5, z: 34, y: P.surfaceTop(pop, -5, 34).y + C.BALL_R }, 0);
+            P.settle(pw);
+            assert('…and a ball at rest by the cup on The Pop-Up Book is not out', !pw.out && pop.outGrid.n > 200, 'out ' + pw.out + ', cells ' + pop.outGrid.n);
             /* Batch 4: a trunk (`solid`, forge.mjs → solidOf) is struck, and
                one flown over is not; `paint` reaches the hole for render.js. */
             var ms = JSON.parse(JSON.stringify(m));
