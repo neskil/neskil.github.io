@@ -1836,6 +1836,7 @@
         world.splash = false;
         world.burnt = false;
         world.out = false;
+        world.fell = false;
         world.overCup = false;
         world.sprung = 0;
         world.warpFor = 0;
@@ -2666,6 +2667,7 @@
         if (b.y < C.OOB_Y) {
             b.vx = b.vy = b.vz = 0;
             world.out = true;
+            world.fell = true;      // off the world, not over a line (game.js startPenalty)
             world.moving = false;
             events.out = true;
             return;
@@ -2686,6 +2688,7 @@
                 if (!lip || b.y < lip.y + C.BALL_R * 0.5) {
                     b.vx = b.vy = b.vz = 0;
                     world.out = true;
+                    world.fell = true;
                     world.moving = false;
                     events.out = true;
                     return;

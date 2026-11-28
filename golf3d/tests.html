@@ -843,6 +843,16 @@
             var lost = shootFrom(cliff, { x: 5, z: 2 }, 0, 12);
             assert('a ball with nowhere to land is out of play', lost.out);
             assert('an out ball stops moving', !lost.moving);
+            // Off the world rather than over a line: game.js replays it at
+            // once instead of holding a frozen picture (v1.246.0).
+            assert('a ball off the edge of the world is marked as fallen', lost.fell === true);
+            assert('…a ball in the water is not', !splashed.fell);
+            var outPad = A.pad(0, 8, 10, 12);
+            outPad.oob = true;
+            var staked = lab({ pads: [A.pad(0, 0, 10, 8), outPad] });
+            var overLine = shootFrom(staked, { x: 5, z: 2 }, 0, 12);
+            assert('…nor one that lands out on ground it can be seen on', overLine.out && !overLine.fell,
+                'out ' + overLine.out + ', fell ' + overLine.fell);
 
             // A ledge: the ball must leave the ground and land lower, not slide
             // down an invisible ramp.
