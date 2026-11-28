@@ -974,7 +974,7 @@
     function strike(g) {
         var b = state.world.ball;
         var frac = state.aim.power / state.club.power;
-        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
+        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + P.stepUp(state.world.hole));
         /* The one place a shot stops being the shot on the meter. Inside a
            full swing this hands back exactly what it was given, so the ball
            goes where the cone said it would. Past one it is the gate that
@@ -1051,7 +1051,7 @@
         // the line the ball actually left on, and the rest of the noise is
         // capped, because a thrash is not four times the thump.
         var feel = Math.min(1, frac);
-        R.divot(b.x, b.y - C.BALL_R, b.z, shot.yaw, feel, lie && lie.pad.kind);
+        R.divot(b.x, b.y - G3.ballR(state.world.hole), b.z, shot.yaw, feel, lie && lie.pad.kind);
         R.punch(feel);
         // Every shot is taped, because nobody knows which one is the ace
         // until it has gone in.
@@ -2588,16 +2588,16 @@
         if (ev.bounce && now - lastBounceAt > 60) {
             lastBounceAt = now;
             A.bounce(P.groundSpeed(b));
-            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, P.groundSpeed(b));
+            if (R.hitAt) R.hitAt(b.x, b.y - G3.ballR(state.world.hole), b.z, P.groundSpeed(b));
             if (R.knockAt && !ev.bumped && !ev.kicked && !ev.land) R.knockAt(b.x, b.y, b.z, P.groundSpeed(b));
         }
         if (ev.land && now - lastLandAt > 70) {
             lastLandAt = now;
             A.land(P.speedOf(b));
-            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, P.speedOf(b));
-            var s = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
-            if (s && s.pad.kind === 'sand') R.sandAt(b.x, b.y - C.BALL_R, b.z);
-            else if (s && R.groundAt && !ev.splash) R.groundAt(b.x, b.y - C.BALL_R, b.z, s.pad.kind);
+            if (R.hitAt) R.hitAt(b.x, b.y - G3.ballR(state.world.hole), b.z, P.speedOf(b));
+            var s = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + P.stepUp(state.world.hole));
+            if (s && s.pad.kind === 'sand') R.sandAt(b.x, b.y - G3.ballR(state.world.hole), b.z);
+            else if (s && R.groundAt && !ev.splash) R.groundAt(b.x, b.y - G3.ballR(state.world.hole), b.z, s.pad.kind);
         }
         if (ev.splash) {
             // Lava takes the ball with a spit of embers and a hiss, not a splash.
@@ -2615,7 +2615,7 @@
                drop, where the cup camera is watching it in slow motion —
                rather than going off now and then again half a second later. */
             celeOwed = aceReplayAhead();
-            R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z, celeOwed || !celebrates());
+            R.sinkAt(b.x, b.y + G3.cupDepth(state.world.hole), b.z, celeOwed || !celebrates());
         }
         // A pipe (physics.js, "the wormhole"): swallowed, the sky opening,
         // and the landing on the far side, which is a landing like any other.
@@ -2623,7 +2623,7 @@
         if (ev.warpOpen && A.warpOpen) A.warpOpen();
         if (ev.warpOut) {
             A.land(P.groundSpeed(b) + 6);
-            if (R.hitAt) R.hitAt(b.x, b.y - C.BALL_R, b.z, 6);
+            if (R.hitAt) R.hitAt(b.x, b.y - G3.ballR(state.world.hole), b.z, 6);
         }
     }
 
@@ -2734,7 +2734,7 @@
         var kind = w.burnt ? 'lava' : w.splash ? 'water' : 'out';
         var b = w.ball;
         pen = { world: w, kind: kind, stage: 'hold', t: 0, hold: PEN_HOLD[kind], spot: undefined,
-                track: state.track || [], vx: b.vx, vy: b.vy, vz: b.vz, sinkTo: b.y - C.BALL_R * 3 };
+                track: state.track || [], vx: b.vx, vy: b.vy, vz: b.vz, sinkTo: b.y - G3.ballR(w.hole) * 3 };
         state.phase = 'penalty';
         toast(kind === 'lava' ? 'Into the lava' : kind === 'water' ? 'In the water'
             : w.swallowed ? 'Swallowed by the well' : 'Out of play', 'bad', pen.hold * 1000);
@@ -2780,9 +2780,9 @@
         var g = P.gravityOf ? P.gravityOf(w.hole) : 9.8;
         pen.vy -= (g || 9.8) * dt;
         var nx = b.x + pen.vx * dt, ny = b.y + pen.vy * dt, nz = b.z + pen.vz * dt;
-        var s = P.surfaceUnder(w.hole, nx, nz, b.y + C.STEP_UP);
-        if (s && ny < s.y + C.BALL_R) {
-            ny = s.y + C.BALL_R;
+        var s = P.surfaceUnder(w.hole, nx, nz, b.y + P.stepUp(w.hole));
+        if (s && ny < s.y + G3.ballR(w.hole)) {
+            ny = s.y + G3.ballR(w.hole);
             pen.vy = pen.vy < -1 ? -pen.vy * 0.35 : 0;
             var f = Math.pow(0.25, dt);
             pen.vx *= f; pen.vz *= f;
@@ -2994,7 +2994,7 @@
     function syncLie() {
         var hole = state.world.hole, b = state.world.ball, putter = null, i;
         for (i = 0; i < state.bag.length; i++) if (state.bag[i].id === 'putter') putter = state.bag[i];
-        var under = state.course.isRange ? null : P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        var under = state.course.isRange ? null : P.surfaceUnder(hole, b.x, b.z, b.y + P.stepUp(hole));
         var kind = under ? under.pad.kind : null;
         var lieBag = null, why = null;
         if (putter && hole.longGame && kind === 'green') {
@@ -3050,7 +3050,7 @@
                     water: [], walls: [], tee: { x: 0, z: 0, y: 0 }, cup: { x: 0, z: 140, y: 0 },
                     longGame: air
                 };
-                var w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0), i;
+                var w = P.createWorld(field, { x: 0, z: 0, y: G3.ballR(field) }, 0), i;
                 P.launch(w, 0, cap, club.loft, club.bite);
                 for (i = 0; i < 4000 && !w.firstLand; i++) P.advance(w, C.SIM_DT, {});
                 var carry = w.firstLand ? w.firstLand.z : 0;
@@ -3262,7 +3262,7 @@
         if (r.t < 0) { s.vx = s.vy = s.vz = 0; }
         if (r.t >= 0 && !r.struck) {
             r.struck = true;
-            R.divot(s.x, s.y - C.BALL_R, s.z, r.tape.yaw, r.tape.feel, r.tape.kind);
+            R.divot(s.x, s.y - G3.ballR(state.world.hole), s.z, r.tape.yaw, r.tape.feel, r.tape.kind);
             A.putt(r.tape.feel);
         }
         // What the ball ran into on the way, once each, as it passes.
@@ -3276,7 +3276,7 @@
             if (ev & RE.RIM) A.rim(spd);
             if (ev & RE.SUNK) {
                 celeOwed = false;
-                R.sinkAt(f[k].x, f[k].y + C.CUP_DEPTH, f[k].z);
+                R.sinkAt(f[k].x, f[k].y + G3.cupDepth(state.world.hole), f[k].z);
                 A.ace();
                 if (R.replayDrop) R.replayDrop(r.world.hole);
             }
@@ -3992,7 +3992,7 @@
     // What the ball is sitting on, as the strike will read it.
     function lieKind() {
         var b = state.world.ball;
-        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
+        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + P.stepUp(state.world.hole));
         return lie ? lie.pad.kind : null;
     }
 
@@ -4022,7 +4022,7 @@
             if (p < C.MIN_POWER) continue;
             s = { yaw: 0, power: P.deliver(p, club.power), loft: club.loft, bite: club.bite || 0, spin: 0, topped: false };
             if (shape !== 'straight') s = SW.shape(s, shape, club.loft, club.bite, P.gravityOf(field), 0, field, p / club.power);
-            w = P.createWorld(field, { x: 0, z: 0, y: C.BALL_R }, 0);
+            w = P.createWorld(field, { x: 0, z: 0, y: G3.ballR(field) }, 0);
             if (!P.launch(w, s.yaw, s.power, s.loft, s.bite, s.topped)) continue;
             w.spin = s.spin || 0;
             P.settle(w);

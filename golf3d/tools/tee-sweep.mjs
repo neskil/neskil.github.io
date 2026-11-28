@@ -25,7 +25,7 @@ console.log(id, club.id, 'tee', h.tee, 'cup', h.cup, 'bag', G3.bagFor(h).map((c)
 for (let a = +a0; a <= +a1 + 1e-9; a += +as) {
   let row = String(a.toFixed(1)).padStart(6) + ' ';
   for (let k = 1; k <= W; k++) {
-    const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + G3.CONFIG.BALL_R }, 0);
+    const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + G3.ballR(h) }, 0);
     if (!P.launch(w, a * Math.PI / 180, club.power * k / W, club.loft, club.bite)) { row += '  ?  '; continue; }
     P.settle(w, 40, 1 / 120);
     const d = Math.hypot(w.ball.x - h.cup.x, w.ball.z - h.cup.z);

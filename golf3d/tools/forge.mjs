@@ -570,7 +570,7 @@ function measure(map) {
         const bear = Math.atan2(map.cup.x - map.tee.x, map.cup.z - map.tee.z);
         let n = 0, lost = 0;
         for (const club of bag) for (let a = -30; a <= 30; a += 6) for (const k of [0.6, 0.8, 1]) {
-            const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + C.BALL_R }, 0);
+            const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + G3.ballR(h) }, 0);
             if (!P.launch(w, bear + a * DEG, club.power * k, club.loft, club.bite)) continue;
             P.settle(w); n++;
             if (w.splash || w.out) lost++;
@@ -595,7 +595,7 @@ function vet(map) {
     const h = G3.forge.holeOf(map), bag = G3.bagFor(h), rests = new Map();
     let n = 0, moving = 0;
     for (const club of bag) for (let a = 0; a < 360; a += 10) for (let k = 1; k <= 10; k++) {
-        const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + C.BALL_R }, 0);
+        const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + G3.ballR(h) }, 0);
         if (!P.launch(w, a * DEG, club.power * k / 10, club.loft, club.bite)) continue;
         P.settle(w); n++;
         if (w.sunk || w.splash || w.out) continue;

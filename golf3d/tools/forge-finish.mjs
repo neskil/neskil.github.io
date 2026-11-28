@@ -205,7 +205,7 @@ const straight = G3.lab.straight(hole);
 let fan = 0, lost = 0, wet = 0;
 const bear = Math.atan2(map.cup.x - map.tee.x, map.cup.z - map.tee.z);
 for (const club of bag) for (let a = -30; a <= 30; a += 5) for (const k of [0.4, 0.6, 0.8, 1]) {
-    const w = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R }, 0);
+    const w = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + G3.ballR(hole) }, 0);
     if (!P.launch(w, bear + a * DEG, club.power * k, club.loft, club.bite)) continue;
     P.settle(w); fan++;
     if (w.splash) wet++; else if (w.out) lost++;
@@ -213,7 +213,7 @@ for (const club of bag) for (let a = -30; a <= 30; a += 5) for (const k of [0.4,
 // The vet (forge.mjs → vet): every rest spot from the tee must be playable out of.
 const rests = new Map(); let moving = 0;
 for (const club of bag) for (let a = 0; a < 360; a += 10) for (let k = 1; k <= 10; k++) {
-    const w = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R }, 0);
+    const w = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + G3.ballR(hole) }, 0);
     if (!P.launch(w, a * DEG, club.power * k / 10, club.loft, club.bite)) continue;
     P.settle(w);
     if (w.sunk || w.splash || w.out) continue;

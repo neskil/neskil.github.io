@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.249.0';
+G3.VERSION = '1.250.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1405,34 +1405,33 @@ G3.CONFIG.LANDING_DEFAULT = { grip: G3.CONFIG.LAND_GRIP, bounce: G3.CONFIG.BOUNC
    figure to match. */
 G3.CONFIG.LONG_M = 5.5;
 
-/* …and what that does to the picture. The ball, the cup and the club at it
-   are the mini golf sizes on a long hole too — the physics is the same
-   physics — so beside a course read at LONG_M metres to the unit the ball was
-   nearly two metres across, and the cart parked behind it a toy next to the
-   driver (the owner, v1.217.0: "scale is a bit off… perhaps long game and
-   mini golf have to use different scale"). So on a long hole the ball, the
-   club in hand and the camera's seat behind them are all drawn at MIN of
-   themselves (render.js `lookFor`), and the seat comes in to SEAT of its
-   distance: the ball a little smaller on the screen than on a lane, the
-   course round it twice as big. Nothing the ball does reads it.
+/* …and what that does to the ball. The ball and the cup were the mini golf
+   sizes on a long hole too, so beside a course read at LONG_M metres to the
+   unit the ball was nearly two metres across (the owner, v1.217.0: "scale is
+   a bit off… perhaps long game and mini golf have to use different scale").
+   v1.217.0 drew it smaller out on the course and grew it back near the flag,
+   because the cup could not shrink with it — and a ball that changes size is
+   a ball nobody believes (v1.250.0: "The ball should have a persistent size
+   in the world").
 
-   Not on the green, though. The cup is the physics' cup and cannot shrink,
-   and a small ball beside it is a ball beside a crater; so inside FAR of the
-   cup the look eases back, and inside NEAR it is the mini golf picture
-   exactly — a putt looks the way it always has. Nor on a tour hole: those are
-   fitted to a world (`place`), seat and all.
+   So on a long hole the ball and the cup *are* smaller, in the physics: BALL
+   of the mini golf ball and CUP of its cup (G3.ballR / G3.holeR /
+   G3.cupDepth), the same on the tee, in the air and on the green, and drawn
+   at exactly that. The cup shrinks by less than the ball, so the long game's
+   cup is about 3.3 balls across where the real one is 2.5: measured on a flat
+   green (v1.250.0), 0.45/0.6 drops a putt as hard as the full sizes did and
+   keeps 60% of the width to aim at, where 0.45/0.45 kept 42% and started
+   lipping out firm putts. Nothing else the cup does needed retuning.
 
-   It never changes while the ball is moving (render.js `stepLook`): a shot
-   that comes down near the flag keeps the size it was struck at, and the
-   ball and seat go over to the new lie's look once it is at rest, on a
-   critically damped spring of EASE per second (v1.248.0: "the ball size and
-   zoom have a bit of uncanny valley thing"). */
+   SEAT is how far the camera sits back on a long hole, as a share of the mini
+   golf seat (render.js `seatLook`): one number, everywhere on the hole, so
+   the ball takes the same share of the screen from the tee to the cup. */
+G3.CONFIG.LONG_BALL = { BALL: 0.45, CUP: 0.6, SEAT: 0.6 };
+
 /* The follow seat's lift over a bank behind the ball (render.js →
    easedLift): a critically damped spring of SIGHT_EASE per second, so a lift
    read off stepped ground never moves the eye in a step. 0 turns it off. */
 G3.CONFIG.SIGHT_EASE = 7;
-
-G3.CONFIG.LONG_LOOK = { MIN: 0.34, SEAT: 0.6, NEAR: 4, FAR: 12, EASE: 3.5 };
 
 /* The chase (render.js `watchChase`): the camera behind a long shot while
    it is up, on every long hole (G3.longHole). Held, then followed (v1.238.0,
@@ -1580,7 +1579,7 @@ G3.CONFIG.TRACER = { MAX: 480, STEP: 0.12, PX: 0.9, W: 0.0025, MAX_W: 0.22, NEAR
    remembered and gone back to once the flag fits at it again. */
 G3.CONFIG.AIM_PITCH_FIT = { TOP: 2.25, NDC: 0.5, MIN: 0.2 };
 
-/* A long hole played as the long game: real air (CONFIG.AIR), LONG_LOOK's
+/* A long hole played as the long game: real air (CONFIG.AIR), LONG_BALL's
    ball, the tracer, the chase (LONG_CAM) and the pin tag. Until v1.234.0
    only the drawn long courses were; a long hole hung in a Portals world — a
    tour hole with a fairway, every forged map — kept the mini golf's air and
@@ -1589,6 +1588,22 @@ G3.CONFIG.AIM_PITCH_FIT = { TOP: 2.25, NDC: 0.5, MIN: 0.2 };
    question of the ground, the same as `hole.longGame`, wherever it lies. */
 G3.longHole = function (hole) {
     return !!(hole && hole.longGame);
+};
+/* The ball, the cup and its depth on this hole: the mini golf sizes, or a
+   long hole's (CONFIG.LONG_BALL). Everything that asks how big the ball or
+   the cup is asks these, never CONFIG.BALL_R and friends directly, unless it
+   is only ever about a mini golf lane. */
+G3.ballR = function (hole) {
+    var C = G3.CONFIG;
+    return G3.longHole(hole) ? C.BALL_R * C.LONG_BALL.BALL : C.BALL_R;
+};
+G3.holeR = function (hole) {
+    var C = G3.CONFIG;
+    return G3.longHole(hole) ? C.HOLE_R * C.LONG_BALL.CUP : C.HOLE_R;
+};
+G3.cupDepth = function (hole) {
+    var C = G3.CONFIG;
+    return G3.longHole(hole) ? C.CUP_DEPTH * C.LONG_BALL.CUP : C.CUP_DEPTH;
 };
 G3.CONFIG.BAND = 0.15;
 G3.CONFIG.NEAR = 20;

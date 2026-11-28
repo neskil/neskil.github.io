@@ -12,7 +12,7 @@ const G3 = ctx.G3, P = G3.physics;
 const [id, clubId, yaw, pw, ev] = process.argv.slice(2);
 const h = G3.portals.WORLDS.find((w) => w.id === id).hole;
 const club = G3.bagFor(h).find((c) => c.id === clubId);
-const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + G3.CONFIG.BALL_R }, 0);
+const w = P.createWorld(h, { x: h.tee.x, z: h.tee.z, y: h.tee.y + G3.ballR(h) }, 0);
 P.launch(w, yaw * Math.PI / 180, club.power * pw, club.loft, club.bite);
 let n = 0, out = [];
 while (n < 40 * 120 && !P.done(w)) { P.advance(w, 1 / 120); if (n++ % (+ev || 24) === 0) out.push(`${(n/120).toFixed(1)}s ${w.ball.x.toFixed(1)},${w.ball.z.toFixed(1)},${w.ball.y.toFixed(1)} v${Math.hypot(w.ball.vx||0, w.ball.vz||0).toFixed(1)}`); }

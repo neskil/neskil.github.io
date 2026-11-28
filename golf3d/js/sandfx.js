@@ -272,7 +272,7 @@
     /* ── the rolling ball ───────────────────────────────────────────────── */
 
     function sandUnder(hole, b) {
-        var s = P.surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+        var s = P.surfaceUnder(hole, b.x, b.z, b.y + P.stepUp(hole));
         return s && s.pad.kind === 'sand' ? s : null;
     }
 
@@ -295,8 +295,8 @@
                 side = Math.random() < 0.5 ? -1 : 1;
                 var out = speed * rnd(0.14, 0.34), fwd = speed * rnd(0.05, 0.3);
                 up = 1.1 + speed * rnd(0.22, 0.48);
-                spawn(b.x + dx * C.BALL_R * 0.6 + sx * side * C.BALL_R * 0.7, y,
-                      b.z + dz * C.BALL_R * 0.6 + sz * side * C.BALL_R * 0.7,
+                spawn(b.x + dx * (S.br || C.BALL_R) * 0.6 + sx * side * (S.br || C.BALL_R) * 0.7, y,
+                      b.z + dz * (S.br || C.BALL_R) * 0.6 + sz * side * (S.br || C.BALL_R) * 0.7,
                       dx * fwd + sx * side * out, up, dz * fwd + sz * side * out,
                       rnd(0.35, 0.8), rnd(0.02, 0.04), false);
             } else {
@@ -304,7 +304,7 @@
                 // a fast ball draws in the air behind itself.
                 var back = speed * rnd(0.05, 0.25), jit = rnd(-0.12, 0.12) * speed;
                 up = 1.0 + speed * rnd(0.35, 0.65);
-                spawn(b.x - dx * C.BALL_R * 0.5, y, b.z - dz * C.BALL_R * 0.5,
+                spawn(b.x - dx * (S.br || C.BALL_R) * 0.5, y, b.z - dz * (S.br || C.BALL_R) * 0.5,
                       -dx * back + sx * jit, up, -dz * back + sz * jit,
                       rnd(0.4, 0.9), rnd(0.018, 0.036), false);
             }
@@ -313,7 +313,7 @@
            and then, small, faint and slow, which is what turns a scatter of
            grains into a line drawn across the bunker. */
         if (speed > 2.5 && Math.random() < dt * (speed - 2.5) * 5) {
-            spawn(b.x - dx * C.BALL_R, y + 0.04, b.z - dz * C.BALL_R,
+            spawn(b.x - dx * (S.br || C.BALL_R), y + 0.04, b.z - dz * (S.br || C.BALL_R),
                   -dx * speed * 0.06 + rnd(-0.1, 0.1), rnd(0.1, 0.3), -dz * speed * 0.06 + rnd(-0.1, 0.1),
                   rnd(0.9, 1.6), rnd(0.12, 0.2) * Math.min(1.6, speed / 5), true);
         }
@@ -340,7 +340,7 @@
 
     function writeFurrow(hole) {
         var g = S.furrow.geometry, pos = g.attributes.position.array, col = g.attributes.color.array;
-        var idx = g.index.array, ni = 0, i, j, f, prev, nxt, dx, dz, l, w = C.BALL_R * 0.8;
+        var idx = g.index.array, ni = 0, i, j, f, prev, nxt, dx, dz, l, w = G3.ballR(hole) * 0.8;
         var nA = ACROSS.length, start = (S.furAt - S.furCount + 1 + FURROW) % FURROW;
         for (var o = 0; o < S.furCount; o++) {
             i = (start + o) % FURROW;
@@ -462,7 +462,7 @@
             var out = (0.5 + hard * 2.0) * rnd(0.35, 1.1);
             var fwd = skid * flat * rnd(0.15, 0.55);
             var up = (1.2 + hard * 3.6) * rnd(0.4, 1.05) * (1 - flat * 0.45);
-            spawn(x + ca * C.BALL_R * 0.6, y + 0.02, z + sa * C.BALL_R * 0.6,
+            spawn(x + ca * G3.ballR(hole) * 0.6, y + 0.02, z + sa * G3.ballR(hole) * 0.6,
                   ca * out + dx * fwd, up, sa * out + dz * fwd,
                   rnd(0.5, 1.2), rnd(0.018, 0.04) * (1 + hard * 0.3), false);
         }
@@ -483,7 +483,7 @@
                   Math.cos(b) * ro + dx * skid * 0.08, rnd(0.2, 0.7) * (0.5 + hard), Math.sin(b) * ro + dz * skid * 0.08,
                   rnd(1.4, 2.6), rnd(0.25, 0.45) * (0.6 + hard), true);
         }
-        crater(hole, x, z, C.BALL_R * (0.9 + hard * 1.5), dx, dz, 1 + flat * 1.4);
+        crater(hole, x, z, G3.ballR(hole) * (0.9 + hard * 1.5), dx, dz, 1 + flat * 1.4);
         return hard;
     }
 
@@ -504,13 +504,14 @@
                   dx * rnd(0.3, 1.2) + sx * rnd(-0.4, 0.4), rnd(0.3, 0.9), dz * rnd(0.3, 1.2) + sz * rnd(-0.4, 0.4),
                   rnd(1.5, 2.8), rnd(0.3, 0.5), true);
         }
-        crater(hole, x + dx * 0.08, z + dz * 0.08, C.BALL_R * (1.2 + frac), dx, dz, 1.6);
+        crater(hole, x + dx * 0.08, z + dz * 0.08, G3.ballR(hole) * (1.2 + frac), dx, dz, 1.6);
     }
 
     /* ── every frame ────────────────────────────────────────────────────── */
 
     function step(dt, world) {
         if (!S.ready) return;
+        S.br = G3.ballR(world && world.hole);
         var b = world.ball;
         if (world.moving && !world.grounded) {
             S.air += dt;

@@ -358,7 +358,7 @@
             dx = a.x - bb.x; dz = a.z - bb.z;
             l = Math.sqrt(dx * dx + dz * dz) || 1;
             var K = TR_KIND[f.kind] || TR_KIND.fairway;
-            var taper = (!prev || !nxt) ? 0.35 : 1, w = C.BALL_R * K.w * taper;
+            var taper = (!prev || !nxt) ? 0.35 : 1, w = G3.ballR(hole) * K.w * taper;
             for (j = 0; j < nA; j++) {
                 var x = f.x + (dz / l) * TR_ACROSS[j] * w, z = f.z - (dx / l) * TR_ACROSS[j] * w;
                 var s = P.surfaceUnder(hole, x, z, Infinity);
@@ -754,9 +754,9 @@
             if (h > (rough ? 0.42 : 0.3)) {
                 var mx = x + dx * 0.04, mz = z + dz * 0.04;
                 if (kind === 'fairway' && h > 0.85) {
-                    soil(hole, mx + dx * 0.03, mz + dz * 0.03, C.BALL_R * (0.45 + (h - 0.85) * 1.2), dx, dz, 1 + A.flat * 1.1);
+                    soil(hole, mx + dx * 0.03, mz + dz * 0.03, G3.ballR(hole) * (0.45 + (h - 0.85) * 1.2), dx, dz, 1 + A.flat * 1.1);
                 }
-                mark(hole, mx, mz, C.BALL_R * (0.6 + h * 0.5), dx, dz, 1 + A.flat * 1.0, rough);
+                mark(hole, mx, mz, G3.ballR(hole) * (0.6 + h * 0.5), dx, dz, 1 + A.flat * 1.0, rough);
             }
         } else if (kind === 'wood') {
             for (i = 0; i < Math.round(5 + h * 30); i++) {
@@ -825,7 +825,7 @@
             var out = (0.5 + h * 2.4) * rnd(0.4, 1.05);
             var fwd = A.skid * flat * rnd(0.05, 0.35);
             var big = Math.random() < 0.2;
-            spawn(x + ca * C.BALL_R * 0.7, y, z + sa * C.BALL_R * 0.7,
+            spawn(x + ca * (S.br || C.BALL_R) * 0.7, y, z + sa * (S.br || C.BALL_R) * 0.7,
                 ca * out + dx * fwd, (1.6 + h * 5.2) * rnd(0.5, 1.1) * (1 - flat * 0.35), sa * out + dz * fwd,
                 { type: DROP, size: big ? rnd(0.036, 0.06) : rnd(0.016, 0.034), life: rnd(0.7, 1.4),
                   col: WATER, tone: 0.12, grav: 15, drag: 0.7, floor: surf, ripple: true, a0: 0.95 });
@@ -911,8 +911,8 @@
                 // The scar, with the earth showing in it — off a fairway,
                 // and only from a swing with real power behind it.
                 if (kind === 'fairway' && frac > 0.85) {
-                    soil(hole, x + dx * 0.14, z + dz * 0.14, C.BALL_R * (0.4 + (frac - 0.85) * 1.5), dx, dz, 2.0);
-                    mark(hole, x + dx * 0.12, z + dz * 0.12, C.BALL_R * (0.6 + frac * 0.3), dx, dz, 1.9, false);
+                    soil(hole, x + dx * 0.14, z + dz * 0.14, G3.ballR(hole) * (0.4 + (frac - 0.85) * 1.5), dx, dz, 2.0);
+                    mark(hole, x + dx * 0.12, z + dz * 0.12, G3.ballR(hole) * (0.6 + frac * 0.3), dx, dz, 1.9, false);
                 }
             }
             return true;
@@ -953,7 +953,7 @@
     /* ── the rolling ball ───────────────────────────────────────────────── */
 
     function roll(world, b, speed, dt) {
-        var s = P.surfaceUnder(world.hole, b.x, b.z, b.y + C.STEP_UP);
+        var s = P.surfaceUnder(world.hole, b.x, b.z, b.y + P.stepUp(world.hole));
         if (!s) { S.carry.blade = S.carry.drop = S.carry.glint = 0; breakTrack(); return; }
         var kind = s.pad.kind, y = s.y + 0.02;
         var dx = b.vx / speed, dz = b.vz / speed, sx = dz, sz = -dx, n, i, side;
@@ -967,7 +967,7 @@
             for (i = 0; i < n; i++) {
                 side = Math.random() < 0.5 ? -1 : 1;
                 var out = speed * rnd(0.08, 0.22);
-                spawn(b.x + sx * side * C.BALL_R * 0.7, y, b.z + sz * side * C.BALL_R * 0.7,
+                spawn(b.x + sx * side * G3.ballR(world.hole) * 0.7, y, b.z + sz * side * G3.ballR(world.hole) * 0.7,
                     dx * speed * rnd(0.05, 0.25) + sx * side * out, 0.7 + speed * rnd(0.12, 0.3), dz * speed * rnd(0.05, 0.25) + sz * side * out,
                     { type: BLADE, size: rnd(0.026, 0.04), life: rnd(1.0, 1.6), col: grassCol(true), tone: 0.2, drag: 0.4, grav: 6.5, floor: s.y });
             }
@@ -978,7 +978,7 @@
             n = Math.floor(S.carry.drop); S.carry.drop -= n;
             for (i = 0; i < n; i++) {
                 var jit = rnd(-0.3, 0.3) * speed;
-                spawn(b.x - dx * C.BALL_R * 0.5, y, b.z - dz * C.BALL_R * 0.5,
+                spawn(b.x - dx * G3.ballR(world.hole) * 0.5, y, b.z - dz * G3.ballR(world.hole) * 0.5,
                     -dx * speed * rnd(0.02, 0.15) + sx * jit * 0.4, 0.6 + speed * rnd(0.15, 0.35), -dz * speed * rnd(0.02, 0.15) + sz * jit * 0.4,
                     { type: DROP, size: rnd(0.01, 0.02), life: rnd(0.3, 0.6), col: WATER, tone: 0.1, grav: 16, floor: s.y });
             }
@@ -988,7 +988,7 @@
             S.carry.glint += Math.min(30, speed * 4) * dt;
             n = Math.floor(S.carry.glint); S.carry.glint -= n;
             for (i = 0; i < n; i++) {
-                spawn(b.x - dx * C.BALL_R * 0.6 + sx * rnd(-0.08, 0.08), y + rnd(0, 0.05), b.z - dz * C.BALL_R * 0.6 + sz * rnd(-0.08, 0.08),
+                spawn(b.x - dx * G3.ballR(world.hole) * 0.6 + sx * rnd(-0.08, 0.08), y + rnd(0, 0.05), b.z - dz * G3.ballR(world.hole) * 0.6 + sz * rnd(-0.08, 0.08),
                     rnd(-0.1, 0.1), rnd(0.1, 0.4), rnd(-0.1, 0.1),
                     { type: GLINT, size: rnd(0.012, 0.022), life: rnd(0.5, 0.9), col: FROST, glow: 0.6, grav: 0.3, drag: 0.3, floor: s.y - 1, a0: 0.9 });
             }
@@ -999,6 +999,7 @@
 
     function step(dt, world) {
         if (!S.ready) return;
+        S.br = G3.ballR(world && world.hole);
         S.t += dt;
         if (S.queue.length) {
             for (var q = S.queue.length - 1; q >= 0; q--) {
@@ -1029,7 +1030,7 @@
             S.dropT += dt;
             var u = 0.5 + 0.5 * Math.sin(S.dropT * 4);
             S.dropRing.material.opacity = Math.min(1, S.dropT * 3) * (0.55 + 0.35 * u);
-            S.dropRing.scale.setScalar(C.BALL_R * (2.2 + 0.5 * u));
+            S.dropRing.scale.setScalar((S.br || C.BALL_R) * (2.2 + 0.5 * u));
         }
     }
 
@@ -1041,9 +1042,9 @@
     function dropMark(hole, spot) {
         if (!S.dropRing) return;
         if (!spot) { S.dropRing.visible = false; return; }
-        var s = P.surfaceUnder(hole, spot.x, spot.z, spot.y + C.STEP_UP);
-        S.dropRing.position.set(spot.x, (s ? s.y : spot.y - C.BALL_R) + 0.012, spot.z);
-        S.dropRing.scale.setScalar(C.BALL_R * 2.2);
+        var s = P.surfaceUnder(hole, spot.x, spot.z, spot.y + P.stepUp(hole));
+        S.dropRing.position.set(spot.x, (s ? s.y : spot.y - G3.ballR(hole)) + 0.012, spot.z);
+        S.dropRing.scale.setScalar(G3.ballR(hole) * 2.2);
         S.dropRing.material.opacity = 0;
         S.dropRing.visible = true;
         S.dropT = 0;

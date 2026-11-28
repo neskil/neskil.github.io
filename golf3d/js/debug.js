@@ -277,8 +277,8 @@
         // The rim, and the clearance the tests want inside the pad edge round
         // it: a cup any closer to an edge than the outer ring is a hole the
         // renderer cannot punch and the physics cannot hold.
-        g.add(circle(hole.cup.x, hole.cup.y + 0.02, hole.cup.z, C.HOLE_R, COLOUR.cup));
-        g.add(circle(hole.cup.x, hole.cup.y + 0.02, hole.cup.z, C.HOLE_R + 0.05, COLOUR.cup, 64));
+        g.add(circle(hole.cup.x, hole.cup.y + 0.02, hole.cup.z, G3.holeR(hole), COLOUR.cup));
+        g.add(circle(hole.cup.x, hole.cup.y + 0.02, hole.cup.z, G3.holeR(hole) + 0.05, COLOUR.cup, 64));
         g.add(circle(hole.tee.x, hole.tee.y + 0.02, hole.tee.z, 0.3, COLOUR.tee));
 
         return g;
@@ -352,17 +352,17 @@
         }
         var clear = own ? Math.min(hole.cup.x - own.x, own.x + own.w - hole.cup.x,
                                    hole.cup.z - own.z, own.z + own.d - hole.cup.z) : 0;
-        if (!(clear > C.HOLE_R + 0.05)) {
-            out.push('the cup is ' + clear.toFixed(2) + ' from its pad edge, needs over ' + (C.HOLE_R + 0.05).toFixed(2));
+        if (!(clear > G3.holeR(hole) + 0.05)) {
+            out.push('the cup is ' + clear.toFixed(2) + ' from its pad edge, needs over ' + (G3.holeR(hole) + 0.05).toFixed(2));
         }
 
         var teeBlocked = false, cupBlocked = false;
         for (i = 0; i < hole.walls.length; i++) {
             var B = P.wallBox(hole.walls[i], 0);
-            if (hole.tee.y + C.BALL_R > B.base && hole.tee.y < B.top &&
-                P.circleBox(hole.tee.x, hole.tee.z, C.BALL_R, B)) teeBlocked = true;
-            if (hole.cup.y + C.BALL_R > B.base && hole.cup.y < B.top &&
-                P.circleBox(hole.cup.x, hole.cup.z, C.HOLE_R, B)) cupBlocked = true;
+            if (hole.tee.y + G3.ballR(hole) > B.base && hole.tee.y < B.top &&
+                P.circleBox(hole.tee.x, hole.tee.z, G3.ballR(hole), B)) teeBlocked = true;
+            if (hole.cup.y + G3.ballR(hole) > B.base && hole.cup.y < B.top &&
+                P.circleBox(hole.cup.x, hole.cup.z, G3.holeR(hole), B)) cupBlocked = true;
         }
         if (teeBlocked) out.push('the tee is inside a wall');
         if (cupBlocked) out.push('the cup is inside a wall');
