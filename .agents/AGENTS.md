@@ -83,8 +83,8 @@ Folder-based routing — each major page or app is fully isolated with its own
     opaque matte plates with small radii, Barlow Semi Condensed. No blur, no
     glow, no gloss: do not bring the glass back. The one exception, on the
     owner's request, is the picker's World Tour and Endless doors (a lit black
-    hole, a shining card, a warp tunnel) — leave those lit. So is the ☰ menu's Pro Shop plate (polished brass with a
-    passing glint, the owner's "a little shiny"). The palette is the `:root`
+    hole, a shining card, a warp tunnel) — leave those lit. The ☰ menu's Pro Shop plate keeps a faint passing glint
+    on a matte plate (the owner's "a little shiny", then "more subtle"). The palette is the `:root`
     block in `golf3d/style.css`.
   - **`/orbit/`** is a 1957 space-programme control room on the owner's
     request: matte enamel-green riveted plates, cream bakelite keys with
