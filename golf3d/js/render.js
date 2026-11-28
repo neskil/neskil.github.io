@@ -6841,7 +6841,7 @@
        instrument telling you what the wind is doing. The cloth streams
        downwind, snaps in a gust and hangs limp when it drops — so a glance at
        the flag is a reading, not a decoration. */
-    function addCup(group, hole) {
+    function addCup(group, hole, themeName) {
         var cup = hole.cup, HR = G3.holeR(hole), CD = G3.cupDepth(hole);
 
         /* Everything below is placed off the *rendered* height of the green
@@ -6969,19 +6969,115 @@
         pin.add(swivel);
         R.flagSwivel = swivel;
 
-        var cloth = new THREE.Mesh(
-            new THREE.PlaneGeometry(FLAG_W, 0.43, 14, 3),
-            new THREE.MeshPhongMaterial({
-                color: 0xe23b3b, side: THREE.DoubleSide, shininess: 6, specular: 0x2a1010
-            })
-        );
-        cloth.geometry.translate(FLAG_W / 2, -0.215, 0);   // hoist at the origin
+        addFlagCloth(swivel, hole, themeName);
+        R.pinShake = 0;
+    }
+
+    /* The cloth itself (flag.js): a printed sheet per course, simulated on a
+       coarse grid and drawn through a finer one up close.
+
+       Two meshes share one material: the coarse sheet, which is the
+       simulation's own grid, and a sheet FLAG_FINE times finer whose every
+       vertex is a Catmull-Rom blend of the coarse one (flag.js → fill). Only
+       one is shown at a time (flapFlag picks by how big the flag is on the
+       screen), and sharing the material means the swap compiles nothing.
+
+       The print is on both faces and reads the right way round from either
+       side: the canvas carries the front in its top half and a mirror-laid
+       back (sleeve on the right, type unmirrored) in its bottom half, and
+       the fragment shader picks the half by gl_FrontFacing. */
+    var FLAG_H = 0.43, FLAG_COLS = 13, FLAG_ROWS = 8, FLAG_FINE = 3;
+    var flagTextures = [];     // [{ key, tex }], newest last; a few are kept between holes
+
+    function flagTexture(design) {
+        var lo = R.quality === 'low', key = design.key + (lo ? '|lo' : '|hi'), i, hit;
+        for (i = 0; i < flagTextures.length; i++) {
+            if (flagTextures[i].key === key) {
+                hit = flagTextures.splice(i, 1)[0];
+                flagTextures.push(hit);
+                return hit.tex;
+            }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = canvas.height = lo ? 512 : 1024;      // a power of two, for the mips
+        G3.flag.paint(canvas, design, FLAG_W / FLAG_H);
+        var tex = new THREE.CanvasTexture(canvas);
+        var aniso = R.renderer && R.renderer.capabilities ? R.renderer.capabilities.getMaxAnisotropy() : 1;
+        tex.anisotropy = Math.min(lo ? 2 : 8, aniso || 1);
+        // Painted again once the typeface has arrived, if it had not yet.
+        G3.flag.whenFont(function () { G3.flag.paint(canvas, design, FLAG_W / FLAG_H); tex.needsUpdate = true; });
+        flagTextures.push({ key: key, tex: tex });
+        while (flagTextures.length > 3) flagTextures.shift().tex.dispose();
+        return tex;
+    }
+
+    // The front of the canvas is its top half, the back its bottom half.
+    function flagSides(sh) {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', [
+            '#ifdef USE_MAP',
+            '    vec2 flagUv = gl_FrontFacing ? vec2(vUv.x, 0.5 + vUv.y * 0.5) : vec2(1.0 - vUv.x, vUv.y * 0.5);',
+            '    vec4 texelColor = texture2D(map, flagUv);',
+            '    texelColor = mapTexelToLinear(texelColor);',
+            '    diffuseColor *= texelColor;',
+            '#endif'
+        ].join('\n'));
+    }
+    function flagProgramKey() { return 'flag-cloth-v1'; }
+
+    // A cols × rows sheet in the z = 0 plane, hoist at x = 0, hanging from y = 0.
+    function sheetGeometry(cols, rows, w, h) {
+        var n = cols * rows, pos = new Float32Array(n * 3), uv = new Float32Array(n * 2), idx = [], i, j, k;
+        for (j = 0; j < rows; j++) {
+            for (i = 0; i < cols; i++) {
+                k = j * cols + i;
+                pos[k * 3] = i / (cols - 1) * w;
+                pos[k * 3 + 1] = -j / (rows - 1) * h;
+                uv[k * 2] = i / (cols - 1);
+                uv[k * 2 + 1] = 1 - j / (rows - 1);
+                if (i < cols - 1 && j < rows - 1) idx.push(k, k + cols, k + 1, k + 1, k + cols, k + cols + 1);
+            }
+        }
+        var g = new THREE.BufferGeometry();
+        var at = new THREE.BufferAttribute(pos, 3);
+        if (at.setUsage) at.setUsage(THREE.DynamicDrawUsage);
+        g.setAttribute('position', at);
+        g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        g.setIndex(idx);
+        g.computeVertexNormals();
+        return g;
+    }
+
+    function addFlagCloth(swivel, hole, themeName) {
+        var F = G3.flag;
+        var design = F ? F.designFor(hole, themeName) : null;
+        var mat = new THREE.MeshPhongMaterial({
+            color: design ? 0xffffff : 0xe23b3b, side: THREE.DoubleSide, shininess: 6,
+            specular: design ? 0x1c1c1c : 0x2a1010, map: design ? flagTexture(design) : null
+        });
+        mat.onBeforeCompile = flagSides;
+        mat.customProgramCacheKey = flagProgramKey;
+        var cols = FLAG_COLS, rows = FLAG_ROWS;
+        var cloth = new THREE.Mesh(sheetGeometry(cols, rows, FLAG_W, FLAG_H), mat);
         cloth.castShadow = true;
         cloth.frustumCulled = false;
         swivel.add(cloth);
         R.flagCloth = cloth;
-        R.flagRest = cloth.geometry.attributes.position.array.slice();
-        R.pinShake = 0;
+        R.flagDesign = design;
+        R.flagSim = null; R.flagFine = null;
+        R.flagMode = null; R.flagNear = false; R.flagLast = null;
+        if (F) {
+            R.flagSim = F.create(cols, rows, FLAG_W, FLAG_H);
+            R.flagRest = R.flagSim.rest;
+            R.flagSmooth = F.smooth(R.flagSim, FLAG_FINE);
+            var fine = new THREE.Mesh(sheetGeometry(R.flagSmooth.x.n, R.flagSmooth.y.n, FLAG_W, FLAG_H), mat);
+            fine.castShadow = true;
+            fine.frustumCulled = false;
+            fine.visible = false;
+            swivel.add(fine);
+            R.flagFine = fine;
+        } else {
+            R.flagRest = cloth.geometry.attributes.position.array.slice();
+        }
     }
 
     /* Three lights, and the weather sets all three.
@@ -7365,7 +7461,7 @@
             if (hole.water[i].ghost) while (n0 < g.children.length) R.ghosts.push(g.children[n0++]);
         }
         for (i = 0; i < (hole.crusts || []).length; i++) addCrust(g, hole.crusts[i], hole, theme);
-        addCup(g, hole);
+        addCup(g, hole, themeName);
         // No ring on the tee any more: it sat round the ball at every
         // address and said where the ball was while the ball said so itself
         // (the owner, v1.74.0).
@@ -10719,20 +10815,41 @@
         return _sun;
     }
 
-    /* The flag, which is three separate things pretending to be one.
+    /* The flag. It **points downwind**, it **ripples** harder the harder it
+       blows, and on a still day it **hangs** — and since v1.257.0 all three
+       come out of a cloth simulation (flag.js) rather than being drawn on:
+       the air is the weather's wind in metres a second (weather.js reads
+       `speed × 34` as km/h), less the pin's own movement, turned into the
+       pole's frame. Low quality, and the last rung of Auto, keep the old
+       drawn ripple (waveFlag), which costs nothing.
 
-       It **points downwind** — the swivel takes the wind's bearing, less the
-       pin's own yaw, so the cloth turns about the stick rather than about the
-       hole. It **ripples** at a rate and a depth that come from the wind
-       speed, with the wave growing along the fly so the hoist stays put and
-       the free end does the moving. And on a still day it **hangs**: the whole
-       sheet sags towards the ground by as much as the wind is failing to hold
-       it up, which is the detail that makes a calm hole read as calm. */
+       Level of detail, by how tall the flag stands on the screen: close up
+       it is drawn through the fine sheet; far off the simulation relaxes
+       its constraints half as often, which nobody can see at a dozen pixels. */
+    var WIND_MS = 34 / 3.6;
+    var FLAG_NEAR_ON = 70, FLAG_NEAR_OFF = 55, FLAG_FAR = 14;   // css px of flag height
+    var _flagAir = { x: 0, y: 0, z: 0 };
+    var _flagAt = new THREE.Vector3();
+
+    function clothOn() {
+        var T = C.QUALITY_TIERS && C.QUALITY_TIERS[R.quality];
+        if (T && R.quality !== 'auto') return T.cloth !== false;
+        if (R.quality === 'auto' && R.autoStep !== undefined && C.QUALITY_AUTO) return autoRung().cloth !== false;
+        return true;
+    }
+
+    // How many css pixels tall the flag stands on the screen.
+    function flagPixels() {
+        if (!R.camera || !R.renderer) return 0;
+        R.flagSwivel.getWorldPosition(_flagAt);
+        var d = Math.max(0.05, R.camera.position.distanceTo(_flagAt));
+        var hPx = R.renderer.domElement.clientHeight || R.renderer.domElement.height || 600;
+        return FLAG_H * hPx / (2 * d * Math.tan((R.camera.fov || 50) * Math.PI / 360));
+    }
+
     function flapFlag(dt, wind) {
         if (!R.flagCloth || !R.flagSwivel) return;
         var t = R.clock;
-        var gust = Math.min(1, wind.speed / 0.95);
-        var yaw = Math.atan2(wind.x, wind.z);
 
         if (R.pinShake > 0) {
             R.pinShake = Math.max(0, R.pinShake - dt * 2.6);
@@ -10741,10 +10858,56 @@
             R.pin.rotation.x = -R.pinLean + Math.sin(t * 29 + 1.2) * 0.05 * q;
         }
 
-        // The cloth streams away from the wind, which means the swivel points
-        // where the wind is going: the flag's own yaw, less the pin's.
-        R.flagSwivel.rotation.y = yaw - R.pin.rotation.y + Math.PI / 2 +
-            Math.sin(t * 1.7) * 0.10 * gust;
+        // The air through the flag, in the pole's frame: the wind, less the
+        // pin's own movement over the hole (the celebration flies it).
+        var p = R.pin.position, vx = 0, vy = 0, vz = 0;
+        if (R.flagLast && dt > 0) {
+            vx = (p.x - R.flagLast.x) / dt; vy = (p.y - R.flagLast.y) / dt; vz = (p.z - R.flagLast.z) / dt;
+        } else if (!R.flagLast) R.flagLast = new THREE.Vector3();
+        R.flagLast.copy(p);
+        var wx = wind.x * WIND_MS - vx, wz = wind.z * WIND_MS - vz;
+        var ca = Math.cos(R.pin.rotation.y), sa = Math.sin(R.pin.rotation.y);
+        _flagAir.x = wx * ca - wz * sa;
+        _flagAir.y = -vy;
+        _flagAir.z = wx * sa + wz * ca;
+
+        if (!R.flagSim || !clothOn()) { waveFlag(wind); return; }
+        if (!R.pin.visible) return;
+        var F = G3.flag, sim = R.flagSim;
+        if (R.flagMode !== 'sim') {
+            // A fresh hole's flag starts out already flying.
+            F.settle(sim, R.flagMode === null ? 1.5 : 0.4, _flagAir);
+            R.flagMode = 'sim';
+            R.flagSwivel.rotation.y = 0;
+        }
+
+        var px = flagPixels();
+        R.flagNear = R.flagFine && (R.flagNear ? px > FLAG_NEAR_OFF : px > FLAG_NEAR_ON);
+        sim.iters = px < FLAG_FAR ? 3 : 6;
+        F.step(sim, dt, _flagAir);
+
+        var mesh = R.flagNear ? R.flagFine : R.flagCloth;
+        var g = mesh.geometry, at = g.attributes.position;
+        if (R.flagNear) F.fill(sim, R.flagSmooth, at.array);
+        else at.array.set(sim.pos);
+        at.needsUpdate = true;
+        g.computeVertexNormals();
+        R.flagCloth.visible = !R.flagNear;
+        if (R.flagFine) R.flagFine.visible = !!R.flagNear;
+    }
+
+    /* The drawn ripple, for Low: the swivel turns the whole sheet downwind
+       and a sine travels along it, growing towards the fly, with the sheet
+       sagging by as much as the wind fails to hold it up. */
+    function waveFlag(wind) {
+        var t = R.clock;
+        var gust = Math.min(1, wind.speed / 0.95);
+        R.flagMode = 'wave';
+        if (R.flagFine) R.flagFine.visible = false;
+        R.flagCloth.visible = true;
+        R.flagNear = false;
+        // Local +x along the air: three.js turns +x to (cos θ, 0, −sin θ).
+        R.flagSwivel.rotation.y = Math.atan2(-_flagAir.z, _flagAir.x) + Math.sin(t * 1.7) * 0.10 * gust;
 
         var g = R.flagCloth.geometry.attributes.position;
         var rest = R.flagRest;
@@ -10753,11 +10916,13 @@
             var lx = rest[i * 3];                 // 0 at the hoist, FLAG_W at the fly
             var f = lx / FLAG_W;
             var ripple = Math.sin(t * (5 + gust * 7) - lx * 7.5) * (0.02 + gust * 0.13) * f;
+            g.setX(i, lx);
             g.setZ(i, ripple);
             // A limp flag falls, and it falls further the further out it is.
             g.setY(i, rest[i * 3 + 1] - sag * f * f - Math.abs(ripple) * 0.35);
         }
         g.needsUpdate = true;
+        R.flagCloth.geometry.computeVertexNormals();
     }
 
     /* ── effects the game asks for ──────────────────────────────────────── */

@@ -43,6 +43,7 @@
     <script src="js/replay.js"></script>
     <script src="js/bot.js"></script>
     <script src="js/lab.js"></script>
+    <script src="js/flag.js"></script>
 
     <script>
     (function () {
@@ -6956,6 +6957,106 @@
             assert('resetFreeBalls removes dev-only unlocks and falls back to tour-white if unowned',
                 !S.ownsBall(devReset, 'black-hole') && S.equippedBall(devReset) === 'tour-white');
             try { localStorage.removeItem(C.SAVE_KEY); } catch (e) {}
+        })();
+
+        /* ── the flag (flag.js) ─────────────────────────────────────────
+           The cloth is stepped for real here: it has no three.js in it. What
+           these hold is what a player would see go wrong — a flag that
+           blows upwind, sticks out on a still day, tears loose from the
+           pole, or explodes — and that every course flies its own print. */
+        section('FLAG');
+        (function () {
+            var F = G3.flag;
+            function flown(air, secs) {
+                var c = F.create(13, 8, 0.76, 0.43);
+                F.settle(c, 1.5, air);
+                for (var t = 0; t < secs; t += 1 / 60) F.step(c, 1 / 60, air);
+                return c;
+            }
+            function fly(c) {                       // the mean of the fly column
+                var x = 0, y = 0, z = 0, k;
+                for (var j = 0; j < c.rows; j++) {
+                    k = (j * c.cols + c.cols - 1) * 3;
+                    x += c.pos[k]; y += c.pos[k + 1]; z += c.pos[k + 2];
+                }
+                return { x: x / c.rows, y: y / c.rows, z: z / c.rows };
+            }
+            function finite(c) { for (var i = 0; i < c.pos.length; i++) if (!isFinite(c.pos[i])) return false; return true; }
+            function stretch(c) {
+                var m = 0;
+                for (var r = 0; r < c.ca.length; r++) {
+                    if (c.cs[r] < 1) continue;
+                    var a = c.ca[r] * 3, b = c.cb[r] * 3;
+                    var d = Math.sqrt(Math.pow(c.pos[b] - c.pos[a], 2) + Math.pow(c.pos[b + 1] - c.pos[a + 1], 2) + Math.pow(c.pos[b + 2] - c.pos[a + 2], 2));
+                    m = Math.max(m, d / c.cl[r]);
+                }
+                return m;
+            }
+
+            var east = flown({ x: 5, y: 0, z: 0 }, 6), f = fly(east);
+            assert('a flag in a breeze streams downwind (+x)', f.x > 0.6 && Math.abs(f.z) < 0.25,
+                JSON.stringify(f));
+            var north = flown({ x: 0, y: 0, z: -9 }, 6), fn = fly(north);
+            assert('…and turns round the pole to follow a wind from another bearing (−z)', fn.z < -0.6 && Math.abs(fn.x) < 0.25,
+                JSON.stringify(fn));
+            var still = flown({ x: 0, y: 0, z: 0 }, 8), fs = fly(still);
+            assert('on a still day it hangs: the fly is well below the hoist and close to the pole',
+                fs.y < -0.55 && Math.sqrt(fs.x * fs.x + fs.z * fs.z) < 0.5, JSON.stringify(fs));
+            assert('a stronger wind holds the fly higher than a still day does', f.y > fs.y + 0.2);
+
+            var hoistHeld = true;
+            [east, north, still].forEach(function (c) {
+                for (var k = 0; k < c.n; k++) {
+                    if (!c.pinned[k]) continue;
+                    if (Math.abs(c.pos[k * 3] - c.rest[k * 3]) > 1e-6 || Math.abs(c.pos[k * 3 + 1] - c.rest[k * 3 + 1]) > 1e-6 ||
+                        Math.abs(c.pos[k * 3 + 2]) > 1e-6) hoistHeld = false;
+                }
+            });
+            assert('the hoist never leaves the pole', hoistHeld);
+            assert('the cloth does not stretch more than a fifth in a breeze', stretch(east) < 1.2, stretch(east).toFixed(3));
+
+            var rocket = flown({ x: 3, y: -24, z: 0 }, 3);
+            assert('flown up like a rocket (the celebration), it streams down and stays finite and in one piece',
+                finite(rocket) && fly(rocket).y < -0.5 && stretch(rocket) < 1.6, stretch(rocket).toFixed(3));
+            var wild = flown({ x: 1e6, y: -1e6, z: NaN }, 1);
+            assert('absurd air (a hitch, a NaN) cannot blow the sheet up', finite(wild));
+
+            var gaps = 0, many = F.create(13, 8, 0.76, 0.43);
+            for (var g = 0; g < 30; g++) gaps += F.step(many, 0.5, { x: 2, y: 0, z: 0 });
+            assert('a long hitch is dropped rather than paid for (a few substeps a call at most)', gaps <= 30 * 8, gaps);
+
+            // The fine sheet drawn through the coarse one passes through its particles.
+            var S = F.smooth(east, 3), out = new Float32Array(S.x.n * S.y.n * 3);
+            F.fill(east, S, out);
+            var worst = 0;
+            for (var j = 0; j < east.rows; j++) {
+                for (var i = 0; i < east.cols; i++) {
+                    var o = ((j * 3) * S.x.n + i * 3) * 3, k2 = (j * east.cols + i) * 3;
+                    worst = Math.max(worst, Math.abs(out[o] - east.pos[k2]), Math.abs(out[o + 1] - east.pos[k2 + 1]), Math.abs(out[o + 2] - east.pos[k2 + 2]));
+                }
+            }
+            assert('the close-up sheet is (cols−1)·3+1 across and lands on every particle of the simulated one',
+                S.x.n === 37 && S.y.n === 22 && worst < 1e-5, worst);
+
+            // Every course flies its own print, and the house name is on all of them.
+            var keys = {}, house = true, distinct = 0;
+            G3.COURSES.forEach(function (c) {
+                var d = F.designFor(c.holes[0], c.theme);
+                if (!keys[d.key]) { keys[d.key] = 1; distinct++; }
+                var words = d.lines.map(function (l) { return l[0]; }).join(' ') + ' ' + (d.sub || '');
+                if (!/NESKIL/i.test(words)) house = false;
+            });
+            assert('every course flies a flag of its own', distinct === G3.COURSES.length, distinct + ' of ' + G3.COURSES.length);
+            assert('…and every one of them says Neskil', house);
+            assert('a tour hole flies the World Tour flag with its world named',
+                F.designFor({ place: { world: 'alpenglow-horn' } }, 'x').id === 'tour' &&
+                F.designFor({ place: { world: 'alpenglow-horn' } }, 'x').sub === 'Alpenglow');
+            assert('an endless hole and a stray hole get their own and the house flag',
+                F.designFor({ endless: {}, place: { world: 'a' } }, 'x').id === 'endless' &&
+                F.designFor({}, 'nowhere').id === 'house');
+            assert('Low and the last rung of Auto draw the flag instead of simulating it',
+                C.QUALITY_TIERS.low.cloth === false && C.QUALITY_AUTO[C.QUALITY_AUTO.length - 1].cloth === false &&
+                C.QUALITY_TIERS.high.cloth !== false);
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */
