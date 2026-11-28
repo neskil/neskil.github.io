@@ -7034,6 +7034,17 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   The two keys before it (the panel's and the chip's) are dropped at load
   rather than read, so a camera tried out before Chase was the default does
   not come back.
+- **Chase over the ball** (v1.254.0, the owner: "Don't like that the ball is
+  'above' the camera. Rather pull back and be 'above' the ball at all
+  times"). Chase sat under the ball looking down the hole; it now rides
+  `DIST` 14 back, climbs the whole of the ball's height (`RISE` 1) `UP` 2.5
+  over it and holds `DIVE` 0.3 of the fall, looking at the ball (`AIM_LOW`
+  0). Measured on Ashdown Park 1, a drive and a 7-iron: the eye is 1.9 to 4
+  units over the ball the whole flight, 13.5 to 14 back, and the ball in the
+  middle of the picture. The camera is kept as the preset's name while it is
+  on one (`CONFIG.CAM_KEY` → `{ preset }`, or `{ knobs }` once the panel has
+  made a mix), so a retuned preset reaches the browsers that picked it;
+  v1.253.0's key, which kept the old Chase as its knobs, is dropped.
 
 ### The fourth camera, which is not a seat
 
