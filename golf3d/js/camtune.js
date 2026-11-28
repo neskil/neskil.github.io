@@ -103,13 +103,17 @@
                  'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
         /* After a recording of another golf game's camera (v1.252.0, the
            owner: "I really like that camera … give me a preset for that"):
-           it flies behind every shot from the strike, trailing and under the
-           ball, looking down the hole with the ball high in the picture; it
-           turns lazily so a draw is seen to draw; it comes down with the ball
-           and hands back quickly once it is down. */
-        { id: 'chase', menu: 'Chase', name: 'Chase', says: 'Flies behind every shot, trailing low and looking down the hole, so the ball climbs up the picture and the bend shows. Hands back fast on landing.',
-          set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 11, 'LONG_CAM.UP': 1, 'LONG_CAM.RISE': 0.45, 'LONG_CAM.DIVE': 0.1,
-                 'LONG_CAM.AIM_LOW': 0.35, 'LONG_CAM.TURN': 0.35, 'LONG_CAM.OUT': 0.8, 'LONG_CAM.FOV': 50,
+           it flies behind every shot from the strike; it turns lazily so a
+           draw is seen to draw, and hands back quickly once the ball is down.
+           It trailed under the ball, looking down the hole, until v1.254.0
+           (the owner: "Don't like that the ball is 'above' the camera. Rather
+           pull back and be 'above' the ball at all times"): now it sits DIST
+           14 back and climbs the whole of the ball's height (RISE 1) UP 2.5
+           over it, and holds a little of the fall (DIVE) on the way down, so
+           the eye is over the ball from the strike to the landing. */
+        { id: 'chase', menu: 'Chase', name: 'Chase', says: 'Flies behind every shot, well back and always above the ball, looking down on it. The bend shows. Hands back fast on landing.',
+          set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 14, 'LONG_CAM.UP': 2.5, 'LONG_CAM.RISE': 1, 'LONG_CAM.DIVE': 0.3,
+                 'LONG_CAM.AIM_LOW': 0, 'LONG_CAM.TURN': 0.35, 'LONG_CAM.OUT': 0.8, 'LONG_CAM.FOV': 50,
                  'LONG_CAM.ABOVE': 0, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
         // CONFIG's own values: the camera every preset is written against.
         { id: 'now', menu: 'Classic', name: 'Classic', says: 'The camera before Chase: the driver rides, the rest are held then followed, zooms and all.', set: {} }
@@ -134,11 +138,18 @@
     var SHIPPED = {};
     ROWS.forEach(function (r) { if (r.path) SHIPPED[r.path] = JSON.parse(JSON.stringify(get(r.path))); });
 
+    /* Kept as the preset's name while the camera is on one, so a preset
+       retuned in a later release reaches the browsers that picked it; as the
+       knobs that differ from CONFIG once the panel has made it a mix. */
     function save() {
-        var out = {};
-        ROWS.forEach(function (r) {
-            if (r.path && JSON.stringify(get(r.path)) !== JSON.stringify(SHIPPED[r.path])) out[r.path] = get(r.path);
-        });
+        var pr = current(), out = {};
+        if (pr) out.preset = pr.id;
+        else {
+            out.knobs = {};
+            ROWS.forEach(function (r) {
+                if (r.path && JSON.stringify(get(r.path)) !== JSON.stringify(SHIPPED[r.path])) out.knobs[r.path] = get(r.path);
+            });
+        }
         try { localStorage.setItem(C.CAM_KEY, JSON.stringify(out)); } catch (e) { /* no storage */ }
     }
     // Short enough for the chip: "Camera: Broadcast" did not fit on a phone.
@@ -153,17 +164,18 @@
             });
         });
     }
-    /* At load: what this browser kept, over CONFIG — every knob it differs
-       on, so it is the whole camera — or the default with nothing kept. The
-       two keys before v1.253.0 were the panel's (dev mode only) and the
-       chip's preset; they are dropped rather than read, so a camera tried
-       out on the panel before Chase was the default does not come back. */
+    /* At load: what this browser kept — a preset, or knobs over CONFIG —
+       or the default with nothing kept. The keys before this one (the
+       panel's and the chip's before v1.253.0, and v1.253.0's, which kept a
+       preset as its knobs and so would have held on to the Chase that sat
+       under the ball) are dropped rather than read. */
     (function () {
         var kept = null;
         try { kept = JSON.parse(localStorage.getItem(C.CAM_KEY) || 'null'); } catch (e) { kept = null; }
-        try { localStorage.removeItem('loftLinks.camTune'); localStorage.removeItem('loftLinks.camPreset'); } catch (e) { /* no storage */ }
-        if (!kept || typeof kept !== 'object') { putOn(DEFAULT); return; }
-        ROWS.forEach(function (r) { if (r.path && kept[r.path] !== undefined) set(r.path, kept[r.path]); });
+        try { ['loftLinks.camTune', 'loftLinks.camPreset', 'loftLinks.camera'].forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { /* no storage */ }
+        if (kept && kept.preset && PRESETS.some(function (p) { return p.id === kept.preset; })) { putOn(kept.preset); return; }
+        if (!kept || !kept.knobs || typeof kept.knobs !== 'object') { putOn(DEFAULT); return; }
+        ROWS.forEach(function (r) { if (r.path && kept.knobs[r.path] !== undefined) set(r.path, kept.knobs[r.path]); });
     })();
 
     function fmt(row, v) {

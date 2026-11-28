@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.253.0';
+G3.VERSION = '1.254.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1505,7 +1505,7 @@ G3.CONFIG.SPEED_LENS = 1;
 
 /* Where this browser keeps its camera (js/camtune.js): a preset from ☰ →
    Settings → Camera, or the dev panel's knobs, as what differs from here. */
-G3.CONFIG.CAM_KEY = 'loftLinks.camera';
+G3.CONFIG.CAM_KEY = 'loftLinks.camera.v2';
 
 /* The ground answering the ball (groundfx.js), all of it at once: AMOUNT of
    the particles each burst asks for, at SIZE of their size and ALPHA of their
