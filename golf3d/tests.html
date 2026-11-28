@@ -1348,7 +1348,11 @@
                in it, so it takes one: every assertion below hands `rng` a
                function of its own and nothing here is left to chance. */
             (function () {
-                var ids = G3.COURSES.map(function (c) { return c.id; });
+                /* What a draw is drawn out of: every world and every course
+                   (the owner: "its missing the worlds here"). */
+                var pool = G3.drawPool();
+                var ids = pool.map(function (c) { return c.id; });
+                var worldIds = pool.filter(function (c) { return c.isWorld; });
                 var modeIds = G3.SHUFFLE_MODES.map(function (m) { return m.id; });
                 // A save file with a record on every mini golf course and
                 // nothing anywhere else, which is what most save files look
@@ -1358,9 +1362,11 @@
                     played.courses[c.id] = { best: 20 + i, bestVsPar: 2, bestCard: null, rounds: i + 1 };
                 });
                 var all = { courses: {} };
+                all.holes = {};
                 G3.COURSES.forEach(function (c, i) {
                     all.courses[c.id] = { best: 20, bestVsPar: 0, bestCard: null, rounds: i === 0 ? 3 : 1 };
                 });
+                worldIds.forEach(function (w) { all.holes[w.id + ':0'] = { plays: 1, best: 3, stars: 1 }; });
                 function fixed(n) { return function () { return n; }; }
 
                 assert('every shuffle mode is named, marked and described',
@@ -1377,6 +1383,20 @@
                     G3.SHUFFLE_MODES.every(function (m) {
                         return !m.blurbKind || m.blurbKind.indexOf('%s') >= 0;
                     }));
+                assert('the draw holds every world as well as every course',
+                    worldIds.length === G3.portals.WORLDS.length && worldIds.length > 0 &&
+                    pool.length === G3.portals.WORLDS.length +
+                        G3.COURSES.filter(function (c) { return !c.playtest; }).length &&
+                    worldIds.every(function (w) {
+                        var c = G3.courseById(w.id);
+                        return !!c && c.single && c.holes.length === 1 && w.group === G3.WORLDS_KIND.id;
+                    }));
+                assert('…and the worlds are a kind the draw names, first in its row',
+                    G3.drawKindList()[0] === G3.WORLDS_KIND && G3.drawKindById('worlds') === G3.WORLDS_KIND &&
+                    G3.drawKindById('nope') === null &&
+                    G3.COURSE_GROUPS.every(function (g) {
+                        return g.tint.toLowerCase() !== G3.WORLDS_KIND.tint.toLowerCase();
+                    }));
                 assert('groupById finds a kind, and is honest about one that is not',
                     G3.groupById('mini').name === 'Classic' && G3.groupById('nope') === null &&
                     G3.groupById(G3.SHUFFLE_GROUP.id) === null);
@@ -1391,13 +1411,21 @@
                         return G3.shuffleDraw({ mode: m, from: 'works', save: played, group: 'adventure' })
                             .courses.every(function (c) { return c.id !== 'works'; });
                     }));
-                assert('an unknown mode draws like "anything"',
+                assert('an unknown mode draws like the first one',
                     G3.shuffleDraw({ mode: 'nope', from: 'works' }).courses.length ===
-                    G3.COURSES.length - 1);
+                    pool.length - 1);
                 assert('and it says so, rather than reporting the mode it was handed',
-                    G3.shuffleDraw({ mode: 'nope' }).mode === 'any');
+                    G3.shuffleDraw({ mode: 'nope' }).mode === G3.SHUFFLE_MODES[0].id);
                 assert('a draw from nowhere in particular offers everything',
-                    G3.shuffleDraw({ mode: 'any' }).courses.length === G3.COURSES.length);
+                    G3.shuffleDraw({ mode: 'any' }).courses.length === pool.length);
+                assert('standing on a world, the draw does not hand it back',
+                    G3.shuffleDraw({ mode: 'any', from: worldIds[0].id }).courses.every(function (c) {
+                        return c.id !== worldIds[0].id;
+                    }) && G3.shuffleDraw({ mode: 'any', from: worldIds[0].id }).courses.length === pool.length - 1);
+                assert('…and "same kind" there means the worlds',
+                    G3.shuffleDraw({ mode: 'kind', from: worldIds[0].id }).courses.every(function (c) {
+                        return c.isWorld;
+                    }) && G3.shuffleDraw({ mode: 'kind', from: worldIds[0].id }).courses.length === worldIds.length - 1);
 
                 var kind = G3.shuffleDraw({ mode: 'kind', from: 'works', group: 'adventure' });
                 assert('"same kind" stays inside the kind',
@@ -1412,12 +1440,12 @@
 
                 var fresh = G3.shuffleDraw({ mode: 'fresh', from: 'seaside', save: played });
                 assert('"new to you" offers only what has never been finished',
-                    fresh.courses.length === G3.COURSES.length - G3.coursesInGroup('mini').length && !fresh.eased &&
+                    fresh.courses.length === pool.length - G3.coursesInGroup('mini').length && !fresh.eased &&
                     fresh.courses.every(function (c) { return !played.courses[c.id]; }));
                 var everywhere = G3.shuffleDraw({ mode: 'fresh', from: 'quarry', save: all });
                 assert('and when there is nothing new left it offers the least played',
-                    everywhere.eased && everywhere.courses.length === G3.COURSES.length - 2 &&
-                    everywhere.courses.every(function (c) { return all.courses[c.id].rounds === 1; }),
+                    everywhere.eased && everywhere.courses.length === pool.length - 2 &&
+                    everywhere.courses.every(function (c) { return G3.drawPlays(all, c) === 1; }),
                     everywhere.courses.length + ' offered');
 
                 var rec = G3.shuffleDraw({ mode: 'record', from: 'seaside', save: played });
@@ -1426,10 +1454,46 @@
                     rec.courses.every(function (c) { return c.group === 'mini'; }));
                 var norec = G3.shuffleDraw({ mode: 'record', from: 'seaside', save: S.emptySave() });
                 assert('and before the first round it widens rather than offering nothing',
-                    norec.eased && norec.courses.length === G3.COURSES.length - 1);
+                    norec.eased && norec.courses.length === pool.length - 1);
                 assert('a missing save file is read as a fresh one',
-                    G3.shuffleDraw({ mode: 'fresh' }).courses.length === G3.COURSES.length &&
-                    G3.shuffleDraw({ mode: 'record' }).eased);
+                    G3.shuffleDraw({ mode: 'fresh' }).courses.length === pool.length &&
+                    G3.shuffleDraw({ mode: 'record' }).eased && !G3.shuffleDraw({ mode: 'stars' }).eased);
+
+                /* A world counts as played, and as a record, off its one
+                   hole — that is where the tour and its own card both write. */
+                var w0 = worldIds[0].id, w1 = worldIds[1].id;
+                var oneWorld = { courses: {}, holes: {} };
+                oneWorld.holes[w0 + ':0'] = { plays: 2, best: 3, stars: 3 };
+                oneWorld.holes[w1 + ':0'] = { plays: 1, best: 4, stars: 2 };
+                var wf = G3.shuffleDraw({ mode: 'fresh', save: oneWorld });
+                assert('"new to you" leaves out a world you have played',
+                    wf.courses.length === pool.length - 2 &&
+                    wf.courses.every(function (c) { return c.id !== w0 && c.id !== w1; }));
+                var wr = G3.shuffleDraw({ mode: 'record', save: oneWorld });
+                assert('"beat a best" offers a world you hold a best on',
+                    !wr.eased && wr.courses.length === 2 &&
+                    wr.courses.every(function (c) { return c.id === w0 || c.id === w1; }));
+
+                /* "Stars to win": what has not got three on every hole yet. */
+                var ws = G3.shuffleDraw({ mode: 'stars', save: oneWorld });
+                assert('"stars to win" leaves out a world with all three stars, and keeps one with two',
+                    !ws.eased && ws.courses.length === pool.length - 1 &&
+                    ws.courses.every(function (c) { return c.id !== w0; }) &&
+                    ws.courses.some(function (c) { return c.id === w1; }));
+                var sea = G3.courseById('seaside'), starry = { courses: {}, holes: {} };
+                sea.holes.forEach(function (h, i) { starry.holes['seaside:' + i] = { plays: 1, best: 2, stars: i ? 3 : 2 }; });
+                assert('…and a course is only done when every hole on it holds three',
+                    G3.shuffleDraw({ mode: 'stars', save: starry }).courses.some(function (c) { return c.id === 'seaside'; }));
+                starry.holes['seaside:0'].stars = 3;
+                assert('…and then it is left out',
+                    G3.shuffleDraw({ mode: 'stars', save: starry }).courses.every(function (c) { return c.id !== 'seaside'; }));
+                var full = { courses: {}, holes: {} };
+                pool.forEach(function (c) {
+                    c.holes.forEach(function (h, i) { full.holes[c.id + ':' + i] = { plays: 1, best: 2, stars: 3 }; });
+                });
+                var done = G3.shuffleDraw({ mode: 'stars', save: full });
+                assert('with every star won it widens rather than offering nothing',
+                    done.eased && done.courses.length === pool.length);
 
                 /* ── which kinds the draw may reach for ─────────────────
 
@@ -1439,10 +1503,10 @@
                    that it holds on every mode, that it is read rather than
                    trusted, and that it cannot leave the button with nothing
                    to press. */
-                var groupIdList = G3.COURSE_GROUPS.map(function (g) { return g.id; });
+                var groupIdList = G3.drawKindList().map(function (g) { return g.id; });
 
                 assert('kinds left unsaid means every kind',
-                    G3.shuffleDraw({ mode: 'any' }).courses.length === G3.COURSES.length &&
+                    G3.shuffleDraw({ mode: 'any' }).courses.length === pool.length &&
                     G3.shuffleDraw({ mode: 'any' }).kinds.join() === groupIdList.join() &&
                     !G3.shuffleDraw({ mode: 'any' }).widened);
                 var mini = G3.shuffleDraw({ mode: 'any', kinds: ['mini'] });
@@ -1488,8 +1552,14 @@
                     assert('ticking nothing widens back to every kind rather than offering none: ' +
                         (kinds.join() || '(empty)'),
                         none.widened && none.kinds.join() === groupIdList.join() &&
-                        none.courses.length === G3.COURSES.length - 1);
+                        none.courses.length === pool.length - 1);
                 });
+                var onlyWorlds = G3.shuffleDraw({ mode: 'any', kinds: ['worlds'] });
+                assert('the worlds can be the only thing ticked',
+                    onlyWorlds.courses.length === worldIds.length && !onlyWorlds.widened &&
+                    [0, 0.3, 0.7, 0.99].every(function (n) {
+                        return G3.randomCourseId({ mode: 'any', kinds: ['worlds'], rng: fixed(n) }).indexOf('world-') === 0;
+                    }));
                 assert('and the dice still name a course when they do',
                     !!G3.courseById(G3.randomCourseId({
                         mode: 'fresh', from: 'seaside', kinds: [], rng: fixed(0.5)
@@ -1536,11 +1606,11 @@
                 // Walked rather than sampled: draws spread evenly over the
                 // unit interval must reach every other course, which is the
                 // property "you can end up anywhere" actually means.
-                var seen = {}, k, n = G3.COURSES.length - 1, steps = 600, byKind = {};
+                var seen = {}, k, n = pool.length - 1, steps = 600, byKind = {};
                 for (k = 0; k < steps; k++) {
                     var got = G3.randomCourseId({ mode: 'any', from: 'seaside', rng: fixed((k + 0.5) / steps) });
                     seen[got] = 1;
-                    var g = G3.courseById(got).group;
+                    var g = got.indexOf('world-') === 0 ? 'worlds' : G3.courseById(got).group;
                     byKind[g] = (byKind[g] || 0) + 1;
                 }
                 assert('every other course is reachable from a given one',
@@ -1779,14 +1849,28 @@
                 var hits = 0, mini = 0, others = 0, rng = lcg(7), k;
                 for (k = 0; k < 800; k++) {
                     var id = G3.randomCourseId({ mode: 'any', from: 'seaside', save: played, rng: rng });
-                    if (G3.courseById(id).group !== 'mini') { others++; continue; }
+                    if (id.indexOf('world-') === 0 || G3.courseById(id).group !== 'mini') { others++; continue; }
                     mini++;
                     if (id === 'quarry') hits++;
                 }
                 assert('the shuffle leans hard towards the course never played, inside its kind',
                     hits > mini * 0.9 && hits < mini, hits + ' of ' + mini);
+                var share = 800 / G3.drawKindList().length;
                 assert('…and the lean does not crowd out the other kinds',
-                    mini > 200 && mini < 335 && others > 465, mini + ' mini, ' + others + ' other');
+                    Math.abs(mini - share) < share * 0.3 && others > 800 - share * 1.3,
+                    mini + ' mini, ' + others + ' other');
+                /* Pure luck is the one preset that does not lean: the course
+                   never played comes up no more than its share of its kind. */
+                var luck = 0, luckMini = 0;
+                rng = lcg(7);
+                for (k = 0; k < 800; k++) {
+                    var lid = G3.randomCourseId({ mode: 'luck', from: 'seaside', save: played, rng: rng });
+                    if (lid.indexOf('world-') === 0 || G3.courseById(lid).group !== 'mini') continue;
+                    luckMini++;
+                    if (lid === 'quarry') luck++;
+                }
+                assert('"pure luck" weighs nothing by what you have played',
+                    luckMini > 0 && luck < luckMini * 0.75, luck + ' of ' + luckMini);
 
                 // Holes played out of a showcase count against their course too.
                 var seen = { courses: {}, holes: {} };
