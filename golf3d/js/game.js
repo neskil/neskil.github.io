@@ -2736,6 +2736,12 @@
         state.phase = 'penalty';
         toast(kind === 'lava' ? 'Into the lava' : kind === 'water' ? 'In the water'
             : w.swallowed ? 'Swallowed by the well' : 'Out of play', 'bad', pen.hold * 1000);
+        /* Off the edge of the world, into the drop below it, there is
+           nothing to hold on: the ball has already stopped where it went
+           over, and the hold was two seconds of a frozen picture (the owner,
+           v1.246.0: "when falling to endless dont pause like this"). The
+           replay at once — the toast still says why. */
+        if (kind === 'out' && w.fell && !w.swallowed) { offerDrop(); return; }
         $('pen-skip').hidden = false;
         syncSwing();
         syncHud();

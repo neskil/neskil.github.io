@@ -6872,7 +6872,11 @@ owner, "the fake airtime is not feeling that good on the long game map".)
     stroke either way. Out of play gets the hold and no card: out of bounds is
     stroke and distance and nothing else (Rule 18.2; v1.239.0 offered a drop
     at two strokes, the local rule E-5, until the owner: "read up on the
-    rules, you can't drop from OOB"), so it is always the replay.
+    rules, you can't drop from OOB"), so it is always the replay. A ball off
+    the edge of the world (`world.fell`: below `OOB_Y`, or off a sculpted
+    hole's `edge`) gets no hold either — it has stopped where it went over,
+    and two seconds of that was a frozen picture (v1.246.0, the owner: "when
+    falling to endless dont pause like this") — so it is the replay at once.
     `dropSpot` reads the ball's path through the shot (`state.track`, sampled
     by game.js), takes the last point over dry, staked-in, playable ground,
     and tries spots out to two club lengths round it and then back along the
