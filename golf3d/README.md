@@ -6735,6 +6735,20 @@ are played as the long game now — air, look, tracer and chase.) The drawn ball
 the ground the physics' ball sits on. Anything that sets the ball's scale
 (the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
 
+**Never while the ball moves** (v1.245.0, the owner: "the ball size and zoom
+have a bit of uncanny valley thing"). Read off the ball every frame, the look
+grew a pitch to nearly three times its size in the air as it came down by the
+flag, under a chase camera that was standing still — and the speed lens
+(`SPEED_LENS`) opened and closed the view under it, a zoom out and back in. So
+render.js `stepLook` holds the look (`R.lookK`) while the ball is moving and
+takes it over to the new lie's on a critically damped spring of
+`LONG_LOOK.EASE` once it is at rest, while the camera walks up; a ball put
+somewhere is snapped. On a long hole the speed lens is off except under the
+driver's riding chase, which is the one seat there that moves with the ball.
+Measured on Ashdown Park 3, a wedge from sixteen units: the drawn size went
+0.34 → 0.56 in the air before, and holds 0.34 until rest now; the fov went 52°
+→ 54.7° and back, and holds 52°.
+
 ### The long game's air
 
 Read at `LONG_M` metres to the unit, the mini golf flight (eighteen units a
@@ -6903,8 +6917,8 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   After any long shot the seat stands `ABOVE` higher and comes down over
   `ABOVE_T` once the ball is at rest (render.js `stepAbove`).
 - **The dev camera panel** (js/camtune.js, ☰ → Dev → Camera tuning). Sliders
-  over the knobs above, the driver's `DIST`, `LONG_LOOK.SEAT` and
-  `CONFIG.SPEED_LENS`, written straight into `G3.CONFIG` so the next shot
+  over the knobs above, the driver's `DIST`, `LONG_LOOK.SEAT`, `MIN` and
+  `EASE`, and `CONFIG.SPEED_LENS`, written straight into `G3.CONFIG` so the next shot
   shows them; kept per browser in dev mode (`CAM_TUNE_KEY`), with Copy to send
   the values back. Index.html only: nothing else needs it.
 
