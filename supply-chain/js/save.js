@@ -69,6 +69,12 @@ SC.save = (function() {
             nextStatSampleIn: st.nextStatSampleIn,
             achievements: Object.assign({}, st.achievements),
             unlockedProducts: Object.assign({}, st.unlockedProducts),
+            weather: st.weather ? {
+                i: st.weather.i, type: st.weather.type, t: st.weather.t,
+                dur: st.weather.dur, intensity: st.weather.intensity,
+                cloud: st.weather.cloud, snow: st.weather.snow,
+                windAng: st.weather.windAng, windMag: st.weather.windMag
+            } : null,
             upgrades: Object.assign({}, st.upgrades),
             research: {
                 completed: Object.assign({}, st.research.completed),
@@ -134,6 +140,9 @@ SC.save = (function() {
         st.nextStatSampleIn = data.nextStatSampleIn !== undefined ? data.nextStatSampleIn : st.nextStatSampleIn;
         st.achievements = data.achievements ? Object.assign({}, data.achievements) : {};
         st.unlockedProducts = data.unlockedProducts ? Object.assign({}, data.unlockedProducts) : {};
+        if (data.weather && typeof data.weather === 'object') {
+            st.weather = Object.assign(SC.weather ? SC.weather.freshState() : {}, data.weather, { forced: null });
+        }
         st.seed = data.seed || null;
         // Field size is additive/back-compat: pre-expansion saves (and any
         // written by an older client) simply lack these and keep the base.

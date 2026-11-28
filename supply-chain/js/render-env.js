@@ -6,20 +6,21 @@
     const { S, zoom, mix, shade, rgba, hexToRgb, makeRng, footRadii, diamondPath,
             roundRectPath, clampZoom, label, labelAt, emoji, ISO } = R;
 
-    // --- day/night + weather (cosmetic, render-only) ---
+    // --- day/night + weather (weather logic lives in js/weather.js) ---
     const DAY_LENGTH = 210;                 // seconds for a full day↔night cycle
     let dayClock = DAY_LENGTH * 0.80;       // open in the evening so it starts moody
     let todPhase = 0, twilight = 0, sunEl = -1; // (dayness/nightLevel/shadow* live on R)
-    const WEATHER_ROTATION = ['clear', 'clouds', 'rain', 'clouds', 'clear', 'snow', 'clouds'];
     let weather = { i: 0, type: 'clear', t: 0, dur: 40, intensity: 0, cloud: 0,
                     snow: 0, windAng: 0.6, windMag: 0.5 };
-    // Shared so the audio layer can score the ambience to the visible weather
-    // (see js/audio.js `env()`). Mutated in place, never reassigned — the
-    // reference stays valid for the life of the page.
+    // Shared reference kept in sync with SC.state.weather so audio/render
+    // observers see one unified weather state.
     R.weather = weather;
-    let forcedWeather = null;               // &weather= for screenshots
+    let lastWeatherType = 'clear';
     let precip = [];                        // rain/snow particle pool (screen-space)
     let clouds = null;                      // drifting overcast blobs (screen-space)
+    let shootingStars = [];                 // active night meteors
+    let nextMeteorIn = 5 + Math.random() * 7;
+    let lightning = { flash: 0, bolt: null, boltLife: 0, nextIn: 7 + Math.random() * 8, thunderIn: -1 };
     const SKY_NIGHT = ['#141d30', '#0f1626', '#0a0f1a'];
     const SKY_DAY = ['#3a6ea3', '#6a9fca', '#a7c8e0'];
     const SKY_DUSK = ['#28203e', '#6b3f56', '#c9724a'];
@@ -40,13 +41,71 @@
     let flies = null;
     let vignette = null, vignetteWH = '';
 
+    // Parse standalone render URL flags once so we don't allocate URLSearchParams every frame.
+    const urlParams = (typeof location !== 'undefined') ? new URLSearchParams(location.search) : null;
+    const pinnedTod = urlParams && urlParams.has('tod') ? (parseFloat(urlParams.get('tod')) || 0) : null;
+    const pinnedWeather = urlParams && urlParams.has('weather') ? urlParams.get('weather') : null;
+    const forceStorm = !!(urlParams && urlParams.has('storm'));
+    const forceShootingStar = !!(urlParams && urlParams.has('shootingstar'));
+
     function lerpHex(a, b, t) { return mix(a, b, t); } // alias for readability
 
+    function makeLightningBolt(w, h) {
+        const startX = w * (0.18 + Math.random() * 0.64);
+        const endY = h * (0.28 + Math.random() * 0.22);
+        const segs = [];
+        let x = startX, y = 0;
+        const steps = 9;
+        for (let i = 1; i <= steps; i++) {
+            const nx = x + (Math.random() - 0.5) * 58;
+            const ny = (endY * i) / steps;
+            segs.push({ x0: x, y0: y, x1: nx, y1: ny, w: 2.4 });
+            // Occasional jagged fork off the main bolt
+            if (i >= 2 && i <= steps - 2 && Math.random() < 0.45) {
+                const dir = Math.random() < 0.5 ? -1 : 1;
+                const bx1 = nx + dir * (20 + Math.random() * 34);
+                const by1 = ny + 18 + Math.random() * 28;
+                segs.push({ x0: nx, y0: ny, x1: bx1, y1: by1, w: 1.2 });
+                if (Math.random() < 0.5) {
+                    segs.push({ x0: bx1, y0: by1, x1: bx1 + dir * (12 + Math.random() * 20), y1: by1 + 14 + Math.random() * 18, w: 0.8 });
+                }
+            }
+            x = nx; y = ny;
+        }
+        return segs;
+    }
+
     function updateDayWeather(dt) {
-        const p = new URLSearchParams(location.search);
-        if (p.has('tod')) dayClock = (parseFloat(p.get('tod')) || 0) * DAY_LENGTH;
+        if (pinnedTod !== null) dayClock = pinnedTod * DAY_LENGTH;
         else dayClock += dt;
-        if (p.has('weather')) forcedWeather = p.get('weather');
+
+        if (pinnedWeather && SC.weather && SC.state && SC.state.weather && SC.state.weather.forced !== pinnedWeather) {
+            SC.weather.setForced(pinnedWeather);
+        }
+        if (forceStorm && SC.weather && SC.state && SC.state.weather && SC.state.weather.forced !== 'rain') {
+            SC.weather.setForced('rain');
+        }
+
+        // Sync from authoritative logic weather (SC.state.weather)
+        const sw = SC.state && SC.state.weather;
+        if (sw) {
+            if (sw.type !== lastWeatherType) {
+                precip.length = 0;
+                lastWeatherType = sw.type;
+            }
+            weather.i = sw.i;
+            weather.type = sw.type;
+            weather.t = sw.t;
+            weather.dur = sw.dur;
+            weather.intensity = sw.intensity;
+            weather.cloud = sw.cloud;
+            weather.snow = sw.snow;
+            weather.windAng = sw.windAng;
+            weather.windMag = sw.windMag;
+        } else {
+            weather.windAng += dt * 0.06;
+            weather.windMag = 0.35 + 0.25 * Math.sin(dayClock * 0.05);
+        }
 
         todPhase = (dayClock / DAY_LENGTH) % 1;
         sunEl = Math.sin((todPhase - 0.25) * Math.PI * 2); // -1 midnight … +1 noon
@@ -54,31 +113,87 @@
         R.nightLevel = 1 - R.dayness;
         twilight = Math.max(0, 1 - Math.abs(sunEl) / 0.26); // strong near horizon
 
-        // Weather scheduler: each spell fades its intensity 0→1→0 so particles
-        // clear out before the type switches. `cloud` (overcast amount) is a
-        // separate slow ease so clouds linger through rain/snow.
-        weather.t += dt;
-        const u = weather.t / weather.dur;
-        const env = Math.max(0, Math.min(1, Math.min(u / 0.18, (1 - u) / 0.18)));
-        weather.intensity = forcedWeather ? (forcedWeather === weather.type ? 1 : 0) : env;
-        if (weather.t >= weather.dur && !forcedWeather) {
-            weather.i = (weather.i + 1) % WEATHER_ROTATION.length;
-            weather.type = WEATHER_ROTATION[weather.i];
-            weather.t = 0;
-            weather.dur = 34 + Math.random() * 30;
-            precip.length = 0; // drop stale particles across a type change
+        // Storm lightning & delayed thunder rumble during heavy rain
+        const wCss = R.canvas ? R.canvas.width / R.dpr : 1280;
+        const hCss = R.canvas ? R.canvas.height / R.dpr : 800;
+        if (forceStorm) {
+            if (!lightning.bolt) {
+                // Deterministic crisp bolt for headless storm screenshots
+                lightning.bolt = [
+                    { x0: wCss * 0.62, y0: 0, x1: wCss * 0.60, y1: hCss * 0.08, w: 2.6 },
+                    { x0: wCss * 0.60, y0: hCss * 0.08, x1: wCss * 0.635, y1: hCss * 0.16, w: 2.4 },
+                    { x0: wCss * 0.635, y0: hCss * 0.16, x1: wCss * 0.59, y1: hCss * 0.25, w: 2.2 },
+                    { x0: wCss * 0.59, y0: hCss * 0.25, x1: wCss * 0.615, y1: hCss * 0.36, w: 1.8 },
+                    { x0: wCss * 0.635, y0: hCss * 0.16, x1: wCss * 0.67, y1: hCss * 0.23, w: 1.2 },
+                    { x0: wCss * 0.59, y0: hCss * 0.25, x1: wCss * 0.555, y1: hCss * 0.31, w: 1.1 }
+                ];
+            }
+            lightning.boltLife = 0.28;
+            lightning.flash = 0.34;
+        } else {
+            if (lightning.flash > 0) lightning.flash = Math.max(0, lightning.flash - dt * 2.4);
+            if (lightning.boltLife > 0) {
+                lightning.boltLife -= dt;
+                if (lightning.boltLife <= 0) lightning.bolt = null;
+            }
+            if (lightning.thunderIn >= 0) {
+                lightning.thunderIn -= dt;
+                if (lightning.thunderIn <= 0) {
+                    lightning.thunderIn = -1;
+                    if (SC.sfx && !(SC.state && (SC.state.paused || SC.state.gameOver))) {
+                        SC.sfx.play('thunder');
+                    }
+                }
+            }
+            const stormy = weather.type === 'rain' && weather.intensity > 0.65 && !(SC.state && SC.state.paused);
+            if (stormy) {
+                lightning.nextIn -= dt;
+                if (lightning.nextIn <= 0) {
+                    lightning.bolt = makeLightningBolt(wCss, hCss);
+                    lightning.boltLife = 0.26;
+                    lightning.flash = 0.72;
+                    lightning.thunderIn = 0.25 + Math.random() * 0.45;
+                    lightning.nextIn = 8 + Math.random() * 11;
+                }
+            }
         }
-        if (forcedWeather && forcedWeather !== weather.type) {
-            weather.type = forcedWeather; weather.intensity = 1; precip.length = 0;
+
+        // Shooting stars during clear-ish night skies
+        const starVis = R.nightLevel * (1 - weather.cloud * 0.85);
+        if (forceShootingStar) {
+            if (!shootingStars.length) {
+                shootingStars.push({
+                    x: wCss * 0.28, y: hCss * 0.12,
+                    vx: 320, vy: 115, life: 0.35, dur: 0.9, len: 95, pinned: true
+                });
+            }
+        } else {
+            for (let i = shootingStars.length - 1; i >= 0; i--) {
+                const m = shootingStars[i];
+                m.life += dt;
+                m.x += m.vx * dt;
+                m.y += m.vy * dt;
+                if (m.life >= m.dur) shootingStars.splice(i, 1);
+            }
+            if (starVis > 0.25 && shootingStars.length < 2) {
+                nextMeteorIn -= dt;
+                if (nextMeteorIn <= 0) {
+                    const dir = Math.random() < 0.7 ? 1 : -1;
+                    const speed = 260 + Math.random() * 180;
+                    const ang = dir > 0 ? (0.28 + Math.random() * 0.28) : (Math.PI - 0.28 - Math.random() * 0.28);
+                    shootingStars.push({
+                        x: wCss * (dir > 0 ? (0.1 + Math.random() * 0.55) : (0.35 + Math.random() * 0.55)),
+                        y: hCss * (0.04 + Math.random() * 0.22),
+                        vx: Math.cos(ang) * speed,
+                        vy: Math.sin(ang) * speed,
+                        life: 0,
+                        dur: 0.65 + Math.random() * 0.4,
+                        len: 65 + Math.random() * 55
+                    });
+                    nextMeteorIn = 7 + Math.random() * 12;
+                }
+            }
         }
-        const overcast = (weather.type === 'clouds' || weather.type === 'rain' || weather.type === 'snow')
-            ? weather.intensity : 0;
-        weather.cloud += (overcast - weather.cloud) * Math.min(1, dt * 0.6);
-        // Snow accumulates on the ground while it falls and melts slowly after
-        const snowing = weather.type === 'snow' ? weather.intensity : 0;
-        weather.snow += (snowing - weather.snow) * Math.min(1, dt * (snowing > weather.snow ? 0.4 : 0.06));
-        weather.windAng += dt * 0.06;        // the system slowly rotates
-        weather.windMag = 0.35 + 0.25 * Math.sin(dayClock * 0.05);
 
         // Cast-shadow direction from the dominant luminary: it sweeps east→
         // west over the day, so shadows point the opposite way and always a
@@ -101,8 +216,42 @@
         return lerpHex(c, '#535f70', weather.cloud * 0.35);
     }
 
+    // Subtle atmospheric mountain-range silhouettes behind the plateau that
+    // pan slower than the world (0.09× and 0.16×) for genuine sky/terrain parallax.
+    function drawHorizonParallax(w, h) {
+        const cam = SC.camera.cam;
+        const farCol = mix(skyColor(1), '#1a273d', 0.34);
+        const midCol = mix(skyColor(1), '#132033', 0.48);
+        const layers = [
+            { rate: 0.08, baseY: h * 0.58, amp: 58, freq: 0.0022, seed: 1.7, col: farCol, alpha: 0.42 },
+            { rate: 0.15, baseY: h * 0.65, amp: 44, freq: 0.0031, seed: 4.3, col: midCol, alpha: 0.50 }
+        ];
+        for (const L of layers) {
+            const ox = cam.x * L.rate;
+            const oy = Math.max(-45, Math.min(45, -cam.y * L.rate * 0.25));
+            R.ctx.beginPath();
+            R.ctx.moveTo(0, h);
+            const step = Math.max(24, w / 36);
+            for (let x = 0; x <= w + step; x += step) {
+                const wx = (x + ox) * L.freq;
+                const ridge = Math.sin(wx + L.seed) * 0.5
+                            + Math.sin(wx * 2.13 - L.seed * 0.7) * 0.3
+                            + Math.sin(wx * 4.3 + L.seed * 1.9) * 0.2;
+                const y = L.baseY + oy - Math.abs(ridge) * L.amp;
+                R.ctx.lineTo(x, y);
+            }
+            R.ctx.lineTo(w, h);
+            R.ctx.closePath();
+            R.ctx.globalAlpha = L.alpha;
+            R.ctx.fillStyle = L.col;
+            R.ctx.fill();
+        }
+        R.ctx.globalAlpha = 1;
+    }
+
     function drawSky() {
         const w = R.canvas.width / R.dpr, h = R.canvas.height / R.dpr;
+        const cam = SC.camera.cam;
         const g = R.ctx.createLinearGradient(0, 0, 0, h);
         g.addColorStop(0, skyColor(0));
         g.addColorStop(0.55, skyColor(1));
@@ -110,15 +259,16 @@
         R.ctx.fillStyle = g;
         R.ctx.fillRect(0, 0, w, h);
 
-        // Aurora — night-only, fades out toward day and under cloud.
+        // Aurora — night-only, fades out toward day and under cloud, gentle horizontal parallax.
         const auroraA = R.nightLevel * (1 - weather.cloud * 0.8);
         if (auroraA > 0.02) {
+            const px = cam.x * 0.04;
             for (let b = 0; b < 2; b++) {
                 const baseY = h * (0.14 + b * 0.06);
                 R.ctx.beginPath();
                 R.ctx.moveTo(0, baseY);
                 for (let x = 0; x <= w; x += w / 12) {
-                    R.ctx.lineTo(x, baseY + Math.sin(x / w * 6 + R.seaTime * 0.25 + b * 2) * 18 * (1 - b * 0.3));
+                    R.ctx.lineTo(x, baseY + Math.sin((x + px) / w * 6 + R.seaTime * 0.25 + b * 2) * 18 * (1 - b * 0.3));
                 }
                 R.ctx.lineTo(w, 0); R.ctx.lineTo(0, 0); R.ctx.closePath();
                 const ag = R.ctx.createLinearGradient(0, 0, 0, baseY + 30);
@@ -129,7 +279,7 @@
             }
         }
 
-        // Stars — fade with daylight and cloud cover.
+        // Stars — fade with daylight and cloud cover, gentle camera-pan parallax.
         if (!stars) {
             const rng = makeRng(0xa11);
             stars = [];
@@ -139,14 +289,48 @@
         }
         const starA = R.nightLevel * (1 - weather.cloud * 0.85);
         if (starA > 0.02) {
+            const px = -(cam.x * 0.035), py = -(cam.y * 0.02);
+            const hSky = h * 0.65;
             R.ctx.fillStyle = '#dbe6f4';
             for (const s of stars) {
+                const sx = ((s.u * w + px) % w + w) % w;
+                const sy = ((s.v * h + py) % hSky + hSky) % hSky;
                 R.ctx.globalAlpha = starA * (0.25 + 0.45 * (0.5 + 0.5 * Math.sin(R.seaTime * 0.8 + s.ph)));
                 R.ctx.beginPath();
-                R.ctx.arc(s.u * w, s.v * h, s.r, 0, Math.PI * 2);
+                R.ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
                 R.ctx.fill();
             }
             R.ctx.globalAlpha = 1;
+
+            // Shooting stars streaking across clear night skies
+            if (shootingStars.length) {
+                R.ctx.lineCap = 'round';
+                for (const m of shootingStars) {
+                    const u = m.life / m.dur;
+                    const fade = m.pinned ? 0.95 : Math.sin(Math.min(1, u) * Math.PI);
+                    const mag = Math.hypot(m.vx, m.vy) || 1;
+                    const tx = m.x - (m.vx / mag) * m.len;
+                    const ty = m.y - (m.vy / mag) * m.len;
+                    const gr = R.ctx.createLinearGradient(m.x, m.y, tx, ty);
+                    gr.addColorStop(0, `rgba(240, 249, 255, ${0.95 * fade * starA})`);
+                    gr.addColorStop(0.35, `rgba(147, 197, 253, ${0.55 * fade * starA})`);
+                    gr.addColorStop(1, 'rgba(147, 197, 253, 0)');
+                    R.ctx.strokeStyle = gr;
+                    R.ctx.lineWidth = 2.1;
+                    R.ctx.beginPath();
+                    R.ctx.moveTo(m.x, m.y);
+                    R.ctx.lineTo(tx, ty);
+                    R.ctx.stroke();
+                    // Bright meteor head
+                    R.ctx.globalAlpha = fade * starA;
+                    R.ctx.fillStyle = '#ffffff';
+                    R.ctx.beginPath();
+                    R.ctx.arc(m.x, m.y, 1.8, 0, Math.PI * 2);
+                    R.ctx.fill();
+                }
+                R.ctx.globalAlpha = 1;
+                R.ctx.lineCap = 'butt';
+            }
         }
 
         // Luminary: sun and moon share an east→west arc, crossfaded by day/
@@ -166,6 +350,9 @@
             drawLuminary(arcX(mf), arcY(mf), Math.max(20, Math.min(w, h) * 0.045),
                          '#e8eef7', '#d2e0f5', R.nightLevel * clouded, true);
         }
+
+        // Distant parallax mountain silhouettes behind the foreground plateau
+        drawHorizonParallax(w, h);
     }
 
     function drawLuminary(x, y, r, disc, glow, alpha, moon) {
@@ -189,6 +376,7 @@
     function drawSkyClouds(dt) {
         if (weather.cloud < 0.02) return;
         const W = SC.worldW(), H = SC.worldH();
+        const wCss = R.canvas.width / R.dpr;
         if (!clouds) {
             const rng = makeRng(0xc10d);
             clouds = [];
@@ -203,8 +391,8 @@
         }
         const driftX = Math.cos(weather.windAng) * weather.windMag * 4;
         const driftY = Math.sin(weather.windAng) * weather.windMag * 4;
-        R.ctx.fillStyle = '#8391a5';
         const z = zoom();
+        const flashLift = lightning.flash * 0.45;
         for (const c of clouds) {
             c.x += driftX * c.s * dt * 0.02;
             c.y += driftY * c.s * dt * 0.02;
@@ -215,10 +403,14 @@
             else if (c.y < -margin) c.y += (H + 2 * margin);
 
             const p = S(c.x, c.y);
-            const cx = p.x, cy = p.y - 450 * z, r = c.r * z;
+            // Subtle altitude parallax offset so clouds float above the ground plane
+            const cx = p.x + (p.x - wCss * 0.5) * 0.12;
+            const cy = p.y - 450 * z;
+            const r = c.r * z;
             const gr = R.ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
-            gr.addColorStop(0, `rgba(150, 165, 186, ${0.22 * weather.cloud})`);
-            gr.addColorStop(1, 'rgba(150, 165, 186, 0)');
+            const baseRgb = flashLift > 0.05 ? '210, 226, 250' : '150, 165, 186';
+            gr.addColorStop(0, `rgba(${baseRgb}, ${(0.22 + flashLift * 0.25) * weather.cloud})`);
+            gr.addColorStop(1, `rgba(${baseRgb}, 0)`);
             R.ctx.fillStyle = gr;
             R.ctx.beginPath(); R.ctx.ellipse(cx, cy, r, r * 0.55, 0, 0, Math.PI * 2); R.ctx.fill();
         }
@@ -299,6 +491,25 @@
                 R.ctx.lineTo(p.x - vx * 1.1, p.y - vy * 1.1);
                 R.ctx.stroke();
             }
+            // Branching storm lightning bolt in upper sky
+            if (lightning.bolt && lightning.boltLife > 0) {
+                const a = Math.min(1, lightning.boltLife / 0.18);
+                R.ctx.save();
+                R.ctx.lineCap = 'round';
+                // Soft electric blue-white outer halo
+                R.ctx.strokeStyle = `rgba(147, 197, 253, ${0.42 * a})`;
+                for (const s of lightning.bolt) {
+                    R.ctx.lineWidth = s.w * 3.4;
+                    R.ctx.beginPath(); R.ctx.moveTo(s.x0, s.y0); R.ctx.lineTo(s.x1, s.y1); R.ctx.stroke();
+                }
+                // Crisp hot white core
+                R.ctx.strokeStyle = `rgba(248, 250, 255, ${0.95 * a})`;
+                for (const s of lightning.bolt) {
+                    R.ctx.lineWidth = s.w;
+                    R.ctx.beginPath(); R.ctx.moveTo(s.x0, s.y0); R.ctx.lineTo(s.x1, s.y1); R.ctx.stroke();
+                }
+                R.ctx.restore();
+            }
             R.ctx.lineCap = 'butt';
         } else { // snow
             R.ctx.fillStyle = 'rgba(233, 240, 250, 0.85)';
@@ -316,6 +527,44 @@
         }
     }
 
+    // Golden-hour volumetric light shafts radiating diagonally from the low sun
+    // at dawn (strongest) and dusk, softened by cloud cover.
+    function drawGodRays(w, h) {
+        const rayA = twilight * (1 - weather.cloud * 0.82);
+        if (rayA < 0.08) return;
+        const sf = (todPhase - 0.25) / 0.5;
+        // Dawn is sf near 0 (left/east), dusk is sf near 1 (right/west)
+        const sunX = sf <= 0.5 ? w * (0.08 + Math.max(0, sf) * 0.45) : w * (0.55 + Math.min(1, sf - 0.5) * 0.72);
+        const sunY = h * 0.14;
+        const dawnBoost = sf <= 0.5 ? 1.15 : 0.8;
+        const len = Math.hypot(w, h) * 0.95;
+        const dirSign = sf <= 0.5 ? 1 : -1;
+
+        R.ctx.save();
+        R.ctx.globalCompositeOperation = 'screen';
+        for (let k = 0; k < 5; k++) {
+            const spread = (k - 2) * 0.14;
+            const ang = (dirSign > 0 ? 0.62 : Math.PI - 0.62) + spread;
+            const halfAng = 0.036 + (k % 2) * 0.014;
+            const shimmer = 0.75 + 0.25 * Math.sin(R.seaTime * 0.45 + k * 1.7);
+            const alpha = 0.11 * rayA * dawnBoost * shimmer;
+            const ex = sunX + Math.cos(ang) * len;
+            const ey = sunY + Math.sin(ang) * len;
+            const g = R.ctx.createLinearGradient(sunX, sunY, ex, ey);
+            g.addColorStop(0, `rgba(255, 224, 150, ${alpha})`);
+            g.addColorStop(0.45, `rgba(255, 186, 108, ${alpha * 0.55})`);
+            g.addColorStop(1, 'rgba(255, 160, 90, 0)');
+            R.ctx.fillStyle = g;
+            R.ctx.beginPath();
+            R.ctx.moveTo(sunX, sunY);
+            R.ctx.lineTo(sunX + Math.cos(ang - halfAng) * len, sunY + Math.sin(ang - halfAng) * len);
+            R.ctx.lineTo(sunX + Math.cos(ang + halfAng) * len, sunY + Math.sin(ang + halfAng) * len);
+            R.ctx.closePath();
+            R.ctx.fill();
+        }
+        R.ctx.restore();
+    }
+
     function drawGrade() {
         const w = R.canvas.width / R.dpr, h = R.canvas.height / R.dpr;
         // overcast steals some daylight and warmth
@@ -328,6 +577,7 @@
             if (duskA > 0.01) { R.ctx.globalAlpha = duskA; R.ctx.fillStyle = '#ff9d5c'; R.ctx.fillRect(0, 0, w, h); }
             R.ctx.restore();
         }
+        drawGodRays(w, h);
         // A cool grey wash under heavy cloud, so overcast/rain/snow reads as
         // a moodier, flatter light rather than the same clear palette.
         if (weather.cloud > 0.05) {
@@ -335,6 +585,15 @@
             R.ctx.fillStyle = '#3a4658';
             R.ctx.fillRect(0, 0, w, h);
             R.ctx.globalAlpha = 1;
+        }
+        // Brief bright atmospheric flash on a storm lightning strike
+        if (lightning.flash > 0.01) {
+            R.ctx.save();
+            R.ctx.globalCompositeOperation = 'screen';
+            R.ctx.globalAlpha = Math.min(0.45, lightning.flash * 0.42);
+            R.ctx.fillStyle = '#d8ebff';
+            R.ctx.fillRect(0, 0, w, h);
+            R.ctx.restore();
         }
     }
 
@@ -1185,13 +1444,120 @@
 
         const H = SC.worldH();
         const z = zoom();
+        const wCss = R.canvas.width / R.dpr, hCss = R.canvas.height / R.dpr;
         const getPt = (x, y) => {
             const p = S(x, y);
             const h = y < 0 ? 0 : terrainHeight(x, y); // flat inside the cave
             return { x: p.x, y: p.y - h * z };
         };
 
-        // Animated ripples across the flow (gradually fading as they go upstream)
+        // Build left/right banks so live water reflections clip strictly inside the river.
+        const left = [], right = [];
+        for (let i = 0; i < extSpine.length; i++) {
+            left.push(getPt(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
+            right.push(getPt(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
+        }
+
+        R.ctx.save();
+        R.ctx.beginPath();
+        left.forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
+        for (let i = right.length - 1; i >= 0; i--) R.ctx.lineTo(right[i].x, right[i].y);
+        R.ctx.closePath();
+        R.ctx.clip();
+
+        // 1. Live sky reflection tint (the cached bg river is baked in one tone;
+        //    this lets the water mirror dusk gold, bright midday sky, or storm grey).
+        const skyRef = skyColor(1);
+        const skyAlpha = 0.14 + 0.14 * R.dayness + 0.16 * twilight + lightning.flash * 0.22;
+        R.ctx.globalAlpha = Math.min(0.45, skyAlpha);
+        R.ctx.fillStyle = lightning.flash > 0.15 ? '#cbe2ff' : skyRef;
+        R.ctx.fillRect(0, 0, wCss, hCss);
+        R.ctx.globalAlpha = 1;
+
+        // 2. Sun / moon specular glitter column dancing across the waves
+        const clearFactor = 1 - weather.cloud * 0.72;
+        if (clearFactor > 0.12) {
+            const sf = (todPhase - 0.25) / 0.5;
+            const mf = (((todPhase + 0.25) % 1) - 0.25) / 0.5;
+            const useSun = R.dayness >= 0.45;
+            const lumFrac = Math.max(0, Math.min(1, useSun ? sf : mf));
+            const lumX = wCss * (0.12 + 0.76 * lumFrac);
+            const glitterCol = useSun
+                ? (twilight > 0.25 ? '#ffbe78' : '#fff0c2')
+                : '#cfe2ff';
+            R.ctx.strokeStyle = glitterCol;
+            R.ctx.lineCap = 'round';
+            const step = Math.max(1, Math.floor(extSpine.length / 26));
+            for (let i = 3; i < extSpine.length - 2; i += step) {
+                const sp = extSpine[i];
+                if (sp.y < 10) continue; // dark inside the cave mouth
+                const hw = extHalfWidths[i];
+                const center = getPt(sp.x, sp.y);
+                if (center.x < -120 || center.x > wCss + 120 || center.y < -60 || center.y > hCss + 60) continue;
+                const align = Math.max(0.18, 1 - Math.abs(center.x - lumX) / (wCss * 0.65));
+                const wave = Math.sin(R.seaTime * 2.1 + i * 1.37);
+                const shimmer = (0.35 + 0.65 * (0.5 + 0.5 * wave)) * align * clearFactor;
+                const wxOff = Math.sin(R.seaTime * 1.2 + i * 2.1) * hw * 0.32;
+                const pt = getPt(sp.x + wxOff, sp.y);
+                const dashHalf = (7 + 9 * (0.5 + 0.5 * Math.cos(R.seaTime * 1.7 + i))) * z * align;
+                R.ctx.globalAlpha = (useSun ? 0.34 : 0.26) * shimmer;
+                R.ctx.lineWidth = Math.max(1, 1.7 * z);
+                R.ctx.beginPath();
+                R.ctx.moveTo(pt.x - dashHalf, pt.y);
+                R.ctx.lineTo(pt.x + dashHalf, pt.y);
+                R.ctx.stroke();
+            }
+            R.ctx.globalAlpha = 1;
+            R.ctx.lineCap = 'butt';
+        }
+
+        // 3. Night/dusk rippling light reflections cast onto the water by
+        //    lit riverside buildings (HQ, customer DCs, operational factories).
+        if (R.nightLevel > 0.14 && SC.state && SC.state.nodes && SC.map && SC.map.riverAt) {
+            const refA = R.nightLevel * 0.24;
+            for (const n of SC.state.nodes) {
+                if (!n.active || n.forSale) continue;
+                if (n.kind !== 'city' && n.kind !== 'factory' && n.kind !== 'researchLab') continue;
+                const rv = SC.map.riverAt(n.y);
+                if (!rv) continue;
+                const dist = Math.abs(n.x - rv.x) - rv.halfW;
+                if (dist > 220) continue;
+                const prox = Math.max(0, 1 - Math.max(0, dist) / 220);
+                // Project onto the near side of the river beside this site
+                const rx = rv.x + Math.sign(n.x - rv.x) * Math.min(rv.halfW * 0.55, Math.abs(n.x - rv.x) * 0.4);
+                const base = getPt(rx, n.y + 18);
+                if (base.x < -80 || base.x > wCss + 80 || base.y < -80 || base.y > hCss + 80) continue;
+                const col = n.isHQ ? '#60c8ff' : (n.kind === 'city' ? '#5eead4' : '#ffd88a');
+                R.ctx.strokeStyle = col;
+                R.ctx.lineCap = 'round';
+                for (let k = 0; k < 4; k++) {
+                    const yOff = k * 5.5 * z;
+                    const wob = Math.sin(R.seaTime * 2.6 + n.id * 1.9 + k * 1.3) * 4.5 * z;
+                    const halfW = (11 - k * 1.8) * z * prox;
+                    if (halfW <= 1) continue;
+                    R.ctx.globalAlpha = refA * prox * (1 - k * 0.2);
+                    R.ctx.lineWidth = Math.max(1.2, 2.2 * z);
+                    R.ctx.beginPath();
+                    R.ctx.moveTo(base.x + wob - halfW, base.y + yOff);
+                    R.ctx.lineTo(base.x + wob + halfW, base.y + yOff);
+                    R.ctx.stroke();
+                }
+            }
+            R.ctx.globalAlpha = 1;
+            R.ctx.lineCap = 'butt';
+        }
+
+        // 4. Subtle shoreline edge sheen along both banks
+        R.ctx.strokeStyle = `rgba(186, 224, 248, ${0.09 + 0.08 * R.dayness})`;
+        R.ctx.lineWidth = Math.max(1, 1.4 * z);
+        R.ctx.beginPath();
+        left.forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
+        R.ctx.stroke();
+        R.ctx.beginPath();
+        right.forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
+        R.ctx.stroke();
+
+        // 5. Animated current ripples across the flow (gradually fading into the cave)
         const topY_fade = S(SC.worldW() * 0.5, -20).y; // Fade exactly at the cave entrance
         const fadeY = S(SC.worldW() * 0.5, 0).y;
         const botY_full = S(SC.worldW() * 0.5, SC.worldH() + margin).y;
@@ -1200,8 +1566,8 @@
         let stopFade = (fadeY - topY_fade) / (botY_full - topY_fade);
         stopFade = Math.max(0.01, Math.min(0.99, stopFade));
         gRip.addColorStop(0, 'rgba(96, 200, 240, 0)');
-        gRip.addColorStop(stopFade, 'rgba(96, 200, 240, 0.10)');
-        gRip.addColorStop(1, 'rgba(96, 200, 240, 0.10)');
+        gRip.addColorStop(stopFade, 'rgba(96, 200, 240, 0.11)');
+        gRip.addColorStop(1, 'rgba(96, 200, 240, 0.11)');
         
         R.ctx.strokeStyle = gRip;
         R.ctx.lineWidth = 1.4;
@@ -1227,6 +1593,7 @@
             }
             R.ctx.stroke();
         }
+        R.ctx.restore();
     }
 
     function drawWetRoads() {

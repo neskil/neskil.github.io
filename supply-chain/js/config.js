@@ -276,7 +276,30 @@ SC.CONFIG = {
     // Stats screen: SC.state.moneyHistory is a capped ring of periodic
     // balance samples for the sparkline (see stats.js tick).
     STATS_SAMPLE_INTERVAL: 10,  // seconds between samples
-    STATS_HISTORY_MAX: 60       // ~10 minutes of samples at the default interval
+    STATS_HISTORY_MAX: 60,      // ~10 minutes of samples at the default interval
+
+    // ── Weather system (js/weather.js) ────────────────────────────
+    // Cycles through clear → clouds → rain → clouds → clear → snow → clouds.
+    // Rain and snow slow unpaved roads and ferries meaningfully while paved
+    // highways resist bad weather, giving Asphalt Paving a second strategic
+    // payoff and making Dijkstra route around wet dirt roads and choppy ferries.
+    WEATHER_ROTATION: ['clear', 'clouds', 'rain', 'clouds', 'clear', 'snow', 'clouds'],
+    WEATHER_DURATION: [42, 70], // [min, max] sim seconds per spell
+    WEATHER_FIRST_DURATION: 40, // opening clear spell so new runs start calm
+    WEATHER_META: {
+        clear:  { emoji: '☀️', label: 'Clear' },
+        clouds: { emoji: '☁️', label: 'Overcast' },
+        rain:   { emoji: '🌧️', label: 'Rainstorm' },
+        snow:   { emoji: '❄️', label: 'Snowfall' }
+    },
+    // Fractional speed penalty at full intensity (1.0) and Normal difficulty
+    // (weatherMult = 1). Scaled by intensity and SC.diff().weatherMult.
+    WEATHER_PENALTY: {
+        rain: { unpaved: 0.22, highway: 0.06, ferry: 0.30 },
+        snow: { unpaved: 0.32, highway: 0.12, ferry: 0.40 }
+    },
+    WEATHER_SPEED_FLOOR: 0.45,
+    CASHFLOW_WINDOW: 60         // rolling window (sim seconds) for live $/min revenue
 };
 
 // Difficulty presets, chosen on the new-game screen and fixed for the
@@ -303,29 +326,29 @@ SC.DIFFICULTIES = {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
         riverGraceMin: 5, orderGraceMin: 3, nodeSpread: 520, orderPenaltyMult: 0.1,
-        upkeepMult: 0.6,
-        desc: 'Relaxed deadlines, gentle interest, low order miss fine, light upkeep, no congestion.'
+        upkeepMult: 0.6, weatherMult: 0.5,
+        desc: 'Relaxed deadlines, gentle interest, light upkeep & weather, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
         riverGraceMin: 3, orderGraceMin: 1.5, nodeSpread: 620, orderPenaltyMult: 0.3,
-        upkeepMult: 1,
-        desc: 'Tight deadlines, 15%/min debt interest, moderate order miss fine, fleet upkeep, road congestion.'
+        upkeepMult: 1, weatherMult: 1,
+        desc: 'Tight deadlines, 15%/min debt interest, fleet upkeep, weather drag & road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
         riverGraceMin: 0, orderGraceMin: 0.5, nodeSpread: 820, orderPenaltyMult: 0.5,
-        upkeepMult: 1.4,
-        desc: 'Brutal deadlines, punishing interest, steep order miss fine, heavy upkeep, road congestion.'
+        upkeepMult: 1.4, weatherMult: 1.25,
+        desc: 'Brutal deadlines, punishing interest, heavy upkeep, harsh storms & road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
         riverGraceMin: 5, orderGraceMin: 5, nodeSpread: 620, orderPenaltyMult: 0,
-        upkeepMult: 0,
-        desc: 'Deep pockets, no interest, no upkeep, no bankruptcy, no miss fines, no congestion.'
+        upkeepMult: 0, weatherMult: 0,
+        desc: 'Deep pockets, no interest, no upkeep, no bankruptcy, no miss fines, no weather drag.'
     }
 };
 SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
@@ -404,7 +427,7 @@ SC.RESEARCH = {
     },
     pavedRoads: {
         name: 'Asphalt Paving', emoji: '🛣️', cost: 800, time: 50, requires: [],
-        desc: 'Upgrade individual roads to highways — trucks drive 60% faster on them.'
+        desc: 'Upgrade individual roads to highways — 60% faster and built to shrug off rain and snow.'
     },
     overdrive: {
         name: 'Overdrive Engines', emoji: '⚡', cost: 1600, time: 80, requires: ['pavedRoads'],

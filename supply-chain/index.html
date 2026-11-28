@@ -24,7 +24,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.64.0';</script>
+    <script>window.SC_VERSION = '1.65.0';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -88,6 +88,21 @@
         </div>
     </div>
 
+    <!-- Compact status chips under the HUD bar: live $/min net cashflow and
+         weather/forecast. Tapping either opens #hud-popover with the breakdown. -->
+    <div id="hud-subbar">
+        <button id="hud-cashflow" class="hud-chip" type="button" title="Live net cashflow — tap for upkeep breakdown">
+            <span id="hud-cashflow-val">$0/m</span>
+        </button>
+        <button id="hud-weather" class="hud-chip" type="button" title="Weather &amp; forecast — tap for road conditions">
+            <span id="hud-weather-val">☀️ Clear</span>
+        </button>
+    </div>
+
+    <div id="hud-popover" class="panel hidden" role="dialog" aria-label="Status breakdown">
+        <div id="hud-popover-body"></div>
+    </div>
+
     <!-- Dev-only tools: hidden until turned on from the ☰ menu (or
          ?dev=1 for a one-off load). Not part of normal gameplay — quick
          tuning/testing aids for development. -->
@@ -132,6 +147,11 @@
         <button id="mode-upgrade" class="mode-btn" title="Upgrade: tap a supplier or road to level it up">⬆️</button>
         <button id="mode-inspect" class="mode-btn" title="Inspect: hover or tap a node for its connections">🔍</button>
         <button id="mode-heatmap" class="mode-btn" title="Heatmap: view road usage & bottleneck congestion">🔥</button>
+    </div>
+
+    <div id="mode-hint-pill" class="hidden">
+        <span id="mode-hint-text"></span>
+        <button id="mode-hint-cancel" type="button" title="Return to Build mode" aria-label="Cancel">✕</button>
     </div>
 
     <div id="inspect-tooltip"></div>
@@ -486,7 +506,8 @@
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
                 <li><b>Junctions:</b> place one (Shop panel) anywhere on land to fork, merge or reroute roads through a point that isn't a supplier, factory or city — no supply or demand of its own, just a waypoint for shaping the network.</li>
                 <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, bottom right): tap a supplier twice to raise its stock cap and refill rate.</li>
-                <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster there.</li>
+                <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster and shrug off bad weather.</li>
+                <li><b>Weather &amp; Cashflow:</b> rainstorms and snowfalls slow unpaved roads and river ferries (paved highways resist both). Tap the live <b>$/min</b> or <b>Weather</b> chip under the top-left HUD bar for a breakdown of upkeep costs, revenue, and upcoming road conditions.</li>
                 <li><b>Congestion &amp; Difficulty Ramp:</b> a difficulty trait (on for Normal/Hard) — busy roads slow down past a few trucks. As your delivery count grows, order deadlines tighten and spawn rates speed up for a scaling challenge.</li>
                 <li><b>Fast-forward:</b> the 1×/2×/4× toggle under the HUD speeds up the whole sim — orders, crafting, trucks, interest, everything.</li>
                 <li><b>Contracts:</b> occasionally a bulk-order card offers a locked-in premium rate — Accept or Decline before the timer runs out. An accepted contract is a big order with its own deadline; miss it and you pay a penalty on top of the failure, not just a missed order.</li>
@@ -508,7 +529,7 @@
          it's a logic module). -->
     <script>
     (function () {
-        var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
+        var mods = ['config', 'state', 'weather', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
                     'roads', 'factories', 'economy', 'vehicles', 'stats', 'run',
                     'inspect', 'research', 'placement', 'tutorial',
                     'render-core', 'render-env', 'render-network', 'render-actors',

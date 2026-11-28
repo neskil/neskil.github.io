@@ -86,7 +86,12 @@ SC.newState = function(difficulty, runMode) {
         moneyHistory: [],        // recent SC.state.money samples, see stats.js tick
         nextStatSampleIn: SC.CONFIG.STATS_SAMPLE_INTERVAL,
         achievements: {},        // { id: true } — see stats.js / SC.ACHIEVEMENTS
-        unlockedProducts: {}     // { productKey: time_unlocked_in_seconds }
+        unlockedProducts: {},    // { productKey: time_unlocked_in_seconds }
+        recentIncome: [],        // [{ t, amount }] — rolling window for live $/min cashflow
+        weather: SC.weather ? SC.weather.freshState() : {
+            i: 0, type: 'clear', t: 0, dur: SC.CONFIG.WEATHER_FIRST_DURATION || 40,
+            intensity: 0, cloud: 0, snow: 0, windAng: 0.6, windMag: 0.5, forced: null
+        }
     };
     return SC.state;
 };
@@ -137,16 +142,28 @@ SC.interestPerMin = function() {
 // economy.tick, so a network built out faster than its revenue slides
 // into debt on its own — the pressure the foreclosure fail state needs.
 // Zero on Sandbox (upkeepMult 0); cut 40% by Predictive Maintenance.
-SC.upkeepPerMin = function() {
+SC.upkeepBreakdown = function() {
     const c = SC.CONFIG;
     const st = SC.state;
-    const factories = st.nodes.filter(n => n.kind === 'factory' && n.active && !n.forSale).length;
-    const yards = st.nodes.filter(n => n.kind === 'yard').length; // HQ excluded on purpose
-    const base = st.trucks.length * c.UPKEEP_PER_TRUCK +
-                 factories * c.UPKEEP_PER_FACTORY +
-                 yards * c.UPKEEP_PER_YARD;
-    const mult = SC.diff().upkeepMult !== undefined ? SC.diff().upkeepMult : 1;
-    return base * mult * SC.research.upkeepMult();
+    const truckCount = st.trucks.length;
+    const factoryCount = st.nodes.filter(n => n.kind === 'factory' && n.active && !n.forSale).length;
+    const yardCount = st.nodes.filter(n => n.kind === 'yard').length; // HQ excluded on purpose
+    const diffMult = SC.diff().upkeepMult !== undefined ? SC.diff().upkeepMult : 1;
+    const researchMult = SC.research ? SC.research.upkeepMult() : 1;
+    const scale = diffMult * researchMult;
+    const trucks = truckCount * c.UPKEEP_PER_TRUCK * scale;
+    const factories = factoryCount * c.UPKEEP_PER_FACTORY * scale;
+    const yards = yardCount * c.UPKEEP_PER_YARD * scale;
+    return {
+        truckCount, factoryCount, yardCount,
+        trucks, factories, yards,
+        scale,
+        total: trucks + factories + yards
+    };
+};
+
+SC.upkeepPerMin = function() {
+    return SC.upkeepBreakdown().total;
 };
 
 // Buying the next parcel (Land Surveying). Each purchase makes the next one

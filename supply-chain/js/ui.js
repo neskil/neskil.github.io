@@ -38,6 +38,101 @@ SC.ui = (function() {
         });
     }
 
+    let hudPopoverKind = null; // null | 'finance' | 'weather'
+
+    function fmtRate(n) {
+        const r = Math.round(n);
+        if (r > 0) return '+' + fmt(r) + '/m';
+        if (r < 0) return '−' + fmt(Math.abs(r)) + '/m';
+        return '$0/m';
+    }
+
+    function renderHudPopover() {
+        const pop = $('hud-popover');
+        const body = $('hud-popover-body');
+        if (!pop || !body) return;
+        const cfBtn = $('hud-cashflow');
+        const wBtn = $('hud-weather');
+        if (cfBtn) cfBtn.classList.toggle('active', hudPopoverKind === 'finance');
+        if (wBtn) wBtn.classList.toggle('active', hudPopoverKind === 'weather');
+        if (!hudPopoverKind) {
+            pop.classList.add('hidden');
+            return;
+        }
+        pop.classList.remove('hidden');
+
+        if (hudPopoverKind === 'finance') {
+            const cf = SC.economy.cashflow();
+            const b = cf.breakdown;
+            const netCls = cf.netPerMin > 1 ? 'pos' : (cf.netPerMin < -1 ? 'neg' : '');
+            body.innerHTML = `
+                <div class="pop-title"><span>💵 Cashflow ($/min)</span><button class="pop-close" type="button" aria-label="Close">✕</button></div>
+                <div class="pop-row"><span>Order revenue (60s avg)</span><b class="pos">+${fmt(cf.revenuePerMin)}/m</b></div>
+                <div class="pop-row"><span>Trucks upkeep (${b.truckCount})</span><b class="${b.trucks > 0 ? 'neg' : ''}">−${fmt(b.trucks)}/m</b></div>
+                <div class="pop-row"><span>Factories upkeep (${b.factoryCount})</span><b class="${b.factories > 0 ? 'neg' : ''}">−${fmt(b.factories)}/m</b></div>
+                <div class="pop-row"><span>Yards upkeep (${b.yardCount})</span><b class="${b.yards > 0 ? 'neg' : ''}">−${fmt(b.yards)}/m</b></div>
+                ${cf.interestPerMin > 0.5 ? `<div class="pop-row"><span>Debt interest</span><b class="neg">−${fmt(cf.interestPerMin)}/m</b></div>` : ''}
+                <div class="pop-row total"><span>Net cashflow</span><b class="${netCls}">${fmtRate(cf.netPerMin)}</b></div>
+                <div class="pop-note">${SC.diff().upkeepMult === 0 ? 'Sandbox: upkeep &amp; interest disabled.' : 'HQ yard is free. Predictive Maintenance research cuts upkeep by 40%.'}</div>`;
+        } else if (hudPopoverKind === 'weather' && SC.weather) {
+            const fc = SC.weather.forecast();
+            const pct = m => Math.round(m * 100) + '%';
+            const cls = m => m < 0.8 ? 'neg' : (m < 0.98 ? 'warn' : 'pos');
+            const nextStr = fc.forced
+                ? 'Pinned (debug)'
+                : `${fc.next.emoji} ${fc.next.label} in ${Math.max(1, Math.ceil(fc.timeLeft))}s`;
+            body.innerHTML = `
+                <div class="pop-title"><span>${fc.current.emoji} ${fc.current.label}</span><button class="pop-close" type="button" aria-label="Close">✕</button></div>
+                <div class="pop-row"><span>Next forecast</span><b>${nextStr}</b></div>
+                <div class="pop-row"><span>Dirt roads speed</span><b class="${cls(fc.mults.unpaved)}">${pct(fc.mults.unpaved)}</b></div>
+                <div class="pop-row"><span>Paved highways</span><b class="${cls(fc.mults.highway)}">${pct(fc.mults.highway)}</b></div>
+                <div class="pop-row"><span>River ferries</span><b class="${cls(fc.mults.ferry)}">${pct(fc.mults.ferry)}</b></div>
+                <div class="pop-note">${SC.diff().weatherMult === 0 ? 'Sandbox: weather is purely visual.' : 'Rain &amp; snow slow unpaved roads and ferries. Paved highways shrug off storms.'}</div>`;
+        }
+    }
+
+    function toggleHudPopover(kind) {
+        hudPopoverKind = (hudPopoverKind === kind) ? null : kind;
+        renderHudPopover();
+    }
+
+    function closeHudPopover() {
+        if (!hudPopoverKind) return;
+        hudPopoverKind = null;
+        renderHudPopover();
+    }
+
+    function updateModeHint() {
+        const pill = $('mode-hint-pill');
+        const txt = $('mode-hint-text');
+        if (!pill || !txt) return;
+        const st = SC.state;
+        let msg = '';
+        if (st.placeMode) {
+            const pm = st.placeMode;
+            const label = pm.kind === 'yard' ? 'Truck Yard'
+                : pm.kind === 'junction' ? 'Junction'
+                : pm.kind === 'researchLab' ? 'Research Lab'
+                : pm.kind === 'intersection' ? 'Interchange'
+                : (pm.good ? `${SC.emojiOf(pm.good)} ${SC.nameOf(pm.good)}` : pm.kind);
+            msg = `📍 Placing ${label} — tap map`;
+        } else if (st.mode === 'upgrade') {
+            msg = '⬆️ Upgrade — tap road or supplier';
+        } else if (st.mode === 'inspect') {
+            msg = '🔍 Inspect — tap any site';
+        } else if (st.mode === 'heatmap') {
+            msg = '🔥 Traffic Heatmap';
+        } else if (st.selectedNode) {
+            msg = '🛣️ Road start — tap destination';
+        }
+        if (msg) {
+            txt.textContent = msg;
+            pill.classList.remove('hidden');
+        } else {
+            pill.classList.add('hidden');
+        }
+    }
+
     function updateHUD() {
         const st = SC.state;
         const inDebt = st.money < 0;
@@ -58,6 +153,27 @@ SC.ui = (function() {
         for (const btn of $('speed-toggle').children) {
             btn.classList.toggle('active', +btn.dataset.speed === st.speed);
         }
+
+        // Compact live cashflow & weather/forecast chips
+        const cfEl = $('hud-cashflow');
+        const cfVal = $('hud-cashflow-val');
+        if (cfEl && cfVal && SC.economy && SC.economy.cashflow) {
+            const cf = SC.economy.cashflow();
+            cfVal.textContent = fmtRate(cf.netPerMin);
+            cfEl.classList.toggle('pos', cf.netPerMin > 1);
+            cfEl.classList.toggle('neg', cf.netPerMin < -1);
+        }
+        const wEl = $('hud-weather');
+        const wVal = $('hud-weather-val');
+        if (wEl && wVal && SC.weather) {
+            const fc = SC.weather.forecast();
+            const dragPct = Math.round((1 - fc.mults.unpaved) * 100);
+            const curPart = dragPct > 0 ? `${fc.current.emoji} −${dragPct}%` : `${fc.current.emoji} ${fc.current.label}`;
+            const nextPart = fc.forced ? '' : ` · ${fc.next.emoji} ${Math.max(1, Math.ceil(fc.timeLeft))}s`;
+            wVal.textContent = curPart + nextPart;
+            wEl.classList.toggle('adverse', dragPct > 0);
+        }
+        updateModeHint();
         updateDevPanel();
     }
 
@@ -1119,6 +1235,7 @@ SC.ui = (function() {
             updateOrders();
             updateShop();
             updateContractOffer(); // keeps the offer's countdown bar ticking
+            if (hudPopoverKind) renderHudPopover();
             if (menuOpen()) updateMenuInfo(); // keep "last saved Xs ago" ticking
         }
     }
@@ -1163,6 +1280,7 @@ SC.ui = (function() {
     function updateMenuInfo() {
         updateVolumeSliders();
         const st = SC.state;
+        const cf = SC.economy && SC.economy.cashflow ? SC.economy.cashflow() : null;
         // research.active is a LIST since concurrent research shipped — an
         // empty array is still truthy, so testing it directly read every idle
         // lab as "researching" and then threw on `.id` of undefined.
@@ -1185,6 +1303,7 @@ SC.ui = (function() {
             <div class="stats-group">
                 <div class="stats-group-label">FINANCES</div>
                 <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
+                ${cf ? `<div><span>Net cashflow</span><b class="${cf.netPerMin > 1 ? 'pos' : (cf.netPerMin < -1 ? 'neg' : '')}">${fmtRate(cf.netPerMin)}</b></div>` : ''}
                 <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
                 <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
                 <div><span>Upkeep</span><b class="${SC.upkeepPerMin() > 0 ? 'neg' : ''}">${fmt(Math.round(SC.upkeepPerMin()))}/min</b></div>
@@ -1515,7 +1634,8 @@ SC.ui = (function() {
         $, getDevMode: () => devMode, getHidePills: () => hidePills, getUiScale, setUiScale,
         openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, getToastHistory: () => toastHistory,
         fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, zoomResearchTreeBy, setResearchTreeZoom, fitResearchTreeToScreen, researchTreeScale, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML,
-        armAbortResearch, isAbortArmed, disarmAbortResearch, fmtSigned, updateVolumeSliders
+        armAbortResearch, isAbortArmed, disarmAbortResearch, fmtSigned, updateVolumeSliders,
+        toggleHudPopover, closeHudPopover, updateModeHint, updateHUD
     };
 
     return { init, update, toast, openStatsOverlay, openOptionsModal, openToastHistoryModal };

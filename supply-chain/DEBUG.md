@@ -30,7 +30,9 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | `?techtree=1` | Open the 🔬 Research overlay (its own menu, separate from the Shop panel's Build/Buy list). |
 | `?dev=1` | Force the Dev tools panel on for this load — and adopt it as the persisted choice. It is otherwise a lasting ☰-menu toggle ("🛠 Dev tools: on/off", stored in localStorage like Sound). |
 | `?tod=0..1` | Pin the cosmetic day/night phase — 0/1 midnight, 0.25 sunrise, 0.5 noon, 0.75 sunset. Read in [js/render-env.js](js/render-env.js); render-only, not persisted. |
-| `?weather=clear\|clouds\|rain\|snow` | Force a weather spell (it otherwise rotates on its own). Render-only, not persisted. |
+| `?weather=clear\|clouds\|rain\|snow` | Pin the live weather spell (`SC.weather.setForced`) — drives both visuals and road-speed penalties. Not persisted. |
+| `?storm=1` | Pin a heavy rainstorm with a deterministic branching lightning bolt and sky flash for storm screenshots. |
+| `?shootingstar=1` | Pin a mid-flight shooting star in the upper night sky (pair with `?tod=0&weather=clear`). |
 
 ## Probe flags — world & map
 
@@ -85,6 +87,8 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | `&routeglow=1` | Pin the first planned order's route-glow overlay (each leg tinted by the cargo hauled on it) with a far-off expiry so it survives the screenshot delay. |
 | `&xfer=1` | Spawn a persistent loading + unloading crate near HQ, so the pickup/delivery crate animation can be caught without hitting a real 0.55s transfer. |
 | `&stats=1` | Force sample deliveries / missed-order reasons / money history / road trips and a few unlocked achievements, then open the Stats & Achievements overlay directly. |
+| `&finance=1` | Open the HUD Cashflow & Upkeep Breakdown popover directly. |
+| `&forecast=1` | Open the HUD Weather & Road Conditions popover directly. |
 | `&speed=N` | Set the fast-forward multiplier (1/2/4) before the probe loop runs — mostly for eyeballing that higher speeds don't desync anything over a longer probe. |
 
 ## Dev tools panel

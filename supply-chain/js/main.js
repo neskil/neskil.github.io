@@ -35,6 +35,9 @@ SC.init = function() {
     if (SC.stats && SC.stats.initRun) {
         SC.stats.initRun();
     }
+    if (params.has('weather') && SC.weather) {
+        SC.weather.setForced(params.get('weather'));
+    }
 
     const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
     const canvas = document.getElementById('gameCanvas');
@@ -82,6 +85,7 @@ SC.init = function() {
             // more simulated time per frame, not bigger, riskier steps.
             for (let i = 0; i < SC.state.speed; i++) {
                 SC.state.time += dt;
+                SC.weather.tick(dt);
                 SC.map.tick(dt);
                 SC.economy.tick(dt);
                 SC.factories.tick(dt);
@@ -151,6 +155,7 @@ SC.runProbe = function(seconds) {
     if (o) SC.economy.planOrder(o);
     for (let t = 0; t < seconds; t += 0.05) {
         SC.state.time += 0.05;
+        SC.weather.tick(0.05);
         SC.economy.tick(0.05);
         SC.factories.tick(0.05);
         SC.vehicles.tick(0.05);
@@ -459,6 +464,11 @@ SC.runProbe = function(seconds) {
         SC.state.moneyHistory = [1200, 1500, 1100, 1800, 2400, 2100, 3000, 3500, 3200, 4000];
         if (SC.state.edges[0]) SC.state.edges[0].trips = 27;
         SC.ui.openStatsOverlay();
+    }
+    if (p.has('finance') && SC._ui && SC._ui.toggleHudPopover) {
+        SC._ui.toggleHudPopover('finance');
+    } else if (p.has('forecast') && SC._ui && SC._ui.toggleHudPopover) {
+        SC._ui.toggleHudPopover('weather');
     }
 };
 

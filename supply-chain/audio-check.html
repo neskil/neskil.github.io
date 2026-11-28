@@ -77,7 +77,7 @@
         let sfxThrew = null;
         try {
             ['click', 'build', 'demolish', 'cash', 'error', 'craft', 'unlock',
-             'expire', 'depart', 'science', 'warn'].forEach(n => SC.sfx.play(n));
+             'expire', 'depart', 'science', 'warn', 'thunder'].forEach(n => SC.sfx.play(n));
         } catch (e) { sfxThrew = e; }
         ok('every sfx one-shot plays', sfxThrew === null, sfxThrew && sfxThrew.message);
 

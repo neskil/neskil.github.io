@@ -223,9 +223,41 @@ SC.economy = (function() {
         return true;
     }
 
+    function recordIncome(amount) {
+        if (!amount || !SC.state) return;
+        const list = SC.state.recentIncome || (SC.state.recentIncome = []);
+        const now = SC.state.time || 0;
+        list.push({ t: now, amount });
+        const win = C().CASHFLOW_WINDOW || 60;
+        while (list.length && now - list[0].t > win) list.shift();
+    }
+
+    // Live $/min cashflow summary for the HUD & finance breakdown popover.
+    // Revenue is averaged over a rolling CASHFLOW_WINDOW (with a 30s floor
+    // during early opening seconds so one quick bread order doesn't read as
+    // +$15,000/min); upkeep and debt interest are exact live rates.
+    function cashflow() {
+        const st = SC.state;
+        const now = st.time || 0;
+        const win = C().CASHFLOW_WINDOW || 60;
+        const list = st.recentIncome || [];
+        while (list.length && now - list[0].t > win) list.shift();
+        let sum = 0;
+        for (let i = 0; i < list.length; i++) sum += list[i].amount;
+        const spanSec = Math.max(30, Math.min(win, now));
+        const revenuePerMin = sum * (60 / spanSec);
+        const breakdown = SC.upkeepBreakdown();
+        const upkeepPerMin = breakdown.total;
+        const interestPerMin = (st.money < 0 && SC.interestPerMin() > 0)
+            ? -st.money * SC.interestPerMin() : 0;
+        const netPerMin = revenuePerMin - upkeepPerMin - interestPerMin;
+        return { revenuePerMin, upkeepPerMin, interestPerMin, netPerMin, breakdown };
+    }
+
     function deliverProduct(order, item) {
         if (order.done || !SC.state.orders.includes(order)) {
             SC.state.money += C().SALVAGE_PAY; // arrived after expiry
+            recordIncome(C().SALVAGE_PAY);
             SC.emit('salvage', { item });
             return;
         }
@@ -235,6 +267,7 @@ SC.economy = (function() {
             SC.state.orders.splice(SC.state.orders.indexOf(order), 1);
             SC.state.money += order.payout;
             SC.state.earnedTotal += order.payout;
+            recordIncome(order.payout);
             SC.state.delivered++;
             SC.emit('orderComplete', order);
             if (SC.state.delivered % C().MILESTONE_EVERY === 0) {
@@ -549,5 +582,5 @@ SC.economy = (function() {
              craftableProducts, bestSourceFor, maxActiveOrders, supplyGaps,
              isPromoActive, promoTimeLeft, startPromotion,
              rollContractOffer, acceptContract, declineContract,
-             getDeadlineRamp, getSpawnRamp };
+             getDeadlineRamp, getSpawnRamp, cashflow };
 })();

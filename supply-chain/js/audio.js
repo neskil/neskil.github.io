@@ -60,12 +60,12 @@ SC.audio = (function () {
 
     const midi = m => 440 * Math.pow(2, (m - 69) / 12);
 
-    // Read the render layer's cosmetic day/night + weather so the score and the
-    // ambience track what the player can see. Guarded: render may not be loaded
-    // (tests.html) and never is before the first frame.
+    // Read the live weather (SC.state.weather, falling back to R.weather) and
+    // render day/night so the score and ambience track what the player sees.
+    // Guarded: render may not be loaded (tests.html / audio-check.html).
     function env() {
         const R = SC._render;
-        const w = R && R.weather;
+        const w = (SC.state && SC.state.weather) || (R && R.weather);
         return {
             day: R ? R.dayness : 0.5,
             rain: w && w.type === 'rain' ? w.intensity : 0,

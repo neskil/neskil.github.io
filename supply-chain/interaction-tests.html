@@ -244,6 +244,25 @@
         SC._ui.closeMenu();
         st.paused = true;
 
+        // ── HUD cashflow & weather popovers + mode-hint pill ──
+        SC._ui.updateHUD();
+        $('hud-cashflow').click();
+        assert('tapping the cashflow chip opens the finance breakdown popover',
+            !$('hud-popover').classList.contains('hidden') && /Net cashflow/.test($('hud-popover-body').textContent));
+        $('hud-weather').click();
+        assert('tapping the weather chip switches to the forecast & road-conditions popover',
+            !$('hud-popover').classList.contains('hidden') && /Paved highways/.test($('hud-popover-body').textContent));
+        $('hud-weather').click();
+        assert('tapping the active chip again closes the popover', $('hud-popover').classList.contains('hidden'));
+
+        SC._ui.setMode('upgrade');
+        SC._ui.updateHUD();
+        assert('non-build mode shows the one-handed mode hint pill',
+            !$('mode-hint-pill').classList.contains('hidden') && /Upgrade/.test($('mode-hint-text').textContent));
+        $('mode-hint-cancel').click();
+        assert('tapping the hint pill cancel button returns to Build mode',
+            st.mode === 'build' && $('mode-hint-pill').classList.contains('hidden'));
+
         // ── A missed order says why ──
         const city = st.nodes.find(n => n.isHQ);
         const o = { id: ++st.orderSeq, city, product: 'robot', qty: 1, deliveredUnits: 0, payout: 900,

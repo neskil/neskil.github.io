@@ -134,10 +134,156 @@ html, body {
 .hud-item.hidden { display: none; }
 .hud-item.clock.urgent span:last-child { color: var(--bad); }
 
+/* ── Compact status chips tucked directly under #top-left: live net $/min
+   cashflow + weather & forecast. Kept in their own row so #top-left stays
+   narrow enough on 360px phones to never touch #orders-panel. */
+#hud-subbar {
+    position: fixed;
+    top: calc(4.15rem + env(safe-area-inset-top, 0px));
+    left: calc(1rem + env(safe-area-inset-left, 0px));
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 2rem);
+    pointer-events: none;
+}
+.hud-chip {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    touch-action: manipulation;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.hud-chip:hover { background: rgba(40, 50, 70, 0.92); }
+.hud-chip.active {
+    border-color: rgba(56, 189, 248, 0.65);
+    background: rgba(30, 48, 72, 0.92);
+}
+.hud-chip.pos { color: var(--good); }
+.hud-chip.neg { color: var(--bad); }
+.hud-chip.adverse {
+    border-color: rgba(251, 191, 36, 0.55);
+    color: #fde68a;
+}
+
+/* ── Finance / Weather breakdown popover anchored below #hud-subbar ── */
+#hud-popover {
+    position: fixed;
+    top: calc(6.25rem + env(safe-area-inset-top, 0px));
+    left: calc(1rem + env(safe-area-inset-left, 0px));
+    width: 268px;
+    max-width: calc(100vw - 2rem);
+    z-index: 150;
+    padding: 0.8rem 0.9rem;
+}
+#hud-popover.hidden { display: none; }
+.pop-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    margin-bottom: 0.55rem;
+}
+.pop-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    border-radius: 6px;
+}
+.pop-close:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.08); }
+.pop-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    padding: 0.22rem 0;
+    color: var(--text-secondary);
+}
+.pop-row b { color: var(--text-primary); font-weight: 600; }
+.pop-row b.pos { color: var(--good); }
+.pop-row b.neg { color: var(--bad); }
+.pop-row b.warn { color: #fbbf24; }
+.pop-row.total {
+    border-top: 1px solid var(--card-border);
+    margin-top: 0.35rem;
+    padding-top: 0.45rem;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+}
+.pop-note {
+    margin-top: 0.45rem;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+}
+
+/* ── Active mode / selection hint pill (one-handed mobile cancel) ── */
+#mode-hint-pill {
+    position: fixed;
+    bottom: calc(1.1rem + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 120;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.38rem 0.45rem 0.38rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    color: var(--text-primary);
+    font-size: 0.76rem;
+    font-weight: 600;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    max-width: min(86vw, 380px);
+    white-space: nowrap;
+}
+#mode-hint-pill.hidden { display: none; }
+#mode-hint-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#mode-hint-cancel {
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+#mode-hint-cancel:hover { background: rgba(248, 113, 113, 0.35); }
+
 /* ── Dev-only tools panel: reuses the .panel/.shop-btn language from
-   Orders/Shop, stacked under the top-left HUD bar. Only shown for
+   Orders/Shop, stacked under the top-left HUD bar + sub-bar. Only shown for
    ?dev=1 — quick tuning/testing aids, not part of normal gameplay. */
-#dev-panel { top: 4.2rem; left: 1rem; width: 230px; }
+#dev-panel { top: calc(6.4rem + env(safe-area-inset-top, 0px)); left: calc(1rem + env(safe-area-inset-left, 0px)); width: 230px; }
 #dev-panel.hidden { display: none; }
 .dev-stat {
     display: flex;
@@ -154,8 +300,8 @@ html, body {
    text instead of icons, so the two read as one family of controls. */
 #speed-toggle {
     position: fixed;
-    bottom: 4.2rem;
-    right: 1rem;
+    bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px));
+    right: calc(1rem + env(safe-area-inset-right, 0px));
     z-index: 100;
     display: flex;
     background: var(--card-bg);
@@ -179,6 +325,7 @@ html, body {
     font-size: 0.78rem;
     font-weight: 700;
     cursor: pointer;
+    touch-action: manipulation;
 }
 .speed-btn:hover { color: var(--text-primary); }
 .speed-btn.active {
@@ -189,8 +336,8 @@ html, body {
 /* ── Bottom-right: build/upgrade/inspect selector ─── */
 #mode-toggle {
     position: fixed;
-    bottom: 1rem;
-    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    right: calc(1rem + env(safe-area-inset-right, 0px));
     z-index: 100;
     display: flex;
     background: var(--card-bg);
@@ -210,11 +357,13 @@ html, body {
     color: var(--text-secondary);
     font-size: 0.95rem;
     cursor: pointer;
+    touch-action: manipulation;
 }
 .mode-btn:hover { color: var(--text-primary); }
 .mode-btn.active {
     background: var(--accent-color);
     color: #0f172a;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.28);
 }
 
 /* ── Traffic & Bottleneck Heatmap Legend panel ── */
@@ -1319,16 +1468,42 @@ html, body {
    the whole bar stays clear of the Orders panel on the right. Orders
    itself is narrowed a bit too on phones so the two don't touch. */
 @media (max-width: 768px) {
-    /* Same 0.5rem inset on every corner element so their edges line up:
-       #top-left/#orders-panel share one top; #shop-panel/#mode-toggle
-       (and #speed-toggle stacked above it) share one bottom. */
-    #top-left { top: 0.5rem; }
-    #dev-panel { top: 3.7rem; left: 0.5rem; }
-    #mode-toggle { bottom: 0.5rem; }
-    .icon-btn { width: 38px; height: 38px; }
-    .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }
-    #speed-toggle { bottom: 3.5rem; }
-    .speed-btn { width: 32px; height: 32px; font-size: 0.68rem; }
+    /* Same 0.5rem + safe-area inset on every corner element so edges align
+       cleanly on notched / gesture-bar phones. */
+    #top-left {
+        top: calc(0.5rem + env(safe-area-inset-top, 0px));
+        left: calc(0.5rem + env(safe-area-inset-left, 0px));
+    }
+    #hud-subbar {
+        top: calc(3.35rem + env(safe-area-inset-top, 0px));
+        left: calc(0.5rem + env(safe-area-inset-left, 0px));
+        gap: 0.3rem;
+    }
+    .hud-chip { padding: 0.26rem 0.55rem; font-size: 0.68rem; }
+    #hud-popover {
+        top: calc(5.3rem + env(safe-area-inset-top, 0px));
+        left: calc(0.5rem + env(safe-area-inset-left, 0px));
+        width: min(260px, calc(100vw - 1rem));
+    }
+    #dev-panel {
+        top: calc(5.4rem + env(safe-area-inset-top, 0px));
+        left: calc(0.5rem + env(safe-area-inset-left, 0px));
+    }
+    #mode-toggle {
+        bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+        right: calc(0.5rem + env(safe-area-inset-right, 0px));
+    }
+    .icon-btn { width: 40px; height: 40px; }
+    .mode-btn { width: 38px; height: 38px; font-size: 0.92rem; }
+    #speed-toggle {
+        bottom: calc(3.85rem + env(safe-area-inset-bottom, 0px));
+        right: calc(0.5rem + env(safe-area-inset-right, 0px));
+    }
+    .speed-btn { width: 38px; height: 38px; font-size: 0.72rem; }
+    #mode-hint-pill {
+        bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+        font-size: 0.72rem;
+    }
 
     .hud-item { padding: 0.32rem 0.55rem; min-width: 0; }
     .hud-label { font-size: 0.56rem; }
@@ -1336,14 +1511,26 @@ html, body {
     .hud-label-full { display: none; }
     .hud-label-short { display: block; }
 
-    #orders-panel { top: 0.5rem; right: 0.5rem; width: 170px; }
+    #orders-panel {
+        top: calc(0.5rem + env(safe-area-inset-top, 0px));
+        right: calc(0.5rem + env(safe-area-inset-right, 0px));
+        width: 170px;
+    }
     .panel-header { padding: 0.6rem 0.8rem; }
     .panel-header h2 { font-size: 0.85rem; }
-    #shop-launcher { bottom: 0.5rem; left: 0.5rem; gap: 0.4rem; }
-    #shop-panel { bottom: 3.7rem; left: 0.5rem; width: 212px; }
+    #shop-launcher {
+        bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+        left: calc(0.5rem + env(safe-area-inset-left, 0px));
+        gap: 0.4rem;
+    }
+    #shop-panel {
+        bottom: calc(4.1rem + env(safe-area-inset-bottom, 0px));
+        left: calc(0.5rem + env(safe-area-inset-left, 0px));
+        width: 212px;
+    }
     /* Float toasts above the bottom control cluster (shop / speed / mode)
        instead of on top of it. */
-    #toast { bottom: 6rem; }
+    #toast { bottom: calc(7.1rem + env(safe-area-inset-bottom, 0px)); }
     /* ── Research tree on a phone ──────────────────────────────────
        The tree is no longer squeezed to fit the width (it would land near
        60% and put this text at ~7px); it renders at 100% and pans, so the

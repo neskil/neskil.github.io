@@ -3,9 +3,32 @@ window.SC = window.SC || {};
 
 SC.roads = (function() {
 
+    // O(1) edge lookup index, lazily rebuilt whenever SC.state.edges or
+    // networkVersion changes (covers build, demolish, splitEdge, save.restore,
+    // and tests that mutate SC.state.edges directly).
+    let edgeIndex = new Map();
+    let edgeIndexRef = null, edgeIndexLen = -1, edgeIndexVer = -1;
+
+    function ensureEdgeIndex() {
+        const st = SC.state;
+        const edges = st && st.edges;
+        const ver = st ? (st.networkVersion || 0) : 0;
+        if (!edges) { edgeIndex.clear(); edgeIndexRef = null; edgeIndexLen = -1; edgeIndexVer = -1; return; }
+        if (edges === edgeIndexRef && edges.length === edgeIndexLen && ver === edgeIndexVer) return;
+        edgeIndex.clear();
+        for (let i = 0; i < edges.length; i++) {
+            const e = edges[i];
+            edgeIndex.set(edgeKey(e.a, e.b), e);
+        }
+        edgeIndexRef = edges;
+        edgeIndexLen = edges.length;
+        edgeIndexVer = ver;
+    }
+
     function findEdge(a, b) {
-        return SC.state.edges.find(e =>
-            (e.a === a && e.b === b) || (e.a === b && e.b === a)) || null;
+        if (!a || !b) return null;
+        ensureEdgeIndex();
+        return edgeIndex.get(edgeKey(a, b)) || null;
     }
 
     // ── Overlap rules ───────────────────────────────────────────────────
@@ -265,12 +288,13 @@ SC.roads = (function() {
     // Highways (edge.level 1, unlocked by 'pavedRoads' research) move
     // trucks HIGHWAY_SPEED_MULT× faster on that edge; a ferry crossing
     // moves them FERRY_SPEED_MULT slower instead (mutually exclusive —
-    // see upgradeQuote). Congestion (when enabled) then applies on top
-    // of whichever base multiplier applies.
+    // see upgradeQuote). Congestion (when enabled) and adverse weather
+    // (rain/snow, SC.weather.roadSpeedMult) then apply on top.
     function speedMult(edge, occ) {
         if (!edge) return 1;
         const base = edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : (edge.ferry ? SC.CONFIG.FERRY_SPEED_MULT : 1);
-        return base * congestionMult(edge, occ);
+        const weather = SC.weather ? SC.weather.roadSpeedMult(edge) : 1;
+        return base * congestionMult(edge, occ) * weather;
     }
 
     // Order-independent key for the road between two nodes.
@@ -295,6 +319,22 @@ SC.roads = (function() {
         const jammed = [];
         for (const [k, n] of occ) if (n > SC.CONFIG.CONGESTION_THRESHOLD) jammed.push(k + 'x' + n);
         return { occ, sig: jammed.length ? jammed.sort().join(',') : '' };
+    }
+
+    // Scoped occupancy snapshot: dispatch() calls findPath many times in a
+    // single tick while no truck moves between lookups. Sharing one snapshot
+    // avoids re-scanning the entire fleet on every cache hit.
+    let scopedOcc = null;
+    function withOccupancySnap(fn) {
+        const prev = scopedOcc;
+        scopedOcc = (SC.state && SC.state.congestionEnabled && SC.vehicles) ? edgeOccupancy() : null;
+        try { return fn(); }
+        finally { scopedOcc = prev; }
+    }
+    function refreshOccupancySnap() {
+        if (scopedOcc !== null && SC.state && SC.state.congestionEnabled && SC.vehicles) {
+            scopedOcc = edgeOccupancy();
+        }
     }
 
     // Quote for upgrading a road to a highway; null when not possible.
@@ -327,35 +367,63 @@ SC.roads = (function() {
             SC.state.networkVersion = (SC.state.networkVersion || 0) + 1;
         }
         pathCache.clear();
+        edgeIndexRef = null;
     }
 
     function clearCache() {
         pathCache.clear();
     }
 
-    // Dijkstra over the road graph, weighted by travel TIME (highway
-    // edges count len/speedMult), so routing prefers upgraded roads.
+    // Minimal binary min-heap for Dijkstra's open set (O(log V) push/pop).
+    function heapPush(h, item) {
+        h.push(item);
+        let i = h.length - 1;
+        while (i > 0) {
+            const p = (i - 1) >> 1;
+            if (h[p].d <= h[i].d) break;
+            const tmp = h[p]; h[p] = h[i]; h[i] = tmp;
+            i = p;
+        }
+    }
+    function heapPop(h) {
+        const top = h[0];
+        const last = h.pop();
+        if (h.length) {
+            h[0] = last;
+            let i = 0;
+            const n = h.length;
+            while (true) {
+                const l = (i << 1) + 1, r = l + 1;
+                let s = i;
+                if (l < n && h[l].d < h[s].d) s = l;
+                if (r < n && h[r].d < h[s].d) s = r;
+                if (s === i) break;
+                const tmp = h[i]; h[i] = h[s]; h[s] = tmp;
+                i = s;
+            }
+        }
+        return top;
+    }
+
+    // Dijkstra over the road graph, weighted by travel TIME (highway,
+    // ferry, congestion, and weather speed multipliers), so routing
+    // prefers upgraded, quieter, all-weather roads.
     // Returns { path: [nodes], dist } or null.
     function findPath(from, to) {
         if (!from || !to) return null;
         if (from === to) return { path: [from], dist: 0 };
 
         const ver = SC.state ? (SC.state.networkVersion || 0) : 0;
-        // Congestion re-weights jammed roads, so a cached route is only
-        // good for the same set of jams (see edgeOccupancy). The old key
-        // summed (edge index × trucks) over every road on every call: an
-        // O(roads × trucks) cost even on a cache hit, a key that changed
-        // whenever any truck moved anywhere, and one that collided (two
-        // trucks on road 0 summed the same as one on road 1).
+        const wb = SC.weather ? SC.weather.cacheBucket() : '0';
         let cong = 's', occ = null;
         if (SC.state && SC.state.congestionEnabled && SC.vehicles) {
-            const o = edgeOccupancy();
+            const o = scopedOcc || edgeOccupancy();
             occ = o.occ;
             cong = 'c' + o.sig;
         }
         const fromId = from.id !== undefined ? from.id : from;
         const toId = to.id !== undefined ? to.id : to;
-        const key = ver + ':' + cong + ':' + fromId + ':' + toId;
+        const key = ver + ':' + wb + ':' + cong + ':' + fromId + ':' + toId;
 
         if (pathCache.has(key)) {
             const cached = pathCache.get(key);
@@ -364,24 +432,24 @@ SC.roads = (function() {
 
         const dist = new Map([[from, 0]]);
         const prev = new Map();
-        const open = [from];
+        const heap = [{ n: from, d: 0 }];
         const done = new Set();
-        while (open.length) {
-            let bi = 0;
-            for (let i = 1; i < open.length; i++)
-                if (dist.get(open[i]) < dist.get(open[bi])) bi = i;
-            const cur = open.splice(bi, 1)[0];
+        while (heap.length) {
+            const cur = heapPop(heap).n;
             if (cur === to) break;
             if (done.has(cur)) continue;
             done.add(cur);
+            const curD = dist.get(cur);
             for (const nb of cur.edges) {
+                if (done.has(nb)) continue;
                 const e = findEdge(cur, nb);
                 if (!e) continue;
-                const d = dist.get(cur) + e.len / speedMult(e, occ);
-                if (!dist.has(nb) || d < dist.get(nb)) {
+                const d = curD + e.len / speedMult(e, occ);
+                const oldD = dist.get(nb);
+                if (oldD === undefined || d < oldD) {
                     dist.set(nb, d);
                     prev.set(nb, cur);
-                    open.push(nb);
+                    heapPush(heap, { n: nb, d });
                 }
             }
         }
@@ -517,7 +585,8 @@ SC.roads = (function() {
     }
 
     return { findEdge, quote, build, demolish, findPath, pathDist,
-             speedMult, congestionMult, edgeOccupancy, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing,
+             speedMult, congestionMult, edgeOccupancy, withOccupancySnap, refreshOccupancySnap,
+             upgradeQuote, upgrade, getLineIntersection, findClosestCrossing,
              checkSegment, blockMessage, splitEdge, hasCrossings,
              bumpNetworkVersion, clearCache,
              pointSegDist, pointRoadDist, _addRawEdge };

@@ -66,11 +66,85 @@
         R.ctx.lineCap = 'butt';
     }
 
-    function drawRoadSegment(e, casing, surfaceW, t0, t1, z) {
+    function drawRoadCasing(e, casing, t0, t1) {
         strokeEdgeRange(e, t0, t1, casing, 'rgba(8, 12, 20, 0.55)');
+    }
+
+    function drawRoadSurface(e, surfaceW, t0, t1, z) {
         const surf = e.level > 0 ? 'rgba(226, 232, 240, 0.85)' : 'rgba(140, 152, 170, 0.75)';
         strokeEdgeRange(e, t0, t1, surfaceW, surf);
         if (e.level > 0) strokeEdgeRange(e, t0, t1, Math.max(1, 1.6 * z), 'rgba(250, 204, 21, 0.6)', [11 * z, 11 * z]);
+    }
+
+    // Collect smooth quadratic-Bezier corner fillets where two dry roads meet at
+    // a shared node (most striking at junctions and mid-route bends). Drawing
+    // casings in pass 1 and surfaces in pass 2 keeps intersections seamless with
+    // rounded inner corners instead of harsh V-joints or overlapping outlines.
+    function collectRoadFillets(items) {
+        const byNode = new Map();
+        for (const it of items) {
+            const e = it.e;
+            // Skip ferry water legs (they look best straight up to the bank)
+            if (e.ferry) continue;
+            const addEnd = (node, other, nearWater) => {
+                if (nearWater) return;
+                let list = byNode.get(node);
+                if (!list) { list = []; byNode.set(node, list); }
+                const ang = Math.atan2(other.y - node.y, other.x - node.x);
+                list.push({ e, other, ang, len: e.len, level: e.level || 0 });
+            };
+            const cr = it.crossing;
+            addEnd(e.a, e.b, cr && cr.t0 < 0.2);
+            addEnd(e.b, e.a, cr && cr.t1 > 0.8);
+        }
+
+        const fillets = [];
+        for (const [node, list] of byNode) {
+            if (list.length < 2) continue;
+            list.sort((u, v) => u.ang - v.ang);
+            const isJunc = node.kind === 'junction';
+            const maxR = isJunc ? 34 : 26;
+            const count = list.length;
+            const pairs = count === 2 ? 1 : count;
+            for (let i = 0; i < pairs; i++) {
+                const u = list[i];
+                const v = list[(i + 1) % count];
+                let dAng = v.ang - u.ang;
+                if (dAng <= 0) dAng += Math.PI * 2;
+                // Only fillet genuine corners (between ~20° and ~160°); nearly
+                // straight-through pairs already read as one continuous road.
+                if (dAng < 0.35 || dAng > Math.PI - 0.32) continue;
+                const r = Math.min(maxR, u.len * 0.24, v.len * 0.24);
+                if (r < 6) continue;
+                const p1 = { x: node.x + Math.cos(u.ang) * r, y: node.y + Math.sin(u.ang) * r };
+                const p2 = { x: node.x + Math.cos(v.ang) * r, y: node.y + Math.sin(v.ang) * r };
+                const hwy = u.level > 0 && v.level > 0;
+                fillets.push({ p1, ctrl: node, p2, hwy });
+            }
+        }
+        return fillets;
+    }
+
+    function drawRoadFillets(fillets, pass, z) {
+        if (!fillets.length) return;
+        R.ctx.lineCap = 'round';
+        R.ctx.lineJoin = 'round';
+        for (const f of fillets) {
+            const A = S(f.p1.x, f.p1.y), C = S(f.ctrl.x, f.ctrl.y), B = S(f.p2.x, f.p2.y);
+            R.ctx.beginPath();
+            R.ctx.moveTo(A.x, A.y);
+            R.ctx.quadraticCurveTo(C.x, C.y, B.x, B.y);
+            if (pass === 'casing') {
+                R.ctx.lineWidth = Math.max(5, (f.hwy ? 9 : 7) * z);
+                R.ctx.strokeStyle = 'rgba(8, 12, 20, 0.55)';
+            } else {
+                R.ctx.lineWidth = Math.max(2.5, (f.hwy ? 6 : 4) * z);
+                R.ctx.strokeStyle = f.hwy ? 'rgba(226, 232, 240, 0.85)' : 'rgba(140, 152, 170, 0.75)';
+            }
+            R.ctx.stroke();
+        }
+        R.ctx.lineCap = 'butt';
+        R.ctx.lineJoin = 'miter';
     }
 
     function drawBridgeCrossing(e, casing, surfaceW, crossing, z) {
@@ -155,20 +229,44 @@
         const z = zoom();
         const pending = SC.input.getPendingDemolish && SC.input.getPendingDemolish();
         const pendingUp = SC.input.getPendingUpgrade && SC.input.getPendingUpgrade();
+        const items = [];
         for (const e of SC.state.edges) {
-            const armed = e === pending || e === pendingUp;
             const casing = Math.max(5, (e.level > 0 ? 9 : 7) * z);
             const surfaceW = Math.max(2.5, (e.level > 0 ? 6 : 4) * z);
             const crossing = (e.bridge || e.ferry)
                 ? SC.map.riverCrossing(e.a.x, e.a.y, e.b.x, e.b.y) : null;
+            items.push({ e, casing, surfaceW, crossing, armed: e === pending || e === pendingUp });
+        }
+        const fillets = collectRoadFillets(items);
 
+        // Pass 1: dark road casings (edges + rounded corner fillets)
+        for (const it of items) {
+            if (it.crossing) {
+                drawRoadCasing(it.e, it.casing, 0, it.crossing.t0);
+                drawRoadCasing(it.e, it.casing, it.crossing.t1, 1);
+            } else {
+                drawRoadCasing(it.e, it.casing, 0, 1);
+            }
+        }
+        drawRoadFillets(fillets, 'casing', z);
+
+        // Pass 2: road asphalt surfaces (edges + rounded corner fillets) — seamless joins
+        for (const it of items) {
+            if (it.crossing) {
+                drawRoadSurface(it.e, it.surfaceW, 0, it.crossing.t0, z);
+                drawRoadSurface(it.e, it.surfaceW, it.crossing.t1, 1, z);
+            } else {
+                drawRoadSurface(it.e, it.surfaceW, 0, 1, z);
+            }
+        }
+        drawRoadFillets(fillets, 'surface', z);
+
+        // Pass 3: water crossings (bridges/ferries) and interactive / traffic overlays
+        for (const it of items) {
+            const { e, casing, surfaceW, crossing, armed } = it;
             if (crossing) {
-                drawRoadSegment(e, casing, surfaceW, 0, crossing.t0, z);
-                drawRoadSegment(e, casing, surfaceW, crossing.t1, 1, z);
                 if (e.ferry) drawFerryCrossing(e, surfaceW, crossing, z);
                 else drawBridgeCrossing(e, casing, surfaceW, crossing, z);
-            } else {
-                drawRoadSegment(e, casing, surfaceW, 0, 1, z);
             }
 
             if (armed) {
@@ -260,15 +358,15 @@
                      h: SITE_H[site] + lvl * 3, icon: SC.emojiOf(n.mat) };
         }
         if (n.kind === 'factory') {
-            let base = '#6b7a90', h = 32, stories = 3, stack = true;
+            let base = '#6b7a90', h = 32, stories = 3, stack = true, tex = 'brick';
             if (FACTORY_LOW.has(n.recipe)) {
-                base = '#7c8b9f'; h = 24; stories = 2; stack = true;
+                base = '#7c8b9f'; h = 24; stories = 2; stack = true; tex = 'brick';
             } else if (FACTORY_TALL.has(n.recipe)) {
-                base = '#5c6b7e'; h = 42; stories = 4; stack = false;
+                base = '#5c6b7e'; h = 42; stories = 4; stack = false; tex = 'metal';
             } else if (n.recipe === 'robot') {
-                base = '#4b5563'; h = 52; stories = 5; stack = false;
+                base = '#4b5563'; h = 52; stories = 5; stack = false; tex = 'metal';
             }
-            return { base, fw: 22, h, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories, stack, door: true };
+            return { base, fw: 22, h, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories, stack, door: true, tex };
         }
         if (n.kind === 'yard') {
             // A yard is a flat asphalt lot (drawYardSite), not an extruded
@@ -279,11 +377,61 @@
             return { base: '#7d8898', fw: 15, h: 0 };
         }
         if (n.kind === 'researchLab') {
-            return { base: '#8b5cf6', fw: 22, h: 38, icon: '🔬', roof: '#a78bfa', stories: 4, door: true };
+            return { base: '#8b5cf6', fw: 22, h: 38, icon: '🔬', roof: '#a78bfa', stories: 4, door: true, tex: 'metal' };
         }
         // city
-        if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, stories: 6, door: true };
-        return { base: '#10b981', fw: 18, h: 32, stories: 4, door: true };
+        if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, stories: 6, door: true, tex: 'glass' };
+        return { base: '#10b981', fw: 18, h: 32, stories: 4, door: true, tex: 'glass' };
+    }
+
+    // Subtle cached CanvasPattern textures for building walls (built once,
+    // zero per-frame allocation) so prisms read as brick, corrugated metal, or
+    // glass curtain walls rather than flat-colour blocks.
+    let faceTex = null;
+    function getFaceTex(kind) {
+        if (!kind) return null;
+        if (!faceTex) {
+            faceTex = {};
+            const mk = (w, h, paint) => {
+                const cv = document.createElement('canvas');
+                cv.width = w; cv.height = h;
+                paint(cv.getContext('2d'), w, h);
+                return R.ctx.createPattern(cv, 'repeat');
+            };
+            // Staggered brick courses with fine mortar
+            faceTex.brick = mk(16, 12, (c, w, h) => {
+                c.fillStyle = 'rgba(0, 0, 0, 0.18)';
+                c.fillRect(0, 5, w, 1);
+                c.fillRect(0, 11, w, 1);
+                c.fillRect(7, 0, 1, 5);
+                c.fillRect(15, 6, 1, 5);
+                c.fillStyle = 'rgba(255, 255, 255, 0.08)';
+                c.fillRect(1, 1, 5, 3);
+                c.fillRect(9, 7, 5, 3);
+            });
+            // Vertical ribbed industrial metal cladding
+            faceTex.metal = mk(12, 16, (c, w, h) => {
+                c.fillStyle = 'rgba(255, 255, 255, 0.11)';
+                c.fillRect(1, 0, 2, h);
+                c.fillRect(7, 0, 2, h);
+                c.fillStyle = 'rgba(0, 0, 0, 0.18)';
+                c.fillRect(4, 0, 1, h);
+                c.fillRect(10, 0, 1, h);
+                c.fillStyle = 'rgba(0, 0, 0, 0.08)';
+                c.fillRect(0, 15, w, 1);
+            });
+            // Sleek horizontal glass curtain-wall spandrels + specular sheen
+            faceTex.glass = mk(16, 14, (c, w, h) => {
+                c.fillStyle = 'rgba(226, 242, 255, 0.14)';
+                c.fillRect(0, 1, w, 4);
+                c.fillStyle = 'rgba(0, 10, 24, 0.16)';
+                c.fillRect(0, 6, w, 2);
+                c.strokeStyle = 'rgba(255, 255, 255, 0.09)';
+                c.lineWidth = 1;
+                c.beginPath(); c.moveTo(0, h); c.lineTo(w, 0); c.stroke();
+            });
+        }
+        return faceTex[kind] || null;
     }
 
     function hash01(seed, i) {
@@ -332,6 +480,7 @@
         const tBot = { x: bBot.x, y: bBot.y - hpx }, tLeft = { x: bLeft.x, y: bLeft.y - hpx };
 
         const topC = shade(base, 0.2), rightC = shade(base, -0.08), leftC = shade(base, -0.3);
+        const pat = (!opts.ghost && hpx > 11 && opts.tex) ? getFaceTex(opts.tex) : null;
 
         // right (front-right) face
         R.ctx.beginPath();
@@ -339,12 +488,28 @@
         R.ctx.lineTo(tBot.x, tBot.y); R.ctx.lineTo(tRight.x, tRight.y); R.ctx.closePath();
         R.ctx.fillStyle = opts.ghost ? rgba(base, 0.1) : rightC;
         R.ctx.fill();
+        if (!opts.ghost && hpx > 10) {
+            const ao = R.ctx.createLinearGradient(0, tBot.y, 0, bBot.y);
+            ao.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+            ao.addColorStop(1, 'rgba(0, 0, 0, 0.18)');
+            R.ctx.fillStyle = ao;
+            R.ctx.fill();
+            if (pat) { R.ctx.fillStyle = pat; R.ctx.fill(); }
+        }
         // left (front-left) face
         R.ctx.beginPath();
         R.ctx.moveTo(bBot.x, bBot.y); R.ctx.lineTo(bLeft.x, bLeft.y);
         R.ctx.lineTo(tLeft.x, tLeft.y); R.ctx.lineTo(tBot.x, tBot.y); R.ctx.closePath();
         R.ctx.fillStyle = opts.ghost ? rgba(base, 0.16) : leftC;
         R.ctx.fill();
+        if (!opts.ghost && hpx > 10) {
+            const ao = R.ctx.createLinearGradient(0, tBot.y, 0, bBot.y);
+            ao.addColorStop(0, 'rgba(255, 255, 255, 0.03)');
+            ao.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
+            R.ctx.fillStyle = ao;
+            R.ctx.fill();
+            if (pat) { R.ctx.fillStyle = pat; R.ctx.fill(); }
+        }
         // top face
         R.ctx.beginPath();
         R.ctx.moveTo(tTop.x, tTop.y); R.ctx.lineTo(tRight.x, tRight.y);
@@ -620,7 +785,7 @@
                 R.ctx.fill();
             }
         } else { // 'fab' — electronics: compact plant with a blinking antenna
-            const info = prism(g.x, g.y, sp.fw, h, base, { stories: 2, door: true, windows: true, winSeed: n.id * 13 + 1 });
+            const info = prism(g.x, g.y, sp.fw, h, base, { stories: 2, door: true, windows: true, winSeed: n.id * 13 + 1, tex: 'metal' });
             const tc = info.topCenter;
             R.ctx.strokeStyle = '#9fb4c8';
             R.ctx.lineWidth = Math.max(1, 1.4 * z);
@@ -748,7 +913,8 @@
                   ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
                   alpha: forSale ? 0.9 : 1,
                   stories: forSale ? 0 : sp.stories, door: !forSale && sp.door,
-                  windows: !forSale, winSeed: n.id * 13 + 1
+                  windows: !forSale, winSeed: n.id * 13 + 1,
+                  tex: forSale ? null : sp.tex
               });
         const tc = info.topCenter;
 

@@ -74,12 +74,18 @@ SC.sfx = (function() {
         science:  () => { tone(659, 0.1, 'sine', 0.09); tone(880, 0.1, 'sine', 0.09, 0.1);
                           tone(1109, 0.1, 'sine', 0.09, 0.2); tone(1319, 0.3, 'sine', 0.1, 0.3); },
         // Debt/default warning: a slow two-pulse low alarm, distinct from `error`.
-        warn:     () => { tone(196, 0.22, 'square', 0.07); tone(185, 0.3, 'square', 0.07, 0.26); }
+        warn:     () => { tone(196, 0.22, 'square', 0.07); tone(185, 0.3, 'square', 0.07, 0.26); },
+        // Storm thunder: a deep rolling low-passed noise rumble + sub-bass boom.
+        thunder:  () => {
+            noise(1.8, 'lowpass', 180, 0.14, 0);
+            noise(1.3, 'lowpass', 110, 0.10, 0.35);
+            tone(58, 0.75, 'sine', 0.09, 0.02, 34);
+        }
     };
 
     // Some sounds ride on events that can fire several times in one tick
     // (dispatch assigning a batch of jobs). Collapse those into one blip.
-    const THROTTLE = { depart: 0.35, craft: 0.12 };
+    const THROTTLE = { depart: 0.35, craft: 0.12, thunder: 3.5 };
 
     let volume = localStorage.getItem('scTycoonSoundVol') !== null
         ? Math.max(0, Math.min(1, parseFloat(localStorage.getItem('scTycoonSoundVol'))))

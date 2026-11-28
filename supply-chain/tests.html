@@ -18,10 +18,10 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.64.0';</script>
+    <script>window.SC_VERSION = '1.65.0';</script>
     <script>
     (function () {
-        var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
+        var mods = ['config', 'state', 'weather', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
                     'roads', 'factories', 'economy', 'vehicles', 'stats', 'run',
                     'inspect', 'research', 'placement', 'tutorial'];
         for (var i = 0; i < mods.length; i++)
@@ -3485,6 +3485,145 @@
         assert('ground yield follows the biome table',
             SC.groundYield('wheat', s.x, s.y) === SC.CONFIG.BIOME_YIELD.wheat[SC.biomeAt(s.x, s.y).key]);
         assert('a material with no biome row yields 1×', SC.groundYield('chips', s.x, s.y) === 1);
+    })();
+
+    // ── Weather gameplay effects, forecast, routing & persistence ──
+    (function() {
+        const { S1, F, C } = fixture();
+        SC.state.money = 100000;
+        const dirt = SC.roads.build(S1, F).edge;
+        const hwy = SC.roads.build(F, C).edge;
+        SC.state.research.completed.pavedRoads = true;
+        SC.roads.upgrade(hwy);
+
+        // Clear sky: no road penalty
+        assert('clear weather has 1× road speed', approx(SC.weather.roadSpeedMult(dirt), 1));
+        assert('clear weather cache bucket is 0', SC.weather.cacheBucket() === '0');
+
+        // Rain slows unpaved more than highway, and ferries even more
+        SC.weather.setForced('rain');
+        const rainDirt = SC.weather.roadSpeedMult(dirt);
+        const rainHwy = SC.weather.roadSpeedMult(hwy);
+        const rainFerry = SC.weather.roadSpeedMult({ level: 0, ferry: true });
+        assert('rain slows unpaved roads', rainDirt < 0.85 && rainDirt > 0.7);
+        assert('paved highways resist rain far better than unpaved roads', rainHwy > rainDirt && rainHwy > 0.9);
+        assert('rain slows ferries more than dry unpaved roads', rainFerry < rainDirt);
+        assert('rain updates the path cache bucket', SC.weather.cacheBucket() !== '0');
+
+        // Snow hits harder than rain, still respecting highway resistance
+        SC.weather.setForced('snow');
+        const snowDirt = SC.weather.roadSpeedMult(dirt);
+        const snowHwy = SC.weather.roadSpeedMult(hwy);
+        const snowFerry = SC.weather.roadSpeedMult({ level: 0, ferry: true });
+        assert('snow slows unpaved roads more than rain', snowDirt < rainDirt);
+        assert('paved highways resist snow far better than dirt roads', snowHwy > snowDirt);
+        assert('snow hits river ferries hardest', snowFerry < snowDirt && snowFerry >= SC.CONFIG.WEATHER_SPEED_FLOOR);
+
+        // Sandbox skips weather penalties entirely
+        SC.newState('sandbox');
+        SC.weather.setForced('snow');
+        assert('sandbox has no weather speed penalty', approx(SC.weather.roadSpeedMult({ level: 0, ferry: false }), 1));
+
+        // Forecast & spell progression
+        SC.newState('normal');
+        const fc0 = SC.weather.forecast();
+        assert('fresh run starts clear and forecasts clouds next', fc0.current.type === 'clear' && fc0.next.type === 'clouds' && fc0.timeLeft > 0);
+        let changed = null;
+        SC.on('weatherChanged', ev => { changed = ev; });
+        SC.weather.tick(SC.state.weather.dur + 0.5);
+        assert('weather advances to next spell and emits weatherChanged', SC.state.weather.type === 'clouds' && changed && changed.type === 'clouds');
+
+        // Weather-aware Dijkstra routing: prefers dry highway detour in snow
+        // when direct unpaved road is slower than a slightly longer paved route
+        fixture();
+        SC.state.money = 100000;
+        SC.state.research.completed.pavedRoads = true;
+        const A = SC.map.makeNode('junction', 200, 500, { active: true });
+        const B = SC.map.makeNode('junction', 600, 500, { active: true });
+        const M = SC.map.makeNode('junction', 400, 790, { active: true }); // ~352 per leg -> total 704 vs 400 direct
+        // Make direct edge slightly shorter than paved/1.6 in clear weather?
+        // Actually 400 / 1.0 = 400 vs 704 / 1.6 = 440 -> clear prefers direct A-B!
+        // In snow: direct = 400 / 0.68 = 588 vs paved = 704 / (1.6 * 0.88) = 500 -> snow prefers highway A-M-B!
+        SC.roads.build(A, B);
+        const e1 = SC.roads.build(A, M).edge;
+        const e2 = SC.roads.build(M, B).edge;
+        SC.roads.upgrade(e1);
+        SC.roads.upgrade(e2);
+        SC.weather.setForced('clear');
+        const clearPath = SC.roads.findPath(A, B);
+        assert('in clear weather, shorter dirt direct road beats longer highway detour',
+            clearPath && clearPath.path.length === 2);
+        SC.weather.setForced('snow');
+        const snowPath = SC.roads.findPath(A, B);
+        assert('in snow, Dijkstra reroutes onto the all-weather paved highway',
+            snowPath && snowPath.path.length === 3 && snowPath.path[1] === M);
+
+        // Save/restore round-trip preserves weather state (clearing forced flag)
+        SC.newState('normal'); SC.map._resetSeq(); SC.map.generateWorld('weather-save');
+        SC.state.weather.i = 2; SC.state.weather.type = 'rain'; SC.state.weather.t = 12; SC.state.weather.intensity = 0.8;
+        SC.save.store();
+        SC.newState('normal');
+        SC.save.load();
+        assert('weather state survives save/restore round-trip',
+            SC.state.weather.type === 'rain' && SC.state.weather.i === 2 && approx(SC.state.weather.t, 12));
+        SC.save.clear();
+    })();
+
+    // ── Cashflow & upkeep breakdown + optimized large-fleet dispatch ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 10000;
+        SC.state.time = 60;
+        const Y = SC.map.makeNode('yard', 700, 420, { active: true });
+        SC.vehicles.addTruck(C, C);
+        SC.vehicles.addTruck(C, C);
+        SC.vehicles.addTruck(Y, Y);
+
+        const bk = SC.upkeepBreakdown();
+        assert('upkeepBreakdown counts trucks, owned factories, and non-HQ yards',
+            bk.truckCount === 3 && bk.factoryCount === 1 && bk.yardCount === 1);
+        assert('upkeepBreakdown total matches SC.upkeepPerMin', approx(bk.total, SC.upkeepPerMin()));
+
+        // Deliver an order and check rolling revenue & net cashflow
+        const ord = { id: 99, city: C, product: 'bread', qty: 1, deliveredUnits: 0, payout: 300,
+                      deadline: 100, deadlineTotal: 100, planned: true, noRoute: false, done: false };
+        SC.state.orders.push(ord);
+        SC.economy.deliverProduct(ord, 'bread');
+        const cf = SC.economy.cashflow();
+        assert('cashflow computes rolling revenue/min over 60s window', approx(cf.revenuePerMin, 300));
+        assert('cashflow computes net = revenue - upkeep - interest',
+            approx(cf.netPerMin, cf.revenuePerMin - cf.upkeepPerMin - cf.interestPerMin));
+
+        // Debt adds live interestPerMin into cashflow
+        SC.state.money = -1000;
+        const cfDebt = SC.economy.cashflow();
+        assert('cashflow includes live debt interest when negative',
+            approx(cfDebt.interestPerMin, 1000 * SC.interestPerMin()));
+
+        // Optimized dispatch: multiple trucks at two yards + bundled jobs
+        // picks globally nearest yard and bundles up to capacity
+        fixture();
+        SC.state.money = 100000;
+        SC.state.upgrades.truckCapacity = 2; // capacity = 3
+        const { S1: r1, S2: r2, F: fac, C: hq } = fixture();
+        SC.state.upgrades.truckCapacity = 2;
+        const nearYard = SC.map.makeNode('yard', 100, 180, { active: true });
+        SC.roads.build(r1, nearYard);
+        SC.roads.build(nearYard, fac);
+        SC.roads.build(r2, fac);
+        SC.roads.build(fac, hq);
+        // Far truck listed FIRST in trucks[] at HQ, near trucks listed AFTER at nearYard
+        const farT = SC.vehicles.addTruck(hq, hq);
+        const nearT1 = SC.vehicles.addTruck(nearYard, nearYard);
+        const nearT2 = SC.vehicles.addTruck(nearYard, nearYard);
+        // 4 identical jobs r1 -> fac: nearT1 should take 3 (bundled), nearT2 should take 1, farT stays idle
+        for (let i = 0; i < 4; i++) {
+            SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: r1, drop: fac, order: null, task: null });
+        }
+        SC.vehicles.dispatch();
+        assert('grouped dispatch picks closer yard truck over earlier far truck and bundles to capacity',
+            nearT1.jobs.length === 3 && nearT2.jobs.length === 1 && farT.jobs.length === 0);
+        assert('grouped dispatch leaves no unmatched jobs when fleet covers them', SC.state.jobs.length === 0);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed` + (window.FAILS.length ? ' :: ' + window.FAILS.join(' | ') : '');

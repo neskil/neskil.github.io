@@ -120,46 +120,101 @@ SC.vehicles = (function() {
     // and drop as the one it just claimed, so one trip can carry several
     // units of the same haul (e.g. multiple raw units for one factory, or
     // several units of one product to one city).
+    //
+    // Performance: idle trucks parked at the same node (e.g. a yard) share
+    // identical distances to every pickup, and jobs sharing a pickup share
+    // identical truck->pickup distances. Grouping by (idleNode, pickupNode)
+    // inside a single occupancy snapshot cuts large-fleet dispatch from
+    // O(min(T,J)*T*J) lookups down to O(uniqueYards * uniquePickups), while
+    // keeping exact truck/job array-order tie-breaking.
     function dispatch() {
         const jobs = SC.state.jobs;
         const capacity = SC.truckCapacity();
-        let idle = SC.state.trucks.filter(t => !t.jobs.length && !t.path);
+        const idle = SC.state.trucks.filter(t => !t.jobs.length && !t.path);
+        if (!idle.length) return;
+        if (!jobs.length) { sendIdleHome(idle); return; }
 
-        // Whether a job's own haul is routable doesn't depend on which
-        // truck takes it, so ask once per job rather than once per
-        // (truck, job) pair on every round of the matching loop.
-        const haulable = new Map();
-        const canHaul = job => {
-            if (!haulable.has(job)) haulable.set(job, !!SC.roads.findPath(job.pickup, job.drop));
-            return haulable.get(job);
-        };
+        SC.roads.withOccupancySnap(() => {
+            // Check each unique (pickup, drop) route once rather than per job.
+            const haulable = new Map();
+            const canHaul = job => {
+                const k = job.pickup.id + ':' + job.drop.id;
+                if (!haulable.has(k)) haulable.set(k, !!SC.roads.findPath(job.pickup, job.drop));
+                return haulable.get(k);
+            };
 
-        while (idle.length && jobs.length) {
-            let bestTruck = null, bestJob = null, bestDist = Infinity, bestRoute = null;
+            // Group idle trucks by their current node, preserving trucks[] order.
+            const idleByNode = new Map();
             for (const truck of idle) {
-                for (const job of jobs) {
-                    if (!canHaul(job)) continue;
-                    const r = SC.roads.findPath(truck.node, job.pickup);
-                    if (r && r.dist < bestDist) { bestDist = r.dist; bestTruck = truck; bestJob = job; bestRoute = r; }
-                }
+                let grp = idleByNode.get(truck.node);
+                if (!grp) { grp = []; idleByNode.set(truck.node, grp); }
+                grp.push(truck);
             }
-            if (!bestTruck) break; // no remaining job is reachable by any idle truck
 
-            const bundle = [bestJob];
-            if (capacity > 1) {
-                for (const job of jobs) {
-                    if (bundle.length >= capacity) break;
-                    if (job !== bestJob && job.pickup === bestJob.pickup && job.drop === bestJob.drop) bundle.push(job);
-                }
+            // Collect haulable jobs grouped by pickup node, preserving jobs[] order.
+            const jobsByPickup = new Map();
+            for (const job of jobs) {
+                if (!canHaul(job)) continue;
+                let grp = jobsByPickup.get(job.pickup);
+                if (!grp) { grp = []; jobsByPickup.set(job.pickup, grp); }
+                grp.push(job);
             }
-            for (const job of bundle) jobs.splice(jobs.indexOf(job), 1);
-            bestTruck.jobs = bundle;
-            bestTruck.phase = 'toPickup';
-            setPath(bestTruck, bestRoute.path);
-            SC.emit('truckDispatched', bestTruck);
-            idle = idle.filter(t => t !== bestTruck);
-        }
-        sendIdleHome(idle);
+
+            while (idleByNode.size && jobsByPickup.size) {
+                let bestNode = null, bestPickup = null, bestDist = Infinity, bestRoute = null;
+                for (const [node] of idleByNode) {
+                    for (const [pickup] of jobsByPickup) {
+                        const r = SC.roads.findPath(node, pickup);
+                        if (r && r.dist < bestDist) {
+                            bestDist = r.dist;
+                            bestNode = node;
+                            bestPickup = pickup;
+                            bestRoute = r;
+                        }
+                    }
+                }
+                if (!bestNode) break; // no remaining job is reachable by any idle truck
+
+                const truckGrp = idleByNode.get(bestNode);
+                const bestTruck = truckGrp.shift();
+                if (!truckGrp.length) idleByNode.delete(bestNode);
+
+                const pickupGrp = jobsByPickup.get(bestPickup);
+                const bestJob = pickupGrp.shift();
+                const bundle = [bestJob];
+                if (capacity > 1 && pickupGrp.length) {
+                    for (let i = 0; i < pickupGrp.length && bundle.length < capacity; ) {
+                        if (pickupGrp[i].drop === bestJob.drop) {
+                            bundle.push(pickupGrp.splice(i, 1)[0]);
+                        } else {
+                            i++;
+                        }
+                    }
+                }
+                if (!pickupGrp.length) jobsByPickup.delete(bestPickup);
+
+                for (const job of bundle) {
+                    const idx = jobs.indexOf(job);
+                    if (idx !== -1) jobs.splice(idx, 1);
+                }
+                bestTruck.jobs = bundle;
+                bestTruck.phase = 'toPickup';
+                setPath(bestTruck, bestRoute.path);
+                // A newly-dispatched truck just entered its first edge — refresh
+                // the occupancy snapshot so subsequent dispatches in this tick
+                // see live congestion if a road just crossed the jam threshold.
+                SC.roads.refreshOccupancySnap();
+                SC.emit('truckDispatched', bestTruck);
+            }
+
+            if (idleByNode.size) {
+                const leftover = [];
+                for (const grp of idleByNode.values()) {
+                    for (const t of grp) leftover.push(t);
+                }
+                sendIdleHome(leftover);
+            }
+        });
     }
 
     // Trucks left with no work head back to their home yard, if not

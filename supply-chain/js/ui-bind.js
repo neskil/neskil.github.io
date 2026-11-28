@@ -90,9 +90,40 @@
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
         on('mode-heatmap', 'click', () => setMode('heatmap'));
 
+        // Live cashflow & weather/forecast chips under #top-left
+        on('hud-cashflow', 'click', () => {
+            SC.sfx.play('click');
+            U.toggleHudPopover('finance');
+        });
+        on('hud-weather', 'click', () => {
+            SC.sfx.play('click');
+            U.toggleHudPopover('weather');
+        });
+        on('hud-popover', 'click', e => {
+            if (e.target.closest('.pop-close')) {
+                SC.sfx.play('click');
+                U.closeHudPopover();
+            }
+        });
+        on('gameCanvas', 'pointerdown', () => U.closeHudPopover());
+
+        // One-handed mobile cancel for non-build modes / active road start / placement
+        on('mode-hint-cancel', 'click', () => {
+            SC.sfx.play('click');
+            if (SC.state.placeMode) {
+                SC.state.placeMode = null;
+                updateShop();
+            } else if (SC.state.selectedNode) {
+                SC.state.selectedNode = null;
+            } else if (SC.state.mode !== 'build') {
+                setMode('build');
+            }
+            U.updateModeHint();
+        });
+
         // Whole bar opens the menu, not just the ☰ icon — money/trucks are
         // read-only display, so there's no reason tapping them should miss.
-        $('top-left').addEventListener('click', () => { SC.sfx.play('click'); openMenu(); });
+        $('top-left').addEventListener('click', () => { U.closeHudPopover(); SC.sfx.play('click'); openMenu(); });
         $('menu-resume').addEventListener('click', () => { SC.sfx.play('click'); closeMenu(); });
         $('menu-overlay').addEventListener('click', e => {
             if (e.target === $('menu-overlay')) closeMenu(); // tap outside the card

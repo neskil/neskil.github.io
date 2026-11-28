@@ -1,7 +1,7 @@
 # Supply Chain Tycoon — development plan (v1 → v2)
 
 Status: **agreed 2026-07-15** (decisions below); last synced with shipped
-reality **2026-10-14 (v1.64.0)**. Baseline is v1.0.0 (playable core loop:
+reality **2026-11-28 (v1.65.0)**. Baseline is v1.0.0 (playable core loop:
 roads, trucks, orders, upgrades, milestone map growth, pan/pinch camera).
 
 This file owns the roadmap: the Shipped log, the phased items (all of
@@ -39,6 +39,28 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.65.0: **all-weather logistics, atmospheric & visual polish, live cashflow
+  telemetry, and large-fleet dispatcher tuning** — weather moved out of the
+  render layer into pure logic (`js/weather.js`, persisted in saves): rainstorms
+  and snowfalls now slow unpaved dirt roads and river ferries (scaled by
+  `SC.diff().weatherMult`, zero on Sandbox) while paved highways shrug off
+  storms, so Asphalt Paving pays off doubly and Dijkstra routes around wet dirt
+  and choppy ferries. Two compact HUD chips sit beneath `#top-left` (clear of
+  the Orders panel on phones): live **net `$/min` cashflow** (`economy.cashflow`
+  + `SC.upkeepBreakdown`, tapping opens an itemized Revenue/Trucks/Factories/
+  Yards/Interest popover) and **weather & forecast** (current spell, speed drag,
+  next spell countdown, tapping opens the road-conditions popover). Visual &
+  atmosphere pass: branching storm **lightning + synthesized rolling thunder**,
+  golden-hour **dawn/dusk god rays**, clear-night **shooting stars**, subtle
+  **sky/horizon/cloud parallax**, richer clipped **river reflections** (live sky
+  tint, sun/moon glitter column, night riverside building reflections),
+  two-pass road rendering with **quadratic-Bezier rounded road bends** at
+  junctions/shared nodes, and cached subtle **brick/metal/glass building face
+  textures** + wall AO gradients. Mobile ergonomics: safe-area insets, larger
+  38px bottom-right mode/speed touch targets, and a one-handed **active mode /
+  selection hint pill** with quick `✕` cancel. Performance: O(1) lazily-synced
+  `findEdge` index, binary min-heap Dijkstra, scoped occupancy snapshot, and
+  node/pickup-grouped `vehicles.dispatch()`.
 - v1.64.0: **runs with a finish line, and misses that say why** — the
   game had no goal: endless play, ended only by foreclosure. Two timed run
   modes now sit beside difficulty on the new-game screen (`SC.RUN_MODES`,
@@ -492,8 +514,9 @@ into claiming shipped features were unbuilt.)
   player place a supplier, with the preview naming the ground's yield
   (v1.64.0). Open question: should milestone suppliers stop auto-spawning
   and become a choice of spot instead?
-- Weather that affects play (rain slowing trucks, etc.) rather than
-  being purely cosmetic.
+- ~~Weather that affects play (rain slowing trucks, etc.) rather than
+  being purely cosmetic.~~ — shipped v1.65.0 (`js/weather.js`: rain/snow slow
+  unpaved roads & ferries while highways resist storms, plus forecast HUD).
 - Daily challenge follow-ups (the mode itself shipped in v1.64.0): seed
   the order stream too, so two players' dailies differ only by their
   choices; generated-world test determinism (left open by item 13).
@@ -503,15 +526,10 @@ into claiming shipped features were unbuilt.)
 **Graphics** — the iso 2.5D view has had many depth passes (scenery,
 themed supplier sites, night atmosphere, day↔night, rotating weather,
 directional shadows, route-flow pulses, coin bursts, heightfield
-terrain). Next ideas, unbuilt:
+terrain, rounded road corners, face textures, storm lightning/thunder,
+god rays, shooting stars, sky/horizon parallax, richer river reflections). Next ideas, unbuilt:
 
-- Curved/rounded roads at corners and junctions.
-- Parallax on the terrain/sky layers when panning.
-- Lightning + thunder in heavy rain; shooting stars; god rays at dawn.
-- Face textures (subtle noise/brick/metal) instead of flat-colour
-  building faces.
-- Seasonal palettes; richer water reflections beyond the moonlight
-  streak.
+- Seasonal palettes.
 
 ## Tech housekeeping (ongoing, fold into the above)
 
@@ -519,12 +537,10 @@ terrain). Next ideas, unbuilt:
 - ~~Generic research effects~~ — done in v1.12 (`bonusSum` /
   `customerSpawnMult` / `upgradeMaxBonus`): a new tech is one config
   entry, no new accessor code.
-- ~~**Pathfinding cache**~~ — shipped in v1.61.0, re-keyed in v1.64.0
-  (see Shipped). Still open from the old note: `vehicles.dispatch()` is a
-  repeated global-nearest-match, worst case O(min(idle,jobs) × idle × jobs)
-  path lookups per tick. Cached lookups and the per-job routability check
-  keep it cheap at current fleet sizes; it's the first thing to revisit if
-  trucks and jobs both grow a lot.
+- ~~**Pathfinding & dispatch tuning**~~ — path cache shipped v1.61.0 and
+  re-keyed v1.64.0; v1.65.0 added an O(1) `findEdge` index, binary min-heap
+  Dijkstra, scoped occupancy snapshots, and node/pickup-grouped
+  `vehicles.dispatch()`.
 - ~~**Interaction tests**~~ — `interaction-tests.html`, v1.64.0.
 - ~~**Sound pass**~~ — truck-departure blip, ambient bed, separate
   music/sound toggles and per-channel levels have all shipped.
