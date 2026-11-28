@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.247.0';
+G3.VERSION = '1.248.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -65,7 +65,7 @@ G3.CONFIG = {
         crust: 0.6,
         /* A bunker slows a rolling ball hard, but no longer eats it: at
            0.004 a putt in the sand went a quarter as far as on the green and the
-           owner found it "a little bit too powerful" (v1.240.0). What sand
+           owner found it "a little bit too powerful" (v1.248.0). What sand
            does that nothing else does is take the bounce away — LANDING.sand. */
         sand: 0.02,
         rough: 0.135,  // was 0.06, for the same reason as the fairway: ROLL holds it now
@@ -623,7 +623,7 @@ G3.CONFIG = {
            used to give, 14.6 and 13.0, was older than the turf they land on;
            the card is measured now (tests.html, "what the card says").
 
-           Then the owner (v1.240.0): the pitch "feels a bit weak" in mini golf
+           Then the owner (v1.248.0): the pitch "feels a bit weak" in mini golf
            "and should not be called pitch". It was the weaker of the two
            wedges — 10.5 to the 52° wedge's 11.2 — which is backwards for the
            lower loft and left the two cards a metre apart. It is the Gap
@@ -754,7 +754,7 @@ G3.CONFIG = {
     LANDING: {
         /* Sand: the ball plugs. Next to no bounce, so whatever comes down in
            a bunker stays down, and some of its run is lost in the splash
-           (the owner, v1.240.0: "the rolling shouldn't be that bad, but it
+           (the owner, v1.248.0: "the rolling shouldn't be that bad, but it
            should reduce bounces to almost zero"). */
         sand:    { grip: 0.65, bounce: 0.04 },
         fairway: { grip: 0.70, bounce: 0.24 },
@@ -1425,7 +1425,7 @@ G3.CONFIG.LONG_M = 5.5;
    It never changes while the ball is moving (render.js `stepLook`): a shot
    that comes down near the flag keeps the size it was struck at, and the
    ball and seat go over to the new lie's look once it is at rest, on a
-   critically damped spring of EASE per second (v1.245.0: "the ball size and
+   critically damped spring of EASE per second (v1.248.0: "the ball size and
    zoom have a bit of uncanny valley thing"). */
 /* The follow seat's lift over a bank behind the ball (render.js →
    easedLift): a critically damped spring of SIGHT_EASE per second, so a lift

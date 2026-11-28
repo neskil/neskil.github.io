@@ -5008,8 +5008,8 @@ body.lane-swing .swipe-hint {
 .door-sub { font-size: 0.86rem; color: var(--ink-dim); line-height: 1.35; }
 .door-go { font-size: 1.3rem; color: var(--cg-tint); }
 
-/* The eye: the sky of the world the door would open on first, wound round
-   (game.js sets --eye-a and --eye-b). */
+/* The eye (game.js sets --eye-a and --eye-b on the door: the sky of the
+   world it would open on first). Each door dresses its own eye below. */
 .door-eye {
     flex: none;
     width: 3.4rem;
@@ -5017,25 +5017,38 @@ body.lane-swing .swipe-hint {
     border-radius: 50%;
     border: 2px solid var(--cg-tint);
     background: conic-gradient(from 0deg, var(--eye-a), var(--eye-b), var(--eye-a), var(--eye-b), var(--eye-a));
-    animation: door-turn 9s linear infinite;
 }
-@keyframes door-turn { to { transform: rotate(360deg); } }
 /* The World Tour's eye is a black hole (the owner: "more portal black hole
    like"). Nothing in it turns as a whole: two sets of log-spiral arms in the
    first world's sky (warmed towards accretion orange, so a pale sky or a
-   near-black one both still burn) turn the way that makes a spiral read as pouring inward,
-   the thin set twice as fast; five sparks fall in on an accelerating spiral
+   near-black one both still burn) turn the way that makes a spiral read as
+   pouring inward, slowly (the owner asked for slower), the thin set faster; five sparks fall in on an accelerating spiral
    and go out under the horizon; the horizon is a black disc in a lit photon
-   ring. The light is the one exception to the clubhouse's no-glow rule, and
-   it stays inside the brass rim. Markup: index.html → #menu-portals. */
+   ring. Everything inside the brass rim drifts round the colour wheel
+   (.bh-space carries the filter, so the rim stays brass). The light here and
+   the card's shine below are the owner-requested exception to the
+   clubhouse's no-glow rule. Markup: index.html → #menu-portals. */
 .tour-eye {
     position: relative;
+    overflow: hidden;
+    transition: transform 0.25s ease-out;
+}
+.bh-space {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
     overflow: hidden;
     isolation: isolate;
     background: radial-gradient(circle at 50% 50%, #000 0 20%, color-mix(in srgb, var(--eye-a) 45%, #000) 52%, #040306 100%);
     box-shadow: inset 0 0 0.7rem rgba(0, 0, 0, 0.9);
-    animation: none;
-    transition: transform 0.25s ease-out;
+    animation: bh-hue 18s linear infinite;
+}
+/* One turn of the wheel, shared with the card's glow so the two stay in step. */
+/* hue-rotate is a matrix that darkens some hues as it passes them; the
+   brightness puts that back. */
+@keyframes bh-hue {
+    from { filter: hue-rotate(0deg) brightness(1.35) saturate(1.15); }
+    to   { filter: hue-rotate(360deg) brightness(1.35) saturate(1.15); }
 }
 .door:hover .tour-eye { transform: scale(1.06); }
 .bh-arms {
@@ -5046,15 +5059,15 @@ body.lane-swing .swipe-hint {
     mask: radial-gradient(circle, transparent 17%, #000 29%, #000 50%, transparent 70%);
 }
 .bh-arms-wide {
-    fill: color-mix(in srgb, var(--eye-b) 45%, #ffa95e);
+    fill: color-mix(in srgb, var(--eye-b) 30%, #ffa95e);
     opacity: 0.85;
-    animation: bh-swirl 5.2s linear infinite;
+    animation: bh-swirl 11s linear infinite;
 }
 .bh-arms-thin {
-    fill: color-mix(in srgb, var(--eye-b) 25%, #fff3dc);
+    fill: color-mix(in srgb, var(--eye-b) 15%, #fff3dc);
     opacity: 0.7;
     mix-blend-mode: screen;
-    animation: bh-swirl 2.6s linear infinite;
+    animation: bh-swirl 6.5s linear infinite;
 }
 /* Negative: the arms wind clockwise inward, so turning them anticlockwise
    moves every point of an arm towards the middle. */
@@ -5063,7 +5076,7 @@ body.lane-swing .swipe-hint {
     position: absolute;
     inset: 0;
     opacity: 0;
-    animation: bh-fall 2.5s cubic-bezier(0.55, 0, 0.9, 0.55) infinite;
+    animation: bh-fall 4s cubic-bezier(0.55, 0, 0.9, 0.55) infinite;
 }
 .bh-fall::before {
     content: '';
@@ -5076,14 +5089,14 @@ body.lane-swing .swipe-hint {
     box-shadow: 0 0 4px 1px color-mix(in srgb, var(--eye-b) 45%, #ffa95e);
 }
 .bh-fall:nth-of-type(1) { rotate: 0deg; }
-.bh-fall:nth-of-type(2) { rotate: 144deg; animation-delay: -0.5s; }
-.bh-fall:nth-of-type(3) { rotate: 288deg; animation-delay: -1s; }
-.bh-fall:nth-of-type(4) { rotate: 72deg;  animation-delay: -1.5s; }
-.bh-fall:nth-of-type(5) { rotate: 216deg; animation-delay: -2s; }
+.bh-fall:nth-of-type(2) { rotate: 144deg; animation-delay: -0.8s; }
+.bh-fall:nth-of-type(3) { rotate: 288deg; animation-delay: -1.6s; }
+.bh-fall:nth-of-type(4) { rotate: 72deg;  animation-delay: -2.4s; }
+.bh-fall:nth-of-type(5) { rotate: 216deg; animation-delay: -3.2s; }
 @keyframes bh-fall {
     0%   { transform: rotate(0deg) scale(1); opacity: 0; }
     15%  { opacity: 1; }
-    100% { transform: rotate(-400deg) scale(0.22); opacity: 0.9; }
+    100% { transform: rotate(-330deg) scale(0.22); opacity: 0.9; }
 }
 .bh-core {
     position: absolute;
@@ -5094,18 +5107,78 @@ body.lane-swing .swipe-hint {
         0 0 0 1.5px color-mix(in srgb, var(--eye-b) 25%, #fff3dc),
         0 0 5px 2px color-mix(in srgb, var(--eye-b) 45%, #ffa95e),
         0 0 12px 5px color-mix(in srgb, color-mix(in srgb, var(--eye-b) 45%, #ffa95e) 40%, transparent);
-    animation: bh-breathe 2.6s ease-in-out infinite;
+    animation: bh-breathe 4s ease-in-out infinite;
 }
 @keyframes bh-breathe {
     0%, 100% { transform: scale(1); }
     50%      { transform: scale(1.08); }
 }
-@media (prefers-reduced-motion: reduce) {
-    .bh-arms, .bh-core { animation: none; }
-    .bh-fall { display: none; }
+
+/* The tour's card is the one to pick, and it says so: a glow from the eye
+   that drifts through the colours in step with it, a light that runs round
+   the rim, a sheen that crosses the card now and then, and an arrow that
+   leans the way in. All of it sits under the text but the sheen. */
+@property --door-run {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
 }
-/* Endless: the same door in verdigris, its eye a slow turn of the brass
-   accent with the sign for for ever on it, held still while the ring turns. */
+#menu-portals {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border: 1.5px solid transparent;
+    background:
+        linear-gradient(#23201a, #23201a) padding-box,
+        conic-gradient(from var(--door-run),
+            color-mix(in srgb, var(--cg-tint) 55%, transparent) 0deg 250deg,
+            #fff1cf 310deg,
+            color-mix(in srgb, var(--cg-tint) 55%, transparent) 360deg) border-box;
+    animation: door-run 6s linear infinite;
+}
+#menu-portals:hover {
+    background:
+        linear-gradient(#2c281f, #2c281f) padding-box,
+        conic-gradient(from var(--door-run),
+            var(--cg-tint) 0deg 250deg, #fff1cf 310deg, var(--cg-tint) 360deg) border-box;
+}
+@keyframes door-run { to { --door-run: 360deg; } }
+#menu-portals > * { position: relative; z-index: 1; }
+#menu-portals::before,
+#menu-portals::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+#menu-portals::before {
+    z-index: 0;
+    background: radial-gradient(circle at 2.6rem 50%,
+        color-mix(in srgb, color-mix(in srgb, var(--eye-b) 45%, #ffa95e) 30%, transparent) 0,
+        transparent 11rem);
+    animation: bh-hue 18s linear infinite, door-glow 4s ease-in-out infinite;
+}
+@keyframes door-glow { 50% { opacity: 0.55; } }
+#menu-portals::after {
+    z-index: 2;
+    background: linear-gradient(105deg, transparent 38%, rgba(255, 241, 214, 0.16) 48%, rgba(255, 241, 214, 0.05) 54%, transparent 62%);
+    transform: translateX(-110%);
+    animation: door-sheen 5.5s ease-in-out infinite 1s;
+}
+@keyframes door-sheen {
+    0%       { transform: translateX(-110%); }
+    30%, 100% { transform: translateX(110%); }
+}
+#menu-portals .door-go { animation: door-lean 2.4s ease-in-out infinite; }
+@keyframes door-lean {
+    0%, 60%, 100% { transform: translateX(0); }
+    75%           { transform: translateX(5px); }
+}
+
+/* Endless: the same door in verdigris, and its eye a warp tunnel. Rings in
+   five worlds' colours come up out of the dark and rush past, faster as they
+   near (an ease-in), which reads as riding forward through one world after
+   the next; on top, the sign for for ever with a light running round it. */
 .endless-door { --cg-tint: #8fc9b0; }
 .endless-eye {
     --eye-a: #12302a;
@@ -5113,16 +5186,63 @@ body.lane-swing .swipe-hint {
     position: relative;
     display: grid;
     place-items: center;
+    overflow: hidden;
+    isolation: isolate;
+    background: radial-gradient(circle, #d9fff0 0, #4f9c86 9%, #0b211c 30%, #12302a 62%, #0a1d19 100%);
+    box-shadow: inset 0 0 0.6rem rgba(0, 0, 0, 0.85);
+    transition: transform 0.25s ease-out;
+}
+.door:hover .endless-eye { transform: scale(1.06); }
+.en-ring {
+    --ring: #8fc9b0;
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--ring);
+    box-shadow: 0 0 6px var(--ring), inset 0 0 6px var(--ring);
+    opacity: 0;
+    animation: en-warp 5s cubic-bezier(0.55, 0, 1, 0.7) infinite;
+}
+.en-ring:nth-of-type(2) { --ring: #7fb6e8; animation-delay: -1s; }
+.en-ring:nth-of-type(3) { --ring: #c59cf2; animation-delay: -2s; }
+.en-ring:nth-of-type(4) { --ring: #f0b46a; animation-delay: -3s; }
+.en-ring:nth-of-type(5) { --ring: #ef8f86; animation-delay: -4s; }
+@keyframes en-warp {
+    0%   { transform: scale(0.06); opacity: 0; }
+    25%  { opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
 }
 .endless-eye svg {
+    position: relative;
+    z-index: 1;
     width: 1.9rem;
     height: 0.95rem;
     overflow: visible;
-    color: #f4ecd8;
-    animation: door-turn 9s linear infinite reverse;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-linecap: round;
 }
-@media (prefers-reduced-motion: reduce) { .endless-eye svg { animation: none; } }
-@media (prefers-reduced-motion: reduce) { .door-eye { animation: none; } }
+.en-loop { stroke: #f4ecd8; stroke-width: 2.2; opacity: 0.8; }
+.en-trail {
+    stroke: #ffffff;
+    stroke-width: 2.6;
+    stroke-dasharray: 16 84;
+    filter: drop-shadow(0 0 2px #bff5df);
+    animation: en-trail 3.4s linear infinite;
+}
+@keyframes en-trail { to { stroke-dashoffset: -100; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .bh-space, .bh-arms, .bh-core,
+    #menu-portals, #menu-portals::before, #menu-portals .door-go,
+    .en-trail { animation: none; }
+    .bh-fall, #menu-portals::after { display: none; }
+    .en-ring { animation: none; opacity: 0.5; }
+    .en-ring:nth-of-type(1) { transform: scale(0.35); }
+    .en-ring:nth-of-type(2) { transform: scale(0.6); }
+    .en-ring:nth-of-type(3) { transform: scale(0.85); }
+    .en-ring:nth-of-type(n+4) { display: none; }
+}
 
 .world-grid {
     display: grid;
