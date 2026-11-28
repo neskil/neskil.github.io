@@ -6855,7 +6855,10 @@ owner, "the fake airtime is not feeling that good on the long game map".)
     the look only), any press skipping it, and then a card offers **Drop**,
     by where the ball last crossed on to playable ground, or **Re-hit** from
     where the shot was played, which it takes after five seconds. Water is a
-    stroke either way; out of play is a stroke to replay and two to drop.
+    stroke either way. Out of play gets the hold and no card: out of bounds is
+    stroke and distance and nothing else (Rule 18.2; v1.239.0 offered a drop
+    at two strokes, the local rule E-5, until the owner: "read up on the
+    rules, you can't drop from OOB"), so it is always the replay.
     `dropSpot` reads the ball's path through the shot (`state.track`, sampled
     by game.js), takes the last point over dry, staked-in, playable ground,
     and tries spots out to two club lengths round it and then back along the

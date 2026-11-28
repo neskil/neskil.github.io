@@ -2703,10 +2703,13 @@
        none of that is the simulation). **The card**: Drop, by the line the
        ball last crossed on to playable ground (physics.dropSpot), or Re-hit
        from where the shot was played, the old behaviour and the default the
-       countdown takes. Water costs a stroke either way; out of play is
-       stroke and distance, and a drop near where it went out is two (the
-       local rule a club plays when it does not want people walking back to
-       the tee). No lie anywhere near that holds a ball: no card, the replay.
+       countdown takes. Water and lava cost a stroke either way (a penalty
+       area: lateral relief by where it crossed the edge, Rule 17.1). Out of
+       play has no card at all: out of bounds is stroke and distance and
+       nothing else (Rule 18.2 — the owner: "read up on the rules, you can't
+       drop from OOB"), so after the hold it is the replay, as is a ball the
+       well swallowed. No lie anywhere near that holds a ball: no card, the
+       replay.
 
        `state.track` is the ball's path through the shot, sampled as it went
        (trackBall); physics.js has no record of where it has been. */
@@ -2795,20 +2798,18 @@
         $('pen-skip').hidden = true;
         // Already at the pick-up: nothing to choose.
         if (state.strokes >= state.course.holes[state.holeIndex].par + C.PICKUP) { penaltyPick('again'); return; }
+        // Out of bounds: stroke and distance, never a drop (Rule 18.2).
+        if (pen.kind === 'out') { penaltyPick('again'); return; }
         if (pen.spot === undefined) {
             try { pen.spot = P.dropSpot(w.hole, pen.track, w.time); } catch (err) { pen.spot = null; }
         }
         if (!pen.spot) { penaltyPick('again'); return; }
         pen.stage = 'choose';
         pen.at = pen.t;
-        var out = pen.kind === 'out';
-        $('pen-title').textContent = pen.kind === 'lava' ? 'Lava' : pen.kind === 'water' ? 'Water hazard'
-            : w.swallowed ? 'In the well' : 'Out of bounds';
-        $('pen-drop-cost').textContent = out ? '+2' : '+1';
+        $('pen-title').textContent = pen.kind === 'lava' ? 'Lava' : 'Water hazard';
+        $('pen-drop-cost').textContent = '+1';
         $('pen-again-cost').textContent = '+1';
-        $('pen-sub').textContent = out
-            ? 'Drop by where it went out, or play it again from where you were.'
-            : 'Drop by where it went in, or play it again from where you were.';
+        $('pen-sub').textContent = 'Drop by where it went in, or play it again from where you were.';
         $('pen-again').style.setProperty('--pen-left', '1');
         $('pen-count').textContent = PEN_CHOOSE;
         $('penalty').hidden = false;
@@ -2820,12 +2821,11 @@
         var w = pen.world, spot = pen.spot, kind = pen.kind, swallowed = w.swallowed;
         closePenalty();
         if (state.world !== w) return;
-        if (which === 'drop' && spot) {
-            if (kind === 'out') state.strokes += 1;
+        if (which === 'drop' && spot && kind !== 'out') {
             state.world = P.createWorld(w.hole, { x: spot.x, y: spot.y, z: spot.z }, w.time);
             R.state.lastBall.set(spot.x, spot.y, spot.z);
             if (R.dropTo) R.dropTo();
-            toast(kind === 'out' ? 'Dropped — two stroke penalty' : 'Dropped — one stroke penalty', 'bad');
+            toast('Dropped — one stroke penalty', 'bad');
         } else {
             toast(kind === 'lava' ? 'Lava — one stroke penalty, play it again'
                 : kind === 'water' ? 'Water — one stroke penalty, play it again'
