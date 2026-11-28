@@ -47,10 +47,11 @@ order they came in (the ones already shipped are under "Done", v1.126.0):
 11. **A choice when you are out** — the second half of the owner's "lessen
     the out of bounds, it's fun if you try to recover (but perhaps if you
     are off give option to pick up or rehit ball at penalty". The first half
-    shipped in v1.234.0 (see "Done"). Still open: when a ball does go out,
-    offer a choice between a drop where it crossed the stakes (one penalty
-    stroke) and replaying from where it was hit (stroke and distance),
-    rather than the one fixed rule.
+    shipped in v1.234.0 (see "Done"). The choice shipped in v1.239.0 for
+    the water (a drop by where it went in, or the replay); for out of
+    bounds it was taken back out in v1.242.1 — the owner: "read up on the
+    rules, you can't drop from OOB" (Rule 18.2, stroke and distance only).
+    Done unless the owner asks again.
 
 Proposed next — what a look round the whole game turned up once the owner's
 list was done (v1.134.1), most visible first. Not asked for; each wants the

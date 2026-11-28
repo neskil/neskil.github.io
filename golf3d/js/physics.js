@@ -2812,10 +2812,12 @@
 
     /* ── the drop ───────────────────────────────────────────────────────
 
-       After the water or out of play the player may take the shot again from
-       where the last was played (stroke and distance, what the game always
-       did) or drop where the ball left the playable ground (game.js → the
-       penalty card). This is where that is.
+       After the water the player may take the shot again from where the
+       last was played (stroke and distance, what the game always did) or
+       drop where the ball left the playable ground (game.js → the penalty
+       card). This is where that is. Out of bounds is never offered it — that
+       is stroke and distance only, Rule 18.2 — though the search itself
+       answers for any track.
 
        `track` is the ball's path through the shot, in order, as game.js
        sampled it. The **crossing** is the last point on it over ground a
