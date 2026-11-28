@@ -94,11 +94,10 @@ function activateCardTheme(cardId) {
     document.documentElement.setAttribute('data-theme', cardId);
 
     const themeHues = {
-        'card-bil': 205,
+        'card-car-hub': 165,
+        'card-units-hub': 205,
         'card-name-song': 275,
-        'card-black-hole': 40,
         'card-gait': 158,
-        'card-erosion': 199,
         'card-fika': 30,
         'card-paper-plane': 52,
         'card-orbit': 8,
@@ -106,11 +105,7 @@ function activateCardTheme(cardId) {
         'card-terrarium': 170,
         'card-supply-chain': 45,
         'card-cargo-lander': 245,
-        'card-converter': 190,
-        'card-car': 160,
         'card-cv': 215,
-        'card-math': 270,
-        'card-math-game': 25,
         'card-cargo-packer': 28,
         'card-3d-poc': 199,
         'card-viz': 200,

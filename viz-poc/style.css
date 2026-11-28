@@ -267,8 +267,8 @@ html, body {
     top: calc(3.1rem + env(safe-area-inset-top, 0px));
     right: var(--gap);
     z-index: 11;
-    width: min(15.5rem, calc(100vw - var(--gap) * 2));
-    max-height: min(28rem, calc(100vh - 9rem));
+    width: min(18rem, calc(100vw - var(--gap) * 2));
+    max-height: min(35rem, calc(100vh - 8.2rem));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -454,6 +454,46 @@ html, body {
     font-size: 0.75rem;
     color: var(--ink-faint);
     line-height: 1.5;
+}
+
+.ctl-rays canvas {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    display: block;
+    border-radius: 8px;
+    background: #060912;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    touch-action: none;
+    cursor: ns-resize;
+}
+
+.ctl-rays-say {
+    margin: 0.45rem 0 0.35rem;
+    font-size: 0.72rem;
+    color: var(--ink-dim);
+    line-height: 1.45;
+    min-height: 3.1em;
+}
+
+.ctl-rays-say b { color: var(--ink); font-weight: 600; }
+.ctl-rays-say .caught { color: #f87171; }
+.ctl-rays-say .free { color: #fbbf24; }
+
+.ctl-rays-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    font-size: 0.66rem;
+    color: var(--ink-faint);
+}
+
+.ctl-rays-legend i {
+    display: inline-block;
+    width: 12px;
+    height: 0;
+    border-top: 2px solid;
+    vertical-align: middle;
+    margin-right: 0.25rem;
 }
 
 /* ---------- readout ---------- */

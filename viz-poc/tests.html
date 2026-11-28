@@ -26,6 +26,8 @@
 
     <script src="../vendor/three.min.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/data/geodesic.js"></script>
+    <script src="js/scene-black-hole.js"></script>
     <script src="js/data/land.js"></script>
     <script src="js/data/ports.js"></script>
     <script src="js/scene-globe.js"></script>
@@ -37,6 +39,8 @@
     <script src="js/scene-mandelbulb.js"></script>
     <script src="js/scene-attractor.js"></script>
     <script src="js/scene-waves.js"></script>
+    <script src="js/data/erosion.js"></script>
+    <script src="js/scene-erosion.js"></script>
 
     <script>
     (function () {
@@ -50,7 +54,7 @@
             if (cond) {
                 passed++;
                 div.className = 'pass';
-                div.textContent = '✓ ' + name;
+                div.textContent = '✓ ' + name + (detail ? ' — ' + detail : '');
             } else {
                 failed++;
                 div.className = 'fail';
@@ -58,6 +62,7 @@
             }
             out.appendChild(div);
         }
+        function near(a, b, tol) { return Math.abs(a - b) <= tol; }
 
         // 1. Core utilities
         assert('VizApp.clamp bounds below, within, and above',
@@ -83,17 +88,18 @@
                 return l.a && l.b && l.a.id !== l.b.id && l.weight > 0 && typeof l.corridor === 'string';
             }));
 
-        assert('VizCity contains all 23 repository buildings sorted descending by LOC',
-            window.VizCity && Array.isArray(VizCity.blocks) && VizCity.blocks.length >= 23 &&
+        assert('VizCity contains repository buildings sorted descending by LOC',
+            window.VizCity && Array.isArray(VizCity.blocks) && VizCity.blocks.length >= 21 &&
             VizCity.maxLoc > 0 &&
             VizCity.blocks.every(function (b, i) {
                 return b.id && b.label && b.href && b.files >= 1 && b.loc > 0 &&
                        (i === 0 || VizCity.blocks[i - 1].loc >= b.loc);
             }));
 
-        // 3. Roster & scene registration
-        assert('All 8 ROSTER scenes are registered',
-            Array.isArray(VizApp.ROSTER) && VizApp.ROSTER.length === 8 &&
+        // 3. Roster & scene registration (Black Hole is #1; 10 scenes total)
+        assert('All 10 ROSTER scenes are registered with Black Hole first',
+            Array.isArray(VizApp.ROSTER) && VizApp.ROSTER.length === 10 &&
+            VizApp.ROSTER[0].id === 'black-hole' &&
             VizApp.ROSTER.every(function (r) { return !!VizApp.scenes[r.id]; }));
 
         var mockCanvas = document.createElement('canvas');
@@ -140,6 +146,201 @@
                 err === null && built && built.scene instanceof THREE.Scene && built.camera instanceof THREE.Camera,
                 err);
         });
+
+        // 4. Black Hole Schwarzschild geodesic physics (VizGeodesic)
+        (function () {
+            var G = window.VizGeodesic;
+            var quick = { keepPath: false };
+            assert('geodesic: critical aim is 3√3/2 radii', near(G.B_CRIT, 2.598076, 1e-6));
+            assert('geodesic: a hair inside B_CRIT, light is caught', G.trace(G.B_CRIT - 0.01, quick).captured);
+            assert('geodesic: a hair outside B_CRIT, light escapes', !G.trace(G.B_CRIT + 0.01, quick).captured);
+            assert('geodesic: anything aimed nearer is caught from either side',
+                G.trace(0, quick).captured && G.trace(1.2, quick).captured && G.trace(-2, quick).captured);
+
+            var lo = 2, hi = 3;
+            for (var i = 0; i < 30; i++) {
+                var m = (lo + hi) / 2;
+                if (G.trace(m, quick).captured) lo = m; else hi = m;
+            }
+            assert('geodesic: bisecting integrator finds B_CRIT', near(lo, G.B_CRIT, 2e-3));
+
+            var bs = [50, 100, 200], good = true;
+            for (var bi = 0; bi < bs.length; bi++) {
+                var b = bs[bi];
+                var tr = G.trace(b, { start: 5000, step: 0.01, keepPath: false });
+                var want = 2 / b + 15 * Math.PI / 16 / (b * b);
+                if (!near(tr.deflection, want, want * 0.005)) good = false;
+            }
+            assert('geodesic: weak-field bending matches Einstein to 0.5%', good);
+
+            var sun = G.trace(696340 / G.rsKm(1), { start: 5e7, step: 0.02, keepPath: false, maxSteps: 4000 });
+            assert('geodesic: starlight grazing the Sun bends 1.75″', near(sun.deflection * 206265, 1.75, 0.02));
+
+            var prev = Infinity, mono = true;
+            [2.7, 3, 4, 6, 9, 15].forEach(function (bv) {
+                var d = G.trace(bv, quick).deflection;
+                if (!(d < prev && d > 0)) mono = false;
+                prev = d;
+            });
+            assert('geodesic: nearer miss yields larger deflection', mono);
+            assert('geodesic: near B_CRIT light loops >2π before escaping', G.trace(G.B_CRIT + 1e-4, quick).deflection > 2 * Math.PI);
+            assert('geodesic: ±b paths mirror each other',
+                near(G.trace(3.3, quick).deflection, G.trace(-3.3, quick).deflection, 1e-9));
+
+            var tr4 = G.trace(4, { step: 0.005, keepPath: false });
+            var r = 3;
+            for (var ri = 0; ri < 60; ri++) r = Math.cbrt(16 * (r - 1));
+            assert('geodesic: closest approach agrees with closed form', near(tr4.rMin, r, 2e-3));
+            assert('geodesic: escaping rays stay outside photon sphere', G.trace(G.B_CRIT + 0.001, quick).rMin > G.R_PHOTON - 0.01);
+
+            var tr3 = G.trace(3, { step: 0.01, keepPath: false }), e = tr3.end;
+            var h = Math.abs(e[0] * e[3] - e[1] * e[2]);
+            assert('geodesic: angular momentum is conserved', near(h * h, tr3.h2, 1e-6));
+
+            var tr35 = G.trace(3.5, { step: 0.002 });
+            var pts = tr35.points.filter(function (p) { return Math.hypot(p[0], p[1]) < 8; });
+            var u = pts.map(function (p) { return 1 / Math.hypot(p[0], p[1]); });
+            var ph = pts.map(function (p) { return Math.atan2(p[1], p[0]); });
+            var worst = 0;
+            for (var pi = 40; pi < pts.length - 40; pi += 40) {
+                var h1 = ph[pi] - ph[pi - 40], h2 = ph[pi + 40] - ph[pi];
+                if (Math.abs(h1) > 1 || Math.abs(h2) > 1) continue;
+                var d2 = 2 * (h1 * u[pi + 40] - (h1 + h2) * u[pi] + h2 * u[pi - 40]) / (h1 * h2 * (h1 + h2));
+                worst = Math.max(worst, Math.abs(d2 + u[pi] - 1.5 * u[pi] * u[pi]));
+            }
+            assert('geodesic: traced path satisfies u″ + u = 3u²/2', worst < 2e-3);
+
+            var tr5 = G.trace(5);
+            assert('geodesic: traced path returns finite points',
+                tr5.points.length > 50 && tr5.points.every(function (p) { return Number.isFinite(p[0]) && Number.isFinite(p[1]); }));
+            assert('geodesic: step budget is honoured', G.trace(G.B_CRIT, { maxSteps: 500, keepPath: false }).steps <= 500);
+
+            assert('geodesic: solar Schwarzschild radius is 2.953 km', near(G.rsKm(1), 2.953, 1e-3));
+            assert('geodesic: Sagittarius A* radius is ~0.0849 AU', near(G.rsKm(4.3e6) / 149597870.7, 0.0849, 1e-3));
+            assert('geodesic: shadow diameter is 5.196 r_s', near(G.shadowDiameter(), 5.196, 1e-3));
+            assert('geodesic: ISCO speed is 0.5c and photon sphere is c',
+                near(G.orbitSpeed(G.R_ISCO), 0.5, 1e-12) && near(G.orbitSpeed(G.R_PHOTON), 1, 1e-12));
+            assert('geodesic: clocks stop at horizon and approach 1 far away',
+                G.clockRate(1) === 0 && near(G.clockRate(4), Math.sqrt(0.75), 1e-12) && G.clockRate(1e9) > 0.999999);
+            assert('geodesic: M87* inner disc period is ~34.2 days',
+                near(G.orbitPeriod(3) * G.rsSeconds(6.5e9) / 86400, 34.2, 0.3));
+            assert('geodesic: 1 M☉ Hawking temperature is 6.17e-8 K', near(G.hawkingKelvin(1), 6.17e-8, 1e-9));
+
+            var toward = G.discShift(4, 1), away = G.discShift(4, -1), across = G.discShift(4, 0);
+            assert('geodesic: relativistic beaming blueshifts approaching gas (>25× brighter)',
+                toward > 1 && away < across && across < 1 && Math.pow(toward / away, 4) > 25);
+            assert('geodesic: fmtLength and fmtTime format sensible units',
+                G.fmtLength(8.86) === '8.86 km' && G.fmtLength(8.8e6) === '8.8 million km' &&
+                G.fmtLength(2.54e7) === '0.17 AU' && G.fmtLength(3.84e10) === '257 AU' && G.fmtLength(0.5) === '500 m' &&
+                G.fmtTime(4.5e-4) === '450 µs' && G.fmtTime(90) === '90 s' &&
+                G.fmtTime(1800) === '30 min' && G.fmtTime(2.96e6) === '34.3 days');
+        })();
+
+        // 5. Rainmaker hydraulic erosion physics (VizErosion)
+        (function () {
+            var S = window.VizErosion;
+            var N = 128;
+            function steepest(t) {
+                var m = 0;
+                for (var j = 0; j < t.n; j++) {
+                    for (var i = 0; i < t.n - 1; i++) {
+                        m = Math.max(m, Math.abs(t.h[j * t.n + i] - t.h[j * t.n + i + 1]));
+                    }
+                }
+                return m;
+            }
+
+            var a = S.makeIsland(N, 5), b = S.makeIsland(N, 5), c = S.makeIsland(N, 6);
+            assert('erosion: same seed builds identical island and different seed differs',
+                a.h.every(function (v, i) { return v === b.h[i]; }) &&
+                a.h.some(function (v, i) { return v !== c.h[i]; }) &&
+                a.base.every(function (v, i) { return v === a.h[i]; }) && a.base !== a.h);
+
+            var allGood = true;
+            for (var seed = 1; seed <= 12; seed++) {
+                var t = S.makeIsland(N, seed), m = S.measure(t);
+                var peak = 0, rim = 0;
+                for (var i = 0; i < N; i++) {
+                    rim = Math.max(rim, t.h[i], t.h[(N - 1) * N + i], t.h[i * N], t.h[i * N + N - 1]);
+                }
+                for (var j = 0; j < t.h.length; j++) peak = Math.max(peak, t.h[j]);
+                if (!(m.landShare > 0.3 && m.landShare < 0.75 && peak > 0.45 && peak <= 1 && rim < S.SEA && t.h.every(Number.isFinite))) {
+                    allGood = false;
+                }
+            }
+            assert('erosion: 12 seeds all yield islands surrounded by sea with real peaks', allGood);
+
+            var plane = S.makeIsland(16, 1);
+            for (var py = 0; py < 16; py++) for (var px = 0; px < 16; px++) plane.h[py * 16 + px] = 0.2 + 0.01 * px + 0.02 * py;
+            var sp = S.sample(plane, 5.25, 7.5);
+            assert('erosion: bilinear sample height & gradient are exact',
+                near(sp.h, 0.2 + 0.0525 + 0.15, 1e-6) && near(sp.gx, 0.01, 1e-6) && near(sp.gy, 0.02, 1e-6) &&
+                Number.isFinite(S.sample(plane, -3, 99).h));
+
+            var down = S.pick(plane, [6, 50, 9], [0, -1, 0], 10);
+            var d = Math.SQRT1_2, slant = S.pick(plane, [0, 12, 8], [d, -d, 0], 10);
+            var hit = slant ? S.sample(plane, slant.x, slant.y).h * 10 : -1;
+            assert('erosion: ray pick hits exact surface and misses sky',
+                down && near(down.x, 6, 0.01) && near(down.y, 9, 0.01) && down.land &&
+                slant && near(12 - slant.x, hit, 0.05) &&
+                S.pick(plane, [6, 50, 9], [0, 1, 0], 10) === null);
+
+            var ramp = S.makeIsland(64, 1);
+            for (var ry = 0; ry < 64; ry++) for (var rx = 0; rx < 64; rx++) ramp.h[ry * 64 + rx] = Math.max(0, 0.9 - rx * 0.015);
+            ramp.base.set(ramp.h);
+            var beforeTot = S.total(ramp);
+            var lived = S.drop(ramp, 5.5, 32.5);
+            var high = 0, low = 0, off = 0;
+            for (var ry2 = 0; ry2 < 64; ry2++) for (var rx2 = 0; rx2 < 64; rx2++) {
+                var dv = ramp.h[ry2 * 64 + rx2] - ramp.base[ry2 * 64 + rx2];
+                if (rx2 < 20) high += dv; else low += dv;
+                if (Math.abs(ry2 - 32) > 6) off += Math.abs(dv);
+            }
+            assert('erosion: single drop erodes high, deposits low, conserves rock',
+                lived > 20 && high < 0 && low > 0 && off < 1e-9 && near(S.total(ramp) + ramp.lost, beforeTot, 1e-4));
+
+            var flat = S.makeIsland(64, 1);
+            flat.h.fill(0.5); flat.base.set(flat.h);
+            assert('erosion: drop on dead-flat ground does nothing',
+                S.drop(flat, 30, 30) === 0 && flat.h.every(function (v) { return v === 0.5; }));
+
+            var r1 = S.makeIsland(N, 3), r2 = S.makeIsland(N, 3);
+            var start = S.total(r1), land0 = S.measure(r1).landShare, steep0 = steepest(r1);
+            S.rain(r1, 4000); S.rain(r2, 4000);
+            assert('erosion: deterministic under identical rain', r1.h.every(function (v, i) { return v === r2.h[i]; }));
+            S.rain(r1, 20000);
+            r1.flow.fill(0);
+            S.rain(r1, 60000);
+            var mr = S.measure(r1);
+            assert('erosion: 84k drops conserve mass, carve valleys without spikes',
+                r1.h.every(function (v) { return Number.isFinite(v) && v >= 0 && v <= 1.01; }) &&
+                near(S.total(r1) + r1.lost, start, start * 1e-4) &&
+                mr.deepestCut > 0.02 && mr.movedShare > 0.01 && mr.tallestFill > 0.005 &&
+                steepest(r1) < Math.max(steep0 * 3, 0.2) &&
+                Math.abs(mr.landShare - land0) < 0.12);
+
+            r1.flow.fill(0);
+            S.rain(r1, 20000);
+            assert('erosion: runoff concentrates into river channels', S.riverShare(r1, 0.02) > 0.1);
+
+            var local = S.makeIsland(N, 3);
+            S.rain(local, 3000, { x: N / 2, y: N / 2, r: 8 });
+            var worstCut = 0, at = 0;
+            for (var li = 0; li < local.h.length; li++) {
+                var cut = local.base[li] - local.h[li];
+                if (cut > worstCut) { worstCut = cut; at = li; }
+            }
+            assert('erosion: cloudburst cuts deepest near target',
+                worstCut > 0 && Math.hypot(at % N - N / 2, Math.floor(at / N) - N / 2) < 30);
+
+            var sc = S.makeIsland(N, 4), k = 64 * N + 64, was = sc.h[k];
+            S.sculpt(sc, 64, 64, 10, 0.1);
+            var lifted = near(sc.h[k], was + 0.1, 1e-6) && near(sc.base[k], was + 0.1, 1e-6) && S.measure(sc).moved === 0;
+            S.sculpt(sc, 64, 64, 10, -5);
+            S.sculpt(sc, 1, 1, 6, 0.5);
+            assert('erosion: sculpt updates base with land, clamps bottom, keeps rim submerged',
+                lifted && sc.h[k] === 0 && sc.h[0] === sc.base[0] && sc.h[N + 1] < S.SEA);
+        })();
 
         var summary = document.getElementById('summary');
         summary.textContent = passed + ' passed, ' + failed + ' failed';
