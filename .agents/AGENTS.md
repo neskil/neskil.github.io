@@ -31,11 +31,11 @@ Folder-based routing — each major page or app is fully isolated with its own
   `/converter/` (unit reference/conversion utilities).
 - **Isolated applications**: `/cargo-lander/`, `/supply-chain/`,
   `/3d-engine-poc/` (Yard Master 3D), `/golf/` and `/golf3d/` (Pocket Links and
-  Loft Links), `/viz-poc/` (Data Room), `/car/`, `/elevator/` (Tiny Elevator
+  Loft Links), `/viz-poc/` (3D Observatory), `/car/`, `/elevator/` (Tiny Elevator
   Tycoon), `/paper-plane/` (Paper Plane Glider), `/sand/` (Sand Clock),
   `/terrarium/` (Pocket Weather Terrarium), `/fika/` (Fika Generator),
   `/name-song/` (Sound of Your Name), `/bil/` (Leasa · Hyra · Köpa, the
-  Swedish car calculator), `/orbit/` (Pocket Orbit), `/gait/` (Gait Lab),
+  Swedish car calculator), `/orbit/` (Pocket Orbit), `/gait/` (Darwin's Walkers),
   and `/usa-quiz/` (USA Quiz Night) each own their HTML, logic, assets, and
   styling (`/black-hole/` and `/erosion/` are thin redirect stubs into
   `/viz-poc/`) — see the doc map above before working in any of them. For both

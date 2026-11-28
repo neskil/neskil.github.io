@@ -24,13 +24,13 @@ const PROJECTS = [
     { id: 'sand',         label: 'Sand Clock',     href: '../sand/index.html',                paths: ['sand'] },
     { id: 'cargo-packer', label: 'Cargo Packer',   href: '../cargo-packer/index.html',        paths: ['cargo-packer'] },
     { id: 'terrarium',    label: 'Terrarium',      href: '../terrarium/index.html',           paths: ['terrarium'] },
-    { id: 'viz-poc',      label: 'Data Room',      href: 'index.html',                        paths: ['viz-poc'] },
+    { id: 'viz-poc',      label: '3D Observatory', href: 'index.html',                        paths: ['viz-poc'] },
     { id: 'elevator',     label: 'Elevator Tycoon',href: '../elevator/index.html',            paths: ['elevator'] },
     { id: 'wow',          label: 'WoW Countdown',  href: '../wow/index.html',                 paths: ['wow'] },
     { id: 'fika',         label: 'Fika Generator', href: '../fika/index.html',                paths: ['fika'] },
     { id: 'name-song',    label: 'Sound of Name',  href: '../name-song/index.html',           paths: ['name-song'] },
     { id: 'orbit',        label: 'Pocket Orbit',   href: '../orbit/index.html',               paths: ['orbit'] },
-    { id: 'gait',         label: 'Gait Lab',       href: '../gait/index.html',                paths: ['gait'] },
+    { id: 'gait',         label: "Darwin's Walkers", href: '../gait/index.html',              paths: ['gait'] },
     { id: 'usa-quiz',     label: 'USA Quiz Night', href: '../usa-quiz/index.html',            paths: ['usa-quiz'] },
     { id: 'converter',    label: 'Converter',      href: '../converter/index.html',           paths: ['converter'] },
     { id: 'cv',           label: 'CV',             href: '../cv/index.html',                  paths: ['cv'] },
@@ -96,7 +96,7 @@ rows.sort((a, b) => b.loc - a.loc);
 
 const rawLines = rows.map(r => {
     const id = `'${r.id}',`.padEnd(15);
-    const label = `'${r.label}',`.padEnd(20);
+    const label = `'${r.label.replace(/'/g, "\\'")}',`.padEnd(20);
     const href = `'${r.href}',`.padEnd(36);
     const files = String(r.files).padStart(3);
     const loc = String(r.loc).padStart(6);
