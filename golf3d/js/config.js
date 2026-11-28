@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.256.0';
+G3.VERSION = '1.257.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -1383,12 +1383,12 @@ G3.CONFIG = {
         { k: 0.64, maxW: 1000, dpr: 1.6,  bloom: true,  shells: 5 },
         { k: 0.54, maxW: 820,  dpr: 1.35, bloom: false, shells: 4 },
         { k: 0.45, maxW: 660,  dpr: 1.15, bloom: false, shells: 3 },
-        { k: 0.36, maxW: 520,  dpr: 1,    bloom: false, shells: 2 }
+        { k: 0.36, maxW: 520,  dpr: 1,    bloom: false, shells: 2, cloth: false }
     ],
     QUALITY_TIERS: {
-        auto:   { label: 'Auto',   liveK: 0.85, liveMaxW: 1600, dprCap: 2.0, shells: 6, fxTier: null, worldBloom: true,  depthScale: 0.5, shadowEvery: 1, says: 'Follows the frame rate: steps resolution, sharpness, bloom and grass down when it drops and back up when there is room.' },
-        low:    { label: 'Low',    liveK: 0.60, liveMaxW: 1080, dprCap: 1.0, shells: 2, fxTier: 0,    worldBloom: false, depthScale: 0.5, shadowEvery: 3, says: 'Half-res worlds, grade-only post, two grass shells — coolest and fastest.' },
-        medium: { label: 'Medium', liveK: 0.78, liveMaxW: 1360, dprCap: 1.5, shells: 4, fxTier: 1,    worldBloom: true,  depthScale: 0.5, shadowEvery: 2, says: 'Balanced resolution, bloom and four grass shells.' },
+        auto:   { label: 'Auto',   liveK: 0.85, liveMaxW: 1600, dprCap: 2.0, shells: 6, fxTier: null, worldBloom: true,  depthScale: 0.5, shadowEvery: 1, says: 'Follows the frame rate: steps resolution, sharpness, bloom, grass and finally the cloth flag down when it drops and back up when there is room.' },
+        low:    { label: 'Low',    liveK: 0.60, liveMaxW: 1080, dprCap: 1.0, shells: 2, fxTier: 0,    worldBloom: false, depthScale: 0.5, shadowEvery: 3, cloth: false, says: 'Half-res worlds, grade-only post, two grass shells and a drawn flag — coolest and fastest.' },
+        medium: { label: 'Medium', liveK: 0.78, liveMaxW: 1360, dprCap: 1.5, shells: 4, fxTier: 1,    worldBloom: true,  depthScale: 0.5, shadowEvery: 2, says: 'Balanced resolution, bloom, four grass shells and a cloth flag.' },
         high:   { label: 'High',   liveK: 1.00, liveMaxW: 1920, dprCap: 2.0, shells: 6, fxTier: 2,    worldBloom: true,  depthScale: 1.0, shadowEvery: 1, says: 'Full native world resolution, full bloom and light shafts, six grass shells.' },
         ultra:  { label: 'Ultra',  liveK: 1.15, liveMaxW: 2400, dprCap: 2.25, shells: 6, fxTier: 2,   worldBloom: true,  depthScale: 1.0, shadowEvery: 1, says: 'Supersampled worlds, full post chain and crisp full-resolution depth.' }
     }
