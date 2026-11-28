@@ -7974,31 +7974,102 @@
        kind beats pointing at it. */
     G3.SHUFFLE_MODES = [
         {
-            /* The mark is a scatter rather than a die: the button beside
-               these already carries the die, and U+2684 is missing from the
-               page's own font — so a die here is a tofu box on the one chip
-               that is selected by default. */
-            id: 'any', name: 'Anything', icon: '\u2733',
-            blurb: 'Any course except the one you are playing. Every kind of golf is as likely as the next, leaning towards what you have played least.',
-            eased: 'Nowhere else to go — this draws from all of them.'
+            /* The first is the default, and it is the one the owner asked
+               for by name: "a good way to random". Every kind of golf takes
+               its turn, and inside the kind the dice lean towards what this
+               save has played least (randomCourseId). The mark is the
+               shuffle arrows the draw's own tab wears: a die is missing
+               from the page's font, and the button beside these already
+               carries one. */
+            /* Its id is the old "anything"'s, which leaned the same way:
+               a save that chose that keeps the same draw. */
+            id: 'any', name: 'Smart shuffle', icon: '\u21C4', lean: true,
+            blurb: 'Every kind of golf in turn, leaning towards what you have played least.',
+            eased: 'Nowhere else to go \u2014 this draws from all of them.'
         },
         {
-            id: 'kind', name: 'Same kind', icon: '\u2261',
+            /* …and the opposite of a smart one, also asked for by name:
+               "or just full random". Kind first still, so the long game's
+               six courses do not drown three classic ones, but nothing is
+               weighed by the save. */
+            id: 'luck', name: 'Pure luck', icon: '\u2733',
+            blurb: 'Anything at all, and nothing weighed by what you have played.',
+            eased: 'Nowhere else to go \u2014 this draws from all of them.'
+        },
+        {
+            id: 'fresh', name: 'New to you', icon: '\u2726', lean: true,
+            blurb: 'Only what you have never played.',
+            eased: 'You have played all of it \u2014 this draws from what you have played least.'
+        },
+        {
+            /* "or you have not 3 stars" (the owner). A course is done when
+               every hole on it holds three; a world when its one hole does. */
+            id: 'stars', name: 'Stars to win', icon: '\u2606', lean: true,
+            blurb: 'Only what you have not won every star on yet.',
+            eased: 'Every star won \u2014 this draws from all of it, played least first.'
+        },
+        {
+            id: 'record', name: 'Beat a best', icon: '\u2605', lean: true,
+            blurb: 'Only what you already hold a record on.',
+            eased: 'No records to beat yet \u2014 this draws from all of them.'
+        },
+        {
+            id: 'kind', name: 'Same kind', icon: '\u2261', lean: true,
             blurb: 'Stays with the kind of golf you are playing.',
             blurbKind: 'Right now that is %s.',
-            eased: 'Nothing else of this kind — this draws from all of them.'
-        },
-        {
-            id: 'fresh', name: 'New to you', icon: '\u2726',
-            blurb: 'Only courses you have never finished a round on.',
-            eased: 'You have finished a round on all of them — this draws from the ones you have played least.'
-        },
-        {
-            id: 'record', name: 'Beat a best', icon: '\u2605',
-            blurb: 'Only courses you already hold a record on.',
-            eased: 'No records to beat yet — this draws from all of them.'
+            eased: 'Nothing else of this kind \u2014 this draws from all of them.'
         }
     ];
+
+    /* ── what the draw is drawn out of: the worlds as well ────────────────
+
+       The World Tour's holes are a kind of golf the draw can reach for, beside
+       the three the courses are filed under (the owner: "its missing the
+       worlds here"). Each world is drawn as itself — a course of one hole,
+       `world-<id>`, which is what the picker's own world cards play — so a
+       draw can hand you a world exactly as it hands you a course.
+
+       The kind is described here, with the others, because the draw's row of
+       ticks dresses every kind out of the same fields; it is not in
+       COURSE_GROUPS because nothing is *filed* under it — the worlds are
+       portals.js's, which loads after this file, so the list is read when a
+       draw is made rather than when this file runs. */
+    G3.WORLDS_KIND = {
+        id: 'worlds', name: 'Worlds', icon: '\u25CE', tint: '#dcc28a',
+        blurb: 'The World Tour\u2019s holes, each inside a world from Portals, one at a time.'
+    };
+
+    function worldList() {
+        return G3.portals && G3.portals.WORLDS ? G3.portals.WORLDS : [];
+    }
+
+    /* Every kind the draw may reach for, in the order the picker prints them
+       — the worlds first, as their tab is. */
+    G3.drawKindList = function () {
+        return (worldList().length ? [G3.WORLDS_KIND] : []).concat(G3.COURSE_GROUPS);
+    };
+
+    G3.drawKindById = function (id) {
+        var all = G3.drawKindList();
+        for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+        return null;
+    };
+
+    /* Everything a draw can hand out: a light entry per world (id, kind,
+       name and its one hole — all the draw and its weights ever ask of a
+       course) and then every course but somebody's playtest draft. */
+    var worldEntries = null, worldsSeen = 0;
+    G3.drawPool = function () {
+        var ws = worldList();
+        if (!worldEntries || worldsSeen !== ws.length) {
+            worldsSeen = ws.length;
+            worldEntries = ws.map(function (w) {
+                return { id: 'world-' + w.id, group: G3.WORLDS_KIND.id, name: w.title,
+                         holes: [w.hole], isWorld: true };
+            });
+        }
+        return worldEntries.concat(G3.COURSES.filter(function (c) { return !c.playtest; }));
+    };
 
     /* Rounds finished on a course, out of a save file that may be missing,
        empty, or from a version that had never heard of this course. */
@@ -8007,25 +8078,50 @@
         return rec && typeof rec.rounds === 'number' ? rec.rounds : 0;
     }
 
+    /* How often something in the draw has been played. A course counts its
+       finished rounds, as it always has; a world is one hole, played from the
+       tour or from its own card, so it counts the plays on that hole. */
+    function playsOf(save, c) {
+        return c.isWorld ? Math.max(roundsOn(save, c.id), holePlays(save, c.id, 0)) : roundsOn(save, c.id);
+    }
+
+    // …whether you hold a record on it…
+    function hasRecord(save, c) {
+        if (!c.isWorld) return roundsOn(save, c.id) > 0;
+        var h = save && save.holes ? save.holes[c.id + ':0'] : null;
+        return !!(h && typeof h.best === 'number');
+    }
+
+    // …and whether every star on it is won: three on every hole.
+    function allStars(save, c) {
+        for (var i = 0; i < c.holes.length; i++) {
+            var h = save && save.holes ? save.holes[c.id + ':' + i] : null;
+            if (!h || !(h.stars >= 3)) return false;
+        }
+        return c.holes.length > 0;
+    }
+    G3.drawPlays = playsOf;
+
     /* What a mode would actually draw from, and whether it had to give ground
        to get there.
 
        `opts`: `mode`, `from` (the course you are on, never drawn), `group`
        (which kind `kind` means — the open tab in the picker, not necessarily
        the group of `from`), `kinds` (the kinds of golf the draw may use at
-       all) and `save`.
+       all) and `save`. What it draws from is `G3.drawPool()`: every world
+       and every course.
 
        `kinds` and `mode` are two different questions and both are asked here.
        A mode narrows by *history* — where you have been, what you hold a
        record on — and the answer moves as you play. `kinds` narrows by what
        the courses *are*, and that answer does not move: someone who does not
        want the long game does not want it drawn on any mode, and told the
-       picker so once. So it is filtered before the mode rather than being a
-       fifth mode, which is also the only shape under which "same kind" and
+       picker so once. So it is filtered before the mode rather than being
+       another mode, which is also the only shape under which "same kind" and
        "only these kinds" can both be true at the same time.
 
        **A mode never comes back empty.** "New to you" stops meaning anything
-       the moment you have played all eighteen, and "beat a best" means nothing
+       the moment you have played everything, and "beat a best" means nothing
        before the first round is finished; a picker whose button does nothing
        on press is worse than one that quietly widens its net. So each mode has
        a written-down fallback and says when it took it, and `eased` is what
@@ -8035,7 +8131,7 @@
         opts = opts || {};
         var save = opts.save || null;
         var from = opts.from || null;
-        var mode = 'any', i;
+        var mode = G3.SHUFFLE_MODES[0].id, i;
         for (i = 0; i < G3.SHUFFLE_MODES.length; i++) {
             if (G3.SHUFFLE_MODES[i].id === opts.mode) mode = opts.mode;
         }
@@ -8043,11 +8139,12 @@
         /* Never the course you are standing on: "surprise me" that hands you
            back the hole you are looking at is the one result nobody wants.
            Filtered first, so every mode below inherits it. */
-        var pool = G3.COURSES.filter(function (c) { return c.id !== from; });
+        var everything = G3.drawPool();
+        var pool = everything.filter(function (c) { return c.id !== from; });
 
         /* …and then only the kinds of golf the draw has been left. The ticks
            are the player's, so they are read rather than trusted: an id no
-           group answers to is dropped, and `kinds` left out entirely means
+           kind answers to is dropped, and `kinds` left out entirely means
            every kind, which is what a save file written before this existed —
            and every caller that does not care — is saying.
 
@@ -8057,7 +8154,7 @@
            admission, and it is deliberately not `eased` — the two say the net
            was widened for different reasons and the picker prints them in
            different places. */
-        var allKinds = G3.COURSE_GROUPS.map(function (g) { return g.id; });
+        var allKinds = G3.drawKindList().map(function (g) { return g.id; });
         var kinds = allKinds.filter(function (id) {
             return !opts.kinds || opts.kinds.indexOf(id) >= 0;
         });
@@ -8067,32 +8164,38 @@
         else { kinds = allKinds; widened = true; }
 
         var list = pool, eased = false;
+        function leastPlayed() {
+            var least = Infinity;
+            pool.forEach(function (c) { least = Math.min(least, playsOf(save, c)); });
+            return pool.filter(function (c) { return playsOf(save, c) === least; });
+        }
 
         if (mode === 'kind') {
-            var group = opts.group ||
-                (from && G3.courseById(from) ? G3.courseById(from).group : null);
+            var here = everything.filter(function (c) { return c.id === from; })[0];
+            var group = opts.group || (here ? here.group : null);
             list = pool.filter(function (c) { return c.group === group; });
             if (!list.length) { list = pool; eased = true; }
         } else if (mode === 'fresh') {
-            list = pool.filter(function (c) { return roundsOn(save, c.id) === 0; });
+            list = pool.filter(function (c) { return playsOf(save, c) === 0; });
             if (!list.length) {
                 /* Played everything: fall back to the ones played least rather
                    than to anything at all. It is the same intent — go where you
                    have been least — and it keeps working for the rest of the
                    save file's life. */
-                var least = Infinity;
-                pool.forEach(function (c) { least = Math.min(least, roundsOn(save, c.id)); });
-                list = pool.filter(function (c) { return roundsOn(save, c.id) === least; });
+                list = leastPlayed();
                 eased = true;
             }
+        } else if (mode === 'stars') {
+            list = pool.filter(function (c) { return !allStars(save, c); });
+            if (!list.length) { list = pool; eased = true; }
         } else if (mode === 'record') {
-            list = pool.filter(function (c) { return roundsOn(save, c.id) > 0; });
+            list = pool.filter(function (c) { return hasRecord(save, c); });
             if (!list.length) { list = pool; eased = true; }
         }
 
-        // One course on the list and you are on it. Cannot happen today; it is
+        // One thing on the list and you are on it. Cannot happen today; it is
         // one line, and the alternative is a draw that returns nothing.
-        if (!list.length) { list = G3.COURSES; eased = true; }
+        if (!list.length) { list = everything; eased = true; }
 
         return {
             mode: mode, courses: list, eased: eased,
@@ -8108,7 +8211,7 @@
        "you have ruled out everything" is not the sentence for "these two",
        and the picker needs to be able to tell them apart. */
     G3.shuffleKinds = function (kinds) {
-        return G3.COURSE_GROUPS.filter(function (g) {
+        return G3.drawKindList().filter(function (g) {
             return !kinds || kinds.indexOf(g.id) >= 0;
         });
     };
@@ -8187,7 +8290,9 @@
         var k = Math.min(kinds.length - 1, Math.floor(n * kinds.length));
         var u = n * kinds.length - k;
         var list = draw.courses.filter(function (c) { return c.group === kinds[k]; });
-        var i = weightedIndex(list.map(function (c) { return G3.courseWeight(save, c); }), u);
+        /* Pure luck weighs nothing; every other mode leans. */
+        var lean = G3.shuffleModeById(draw.mode).lean;
+        var i = weightedIndex(list.map(function (c) { return lean ? G3.courseWeight(save, c) : 1; }), u);
         return list[Math.max(0, Math.min(list.length - 1, i))].id;
     };
 
