@@ -88,6 +88,14 @@
             var fw = m.fairway, fdx = fw[2] - fw[0], fdz = fw[3] - fw[1];
             pads.push(on(A.road({ x: fw[0], z: fw[1], dir: Math.atan2(fdx, fdz), w: fw[4], y: 0, kind: 'fairway', caps: true },
                 [['line', Math.max(0.1, Math.hypot(fdx, fdz))]])));
+            /* A dogleg (batch 6, forge.mjs → `bend`): [x0, z0, ex, ez, w, x1,
+               z1], the band on from the elbow to the green as a second road.
+               Both ends round, so the two overlap at the elbow in one curve. */
+            if (fw.length >= 7) {
+                var gdx = fw[5] - fw[2], gdz = fw[6] - fw[3];
+                pads.push(on(A.road({ x: fw[2], z: fw[3], dir: Math.atan2(gdx, gdz), w: fw[4], y: 0, kind: 'fairway', caps: true },
+                    [['line', Math.max(0.1, Math.hypot(gdx, gdz))]])));
+            }
         }
         var gr = m.green || 1.3;
         pads.push(on(A.pad(m.cup.x - gr, m.cup.z - gr, 2 * gr, 2 * gr, 0, 'green')));
@@ -117,6 +125,8 @@
            the green are painted on the world's own picture (render.js →
            placeDecals), where since v1.183.0 nothing on a sculpted hole is. */
         if (m.paint) h.paint = true;
+        // …and a dogleg's tee faces its elbow, not the cup across the corner (game.js → the aim).
+        if (m.fairway && m.fairway.length >= 7) h.aim = { x: m.fairway[2], z: m.fairway[3] };
         return h;
     }
     function solidGrid(G, pairs) {
@@ -257,17 +267,21 @@
            was ticked for the paint and for the world alike, so the paint
            is `paint`. `fell` and `layout` are things the notes said that
            no chip did, and `mini` is the owner's "some of the new maps can
-           be mini golf style". */
+           be mini golf style". Batch 6 added `straight` and `water`, the
+           two notes batch 5's copy wrote with no chip for them: "too
+           straight" twice, and a pond lying across the world's things. */
         ['edges', 'Couldn’t see where the hole was'],
         ['bumpy', 'Ground too bumpy'],
         ['flat', 'Ground too flat (no shape)'],
         ['dull', 'Nothing to decide / no challenge'],
+        ['straight', 'Too straight / no shape to the hole'],
         ['long', 'Too long'],
         ['short', 'Too short'],
         ['hard', 'Too hard'],
         ['easy', 'Too easy'],
         ['layout', 'Tee or cup in the wrong place'],
         ['clip', 'Ball went through things'],
+        ['water', 'Water looks wrong / over things'],
         ['fell', 'Ball fell through the ground'],
         ['stuck', 'Ball got stuck'],
         ['camera', 'Bad view / camera'],

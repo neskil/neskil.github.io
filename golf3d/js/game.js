@@ -726,8 +726,10 @@
         state.aim.shape = 'straight';
         state.aim.show = true;
         // Point the player at the cup to begin with; it is a suggestion, not a
-        // solution — the cup is rarely straight ahead of anything.
-        state.aim.yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+        // solution — the cup is rarely straight ahead of anything. A hole
+        // may name a better first look (`hole.aim`: a forged dogleg's elbow).
+        var aimAt = hole.aim || hole.cup;
+        state.aim.yaw = Math.atan2(aimAt.x - hole.tee.x, aimAt.z - hole.tee.z);
         look = null;
 
         // The sky is part of the hole: chosen from the course and the hole

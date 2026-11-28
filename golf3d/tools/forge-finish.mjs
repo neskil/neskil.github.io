@@ -16,6 +16,7 @@
 // Options: --tee x,z  --cup x,z  --green r (half-size of the green inlay)
 //   --pond <level>|auto|none  --box x0,z0,x1,z1 (flood only inside it)
 //   --dig x,z,r,depth[;…] (press a basin into flat ground, and flood it)
+//   --bend x,z|none (a dogleg: the fairway band turns at this elbow; batch 6)
 //   --out-box x0,z0,x1,z1[;…] (cells out of bounds)  --palette '{json}' (colours over the stand-in)  --par n  --long (the full bag)  --map (a plan)  --write (back into the batch)
 // Prints the bot's strokes, the ace share from the tee, the share of tee
 // shots that end wet or out, and the vet (forge.mjs → vet). With --tour it
@@ -63,7 +64,27 @@ if (args.includes('--long')) { map.long = true; delete map.bag; }
 const tee = pt(one('--tee')), cup = pt(one('--cup'));
 if (tee) { map.tee = tee; g.h = level(g.h, tee.x, tee.z, 1.2, 2.2); }
 if (cup) { map.cup = cup; g.h = level(g.h, cup.x, cup.z, gr + 0.3, gr + 1.9); }
-if (tee || cup) {
+/* The fairway band (batch 5 on) follows the tee and the cup, and --bend
+   x,z turns it at an elbow (batch 6, forge.mjs → `bend`): [x0, z0, ex, ez,
+   w, x1, z1]. The world's things are cleared from the band where it now
+   runs (render.js → the clearing), so whatever of them the map had hard or
+   out there goes; what was not instanced (a wall, a house) stays drawn,
+   and is said. */
+const bendArg = one('--bend');
+if (map.fairway && (tee || cup || bendArg)) {
+    const old = map.fairway, w = old[4];
+    const elbow = bendArg === 'none' ? null : bendArg ? pt(bendArg) : old.length >= 7 ? { x: old[2], z: old[3] } : null;
+    const to = elbow || map.cup, ax = to.x - map.tee.x, az = to.z - map.tee.z, L = Math.hypot(ax, az) || 1;
+    map.fairway = [+(map.tee.x + ax / L * 1.2).toFixed(2), +(map.tee.z + az / L * 1.2).toFixed(2), to.x, to.z, w];
+    if (elbow) map.fairway.push(map.cup.x, map.cup.z);
+    const f = map.fairway, seg = (x, z, a) => { const dx = a[2] - a[0], dz = a[3] - a[1], t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t); };
+    const onBand = (c) => { const x = g.x0 + (c % g.nx) * g.d, z = g.z0 + Math.floor(c / g.nx) * g.d; return Math.min(seg(x, z, f), f.length >= 7 ? seg(x, z, [f[2], f[3], f[5], f[6]]) : Infinity) < w / 2 + 0.8; };
+    const no = (map.outs || []).filter(onBand).length;
+    if (map.outs) map.outs = map.outs.filter((c) => !onBand(c));
+    if (map.solid) map.solid = map.solid.filter((p) => !onBand(p[0]));
+    if (no) console.log(`${no} cells of the world's things lay on the band and are cleared — look at it live in case they were not trees`);
+}
+if ((tee || cup) && !map.fairway) {
     const mx = (map.tee.x + map.cup.x) / 2, mz = (map.tee.z + map.cup.z) / 2, half = (map.long ? 5 : 4) / 2;
     map.strips = [[Math.min(map.tee.x, mx) - half, map.tee.z + 1, Math.max(map.tee.x, mx) + half, mz],
         [Math.min(mx, map.cup.x) - half, mz, Math.max(mx, map.cup.x) + half, map.cup.z - gr - 0.1]]
@@ -97,6 +118,21 @@ if (one('--out-box')) {
 // --palette '{"grass":["#3a2a22","#33241d"],"water":16738842}': colours over the forge's stand-in (forge.js → themeFor).
 if (one('--palette')) map.palette = JSON.parse(one('--palette'));
 
+/* --fill x,z,r[;…]: a basin filled back in (batch 6: b5-01's pond, dug
+   round the House of Four Seasons' snowmen). Every cell inside the disc is
+   relaxed to the ground round it (a Laplace fill, the rim held), which is
+   what the land was before the dig to within a few hundredths: the bake had
+   smoothed it twice. Water over it goes with --pond none, or a new --dig. */
+if (one('--fill')) {
+    for (const [fx, fz, r] of one('--fill').split(';').map((d) => d.split(',').map(Number))) {
+        const inside = [];
+        for (let k = 1; k < g.nz - 1; k++) for (let i = 1; i < g.nx - 1; i++) if (Math.hypot(g.x0 + i * g.d - fx, g.z0 + k * g.d - fz) < r) inside.push(k * g.nx + i);
+        for (let it = 0; it < 400; it++) for (const c of inside) g.h[c] = (g.h[c - 1] + g.h[c + 1] + g.h[c - g.nx] + g.h[c + g.nx]) / 4;
+        inside.forEach((c) => { g.h[c] = +g.h[c].toFixed(3); });
+        console.log(`filled ${inside.length} cells round ${fx},${fz}`);
+    }
+}
+
 /* --dig x,z,r,depth[;x,z,r,depth…]: a basin pressed into the ground, for a
    world with no hollow of its own to flood — the world's ground is sculpted
    to the grid (backdrop.mjs), so it dips too. Since v1.222.0 its floor is
@@ -126,6 +162,11 @@ if (one('--dig')) {
     }
     if (!pond) { pond = String(+lvl.toFixed(3)); if (!one('--box')) args.push('--box', [bx0, bz0, bx1, bz1].join(',')); }
     console.log(`dug ${digs.length} basin${digs.length > 1 ? 's' : ''}; the rim is at ${rim.toFixed(3)}`);
+    // The world's things stand up through a pond dug round them (b5-01's snowmen): said, so the basin is moved.
+    for (const [dx, dz, r] of digs) {
+        const n = (map.outs || []).filter((c) => Math.hypot(g.x0 + (c % g.nx) * g.d - dx, g.z0 + Math.floor(c / g.nx) * g.d - dz) < r * 1.15).length;
+        if (n) console.log(`THE BASIN AT ${dx},${dz} HAS ${n} CELLS OF THE WORLD'S THINGS IN IT — they would stand in the water; move it`);
+    }
 }
 // Water: a level, or `auto` (the lowest tenth of the ground, kept off the tee and the green).
 if (pond === 'none') delete map.water;
@@ -188,20 +229,36 @@ for (const r of rests.values()) {
     }
     if (!ok) stuck++;
 }
+// The bot with hands (forge.mjs → handsOf): a person's card, and balls a round wet or out.
+let hands = 0, hwet = 0;
+const HR = +one('--hands', 12);
+for (let k = 0; k < HR; k++) {
+    let a = (k * 7919 + 13) >>> 0;
+    const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const res = G3.bot.play(hole, 12, bag, { hands: C.BOT_HANDS, rng: rnd });
+    hands += res.strokes;
+    res.shots.forEach((q) => { if (q.world.splash || q.world.out) hwet++; });
+}
 const dist = Math.hypot(map.cup.x - map.tee.x, map.cup.z - map.tee.z);
 console.log(`${map.id} ${map.title} — par ${map.par}, ${dist.toFixed(1)} units, cup ${JSON.stringify(map.cup)}, green ±${gr}`);
 console.log(`  bot ${bots.join(',')} · ace ${(100 * s.aces.length / s.sims).toFixed(3)}% of ${s.sims} · putt at the flag ${straight ? 'DROPS' : 'does not drop'}`);
+console.log(`  bot with hands: ${(hands / HR).toFixed(2)} a round over ${HR}, ${(hwet / HR).toFixed(2)} balls a round wet or out${map.fairway && map.fairway.length >= 7 ? ' · dogleg at ' + map.fairway[2] + ',' + map.fairway[3] : ''}`);
 console.log(`  tee shots fanned ±30°: ${(100 * wet / fan).toFixed(1)}% wet, ${(100 * lost / fan).toFixed(1)}% out`);
 console.log(`  vet: ${moving} never stop, ${stuck} of ${rests.size} rest spots no shot leaves${moving || stuck ? '  ✗' : '  ✓'}`);
 
 if (args.includes('--map')) {
     let lo = Infinity, hi = -Infinity; g.h.forEach((v) => { lo = Math.min(lo, v); hi = Math.max(hi, v); });
-    const lvl = map.water ? map.water[0][4] : -Infinity;
+    const solidSet = new Set((map.solid || []).map((p) => p[0])), outSet = new Set(map.outs || []);
     for (let k = g.nz - 1; k >= 0; k--) {
         let row = '';
         for (let i = 0; i < g.nx; i++) {
             const x = g.x0 + i * g.d, z = g.z0 + k * g.d, v = g.h[k * g.nx + i];
-            row += Math.hypot(x - map.cup.x, z - map.cup.z) < 0.4 ? 'F' : Math.hypot(x - map.tee.x, z - map.tee.z) < 0.4 ? 'T' : v < lvl ? '~' : ' .:-=+*#%@'[Math.min(9, Math.floor((v - lo) / (hi - lo + 1e-9) * 10))];
+            // F flag, T tee, E elbow, ~ water (in a pond's box), | a trunk, o out, the band in capitals' place: height digits stay.
+            const c = k * g.nx + i, fw = map.fairway;
+            const inW = (map.water || []).some((r) => x >= r[0] && x <= r[0] + r[2] && z >= r[1] && z <= r[1] + r[3] && v < r[4]);
+            row += Math.hypot(x - map.cup.x, z - map.cup.z) < 0.4 ? 'F' : Math.hypot(x - map.tee.x, z - map.tee.z) < 0.4 ? 'T'
+                : fw && fw.length >= 7 && Math.hypot(x - fw[2], z - fw[3]) < 0.6 ? 'E' : inW ? '~' : solidSet.has(c) ? '|' : outSet.has(c) ? 'o'
+                : ' .:-=+*#%@'[Math.min(9, Math.floor((v - lo) / (hi - lo + 1e-9) * 10))];
         }
         console.log((z => z.toFixed(1).padStart(6))(g.z0 + k * g.d) + ' ' + row);
     }
@@ -216,6 +273,12 @@ if (args.includes('--write')) {
     if (!m) { console.error('no window.G3.FORGE in ' + f); process.exit(1); }
     const data = JSON.parse(m[1]), at = data.maps.findIndex((x) => x.id === map.id);
     map.finished = (map.finished || []).concat([args.filter((a) => a !== '--write' && a !== '--map').join(' ')]);
+    // What it plays to now, so the next copy's line reads against the map as it is (batch 6).
+    if (map.gen) {
+        map.gen.hands = +(hands / HR).toFixed(2); map.gen.wet = +(hwet / HR).toFixed(2);
+        if (map.fairway && map.fairway.length >= 7) map.gen.bend = map.fairway[2]; else delete map.gen.bend;
+        if (!map.water) delete map.gen.pond; else map.gen.pond = map.water[0][4];
+    }
     data.maps[at] = map;
     writeFileSync(f, text.slice(0, m.index) + 'window.G3.FORGE = ' + JSON.stringify(data) + ';\n');
     console.log(`wrote ${map.id} back into ${f} (finished by hand: ${map.finished.join(' | ')})`);

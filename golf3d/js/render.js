@@ -7601,7 +7601,13 @@
             if (gp) {
                 (hole.pads || []).forEach(function (p) {
                     if (p.ghost || !p.inlay || p.w === undefined) return;
-                    place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
+                    /* A road is cleared along its own band, not its box
+                       (batch 6: a dogleg's slanted leg has a box twice its
+                       width, and the trees cleared from it all stood where
+                       the hole still has them hard or out — backdrop.mjs →
+                       sculpt reads a 'cap' entry as a capsule). */
+                    if (p.lane && p.lane.segs.every(function (g) { return !g.R; })) place.clear.push([p.lane.x0, p.lane.z0, p.lane.x1, p.lane.z1, 'cap', p.lane.hw + 0.8]);
+                    else place.clear.push([p.x - 0.8, p.z - 0.8, p.x + p.w + 0.8, p.z + p.d + 0.8]);
                     if (!hole.paint) return;
                     if (p.lane) {
                         var L = p.lane;
