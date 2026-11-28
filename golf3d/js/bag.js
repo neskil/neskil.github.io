@@ -3857,7 +3857,7 @@
             // smaller than the physics' out on a long hole.
             var k = C.BALL_R / BALL_M * (look || 1);
             AD.root.scale.set(k, k, lefty ? k : -k);
-            AD.root.position.set(ball.x, ball.y - C.BALL_R, ball.z);
+            AD.root.position.set(ball.x, ball.y - C.BALL_R * (look || 1), ball.z);
             AD.root.rotation.y = yaw - Math.PI / 2;
             AD.back = backMax(camera);
         }

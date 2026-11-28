@@ -80,6 +80,15 @@
        of, and that is a design decision rather than a shortcut: gravity you
        can be half inside is gravity nobody can aim in, and the first thing a
        player does with a shot they cannot predict is stop trying. */
+    /* How far over the ball's middle the ground may be and still be climbed
+       on to (CONFIG.STEP_UP). A long hole's ball is smaller (G3.ballR) and its
+       middle that much nearer the ground, so the reach is measured from the
+       ground rather than the middle: the same kerb stops it, or does not, at
+       either size, and no long hole's terrain had to be rebuilt. */
+    function stepUp(hole) {
+        return C.STEP_UP + C.BALL_R - G3.ballR(hole);
+    }
+
     function gravityOf(hole) {
         return C.GRAVITY * (hole && hole.gravity ? hole.gravity : 1);
     }
@@ -759,8 +768,8 @@
         var cup = hole.cup;
         if (cup && best !== null && Math.abs(bestY - cup.y) < 0.06) {
             var cdx = x - cup.x, cdz = z - cup.z;
-            if (cdx * cdx + cdz * cdz < C.HOLE_R * C.HOLE_R) {
-                var floor = cup.y - C.CUP_DEPTH;
+            if (cdx * cdx + cdz * cdz < G3.holeR(hole) * G3.holeR(hole)) {
+                var floor = cup.y - G3.cupDepth(hole);
                 return floor > ceil ? null : { pad: CUP_PAD, y: floor };
             }
         }
@@ -801,7 +810,7 @@
     function ejectFromFace(hole, b, events) {
         var s = surfaceUnder(hole, b.x, b.z, Infinity);
         if (!s || s.pad === CUP_PAD || !s.pad.w || !s.pad.d) return;
-        var pad = s.pad, r = C.BALL_R;
+        var pad = s.pad, r = G3.ballR(hole);
         var ways = [
             { d: b.x - pad.x, x: pad.x - r, z: b.z, nx: -1, nz: 0 },
             { d: pad.x + pad.w - b.x, x: pad.x + pad.w + r, z: b.z, nx: 1, nz: 0 },
@@ -906,12 +915,12 @@
        what a hole of four does. */
     function collideSolid(world, events) {
         var g = world.hole.solidGrid, b = world.ball, gi, gk, i, k, t, cx, cz, dx, dz, q, d, nx, nz, vn;
-        var rr = g.d / 2 + C.BALL_R;
+        var br = G3.ballR(world.hole), rr = g.d / 2 + br;
         gi = Math.round((b.x - g.x0) / g.d); gk = Math.round((b.z - g.z0) / g.d);
         for (k = gk - 1; k <= gk + 1; k++) for (i = gi - 1; i <= gi + 1; i++) {
             if (i < 0 || k < 0 || i >= g.nx || k >= g.nz) continue;
             t = g.on[k * g.nx + i];
-            if (!t || b.y - C.BALL_R >= g.h[k * g.nx + i] + t) continue;
+            if (!t || b.y - br >= g.h[k * g.nx + i] + t) continue;
             cx = g.x0 + i * g.d; cz = g.z0 + k * g.d;
             dx = b.x - cx; dz = b.z - cz; q = dx * dx + dz * dz;
             if (q >= rr * rr) continue;
@@ -941,7 +950,7 @@
         /* …or on ground that is out wherever it is: a pad marked `oob` (the
            floor of Redstone's canyon, far below everything that is played) is
            somewhere a ball can be seen to land and may never be played from. */
-        var lie = surfaceUnder(world.hole, b.x, b.z, b.y + C.STEP_UP);
+        var lie = surfaceUnder(world.hole, b.x, b.z, b.y + stepUp(world.hole));
         if (!outOfBounds(world.hole, b.x, b.z) && !(lie && lie.pad.oob) && !outCell(world.hole, b.x, b.z)) return;
         world.out = true;
         events.out = true;
@@ -964,8 +973,8 @@
             w = ws[i];
             var dx = b.x - w.x, dz = b.z - w.z;
             if (dx * dx + dz * dz > w.r * w.r) continue;
-            s = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
-            if (!s || b.y - C.BALL_R > s.y + C.WARP_MOUTH) continue;
+            s = surfaceUnder(hole, b.x, b.z, b.y + stepUp(hole));
+            if (!s || b.y - G3.ballR(hole) > s.y + C.WARP_MOUTH) continue;
             return w;
         }
         return null;
@@ -1023,7 +1032,7 @@
         var out = surfaceTop(hole, w.tx, w.tz);
         var dx = b.x - w.x, dz = b.z - w.z;
         var D = Math.max(C.WARP_BACK[0], Math.min(C.WARP_BACK[1], sp * C.WARP_DROP * 0.5));
-        var ey = (out ? out.y : 0) + C.BALL_R;
+        var ey = (out ? out.y : 0) + G3.ballR(hole);
         world.warping = {
             w: w, sp: sp, t: 0,
             // Where it went in, and how it was going: the spiral starts here.
@@ -1197,7 +1206,7 @@
     // over whatever floor it stands on.
     function loopBase(hole, L) {
         var s = surfaceTop(hole, L.x, L.z);
-        return (s ? s.y : 0) + C.BALL_R;
+        return (s ? s.y : 0) + G3.ballR(hole);
     }
 
     /* Has a rolling ball just arrived in the mouth? It has to be on the floor,
@@ -1523,7 +1532,7 @@
                 SWEEP.yaw = yaw;
                 SWEEP.cx = sw.hinge.x + Math.cos(yaw) * sw.reach;
                 SWEEP.cz = sw.hinge.z - Math.sin(yaw) * sw.reach;
-                if (circleBox(x, z, C.BALL_R, SWEEP)) return true;
+                if (circleBox(x, z, G3.ballR(hole), SWEEP)) return true;
             }
         }
         return false;
@@ -1616,7 +1625,7 @@
 
     function ballTop(hole, x, z) {
         var s = surfaceTop(hole, x, z);
-        return (s ? s.y : 0) + C.BALL_R;
+        return (s ? s.y : 0) + G3.ballR(hole);
     }
 
     function createWorld(hole, from, time) {
@@ -2022,8 +2031,8 @@
             w.w === w.d && !w.yaw && !w.move && !w.spin && !w.swing;
     }
 
-    function popBumper(b, w, dx, dz, events) {
-        var rr = w.w / 2 + C.BALL_R, q = dx * dx + dz * dz, d, nx, nz, vn, out;
+    function popBumper(b, w, dx, dz, events, br) {
+        var rr = w.w / 2 + br, q = dx * dx + dz * dz, d, nx, nz, vn, out;
         if (q >= rr * rr) return;
         d = Math.sqrt(q);
         if (d > 1e-9) { nx = dx / d; nz = dz / d; } else { nx = 0; nz = -1; }
@@ -2041,13 +2050,13 @@
     }
 
     function collideWalls(world, dt, events) {
-        var b = world.ball, walls = world.hole.walls, i, w, B, hit, vn, wv, wn, dx, dz, reach;
+        var b = world.ball, walls = world.hole.walls, br = G3.ballR(world.hole), i, w, B, hit, vn, wv, wn, dx, dz, reach;
         for (i = 0; i < walls.length; i++) {
             w = walls[i];
             // A ball flying over a rail, or rolling under a raised beam, does
             // not touch it. Vertical overlap first: it is the cheapest test,
             // and it needs none of the trigonometry.
-            if (b.y - C.BALL_R >= (w.base || 0) + w.h || b.y + C.BALL_R <= (w.base || 0)) continue;
+            if (b.y - br >= (w.base || 0) + w.h || b.y + br <= (w.base || 0)) continue;
 
             /* Then the bounding-circle reject, which is what keeps a hole with
                twenty rails from costing twenty box transforms per substep —
@@ -2066,17 +2075,17 @@
                or that swings, does not move its middle at all. */
             dx = b.x - (w.x + w.w / 2); dz = b.z - (w.z + w.d / 2);
             reach = (w.w + w.d) / 2 + (w.move ? Math.abs(w.move.amp) : 0) +
-                (w.swing && w.swing.hinge ? 2 * Math.abs(w.swing.reach) : 0) + C.BALL_R;
+                (w.swing && w.swing.hinge ? 2 * Math.abs(w.swing.reach) : 0) + br;
             if (dx * dx + dz * dz > reach * reach) continue;
             // A post is round and has a coil in it, and is no box at all.
-            if (isPost(w)) { popBumper(b, w, dx, dz, events); continue; }
+            if (isPost(w)) { popBumper(b, w, dx, dz, events, br); continue; }
 
             B = wallBox(w, world.time, SCRATCH);
             // A sail's own height is in the box rather than on the wall: the
             // wall is the whole disc the sails turn in, and the box is the one
             // sail that is down.
-            if (w.sails && (b.y - C.BALL_R >= B.top || b.y + C.BALL_R <= B.base)) continue;
-            hit = circleBox(b.x, b.z, C.BALL_R, B);
+            if (w.sails && (b.y - br >= B.top || b.y + br <= B.base)) continue;
+            hit = circleBox(b.x, b.z, br, B);
             if (!hit) continue;
 
             b.x += hit.nx * hit.depth;
@@ -2127,12 +2136,13 @@
        rim and has not got the vertical speed to climb back out. */
     function cupContact(world, events) {
         var b = world.ball, hole = world.hole, cup = hole.cup;
+        var R = G3.ballR(hole), H = G3.holeR(hole), k = H / C.HOLE_R;
         var dx = b.x - cup.x, dz = b.z - cup.z;
         var d = Math.sqrt(dx * dx + dz * dz);
         // Out of reach of the rim: nothing about the cup applies, whatever
         // height the ball is at. (Testing the height here instead would hand
         // the shaft to every ball on a level below the green.)
-        if (d > C.HOLE_R + C.BALL_R) { world.overCup = false; return false; }
+        if (d > H + R) { world.overCup = false; return false; }
 
         /* The mouth of the cup is open from above and from nowhere else.
 
@@ -2148,18 +2158,18 @@
            qualifies, a lob dropping in qualifies, and a shot passing beneath
            the green does not. The flag clears as soon as the ball is out of
            reach of the rim again, so a lip-out cannot bank the permission. */
-        if (d < C.HOLE_R && b.y >= cup.y) world.overCup = true;
+        if (d < H && b.y >= cup.y) world.overCup = true;
 
         var ux = d > 1e-9 ? dx / d : 1, uz = d > 1e-9 ? dz / d : 0;
         var e = 1 + C.CUP_RESTITUTION;
 
         // The rim edge: distance from the ball's centre to the nearest point of
         // the rim circle, in the plane that contains both.
-        var rx = d - C.HOLE_R, ry = b.y - cup.y;
+        var rx = d - H, ry = b.y - cup.y;
         var rd = Math.sqrt(rx * rx + ry * ry);
-        if (rd < C.BALL_R && rd > 1e-9) {
+        if (rd < R && rd > 1e-9) {
             var nx = (rx / rd) * ux, ny = ry / rd, nz = (rx / rd) * uz;
-            var depth = C.BALL_R - rd;
+            var depth = R - rd;
             b.x += nx * depth; b.y += ny * depth; b.z += nz * depth;
             var vn = b.vx * nx + b.vy * ny + b.vz * nz;
             if (vn < 0) {
@@ -2184,8 +2194,8 @@
 
         // The shaft wall, once the ball's centre is under the green and inside
         // the mouth of the hole — and only for a ball that came in through it.
-        if (b.y < cup.y && d < C.HOLE_R && world.overCup) {
-            var maxR = C.HOLE_R - C.BALL_R;
+        if (b.y < cup.y && d < H && world.overCup) {
+            var maxR = H - R;
             if (d > maxR) {
                 b.x = cup.x + ux * maxR;
                 b.z = cup.z + uz * maxR;
@@ -2198,8 +2208,8 @@
             }
             // Under the rim with no way back up: that is the ball holed.
             var apex = b.y + (b.vy > 0 ? (b.vy * b.vy) / (2 * gravityOf(hole)) : 0);
-            if (b.y + C.BALL_R < cup.y - 0.01 && apex < cup.y - 0.02) {
-                b.y = cup.y - C.CUP_DEPTH + C.BALL_R;
+            if (b.y + R < cup.y - 0.01 * k && apex < cup.y - 0.02 * k) {
+                b.y = cup.y - G3.cupDepth(hole) + R;
                 b.vx = b.vy = b.vz = 0;
                 world.sunk = true;
                 world.moving = false;
@@ -2294,7 +2304,7 @@
     function drown(world, events) {
         var b = world.ball;
         var w = waterAt(world.hole, b.x, b.z);
-        if (!w || b.y - C.BALL_R > w.y) return false;
+        if (!w || b.y - G3.ballR(world.hole) > w.y) return false;
         // A crust that has set is ground, whatever is under it.
         if (w.lava && world.hole.crusts) {
             var cr = crustAt(world.hole, b.x, b.z);
@@ -2309,7 +2319,7 @@
         var cup = world.hole.cup;
         if (cup && cup.y > w.y) {
             var cdx = b.x - cup.x, cdz = b.z - cup.z;
-            if (cdx * cdx + cdz * cdz < C.HOLE_R * C.HOLE_R) return false;
+            if (cdx * cdx + cdz * cdz < G3.holeR(world.hole) * G3.holeR(world.hole)) return false;
         }
         b.y = w.y;
         b.vx = b.vy = b.vz = 0;
@@ -2412,7 +2422,7 @@
         if (world.grounded) { world.fall = null; world.inAir = false; }
 
         if (world.grounded) {
-            var here = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+            var here = surfaceUnder(hole, b.x, b.z, b.y + stepUp(hole));
             if (!here) {                       // the pad vanished under us
                 world.grounded = false;
                 b.vy = 0;
@@ -2471,7 +2481,7 @@
 
                 var nx = b.x + b.vx * travel;
                 var nz = b.z + b.vz * travel;
-                var lift = b.y + C.STEP_UP;
+                var lift = b.y + stepUp(hole);
                 var next = surfaceUnder(hole, nx, nz, lift);
 
                 // A kerb taller than STEP_UP stops the ball. Walls do this job
@@ -2516,11 +2526,11 @@
                     // walking off a ledge is a drop.
                     world.grounded = false;
                     b.vy = climb > 0 ? climb : 0;
-                } else if (next.y + C.BALL_R < b.y - C.DROP) {
+                } else if (next.y + G3.ballR(hole) < b.y - C.DROP) {
                     world.grounded = false;
                     b.vy = climb > 0 ? climb : 0;
                 } else {
-                    b.y = next.y + C.BALL_R;
+                    b.y = next.y + G3.ballR(hole);
                     /* On the ground the ground is the height, so a grounded
                        ball has no vertical speed of its own. The cup's lip can
                        hand one a little as the ball grazes it, and kept, that
@@ -2631,8 +2641,8 @@
                 }
             }
 
-            if (land && b.y - C.BALL_R <= land.y) {
-                b.y = land.y + C.BALL_R;
+            if (land && b.y - G3.ballR(hole) <= land.y) {
+                b.y = land.y + G3.ballR(hole);
                 if (!world.firstLand) world.firstLand = { x: b.x, y: b.y, z: b.z };
                 // …and where the hop after it comes down: the tracer draws through one bounce.
                 else if (!world.hopLand) world.hopLand = { x: b.x, y: b.y, z: b.z };
@@ -2718,7 +2728,7 @@
             var eg = hole.edge;
             if (b.x < eg.x0 || b.x > eg.x1 || b.z < eg.z0 || b.z > eg.z1) {
                 var lip = surfaceTop(hole, Math.max(eg.x0, Math.min(eg.x1, b.x)), Math.max(eg.z0, Math.min(eg.z1, b.z)));
-                if (!lip || b.y < lip.y + C.BALL_R * 0.5) {
+                if (!lip || b.y < lip.y + G3.ballR(hole) * 0.5) {
                     b.vx = b.vy = b.vz = 0;
                     world.out = true;
                     world.fell = true;
@@ -2753,7 +2763,7 @@
             world.slowFor += dt;
             var settled;
             if (world.grounded) {
-                var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
+                var lie = surfaceUnder(hole, b.x, b.z, b.y + stepUp(hole));
                 /* A travelator is never a lie that holds, whatever its
                    gradient says. The drag above is the only thing that ever
                    balances a belt, and drag is zero at zero speed — so without
@@ -2783,7 +2793,7 @@
                hole lab exactly as it is to the player watching it go. */
             if (settled && hole.crusts && crustAt(hole, b.x, b.z)) {
                 var lw = waterAt(hole, b.x, b.z);
-                if (lw && lw.lava && b.y - C.BALL_R <= lw.y) settled = false;
+                if (lw && lw.lava && b.y - G3.ballR(hole) <= lw.y) settled = false;
             }
             if (settled) {
                 b.vx = b.vy = b.vz = 0;
@@ -2806,7 +2816,7 @@
 
         var steps = Math.min(
             C.MAX_SUBSTEPS,
-            Math.max(1, Math.ceil(speedOf(world.ball) * dt / (C.BALL_R * 0.5)))
+            Math.max(1, Math.ceil(speedOf(world.ball) * dt / (G3.ballR(world.hole) * 0.5)))
         );
         var h = dt / steps, i;
         for (i = 0; i < steps; i++) {
@@ -2877,6 +2887,8 @@
         var eg = hole.edge;
         if (eg && (x < eg.x0 || x > eg.x1 || z < eg.z0 || z > eg.z1)) return null;
         var w = waterAt(hole, x, z);
+        // Half the mini golf ball, at either size: a question about how far
+        // the ground sits over the water, not about the ball (see stepUp).
         if (w && s.y <= w.y + C.BALL_R * 0.5) {
             if (!(w.lava && hole.crusts)) return null;
             var cr = crustAt(hole, x, z);
@@ -2884,7 +2896,7 @@
         }
         if (hole.wells) {
             for (var i = 0; i < hole.wells.length; i++) {
-                var wl = hole.wells[i], r = wl.core * 2 + C.BALL_R;
+                var wl = hole.wells[i], r = wl.core * 2 + G3.ballR(hole);
                 if ((x - wl.x) * (x - wl.x) + (z - wl.z) * (z - wl.z) < r * r) return null;
             }
         }
@@ -2941,7 +2953,7 @@
             var c = cands[i];
             if (cup) {
                 var cd = Math.sqrt((c.x - cup.x) * (c.x - cup.x) + (c.z - cup.z) * (c.z - cup.z));
-                if (cd < far || cd < C.HOLE_R * 3) continue;
+                if (cd < far || cd < G3.holeR(hole) * 3) continue;
             }
             var spot = restsAt(hole, c.x, c.z, time);
             // Where it settled, not where it was put, is what is no nearer.
@@ -3062,6 +3074,7 @@
         landingOf: landingOf,
         holdOf: holdOf,
         gravityOf: gravityOf,
+        stepUp: stepUp,
         padGrad: padGrad,
         slopeAt: slopeAt,
         outOfBounds: outOfBounds, outCell: outCell, clearOutsOnPlay: clearOutsOnPlay,

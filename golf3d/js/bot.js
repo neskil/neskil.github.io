@@ -47,13 +47,13 @@
         var dx = cup.x - ball.x, dz = cup.z - ball.z;
         var len = Math.hypot(dx, dz);
         if (len < 1e-6) return false;
-        var px = ball.x + dx / len * (C.BALL_R + 0.2);
-        var pz = ball.z + dz / len * (C.BALL_R + 0.2);
+        var px = ball.x + dx / len * (G3.ballR(hole) + 0.2);
+        var pz = ball.z + dz / len * (G3.ballR(hole) + 0.2);
         var i, B;
         for (i = 0; i < hole.walls.length; i++) {
             B = P.wallBox(hole.walls[i], time);
-            if (ball.y - C.BALL_R >= B.top || ball.y + C.BALL_R <= B.base) continue;
-            if (P.circleBox(px, pz, C.BALL_R, B)) return true;
+            if (ball.y - G3.ballR(hole) >= B.top || ball.y + G3.ballR(hole) <= B.base) continue;
+            if (P.circleBox(px, pz, G3.ballR(hole), B)) return true;
         }
         return false;
     }
@@ -125,7 +125,7 @@
        would plan a drive the game will not play — so every stroke it chooses
        or strikes is capped by this, misses included. */
     function lieAt(hole, from) {
-        var under = P.surfaceUnder(hole, from.x, from.z, from.y + C.STEP_UP);
+        var under = P.surfaceUnder(hole, from.x, from.z, from.y + P.stepUp(hole));
         return under ? under.pad.kind : null;
     }
 
@@ -930,7 +930,7 @@
     function play(hole, maxStrokes, bag, opts) {
         opts = opts || {};
         var from = opts.from ||
-            { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R };
+            { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + G3.ballR(hole) };
         var time = opts.time || 0, strokes = 0, penalties = 0, s, shot;
         var shots = [];
         // `opts.plan` plays it with a plan (above), kept for the whole hole.

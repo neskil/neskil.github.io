@@ -217,6 +217,11 @@ really have the game play feeling"). What that has meant in practice:
   forged map) is played as the long game — `G3.longHole` is `hole.longGame`,
   wherever the hole lies — so its air, ball, tracer and chase are the long
   courses'.
+- **A long hole has its own ball and cup.** Ask `G3.ballR(hole)`,
+  `G3.holeR(hole)`, `G3.cupDepth(hole)` and physics `stepUp(hole)` how big
+  they are; `CONFIG.BALL_R`, `HOLE_R`, `CUP_DEPTH` and `STEP_UP` are the mini
+  golf numbers, right only for something that is only ever on a lane. README →
+  "The long game is drawn at its own scale".
 - **An endless hole moves; a tour hole does not.** A place with `drift`
   (endless.js) is re-anchored every frame along its world's flight and can
   change world mid-hole (`g3-world-cross`), so anything that caches a hole's

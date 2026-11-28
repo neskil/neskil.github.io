@@ -44,8 +44,8 @@
         { path: 'LONG_CAM.ABOVE_T', label: 'Settle over', min: 0.3, max: 4, step: 0.1, unit: ' s',
           says: 'How long it takes to come down once the ball has stopped.' },
         { head: 'Zoom' },
-        { path: 'LONG_LOOK.SEAT', label: 'Address distance', min: 0.3, max: 1.2, step: 0.05, unit: '×',
-          says: 'How far behind the ball you stand to hit, on a long hole. Higher is further out.' },
+        { path: 'LONG_BALL.SEAT', label: 'Camera distance', min: 0.3, max: 1.2, step: 0.05, unit: '×',
+          says: 'How far back the camera sits on a long hole, the same everywhere on it. Higher is further out.' },
         { path: 'LONG_CAM.FOV', label: 'Lens', min: 36, max: 70, step: 1, unit: '°',
           says: 'The long game\'s field of view. Lower is a longer lens: flatter, closer. Higher is wider.' },
         { path: 'LONG_CAM.TRACK', label: 'Zoom with the ball', min: 0, max: 1, step: 0.05, unit: '×',
@@ -55,10 +55,10 @@
         { path: 'SPEED_LENS', label: 'Speed zoom', min: 0, max: 1.5, step: 0.1, unit: '×',
           says: 'How much the view widens while the ball is fast: mini golf, and a shot while the camera rides it.' },
         { head: 'Ball size' },
-        { path: 'LONG_LOOK.MIN', label: 'Ball size on the course', min: 0.2, max: 1, step: 0.02, unit: '×',
-          says: 'How big the ball is drawn away from the green. On the green it is always 1. It only changes once the ball has stopped.' },
-        { path: 'LONG_LOOK.EASE', label: 'Size settles', min: 1, max: 8, step: 0.5,
-          says: 'How quickly the ball and the camera go over to the new size once the ball has stopped. Lower is softer.' }
+        { path: 'LONG_BALL.BALL', label: 'Ball', min: 0.25, max: 1, step: 0.05, unit: '×',
+          says: 'The long game\'s ball, as a share of the mini golf ball: its real size, tee to cup. Takes effect at once; the next shot settles it.' },
+        { path: 'LONG_BALL.CUP', label: 'Cup', min: 0.3, max: 1, step: 0.05, unit: '×',
+          says: 'The long game\'s cup, as a share of the mini golf cup. The green is cut for it when the next hole loads.' }
     ];
 
     /* Whole camera feels to try one after another (v1.249.0, the owner: "can
@@ -71,21 +71,20 @@
         { id: 'steady', name: '1 Steady', says: 'Waits a moment, then follows close and quick, so the ball barely shrinks. No zooms.',
           set: { 'LONG_CAM.LEASH': 3, 'LONG_CAM.FOLLOW': 2.4, 'LONG_CAM.MAX': 20, 'LONG_CAM.GAZE': 6, 'LONG_CAM.HOLD': 0.8,
                  'LONG_CAM.ABOVE': 0.5, 'LONG_CAM.ABOVE_T': 1.6, 'LONG_CAM.TRACK': 0.3, 'LONG_CAM.PUNCH': 0,
-                 'SPEED_LENS': 0, 'LONG_LOOK.EASE': 2.5 } },
+                 'SPEED_LENS': 0 } },
         { id: 'ride', name: '2 Ride along', says: 'The camera flies behind every shot, irons and wedges too. The ball stays one size the whole way.',
           set: { 'LONG_CAM.RIDE': EVERY, 'LONG_CAM.DIST': 7, 'LONG_CAM.FOV': 55, 'LONG_CAM.ABOVE': 0.75,
                  'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
         { id: 'tripod', name: '3 Tripod', says: 'Stands where you hit it and only turns to watch, the whole flight. Walks up once the ball is down.',
           set: { 'LONG_CAM.RIDE': [], 'LONG_CAM.LEASH': 50, 'LONG_CAM.FOLLOW': 1.6, 'LONG_CAM.MAX': 14, 'LONG_CAM.GAZE': 5,
-                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0, 'LONG_LOOK.EASE': 2.5 } },
+                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
         { id: 'tv', name: '4 Broadcast', says: 'Tripod, but it zooms in after the ball like a TV camera, so it never gets small. Zooms back out as it walks up.',
           set: { 'LONG_CAM.RIDE': [], 'LONG_CAM.LEASH': 50, 'LONG_CAM.FOLLOW': 1.6, 'LONG_CAM.MAX': 14, 'LONG_CAM.GAZE': 6,
-                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.TRACK': 0.85, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0,
-                 'LONG_LOOK.EASE': 2.5 } },
+                 'LONG_CAM.ABOVE': 0, 'LONG_CAM.FOV': 50, 'LONG_CAM.TRACK': 0.85, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } },
         { id: 'film', name: '5 Cinematic', says: 'Slow and floaty: a longer wait, a soft glide after the ball, a half zoom with it, and a slow settle from above.',
           set: { 'LONG_CAM.LEASH': 10, 'LONG_CAM.FOLLOW': 1.1, 'LONG_CAM.MAX': 9, 'LONG_CAM.GAZE': 3.5, 'LONG_CAM.HOLD': 1.2,
                  'LONG_CAM.DIST': 10, 'LONG_CAM.ABOVE': 1.5, 'LONG_CAM.ABOVE_T': 2.2, 'LONG_CAM.FOV': 48,
-                 'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0, 'LONG_LOOK.EASE': 1.8 } }
+                 'LONG_CAM.TRACK': 0.5, 'LONG_CAM.PUNCH': 0, 'SPEED_LENS': 0 } }
     ];
 
     function get(path) {

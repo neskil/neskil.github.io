@@ -31,6 +31,7 @@
 
     var R = {
         ready: false,
+        cupR: G3.CONFIG.HOLE_R, cupD: G3.CONFIG.CUP_DEPTH,   // buildHole: G3.holeR / G3.cupDepth
         scene: null, camera: null, renderer: null,
         holeGroup: null, ball: null, aimGroup: null, pathCone: null, pathHead: null, arrow: null,
         flagCloth: null, flagPole: null, cupMesh: null,
@@ -701,13 +702,13 @@
                there. Each touchdown goes in exactly where the physics had
                it, at the height the ball is drawn at, and before this
                frame's ball, which may already be past it. */
-            var fl = world.firstLand, hop = world.hopLand, sink = C.BALL_R * (1 - R.look);
+            var fl = world.firstLand, hop = world.hopLand;
             if (fl && !R.tracerFirst) {
                 R.tracerFirst = true;
-                pts.push(fl.x, fl.y - sink, fl.z);
+                pts.push(fl.x, fl.y, fl.z);
             }
             var done = hop || !world.moving || (fl && (world.grounded || !world.inAir));
-            if (hop) pts.push(hop.x, hop.y - sink, hop.z);
+            if (hop) pts.push(hop.x, hop.y, hop.z);
             else if (!done) {
                 last = pts.length - 3;
                 var dx = b.x - pts[last], dy = b.y - pts[last + 1], dz = b.z - pts[last + 2];
@@ -1835,7 +1836,7 @@
         if (cup) {
             var hole = new THREE.Path();
             var cx = pad.x + hw, cz = pad.z + hd;
-            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
+            hole.absarc(cup.x - cx, -(cup.z - cz), R.cupR, 0, Math.PI * 2, true);
             shape.holes.push(hole);
         }
 
@@ -1987,7 +1988,7 @@
         if (cup) {
             var hole = new THREE.Path();
             // A shade wider than the cup, so no blade hangs over the rim.
-            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R * 1.08, 0, Math.PI * 2, true);
+            hole.absarc(cup.x - cx, -(cup.z - cz), R.cupR * 1.08, 0, Math.PI * 2, true);
             shape.holes.push(hole);
         }
         // And whatever is laid into it that grows nothing (bareInlays): the
@@ -2054,8 +2055,8 @@
             // A cup is either well clear of the cut or, for a green, well
             // inside it, where the green's own hole stands in for the cup's —
             // or for ice under a rug (`layer`), where the ice is holed too.
-            clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + C.HOLE_R * 1.2 ||
-                ((grows || q.layer) && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - C.HOLE_R * 1.2);
+            clear = !cup || Math.hypot(cup.x - qx, cup.z - qz) > q.r + R.cupR * 1.2 ||
+                ((grows || q.layer) && Math.hypot(cup.x - qx, cup.z - qz) < (q.rIn || q.r) - R.cupR * 1.2);
             for (j = 0; j < out.length && clear; j++) {
                 clear = Math.hypot(out[j].x + out[j].w / 2 - qx, out[j].z + out[j].d / 2 - qz) >
                     out[j].r + q.r + 0.02;
@@ -2678,7 +2679,7 @@
         if (holed) {
             var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
             var hole = new THREE.Path();
-            hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
+            hole.absarc(cup.x - cx, -(cup.z - cz), R.cupR, 0, Math.PI * 2, true);
             shape.holes.push(hole);
         }
         var geo = new THREE.ExtrudeGeometry(shape, {
@@ -3371,8 +3372,8 @@
                or sink below it as a square step. Shrink it until all of its
                edge is on the level, and the grid carries the slope. */
             var cyc = P.padHeight(pad, cup.x, cup.z);
-            while (cut.h > C.HOLE_R + 0.1 && !levelSquare(pad, cup.x, cup.z, cut.h, cyc)) cut.h -= 0.05;
-            if (cut.h < C.HOLE_R + 0.1) { cut = null; holed = false; }
+            while (cut.h > R.cupR + 0.1 && !levelSquare(pad, cup.x, cup.z, cut.h, cyc)) cut.h -= 0.05;
+            if (cut.h < R.cupR + 0.1) { cut = null; holed = false; }
         }
 
         var res = terrainRes(pad);
@@ -3448,7 +3449,7 @@
         // the hole left in the grid, with its own mat of grass over it.
         if (cut) {
             var py = P.padHeight(pad, cup.x, cup.z) - cy;
-            var patch = cupPatch(cut, py, C.HOLE_R);
+            var patch = cupPatch(cut, py, R.cupR);
             worldUv(patch, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
             // A rainbow pad's patch is coloured with it, or it is a black tile.
             if (pad.hue) tintRainbow(patch, pad, cx, cy, cz, RAINBOW_GLASS);
@@ -3457,7 +3458,7 @@
             pm.receiveShadow = true;
             group.add(pm);
             addShells(group, pad, cup, false, cx, cy, cz,
-                cupPatch(cut, py, C.HOLE_R * 1.08));
+                cupPatch(cut, py, R.cupR * 1.08));
         }
     }
 
@@ -3628,13 +3629,13 @@
         function lay(k) {           // a new crumb at 1, the oldest recycled
             c = _wake.pop();
             _wake.splice(1, 0, c);
-            c.x = b.x; c.y = b.y - C.BALL_R; c.z = b.z;
+            c.x = b.x; c.y = b.y - G3.ballR(R.hole); c.z = b.z;
             c.at = R.wakeRolled; c.born = R.clock; c.k = k;
         }
         if (world.moving && world.grounded && speed > 0.2) {
             var k = Math.min(1, 0.3 + speed * 0.12);
             if (_wake[1].k <= 0 || R.wakeRolled - _wake[1].at >= WAKE_STEP) lay(k);
-            head.x = b.x; head.y = b.y - C.BALL_R; head.z = b.z;
+            head.x = b.x; head.y = b.y - G3.ballR(R.hole); head.z = b.z;
             head.at = R.wakeRolled; head.born = R.clock; head.k = k;
         } else if (world.moving && !world.grounded) {
             // In the air: what was drawn stays and settles, and a break goes
@@ -3932,7 +3933,7 @@
         // off at the island's top, its seaward face would stop a hand's
         // breadth over the waves with daylight under it.
         var floor = pad.sheer ? null : supportUnder(pads, pad, cy);
-        var least = holed ? C.CUP_DEPTH + 0.25 : 0.2;
+        var least = holed ? R.cupD + 0.25 : 0.2;
         /* Every slab reaches down to something — the pad below it, or the
            ground the whole course is standing on. There used to be one
            exception: a `wood` pad was drawn three tenths of a unit thick
@@ -3959,7 +3960,7 @@
         // or an island (courses.js) — and goes down like any other slab;
         // drawn three tenths thick, Redstone's mesa was a plate of scrub
         // floating three units over the fairway.
-        if (pad.r && !pad.stands) thick = holed ? C.CUP_DEPTH + 0.25 : 0.3;
+        if (pad.r && !pad.stands) thick = holed ? R.cupD + 0.25 : 0.3;
         // And a hovering platform is a slab with daylight under it, which is
         // the whole of what it is (Challenge mode's raised tee).
         // …unless it says how far down it goes (`deck`: a tour hole stood on
@@ -4394,7 +4395,7 @@
         celeLenses(add);
         if (R.dive && R.diveBH && R.diveBH.visible) {
             var bhOpen = R.diveBH.material.uniforms.open.value;
-            add(R.diveBH.position.x, R.diveBH.position.y, R.diveBH.position.z, C.HOLE_R * 1.15 * bhOpen, 0.95 * bhOpen);
+            add(R.diveBH.position.x, R.diveBH.position.y, R.diveBH.position.z, G3.holeR(R.hole) * 1.15 * bhOpen, 0.95 * bhOpen);
         }
         return _lenses;
     }
@@ -6837,7 +6838,7 @@
        downwind, snaps in a gust and hangs limp when it drops — so a glance at
        the flag is a reading, not a decoration. */
     function addCup(group, hole) {
-        var cup = hole.cup;
+        var cup = hole.cup, HR = G3.holeR(hole), CD = G3.cupDepth(hole);
 
         /* Everything below is placed off the *rendered* height of the green
            the cup is cut into, which is not always its real one: an inlaid
@@ -6856,10 +6857,10 @@
         }
 
         var liner = new THREE.Mesh(
-            new THREE.CylinderGeometry(C.HOLE_R - 0.004, C.HOLE_R - 0.004, C.CUP_DEPTH, 28, 1, true),
+            new THREE.CylinderGeometry(HR - 0.004, HR - 0.004, CD, 28, 1, true),
             new THREE.MeshLambertMaterial({ color: 0x14170f, side: THREE.BackSide })
         );
-        liner.position.set(cup.x, cup.y + lift - C.CUP_DEPTH / 2, cup.z);
+        liner.position.set(cup.x, cup.y + lift - CD / 2, cup.z);
         group.add(liner);
 
         /* On a sculpted hole with its world on screen there is no green:
@@ -6875,7 +6876,7 @@
         // Wide, because from a low seat the shaft stands up out of the
         // ground: seen five degrees over the turf a floor 0.42 down shows
         // nearly five units short of the lip.
-        var ringG = new THREE.RingGeometry(C.HOLE_R - 0.004, C.HOLE_R + 6, 40, 14);
+        var ringG = new THREE.RingGeometry(HR - 0.004, HR + 6, 40, 14);
         ringG.rotateX(-Math.PI / 2);
         /* Laid on the ground the ball rolls on (which is what the world was
            pressed to), a hair under it, so a green with a fall to it does
@@ -6883,7 +6884,7 @@
         var rp = ringG.attributes.position, rx, rz, rr, top;
         for (i = 0; i < rp.count; i++) {
             rx = rp.getX(i); rz = rp.getZ(i); rr = Math.sqrt(rx * rx + rz * rz) || 1;
-            var out = Math.max(rr, C.HOLE_R + 0.02) / rr;
+            var out = Math.max(rr, HR + 0.02) / rr;
             top = P.surfaceTop(hole, cup.x + rx * out, cup.z + rz * out);
             rp.setY(i, (top ? top.y : cup.y - 1) - cup.y - 0.01);
         }
@@ -6898,16 +6899,16 @@
         R.cupMask = mask;
 
         var floor = new THREE.Mesh(
-            new THREE.CircleGeometry(C.HOLE_R, 28),
+            new THREE.CircleGeometry(HR, 28),
             new THREE.MeshLambertMaterial({ color: 0x1d2416 })
         );
         floor.rotation.x = -Math.PI / 2;
-        floor.position.set(cup.x, cup.y - C.CUP_DEPTH, cup.z);
+        floor.position.set(cup.x, cup.y - CD, cup.z);
         floor.receiveShadow = true;
         group.add(floor);
 
         var rim = new THREE.Mesh(
-            new THREE.RingGeometry(C.HOLE_R - 0.005, C.HOLE_R + 0.045, 32),
+            new THREE.RingGeometry(HR - 0.005, HR + 0.045, 32),
             new THREE.MeshBasicMaterial({ color: 0xf2f5f0, side: THREE.DoubleSide })
         );
         rim.rotation.x = -Math.PI / 2;
@@ -6922,7 +6923,7 @@
            set once and the flag, the ferrule and the wobble all inherit it. */
         var away = Math.atan2(cup.x - hole.tee.x, cup.z - hole.tee.z);
         var pin = new THREE.Group();
-        pin.position.set(cup.x, cup.y - C.CUP_DEPTH + 0.01, cup.z);
+        pin.position.set(cup.x, cup.y - CD + 0.01, cup.z);
         pin.rotation.y = away;             // a real flagstick stands vertical
         group.add(pin);
         R.pin = pin;
@@ -6952,7 +6953,7 @@
             new THREE.CylinderGeometry(0.033, 0.033, 0.16, 10),
             new THREE.MeshLambertMaterial({ color: 0x23262a })
         );
-        band.position.y = C.CUP_DEPTH + 0.10;
+        band.position.y = CD + 0.10;
         pin.add(band);
 
         /* The cloth turns about the pole rather than with the hole, because a
@@ -7218,6 +7219,9 @@
 
     function buildHole(hole, themeName, weatherKind) {
         stopCelebration();
+        // The cup this hole's greens are cut for (G3.holeR: a long hole's is smaller).
+        R.cupR = G3.holeR(hole);
+        R.cupD = G3.cupDepth(hole);
         var theme = G3.themeFor(themeName);
         var W = G3.weather;
         var weather = weatherKind || (W ? W.now : null) || { cloud: 0.4, fog: 1.3, sun: 1, amb: 1, sunSharp: 1, cloudTop: '#ffffff', cloudBase: '#b9c6d4', grade: {} };
@@ -8216,52 +8220,16 @@
     var _seat = { px: 0, py: 0, pz: 0, tx: 0, ty: 0, tz: 0 };
     var _wind = { x: 0.4, z: 0.9, speed: 0.5 };
 
-    /* How big the ball, the club at it and the seat behind them are drawn,
-       as a share of the physics' sizes: CONFIG.LONG_LOOK says why. 1 on a mini
-       golf lane, a tour hole and the green; MIN out on a long hole, eased
-       between by the ball's distance from the cup so neither the ball nor the
-       camera ever jumps. */
-    function lookT(hole, ball) {
-        // Not in a Portals world: a tour hole (or anything else hung on one)
-        // is fitted to it, seat and all (`G3.longHole`).
-        if (!G3.longHole(hole) || !ball || !hole.cup) return 0;
-        var L = C.LONG_LOOK;
-        var d = Math.sqrt((ball.x - hole.cup.x) * (ball.x - hole.cup.x) + (ball.z - hole.cup.z) * (ball.z - hole.cup.z));
-        var t = Math.max(0, Math.min(1, (d - L.NEAR) / (L.FAR - L.NEAR)));
-        return t * t * (3 - 2 * t);
-    }
-    function lookFor(hole, ball) { return 1 + (C.LONG_LOOK.MIN - 1) * lookK(hole, ball); }
-    /* The seat comes in by a little less than the ball shrinks (SEAT), so the
-       ball and the club take a little less of the screen than on a lane and
-       the course a little more. */
-    function seatLook(hole, ball) { return 1 + (C.LONG_LOOK.SEAT - 1) * lookK(hole, ball); }
-    /* The look the picture is drawn at, which is not lookT read off the ball
-       every frame: that grew the ball to three times its size in the air on
-       any shot that came down near the flag — under a camera that was standing
-       still, so nothing hid it (the owner, v1.245.0: "the ball size and zoom
-       have a bit of uncanny valley thing"). So it is held while the ball is
-       moving and only goes over to the new lie's once the ball is at rest, on
-       a critically damped spring of LONG_LOOK.EASE per second, while the
-       camera walks up to it. A ball put somewhere (a drop, a new hole) is
-       snapped to it rather than grown. Read for the live ball only; anything
-       asking about another point gets lookT. */
-    R.lookK = 0; R.lookV = 0; R.lookHole = null;
-    function lookK(hole, ball) { return hole && hole === R.lookHole ? R.lookK : lookT(hole, ball); }
-    function stepLook(world, dt) {
-        var b = world.ball, want = lookT(R.hole, b);
-        var jump = Math.abs(b.x - R.lastBall.x) + Math.abs(b.z - R.lastBall.z) > 1;
-        if (R.lookHole !== R.hole || (jump && !world.moving)) {
-            R.lookHole = R.hole; R.lookK = want; R.lookV = 0;
-            return;
-        }
-        if (world.moving) { R.lookV = 0; return; }
-        var w = C.LONG_LOOK.EASE, n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n, i;
-        for (i = 0; i < n; i++) {
-            R.lookV += (w * w * (want - R.lookK) - 2 * w * R.lookV) * h;
-            R.lookK += R.lookV * h;
-        }
-        if (Math.abs(want - R.lookK) < 1e-4 && Math.abs(R.lookV) < 1e-3) { R.lookK = want; R.lookV = 0; }
-    }
+    /* How big the ball, the club at it and the trail behind it are drawn, as
+       a share of the mesh's size (which is the mini golf ball): the hole's own
+       ball (G3.ballR), so on a long hole a smaller one — the same size from
+       the tee to the cup, because it is the same size in the physics
+       (CONFIG.LONG_BALL). Nothing eases and nothing waits for the ball to
+       stop: there is no other size for it to go to. */
+    function lookFor(hole) { return G3.ballR(hole) / C.BALL_R; }
+    /* How far back the seat is, as a share of the mini golf seat: SEAT on a
+       long hole, everywhere on it, so the ball keeps one share of the screen. */
+    function seatLook(hole) { return G3.longHole(hole) ? C.LONG_BALL.SEAT : 1; }
     /* How far the follow seat leads down the line (CONFIG.LONG_SEAT): 0 on
        anything but the long game and near the cup, 1 far from it. Drawn long
        holes and the ones hung in a world alike: it is a question of how much
@@ -8278,16 +8246,15 @@
     function rollBall(pos) {
         var dx = pos.x - R.lastBall.x, dz = pos.z - R.lastBall.z;
         var d = Math.hypot(dx, dz);
-        var s = R.look = lookFor(R.hole, pos);
+        var s = R.look = lookFor(R.hole);
         // A unit in a frame is not a roll, it is a pipe: the ball crossing the
         // hole to the sky portal, unseen, would otherwise spin fifty turns.
         if (d > 1e-5 && d < 1) {
             R.ball.rotateOnWorldAxis(_axis.set(dz / d, 0, -dx / d), d / (C.BALL_R * s));
         }
         R.lastBall.set(pos.x, pos.y, pos.z);
-        // Drawn smaller, it sits on the ground the physics' ball sits on.
         R.ball.scale.setScalar(s);
-        R.ball.position.set(pos.x, pos.y - C.BALL_R * (1 - s), pos.z);
+        R.ball.position.set(pos.x, pos.y, pos.z);
     }
 
     /* The aiming furniture: a wedge on the ground pointing where the ball will
@@ -8564,7 +8531,7 @@
         // so it can afford the room for three chevrons rather than one.
         var arrowLen = Math.max(1.5, len);
         var halfW = 0.11 + frac * 0.05;
-        var y = b.y - C.BALL_R + 0.02;
+        var y = b.y - G3.ballR(world.hole) + 0.02;
 
         /* Green through amber to red as the swing fills, hard red once it is
            into the last of it, and brighter still once the meter is past a
@@ -8825,9 +8792,7 @@
         var keep = { yaw: c.yaw, pitch: c.pitch, kick: c.kick, pull: c.speedPull,
                      chase: R.chase ? R.chase.w : 0, wind: R.windup ? R.windup.w : 0,
                      lift: R.liftS ? { y: R.liftS.y, v: R.liftS.v } : null, dt: R.seatDt };
-        keep.lookK = R.lookK;
         c.yaw = yaw; c.kick = 0; c.speedPull = 0; R.seatDt = 0;
-        R.lookK = lookT(hole, ball);
         if (R.chase) R.chase.w = 0;
         if (R.windup) R.windup.w = 0;
         _fitCam.fov = R.camera.fov; _fitCam.aspect = R.camera.aspect;
@@ -8851,7 +8816,7 @@
         c.yaw = keep.yaw; c.pitch = keep.pitch; c.kick = keep.kick; c.speedPull = keep.pull;
         if (R.chase) R.chase.w = keep.chase;
         if (R.windup) R.windup.w = keep.wind;
-        R.liftS = keep.lift; R.seatDt = keep.dt; R.lookK = keep.lookK;
+        R.liftS = keep.lift; R.seatDt = keep.dt;
         return fits ? p : best;
     }
     function fitClear(hole, s) {
@@ -8980,7 +8945,7 @@
                there is between seeing less of the hole and seeing all of it as
                a smudge on the horizon. Less of it, then; the zoom is a scroll
                away for anyone who wants the rest. */
-            dist = (c.dist + c.speedPull) * 1.25 * seatLook(hole, ball);
+            dist = (c.dist + c.speedPull) * 1.25 * seatLook(hole);
             var sideV = R.camera.fov * Math.PI / 360;
             var sideH = Math.atan(Math.tan(sideV) * R.camera.aspect);
             var lead = Math.min(9, Math.max(3.5,
@@ -9014,7 +8979,7 @@
             /* Two things move the camera besides the player: it flinches when
                the ball is struck, and it drifts back as the ball gets quick, so
                a hard shot feels quick rather than merely distant. */
-            var look = seatLook(hole, ball);
+            var look = seatLook(hole);
             dist = (c.dist + c.speedPull - c.kick * C.KICK * 4 * punchOf(hole)) * look;
             /* Lifted by the hill in front of it, if there is one. See
                CONFIG.AIM_LOOK for why: a seat that looks a little over the
@@ -9500,7 +9465,7 @@
         if (R.holeGroup && !R.diveBH) {
             var bhSize = 2.2;
             var bh = blackHole({
-                size: bhSize, hor: C.HOLE_R / bhSize, ring: (C.HOLE_R * 1.65) / bhSize,
+                size: bhSize, hor: G3.holeR(hole) / bhSize, ring: (G3.holeR(hole) * 1.65) / bhSize,
                 feed: 1.5, shade: 0.92, beam: 0.45, gain: 1.7, open: 0.01, order: 2
             });
             bh.rotation.x = -Math.PI / 2;
@@ -10051,7 +10016,7 @@
            whole way to a fairway below it, and the ground read raw would
            bob it over every bunker lip. */
         var g = P.surfaceTop(world.hole, b.x, b.z);
-        if (g && ch.out < 0) ch.floor += (g.y + C.BALL_R - ch.floor) * (1 - Math.pow(LC.FLOOR, dt));
+        if (g && ch.out < 0) ch.floor += (g.y + G3.ballR(world.hole) - ch.floor) * (1 - Math.pow(LC.FLOOR, dt));
         var floor = Math.min(ch.floor, b.y);
         var h = b.y - floor;
         if (ch.out < 0 && h > ch.peak) ch.peak = h;
@@ -10150,7 +10115,7 @@
             ch.yaw += turn * (1 - Math.pow(LC.TURN, dt));
         }
         var g = P.surfaceTop(world.hole, b.x, b.z);
-        if (g && ch.out < 0) ch.floor += (g.y + C.BALL_R - ch.floor) * (1 - Math.pow(LC.FLOOR, dt));
+        if (g && ch.out < 0) ch.floor += (g.y + G3.ballR(world.hole) - ch.floor) * (1 - Math.pow(LC.FLOOR, dt));
         var floor = Math.min(ch.floor, b.y);
         var h = b.y - floor;
         if (ch.out < 0 && h > ch.peak) ch.peak = h;
@@ -10487,7 +10452,6 @@
         if (aim && aim.club) R.aimClub = aim.club;
 
         syncMovers(world.time);
-        stepLook(world, dt);
         rollBall(world.ball);
         if (R.ballMats) {
             R.ballMats.uniforms.uGbTime.value = R.clock;

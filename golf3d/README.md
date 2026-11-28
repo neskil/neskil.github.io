@@ -6777,38 +6777,41 @@ mini golf sizes too: a ball nearly two metres across in the course's own
 metres, a driver bigger than the cart parked behind it, and a camera standing
 over the whole thing like a model on a table (the owner: "scale is a bit off…
 perhaps long game and mini golf have to use different scale"). Now, on a long
-hole (`G3.longHole`, a world's as well as a course's since v1.231.0), the ball, the club in hand (`bag.addressUpdate`'s
-`look`), the trail and the aim strip are drawn at `CONFIG.LONG_LOOK.MIN` of
-themselves, and the follow and side-on seats come in to `SEAT` of their
-distance — render.js `lookFor` and `seatLook`, both read off the ball. The ball
-is still a little bigger than life on the screen, the course round it twice as
-big, and nothing the ball does reads any of it.
+hole (`G3.longHole`, a world's as well as a course's since v1.231.0), the ball
+and the cup are smaller — in the physics, not just the picture.
 
-Two places keep the mini golf picture. **The green**: the cup is the physics'
-cup (`HOLE_R`) and cannot shrink, and a small ball beside it is a ball beside a
-crater, so the look eases back to 1 between `FAR` and `NEAR` units of the cup.
-The camera comes back with it, so on the screen the ball barely changes size;
-what changes is how big the green looks round it, and a putt looks the way it
-always has. (A long hole hung in a Portals world was a third, kept at the
-picture it was fitted with, until v1.231.0: the owner preferred the long
-game's feel to the worlds', so a tour hole with a fairway and every forged map
-are played as the long game now — air, look, tracer and chase.) The drawn ball is lowered by what it lost, so it sits on
-the ground the physics' ball sits on. Anything that sets the ball's scale
-(the pipes' `warpScale`) multiplies by `R.look` rather than replacing it.
+**One size, tee to cup** (v1.250.0, the owner: "The ball should have a
+persistent size in the world"). From v1.217.0 the ball was only *drawn*
+smaller out on the course (`LONG_LOOK`), because the cup was the physics' cup
+and could not shrink with it; so the look eased back to full size near the
+green, and the ball grew nearly three times over on every approach — held
+still in the air from v1.245.0, but swelling once it stopped. Now a long hole
+has its own ball, cup and cup depth (`G3.ballR`, `G3.holeR`, `G3.cupDepth`,
+off `CONFIG.LONG_BALL`): the ball at `BALL` (0.45) of the mini golf ball, the
+cup at `CUP` (0.6) of its cup, everywhere on the hole. Everything that asks
+how big the ball or the cup is asks those three, never `CONFIG.BALL_R` and
+friends, unless it is only ever about a lane. The renderer draws the ball, the
+club in hand (`bag.addressUpdate`'s `look`), the trail and the aim strip at
+`G3.ballR(hole) / BALL_R` of the meshes' size (render.js `lookFor`, `R.look`),
+cuts every green for the hole's cup (`R.cupR`, `R.cupD`, set in `buildHole`),
+and seats the camera at `SEAT` (0.6) of the mini golf distance on the whole
+hole (`seatLook`), so the ball keeps one share of the screen. Mini golf reads
+the same numbers it always did.
 
-**Never while the ball moves** (v1.245.0, the owner: "the ball size and zoom
-have a bit of uncanny valley thing"). Read off the ball every frame, the look
-grew a pitch to nearly three times its size in the air as it came down by the
-flag, under a chase camera that was standing still — and the speed lens
-(`SPEED_LENS`) opened and closed the view under it, a zoom out and back in. So
-render.js `stepLook` holds the look (`R.lookK`) while the ball is moving and
-takes it over to the new lie's on a critically damped spring of
-`LONG_LOOK.EASE` once it is at rest, while the camera walks up; a ball put
-somewhere is snapped. On a long hole the speed lens is off except under the
-driver's riding chase, which is the one seat there that moves with the ball.
-Measured on Ashdown Park 3, a wedge from sixteen units: the drawn size went
-0.34 → 0.56 in the air before, and holds 0.34 until rest now; the fov went 52°
-→ 54.7° and back, and holds 52°.
+The cup shrinks by less than the ball, so it is about 3.3 balls across where
+the real one is 2.5. Measured on a flat long green before choosing: at
+0.45/0.6 a putt at the middle drops hit as hard as it did at the full sizes
+(four units past), and the width that drops at a lag's pace is 60% of the full
+sizes'; 0.45/0.45 kept 42% and lipped out firm putts, 0.35/0.35 kept 31%. No
+cup constant needed retuning — `LIP_GIVE`, `CUP_RESTITUTION`, the green's
+friction and the putter are as they were — and the substeps (half a ball per
+step) stay under the cap even for the driver. The ground is climbed from the
+same height under the ball at either size (physics `stepUp`: `STEP_UP` plus
+the radius the ball lost), so no long hole's terrain moved. `tests.html` →
+"The long game's ball and cup".
+
+On a long hole the speed lens is off except under the driver's riding chase,
+which is the one seat there that moves with the ball.
 
 ### The long game's air
 
@@ -6982,8 +6985,8 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   After any long shot the seat stands `ABOVE` higher and comes down over
   `ABOVE_T` once the ball is at rest (render.js `stepAbove`).
 - **The dev camera panel** (js/camtune.js, ☰ → Dev → Camera tuning). Sliders
-  over the knobs above, the driver's `DIST`, `LONG_LOOK.SEAT`, `MIN` and
-  `EASE`, and `CONFIG.SPEED_LENS`, written straight into `G3.CONFIG` so the next shot
+  over the knobs above, the driver's `DIST`, `LONG_BALL.SEAT`, `BALL` and
+  `CUP` (the cup is cut when the next hole loads), and `CONFIG.SPEED_LENS`, written straight into `G3.CONFIG` so the next shot
   shows them; kept per browser in dev mode (`CAM_TUNE_KEY`), with Copy to send
   the values back. Index.html only: nothing else needs it.
 - **The lens, and the presets** (v1.249.0, the owner: "the feeling for the

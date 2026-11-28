@@ -58,7 +58,7 @@
     }
 
     function tee(hole) {
-        return { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R };
+        return { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + G3.ballR(hole) };
     }
 
     function shoot(hole, club, yaw, power, at) {

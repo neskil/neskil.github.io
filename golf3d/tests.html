@@ -1190,6 +1190,64 @@
                 'length ' + bank.length);
         })();
 
+        /* ── the long game's ball and cup ──────────────────────────────── */
+
+        /* A long hole has its own, smaller ball and cup (CONFIG.LONG_BALL), the
+           same size from the tee to the cup — v1.250.0, after the ball drawn
+           small on the fairway grew back to three times its size on the green.
+           What these hold: mini golf is not touched by it, the long ball rests
+           on the ground at its own radius, a long putt drops as it did at the
+           mini sizes, and the ground climbs and stops exactly as it did. */
+        section('The long game\'s ball and cup');
+        (function () {
+            var mini = lab(), long = lab({ pads: [A.pad(0, 0, 20, 40, 0, 'green')], tee: { x: 10, z: 2 }, cup: { x: 10, z: 8 } });
+            long.longGame = true;
+            var LB = C.LONG_BALL;
+            assert('a mini golf hole keeps the mini golf ball, cup and depth exactly',
+                G3.ballR(mini) === C.BALL_R && G3.holeR(mini) === C.HOLE_R && G3.cupDepth(mini) === C.CUP_DEPTH &&
+                G3.ballR(null) === C.BALL_R && G3.holeR(undefined) === C.HOLE_R);
+            assert('a long hole has a smaller ball, and a cup cut smaller by less',
+                approx(G3.ballR(long), C.BALL_R * LB.BALL, 1e-12) && approx(G3.holeR(long), C.HOLE_R * LB.CUP, 1e-12) &&
+                approx(G3.cupDepth(long), C.CUP_DEPTH * LB.CUP, 1e-12) && LB.BALL < 1 && LB.CUP < 1);
+            var ratio = G3.holeR(long) / G3.ballR(long);
+            assert('…and the long cup still reads as a cup: between 2.5 and 4 balls across',
+                ratio >= 2.5 && ratio <= 4, ratio.toFixed(2));
+            assert('the long ball sits on the ground at its own radius',
+                approx(P.ballTop(long, 10, 2) - P.surfaceTop(long, 10, 2).y, G3.ballR(long), 1e-9));
+            assert('the ground is climbed from the same height under the ball at either size',
+                approx(P.stepUp(long) + G3.ballR(long), P.stepUp(mini) + G3.ballR(mini), 1e-12) &&
+                approx(P.stepUp(mini), C.STEP_UP, 1e-12));
+
+            // The power that rolls a putt `d` along this green with no cup in its way.
+            var open = lab({ pads: [A.pad(0, 0, 20, 40, 0, 'green')], tee: { x: 10, z: 2 }, cup: { x: 10, z: 39 } });
+            open.longGame = true;
+            function powerFor(d) {
+                var lo = 0.1, hi = 20, i, m;
+                for (i = 0; i < 30; i++) {
+                    m = (lo + hi) / 2;
+                    if (shootFrom(open, { x: 10, z: 2 }, 0, m).ball.z - 2 < d) lo = m; else hi = m;
+                }
+                return (lo + hi) / 2;
+            }
+            var H = G3.holeR(long), firm = powerFor(6 + 3), lag = powerFor(6 + 1);
+            assert('a long putt at the middle of the cup drops, hit to run three units past',
+                shootFrom(long, { x: 10, z: 2 }, 0, firm).sunk);
+            assert('…and half a cup off line drops at a lag\'s pace',
+                shootFrom(long, { x: 10 + H * 0.5, z: 2 }, 0, lag).sunk &&
+                shootFrom(long, { x: 10 - H * 0.5, z: 2 }, 0, lag).sunk);
+            var wide = shootFrom(long, { x: 10 + H + G3.ballR(long) + 0.02, z: 2 }, 0, lag);
+            assert('…while a putt that clears the rim stays out, on the green',
+                !wide.sunk && !wide.out && !wide.splash);
+            var held = shootFrom(long, { x: 10, z: 2 }, 0, powerFor(5));
+            assert('a long putt left short stops on the green with its middle a ball radius up',
+                !held.sunk && approx(held.ball.y, G3.ballR(long), 1e-6));
+            assert('a long ball holed is at the bottom of the long cup',
+                (function () {
+                    var w = shootFrom(long, { x: 10, z: 2 }, 0, lag);
+                    return w.sunk && approx(w.ball.y, long.cup.y - G3.cupDepth(long) + G3.ballR(long), 1e-9);
+                })());
+        })();
+
         /* ── course data ───────────────────────────────────────────────── */
 
         section('Course data');
@@ -1838,7 +1896,7 @@
                    pad's own surface there, not against cup.y. On a tilted green
                    those differ, and correctly so: the liner is sunk vertically,
                    the way a real one is, so one side of the rim sits proud. */
-                var bx = h.cup.x + C.HOLE_R + 0.08, bz = h.cup.z + C.HOLE_R + 0.08;
+                var bx = h.cup.x + G3.holeR(h) + 0.08, bz = h.cup.z + G3.holeR(h) + 0.08;
                 var beside = P.surfaceTop(h, bx, h.cup.z);
                 var alsoBeside = P.surfaceTop(h, h.cup.x, bz);
                 assert(tag + ': the ground carries on around the cup',
@@ -1848,7 +1906,7 @@
                     Math.abs(beside.y - h.cup.y) < 0.12 && Math.abs(alsoBeside.y - h.cup.y) < 0.12,
                     'lip ' + h.cup.y.toFixed(3) + ', ground ' + (beside && beside.y.toFixed(3)));
                 assert(tag + ': the cup is cut a full depth into it',
-                    cupPad && approx(cupPad.y, h.cup.y - C.CUP_DEPTH, 1e-9));
+                    cupPad && approx(cupPad.y, h.cup.y - G3.cupDepth(h), 1e-9));
 
                 /* The whole mouth of the cup has to be inside one pad. The rim
                    is a full circle in the physics and a hole punched out of one
