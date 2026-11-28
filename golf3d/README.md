@@ -7006,8 +7006,8 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   Tripod, Broadcast, Cinematic — are whole sets of the knobs (`PRESETS` in
   camtune.js); each one writes every knob, its own values over the shipped
   ones, so nothing is left over from the last. The shipped values are still
-  Now's (Standard, since v1.251.0) until the owner picks one.
-- **Chase, and the camera in the menu** (v1.251.0, the owner, sending a
+  Now's (Standard, since v1.252.0) until the owner picks one.
+- **Chase, and the camera in the menu** (v1.252.0, the owner, sending a
   recording of another golf game: "I really like that camera … the camera
   preset should be in the normal menu as well"). That camera flies behind
   every shot from the strike, trailing under the ball and looking down the
