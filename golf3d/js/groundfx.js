@@ -12,12 +12,13 @@
        pitch mark that stays for the hole. A ball running through the rough
        flicks blades off its shoulders; in the wet, any grass throws a fine
        spray behind a running ball and a landing throws the dew. Every
-       landing on grass leaves a dent now, not only on the short stuff, and
-       a hard one or a divot opens the turf to the brown earth under it (the
-       owner: "I like that it makes some dents in the sand … can we do that
-       for other types"; "a bit of brown for when you hit the ground"). A
-       rolling ball presses a track through the turf the way it furrows a
-       bunker, and the grass stands back up after it. All of it is laid up
+       firm landing on grass leaves a faint dent, not only on the short
+       stuff, and a full-power swing off a fairway opens the turf to the
+       brown earth under it (the owner: "I like that it makes some dents in
+       the sand … can we do that for other types"; then "too much brown and
+       decals … only if you hit fairway with power"). A rolling ball presses
+       a faint track through the turf, and the grass stands back up after it
+       within about twenty seconds. All of it is laid up
        among the blades (render.js → grassLift): on the ground it is under
        the lawn, which is why the old pitch mark was so hard to see.
      · **water** — a crown of drops thrown up and out (leant along the line
@@ -189,7 +190,7 @@
            (white is no mark), darkest a little in from the middle with a
            faint lifted lip round it. Same material settings as sandfx's marks,
            so the same program. */
-        var mg = markGeometry();
+        var mg = markGeometry(0.55);
         for (i = 0; i < MARK_N; i++) {
             var mk = new THREE.Mesh(mg, markMaterial());
             mk.name = 'ground-mark';
@@ -201,7 +202,7 @@
             S.marks.push(mk);
         }
         // A deeper dent for the rough, where the ball sits down in the grass.
-        S.markDeep = markGeometry(1.6);
+        S.markDeep = markGeometry(0.8);
         S.markGeo = mg;
 
         /* Bare earth: a hard landing or a divot opens the turf, and what is
@@ -212,7 +213,7 @@
            dent that shades it. Lit by hand (light()): it is unlit, and an
            unlit brown would glow at dusk. */
         S.soilMat = new THREE.MeshBasicMaterial({
-            map: soilTexture(), transparent: true, depthWrite: false,
+            map: soilTexture(), transparent: true, opacity: 0.75, depthWrite: false,
             polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -3
         });
         var sg = new THREE.PlaneGeometry(2, 2);
@@ -299,11 +300,11 @@
     var TR_DEPTH = [0, 0.75, 1, 0.75, 0];
     // How strong, how wide, and how long the grass takes to stand up again.
     var TR_KIND = {
-        rough:   { k: 0.38, w: 1.15, keep: 40 },
-        fairway: { k: 0.24, w: 0.85, keep: 26 },
-        green:   { k: 0.15, w: 0.75, keep: 16 }
+        rough:   { k: 0.16, w: 1.0, keep: 12 },
+        fairway: { k: 0.09, w: 0.75, keep: 9 },
+        green:   { k: 0.05, w: 0.65, keep: 6 }
     };
-    var TR_FADE = 30;
+    var TR_FADE = 12;
 
     function buildTrack(scene) {
         var g = new THREE.BufferGeometry(), n = TRACK * TR_ACROSS.length, i;
@@ -743,12 +744,19 @@
             /* The dent, on every kind of grass now and not only the short
                stuff — the rough's deeper, where the ball sits down in it —
                and under a hard one, the earth it broke through to. */
-            if (h > 0.08) {
+            /* The owner on v1.241.0: "too much brown and decals … only if you
+               hit fairway with power, otherwise in normal golf you don't ruin
+               it." So a soft landing leaves nothing and a firm one a faint
+               dent (a full long iron comes down at about 0.3 here); the earth
+               shows only under a ball dropped on to a fairway from a great
+               height — a launch pad, a cliff. The brown is the divot's, off a
+               swing with power behind it (strike, below). */
+            if (h > (rough ? 0.42 : 0.3)) {
                 var mx = x + dx * 0.04, mz = z + dz * 0.04;
-                if (h > (green ? 0.6 : 0.3)) {
-                    soil(hole, mx + dx * 0.03, mz + dz * 0.03, C.BALL_R * (green ? 0.55 : 0.6 + h * 0.8), dx, dz, 1 + A.flat * 1.3);
+                if (kind === 'fairway' && h > 0.85) {
+                    soil(hole, mx + dx * 0.03, mz + dz * 0.03, C.BALL_R * (0.45 + (h - 0.85) * 1.2), dx, dz, 1 + A.flat * 1.1);
                 }
-                mark(hole, mx, mz, C.BALL_R * (0.8 + h * 0.8) * (rough ? 1.15 : 1), dx, dz, 1 + A.flat * 1.2, rough);
+                mark(hole, mx, mz, C.BALL_R * (0.6 + h * 0.5), dx, dz, 1 + A.flat * 1.0, rough);
             }
         } else if (kind === 'wood') {
             for (i = 0; i < Math.round(5 + h * 30); i++) {
@@ -900,9 +908,12 @@
                         { type: CHIP, size: i === 0 ? rnd(0.06, 0.085) : rnd(0.02, 0.04), life: rnd(0.8, 1.3),
                           col: i === 0 ? grassCol(true) : SOIL, tone: 0.25, grav: 17, floor: y });
                 }
-                // The scar, with the earth showing in it.
-                soil(hole, x + dx * 0.14, z + dz * 0.14, C.BALL_R * (0.55 + frac * 0.45), dx, dz, 2.3);
-                mark(hole, x + dx * 0.12, z + dz * 0.12, C.BALL_R * (0.7 + frac * 0.4), dx, dz, 2.1, kind === 'rough');
+                // The scar, with the earth showing in it — off a fairway,
+                // and only from a swing with real power behind it.
+                if (kind === 'fairway' && frac > 0.85) {
+                    soil(hole, x + dx * 0.14, z + dz * 0.14, C.BALL_R * (0.4 + (frac - 0.85) * 1.5), dx, dz, 2.0);
+                    mark(hole, x + dx * 0.12, z + dz * 0.12, C.BALL_R * (0.6 + frac * 0.3), dx, dz, 1.9, false);
+                }
             }
             return true;
         }
