@@ -174,22 +174,16 @@ html[data-theme="card-orbit"] {
     --hue: 8;
 }
 
-html[data-theme="card-fika"] {
+html[data-theme="card-fika-hub"] {
     --bg-color-1: #171009;
-    --bg-color-2: #24180e;
-    --hue: 30;
+    --bg-color-2: #1d1230;
+    --hue: 32;
 }
 
 html[data-theme="card-gait"] {
     --bg-color-1: #08161a;
     --bg-color-2: #0c2622;
     --hue: 158;
-}
-
-html[data-theme="card-name-song"] {
-    --bg-color-1: #120c1e;
-    --bg-color-2: #1d1230;
-    --hue: 275;
 }
 
 /* ── Background variants ──────────────────────────────────────────────
@@ -902,7 +896,7 @@ p.subtitle {
     font-size: 0.875rem;
     color: var(--text-secondary);
     line-height: 1.5;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
 }
 
 .card-stat-chip {
@@ -940,6 +934,7 @@ p.subtitle {
 }
 
 .card-link {
+    margin-top: 1.5rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--accent-color);
@@ -1118,6 +1113,14 @@ p.subtitle {
 
 .dim-game {
     --accent-rgb: 249, 115, 22;
+}
+
+.dim-fika {
+    --accent-rgb: 224, 164, 88;
+}
+
+.dim-tune {
+    --accent-rgb: 192, 132, 252;
 }
 
 /* Same frame, same aspect-ratio trick and same lazy load as .peek-shot:
@@ -1970,15 +1973,15 @@ p.subtitle {
     color: rgb(255, 181, 63);
 }
 
-#card-fika {
+#card-fika-hub {
     --accent-rgb: 224, 164, 88;
-    --card-bg-gradient: linear-gradient(135deg, rgba(40, 26, 18, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(62, 40, 24, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
-    --card-border: rgba(224, 164, 88, 0.22);
+    --card-bg-gradient: linear-gradient(135deg, rgba(44, 28, 22, 0.66) 0%, rgba(28, 20, 44, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(66, 42, 28, 0.82) 0%, rgba(44, 28, 68, 0.76) 100%);
+    --card-border: rgba(224, 164, 88, 0.24);
     --card-hover-border: rgba(236, 181, 113, 0.50);
 }
 
-#card-fika .card-link {
+#card-fika-hub .card-link {
     color: rgb(236, 181, 113);
 }
 
@@ -1992,18 +1995,6 @@ p.subtitle {
 
 #card-gait .card-link {
     color: rgb(134, 239, 201);
-}
-
-#card-name-song {
-    --accent-rgb: 192, 132, 252;
-    --card-bg-gradient: linear-gradient(135deg, rgba(34, 22, 52, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(52, 32, 80, 0.82) 0%, rgba(20, 28, 48, 0.75) 100%);
-    --card-border: rgba(192, 132, 252, 0.22);
-    --card-hover-border: rgba(216, 180, 254, 0.50);
-}
-
-#card-name-song .card-link {
-    color: rgb(216, 180, 254);
 }
 
 /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
@@ -2335,7 +2326,7 @@ footer p.colophon {
 
     .card-desc {
         font-size: 0.79rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0;
         line-height: 1.45;
         display: -webkit-box;
         -webkit-box-orient: vertical;
@@ -2354,6 +2345,7 @@ footer p.colophon {
 
     .card-link {
         margin-top: auto;
+        padding-top: 0.5rem;
         font-size: 0.8rem;
     }
 

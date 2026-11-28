@@ -1501,9 +1501,14 @@
     var PAD_NEXT = { right: 'centre', centre: 'left', left: 'right' };
     var PAD_SAY = { left: 'Pad: left', centre: 'Pad: middle', right: 'Pad: right' };
     var PAD_WORD = { left: 'left', centre: 'middle', right: 'right' };
-    // The word under the ☰ menu's Swing pad tile: where the pad stands now.
+    // The ☰ menu's Swing pad switch: which of the three is lit.
     function syncPadNow() {
-        if ($('pad-now')) $('pad-now').textContent = PAD_WORD[tune.pad] || 'right';
+        var now = PAD_WORD[tune.pad] ? tune.pad : 'right';
+        Array.prototype.forEach.call(document.querySelectorAll('#tm-pad [data-pad]'), function (b) {
+            var on = b.dataset.pad === now;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
     }
     var padSaid = 0;
     function movePad() {
@@ -3717,6 +3722,11 @@
         $('btn-menu').classList.toggle('on', open);
         $('btn-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
         document.body.classList.toggle('tm-open', open);
+        // The Pro Shop plate says what is in the wallet now.
+        if (open && S.availableStars && $('tm-shop-stars')) {
+            var save = state && state.save ? state.save : S.load();
+            $('tm-shop-stars').textContent = '\u2605 ' + S.availableStars(save);
+        }
     }
 
     /* ── the phone's back button ────────────────────────────────────────
@@ -7222,6 +7232,7 @@
         el.textContent = n ? n + ' to unlock' : '';
         if ($('menu-btn-shop')) $('menu-btn-shop').classList.toggle('has-new', !!n);
         if ($('menu-shop-stars')) $('menu-shop-stars').textContent = '\u2605 ' + avail;
+        if ($('tm-shop-stars')) $('tm-shop-stars').textContent = '\u2605 ' + avail;
         if ($('menu-ach-text')) {
             var a = achievementRows(save);
             var done = a.filter(function (r) { return r.met; }).length;
@@ -9256,7 +9267,9 @@
         // Taken before the lane sees it, so moving the pad is not a swing.
         $('swipe-move').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
         $('swipe-move').addEventListener('click', function (e) { e.stopPropagation(); movePad(); });
-        $('btn-pad').addEventListener('click', function () { movePad(); });
+        Array.prototype.forEach.call(document.querySelectorAll('#tm-pad [data-pad]'), function (b) {
+            b.addEventListener('click', function () { setTune('pad', b.dataset.pad); });
+        });
         syncPadNow();
         $('swipe').addEventListener('pointerdown', onSwipeDown);
         // The swing card is read, then tapped away (showSwingCard). Taken here
@@ -9412,8 +9425,8 @@
                 t.setAttribute('aria-expanded', o ? 'true' : 'false');
                 return;
             }
-            // The Swing pad tile turns round and says where: the menu stays up.
-            if (t && t.id === 'btn-pad') return;
+            // The Swing pad switch shows where it went: the menu stays up.
+            if (t && $('tm-pad').contains(t)) return;
             if (t && $('tm-settings').contains(t) && t.id !== 'btn-help' && t.id !== 'btn-about' && t.id !== 'btn-style' && t.id !== 'btn-quality') return;
             closeTopMenu();
         });

@@ -552,6 +552,7 @@
         'varying vec3 vTurf;',
         'uniform float mowK;',
         'uniform vec3 shellFar;',
+        'uniform vec4 turfNest;',
         'const float LOD_NEAR = ' + TURF_LOD.near.toFixed(4) + ';',
         'const float LOD_FAR = ' + TURF_LOD.far.toFixed(4) + ';',
         'float turfHash(vec2 p){',
@@ -570,6 +571,21 @@
     ].join('\n');
 
     var TURF_FS_BODY = [
+        /* The nest the ball sits in (render.js → nestBall). The long game's
+           ball is under half the mini golf one (CONFIG.LONG_BALL) and the
+           rough stands a fifth of a unit, so a ball at rest in it — and the
+           club head laid behind it at address — were under the blades, the
+           shaft ending in the grass (the owner, v1.254.1: "some clipping
+           now"). Inside `w` of the ball the blades are cut down to a share
+           of `w` over the ball's underside (y), shortest at the ball and back
+           to full height at the edge, so there is no ring. Measured from the
+           ball's underside, so a ball in the air cuts nothing under it; w 0
+           (mini golf, and no ball) cuts nothing at all. Before the cut-out,
+           and outside its #ifdef: it is a discard of its own. */
+        '  if (turfNest.w > 0.0) {',
+        '    float nd = length(vTurf.xz - turfNest.xz) / turfNest.w;',
+        '    if (nd < 1.0 && vTurf.y > turfNest.y + turfNest.w * mix(0.1, 0.85, smoothstep(0.3, 1.0, nd))) discard;',
+        '  }',
         '  float turf = turfNoise(vTurf.xz * 0.30) * 0.62 + turfNoise(vTurf.xz * 1.4) * 0.38;',
         // Thick and thin. Below one, blades lose height and the top shells
         // drop them; above, the mat stands up and the stack fills in.
