@@ -129,9 +129,10 @@ speed — and it is now a loft, a ceiling and one number about what happens
 | 5 Iron | 3 | 17° | 17.9 | 20.7 | 3.39 | 27.0 | The long iron: the second shot on a par 5, and the long par 3. |
 | 7 Iron | 4 | 22° | 14.4 | 13.9 | 3.21 | 17.9 | The long approach. Carries what the driver runs into. |
 | 9 Iron | 5 | 32° | 13.3 | 11.0 | 3.21 | 14.1 | The short iron: high at the flag, and it still releases a little. |
-| Gap Wedge | 6 | 45° | 13.5 | 10.2 | 3.43 | 13.2 | The strong wedge: carries the trouble and still checks up. It was the Pitch (12.3, 10.5 all told) until v1.240.0, when the owner found it weak beside the 52° wedge — the lower loft should be the longer club. |
+| Pitch | 6 | 45° | 12.3 | 8.1 | 3.10 | 10.5 | Up steep and down steeper; stops near where it lands. The long game's wedge. |
 | Wedge | 7 | 52° | 13.3 | 8.8 | 3.79 | 11.2 | The lob: straight up, over anything, and it does not run when it lands. |
 | Mallet | 8 | 0° | 20 | — | — | 12.1 (15.8 on green) | Not in the default bag. A putter with a hammer behind it, handed out on holes that are played along the floor. |
+| Gap Wedge | 6 | 44° | 13.4 | 10.2 | 3.43 | 13.2 | Not in the default bag: mini golf's lofted club (`MINI_LOFT_BAG`, id `chipper`). The strong wedge — carries the trouble and still checks up. It replaced the Pitch in both games at v1.240.0, when the owner found the Pitch weak in mini golf; that was meant for mini golf only, so since v1.251.0 the long game has its Pitch back and the Gap Wedge sits a degree under it (44°, `AIR_LIFT` 1.0) so each keeps its own flight. |
 | Checker | 9 | 38° | 13.1 | 10.0 | 3.32 | 10.4 | Not in the default bag. An iron's carry with almost none of the run: `bite: 0.78`. |
 
 Every full swing tops out between three and three and a half metres, the way a
@@ -2247,12 +2248,12 @@ swing, so where the ball *stops* starts to matter as much as where it is going.
 
 The numbers it is built against, measured off a flat lie at full power:
 
-| | Putter | Driver | 5 Iron | 7 Iron | 9 Iron | Gap Wedge | Wedge |
+| | Putter | Driver | 5 Iron | 7 Iron | 9 Iron | Pitch | Wedge |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Green | 8.0 | 52.6 | 34.6 | 23.2 | 18.4 | 17.5 | 14.8 |
-| Fairway | 5.5 | 41.4 | 27.0 | 17.9 | 14.1 | 13.2 | 11.2 |
-| Rough | 3.4 | 36.1 | 23.6 | 15.8 | 12.4 | 11.5 | 9.9 |
-| Sand | 2.6 | 34.9 | 23.0 | 15.5 | 12.2 | 11.4 | 9.7 |
+| Green | 8.0 | 52.6 | 34.6 | 23.2 | 18.4 | 14.0 | 14.8 |
+| Fairway | 5.5 | 41.4 | 27.0 | 17.9 | 14.1 | 10.5 | 11.2 |
+| Rough | 3.4 | 36.1 | 23.6 | 15.8 | 12.4 | 9.2 | 9.9 |
+| Sand | 2.6 | 34.9 | 23.0 | 15.5 | 12.2 | 9.1 | 9.7 |
 
 The sand row was the wrong way round until v1.240.0: sand landed on the
 felt's bounce, so a drive into a bunker hopped out of it and finished past

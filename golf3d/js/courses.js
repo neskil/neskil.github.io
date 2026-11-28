@@ -8678,7 +8678,7 @@
         par: 0,
         open: true,
         blurb: 'Targets at 50 to 250 m, unlimited balls, and the swing school.',
-        bag: ['driver', 'iron5', 'iron', 'iron9', 'chipper', 'wedge', 'putter', 'mallet', 'checker'],
+        bag: ['driver', 'iron5', 'iron', 'iron9', 'pitch', 'wedge', 'chipper', 'putter', 'mallet', 'checker'],
         pads: [
             pad(7, 2, 6, 6, 0.1, 'wood'),                         // elevated tee deck
             pad(8.5, 3.5, 3, 3, 0.14, 'green'),                   // tee mat
