@@ -7005,7 +7005,23 @@ owner, "the fake airtime is not feeling that good on the long game map".)
   Tripod, Broadcast, Cinematic — are whole sets of the knobs (`PRESETS` in
   camtune.js); each one writes every knob, its own values over the shipped
   ones, so nothing is left over from the last. The shipped values are still
-  Now's until the owner picks one.
+  Now's (Standard, since v1.251.0) until the owner picks one.
+- **Chase, and the camera in the menu** (v1.251.0, the owner, sending a
+  recording of another golf game: "I really like that camera … the camera
+  preset should be in the normal menu as well"). That camera flies behind
+  every shot from the strike, trailing under the ball and looking down the
+  hole with the ball high in the picture, lets a draw be seen to draw, and
+  hands back to the next address soon after the landing. Chase is the riding
+  chase set that way, with one new knob, `LONG_CAM.AIM_LOW`: the look sits
+  that share of the ball's height under it (render.js `rideChase` → `ch.drop`),
+  so the ball rides about a quarter of the way down the screen on a drive
+  where the plain riding chase keeps it in the middle. The dev panel gained
+  rows for it and the riding chase's `UP`, `RISE`, `DIVE`, `TURN` and `OUT`.
+  And the presets are now for everyone: **☰ → Settings & help → Camera** says
+  the one on now and a press goes on to the next (each preset's `menu` is its
+  short name — "Camera: Broadcast" did not fit on a phone); the choice is kept
+  in `CONFIG.CAM_PRESET_KEY` and put on at every visit, with dev mode's own
+  dialled-in knobs over it.
 
 ### The fourth camera, which is not a seat
 
