@@ -288,7 +288,7 @@ window.G3 = window.G3 || {};
                 if (at(fx, 0)) {
                     fx.ducks = [];
                     fx.mother = duck(fx, {
-                        s: 1.55, x: 0, y: 0.12, z: 0, vx: 0.75, vy: 6.6, vz: 0.35, grow: 0.25,
+                        s: 1.1, x: 0, y: 0.12, z: 0, vx: 0.75, vy: 6.6, vz: 0.35, grow: 0.25,
                         yaw: rnd() * TAU, wx: 0, wy: 2.2, wz: 1.4, rise: 0.3
                     });
                     fx.events.push('quack');
@@ -301,7 +301,7 @@ window.G3 = window.G3 || {};
                     if (!at(fx, 0.2 + i * 0.032)) continue;
                     var ang = i * 2.39996 + (rnd() - 0.5) * 0.4, out = 1.1 + rnd() * 1.6;
                     duck(fx, {
-                        s: 0.62 + rnd() * 0.2, x: Math.cos(ang) * 0.15, z: Math.sin(ang) * 0.15, y: 0.5,
+                        s: 0.42 + rnd() * 0.14, x: Math.cos(ang) * 0.15, z: Math.sin(ang) * 0.15, y: 0.5,
                         vx: Math.cos(ang) * out, vy: 6.5 + rnd() * 2.2, vz: Math.sin(ang) * out, rise: 0.12,
                         yaw: rnd() * TAU, pitch: (rnd() - 0.5) * 2.4, roll: (rnd() - 0.5) * 2.4,
                         wx: (rnd() - 0.5) * 14, wy: (rnd() - 0.5) * 8, wz: (rnd() - 0.5) * 14,
