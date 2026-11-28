@@ -27,6 +27,7 @@ Discoveries from the November 2026 repo sweep, ordered by impact. Phase 2 (`carg
 - **Action**:
   1. ~~Schedule known slow suites longest-first in `tools/run-tests.mjs` instead of alphabetical order, and raise default `CONCURRENCY`~~ (done — `HEAVY_SUITES` scheduled first with `CONCURRENCY = 4`, plus `*-check.html` harnesses and `viz-poc/tests.html` added to discovery).
   2. Profile `golf/tests.html` (45 `simulate` loops) and `golf3d/tests.html` for redundant simulation steps, and replace `setTimeout(..., 10)` polling in `golf/ui-tests.html` with `requestAnimationFrame` / event-driven waits.
+  3. **Throttle heavy WebGL suites separately**: running 4 `HEAVY_SUITES` concurrently on software-WebGL VMs starves CPU and can push `golf3d/tests.html` and `golf3d/shader-tests.html` past their 360s timeout (and introduce timing flakes in concurrent suites like `cargo-lander/tests.html`, which passes in ~7s in isolation). Run `HEAVY_SUITES` at concurrency 1–2 before fanning out to 4 for lightweight suites.
 
 ## 5. Remaining git & branch hygiene
 

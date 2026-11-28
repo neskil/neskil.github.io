@@ -530,6 +530,15 @@ terrain, rounded road corners, face textures, storm lightning/thunder,
 god rays, shooting stars, sky/horizon parallax, richer river reflections). Next ideas, unbuilt:
 
 - Seasonal palettes.
+- **Sky visibility vs. mountain skirt**: `TERRAIN.ring` (1500 world units) and
+  the camera pan clamp cover most of the upper viewport during normal play,
+  occluding stars, aurora, shooting stars, and the distant horizon parallax
+  ridge behind the mountains. Worth tuning the far mountain crest / skirt or
+  far-edge camera margin so the night sky peeks through naturally above the
+  peaks.
+- Refresh `assets/preview/supply-chain.webp` (and `assets/og/supply-chain.png`
+  if desired) to reflect the v1.65.0 cashflow/weather HUD chips, rounded roads,
+  and building textures.
 
 ## Tech housekeeping (ongoing, fold into the above)
 
@@ -544,6 +553,10 @@ god rays, shooting stars, sky/horizon parallax, richer river reflections). Next 
 - ~~**Interaction tests**~~ — `interaction-tests.html`, v1.64.0.
 - ~~**Sound pass**~~ — truck-departure blip, ambient bed, separate
   music/sound toggles and per-channel levels have all shipped.
+- **`research-zoom-check.html` readiness poll**: currently uses a fixed
+  `setTimeout` before inspecting its iframe (`#f`), which can flake with
+  `"running…"` under heavy CPU load. Replace with the same `SC._ui` readiness
+  poll `interaction-tests.html` uses.
 
 ## Open questions
 
