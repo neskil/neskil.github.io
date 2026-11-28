@@ -218,21 +218,21 @@
                          grouping (display: contents) and shows every chip in
                          the bar as before. Ids are unchanged: game.js binds
                          them by name. -->
-                    <!-- Courses on its own, then the three game controls in one
-                         row, the Pro Shop as a plate of its own, then the swing
-                         pad and the camera (owner,
+                    <!-- Courses, the Pro Shop as a plate of its own, the three
+                         game controls in one row, then the swing pad and the
+                         camera (owner,
                          v1.255.0: "Restart, score card, and map is the same
                          game controls and can be one row"). The range is on
                          the Courses list (menu-btn-range) and T. -->
                     <div class="tm-primary">
                         <button class="chip" id="btn-courses" title="Pick a course"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-flag"/></svg></span> <span class="tm-lbl">Courses<span class="tm-sub">World Tour · Endless · fifteen courses</span></span></button>
                     </div>
-                    <div class="tm-quick">
-                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span><span class="chip-text tm-lbl"> Restart<span class="tm-sub">hole</span></span></button>
-                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span><span class="chip-text tm-lbl"> Scorecard<span class="tm-sub">round</span></span></button>
-                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></span><span class="chip-text tm-lbl"> Map<span class="tm-sub">mini map</span></span></button>
-                    </div>
                     <button class="chip tm-shop" id="btn-balls" title="Pro Shop — balls and club colours (B)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-shop"/></svg></span> <span class="tm-lbl">Pro Shop<span class="tm-sub"><span id="tm-shop-stars">★ 0</span> to spend · balls, clubs, celebrations</span></span><span class="tm-go" aria-hidden="true">›</span></button>
+                    <div class="tm-quick">
+                        <button class="chip" id="btn-restart" title="Restart this hole (R)"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-restart"/></svg></span><span class="chip-text tm-lbl"> Restart</span></button>
+                        <button class="chip" id="btn-card" title="Scorecard"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-card"/></svg></span><span class="chip-text tm-lbl"> Scorecard</span></button>
+                        <button class="chip" id="btn-map" title="Show the course map" aria-pressed="false"><span class="tm-ico" aria-hidden="true"><svg class="ico"><use href="#i-map"/></svg></span><span class="chip-text tm-lbl"> Map</span></button>
+                    </div>
                     <!-- Two settings you change mid-round, side by side: where the
                          touch swing pad stands and how the camera follows. Each
                          says what it is on now and a press goes on to the next
