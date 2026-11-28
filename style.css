@@ -896,7 +896,7 @@ p.subtitle {
     font-size: 0.875rem;
     color: var(--text-secondary);
     line-height: 1.5;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
 }
 
 .card-stat-chip {
@@ -934,6 +934,7 @@ p.subtitle {
 }
 
 .card-link {
+    margin-top: 1.5rem;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--accent-color);
@@ -2325,7 +2326,7 @@ footer p.colophon {
 
     .card-desc {
         font-size: 0.79rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0;
         line-height: 1.45;
         display: -webkit-box;
         -webkit-box-orient: vertical;
@@ -2344,6 +2345,7 @@ footer p.colophon {
 
     .card-link {
         margin-top: auto;
+        padding-top: 0.5rem;
         font-size: 0.8rem;
     }
 
