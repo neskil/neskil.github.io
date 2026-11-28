@@ -14,7 +14,7 @@
     'use strict';
     var C = G3.CONFIG;
 
-    var EVERY = ['driver', 'iron5', 'iron', 'iron9', 'chipper', 'wedge'];
+    var EVERY = ['driver', 'iron5', 'iron', 'iron9', 'pitch', 'wedge'];
 
     /* One row per knob. `path` is under G3.CONFIG. A row with `pick` is a
        choice of `[label, value]`s. */

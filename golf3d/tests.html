@@ -1060,7 +1060,7 @@
             // A ball dropped in from above cannot bounce back out of a hole
             // this deep.
             var lobbed = shootFrom(lab({ cup: { x: 5, z: 6.9 } }), { x: 5, z: 2 }, 0, 9.5,
-                C.ALL_CLUBS.filter(function (c) { return c.id === 'chipper'; })[0].loft);
+                C.ALL_CLUBS.filter(function (c) { return c.id === 'pitch'; })[0].loft);
             assert('a ball that lands in the cup stays in', lobbed.sunk);
 
             /* A raised green with an open edge — a tabletop, a summit — puts
@@ -4654,7 +4654,7 @@
                 });
             });
 
-            ['iron', 'chipper'].forEach(function (id) {
+            ['iron', 'pitch'].forEach(function (id) {
                 var cl = club(id), st = fly(cl, 1, 'straight');
                 var bs = fly(cl, 1, 'backspin'), thin = fly(cl, 1, 'backspin', 0.8);
                 var tp = fly(cl, 1, 'topped'), under = fly(cl, 1, 'topped', 0.8);
@@ -4688,7 +4688,7 @@
                     }
                     return { at: topZ / w.firstLand.z, fall: Math.atan2(-vy, vz), top: top, t: t };
                 }
-                var dr = club('driver'), pw = club('chipper'), d = arc(dr), p = arc(pw), tp = arc(dr, true);
+                var dr = club('driver'), pw = club('pitch'), d = arc(dr), p = arc(pw), tp = arc(dr, true);
                 assert('a drive tops out past halfway', d.at > 0.53, (d.at * 100).toFixed(0) + '%');
                 assert('…and comes down steeper than it went up', d.fall > dr.loft * 1.6,
                     (d.fall * 180 / Math.PI).toFixed(0) + '° against ' + (dr.loft * 180 / Math.PI).toFixed(0) + '°');
@@ -4794,7 +4794,7 @@
                 /* Out of a bunker: no driver at all, the irons capped at
                    their `sand` fraction and below that untouched, the wedges
                    and the putter whole (physics.fromLie, game.syncLie). */
-                var dr0 = club('driver'), i7 = club('iron'), lw = club('wedge'), pw = club('chipper'), pt = club('putter');
+                var dr0 = club('driver'), i7 = club('iron'), lw = club('wedge'), pw = club('pitch'), pt = club('putter');
                 assert('the driver cannot be played from sand', !P.playable(dr0, 'sand') && P.playable(dr0, 'fairway'));
                 assert('the wedges and the putter can, and lose nothing',
                     [lw, pw, pt].every(function (c) {
