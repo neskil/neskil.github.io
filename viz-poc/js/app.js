@@ -17,14 +17,16 @@ window.VizApp = (function () {
      * still gets a chip — greyed out and unclickable — so the switcher doubles
      * as the plan while this is a proof of concept. Ids match PLAN.md. */
     var ROSTER = [
-        { id: 'globe',     label: 'Trade flows' },
-        { id: 'city',      label: 'Site as a city' },
-        { id: 'particles', label: 'Particle field' },
-        { id: 'nebula',    label: 'Nebula' },
-        { id: 'boids',     label: 'Flocking' },
-        { id: 'mandelbulb',label: 'Mandelbulb' },
-        { id: 'attractor', label: 'Attractors' },
-        { id: 'waves',     label: 'Wave field' }
+        { id: 'black-hole', label: 'Black hole' },
+        { id: 'globe',      label: 'Trade flows' },
+        { id: 'city',       label: 'Site as a city' },
+        { id: 'particles',  label: 'Particle field' },
+        { id: 'nebula',     label: 'Nebula' },
+        { id: 'boids',      label: 'Flocking' },
+        { id: 'mandelbulb', label: 'Mandelbulb' },
+        { id: 'attractor',  label: 'Attractors' },
+        { id: 'waves',      label: 'Wave field' },
+        { id: 'erosion',    label: 'Rainmaker' }
     ];
 
     var scenes = {};        // id -> scene module
@@ -234,6 +236,15 @@ window.VizApp = (function () {
             return wrap;
         }
 
+        if (spec.type === 'custom') {
+            if (spec.label) wrap.appendChild(labelRow(spec.label, ''));
+            var box = document.createElement('div');
+            box.className = 'ctl-custom';
+            if (spec.render) spec.render(box);
+            wrap.appendChild(box);
+            return wrap;
+        }
+
         /* slider */
         var fmt = spec.format || function (v) { return String(v); };
         var head = labelRow(spec.label, fmt(spec.value));
@@ -270,6 +281,14 @@ window.VizApp = (function () {
             if (!node) return;
             var toggle = node.querySelector('.ctl-toggle');
             if (toggle) { toggle.setAttribute('aria-pressed', value ? 'true' : 'false'); return; }
+            var choices = node.querySelectorAll('.ctl-choice');
+            if (choices.length && spec.options) {
+                for (var j = 0; j < choices.length; j++) {
+                    var opt = spec.options[j];
+                    choices[j].setAttribute('aria-pressed', opt && opt[0] === value ? 'true' : 'false');
+                }
+                return;
+            }
             var range = node.querySelector('input[type="range"]');
             if (range) {
                 range.value = value;
@@ -409,18 +428,24 @@ window.VizApp = (function () {
 
     /* ---------- pointer ---------- */
 
+    function setHint(text) {
+        if (!el.infoHint) return;
+        el.infoHint.textContent = text || '';
+        el.infoHint.style.display = text ? '' : 'none';
+    }
+
     function onPointerMove(e) {
         pointer.px = e.clientX;
         pointer.py = e.clientY;
         pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
         pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
         pointer.inside = true;
-        if (current && current.onPointerMove) current.onPointerMove(pointer);
+        if (current && current.onPointerMove) current.onPointerMove(pointer, e);
     }
 
     function onPointerDown(e) {
         onPointerMove(e);
-        if (current && current.onPointerDown) current.onPointerDown(pointer);
+        if (current && current.onPointerDown) current.onPointerDown(pointer, e);
     }
 
     function onPointerUp(e) {
@@ -719,6 +744,7 @@ window.VizApp = (function () {
             spin: opt.spin || 0,
             target: opt.target || new THREE.Vector3(0, 0, 0),
             dragging: false,
+            enabled: true,
             moved: 0,
             hold: 0          /* seconds of auto-spin suppression after a nudge */
         };
@@ -730,12 +756,14 @@ window.VizApp = (function () {
         function down(e) {
             pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
             if (pts.size === 1) {
+                if (!o.enabled) return;
                 o.dragging = true;
                 o.moved = 0;
                 last.x = e.clientX;
                 last.y = e.clientY;
                 if (dom.setPointerCapture) { try { dom.setPointerCapture(e.pointerId); } catch (err) {} }
             } else if (pts.size === 2) {
+                o.dragging = false;
                 pinch = spread();
             }
         }
@@ -753,7 +781,7 @@ window.VizApp = (function () {
                 o.hold = 1.6;
                 return;
             }
-            if (!o.dragging) return;
+            if (!o.dragging || !o.enabled) return;
 
             var dx = e.clientX - last.x, dy = e.clientY - last.y;
             last.x = e.clientX;
@@ -917,6 +945,7 @@ window.VizApp = (function () {
         select: select,
         start: start,
         setAccent: setAccent,
+        setHint: setHint,
         readout: readout
     };
 })();

@@ -96,10 +96,10 @@ html[data-theme="card-cargo-lander"] {
     --hue: 245;
 }
 
-html[data-theme="card-converter"] {
+html[data-theme="card-units-hub"] {
     --bg-color-1: #091a24;
-    --bg-color-2: #0f2634;
-    --hue: 190;
+    --bg-color-2: #141b36;
+    --hue: 205;
 }
 
 html[data-theme="card-about"] {
@@ -108,10 +108,10 @@ html[data-theme="card-about"] {
     --hue: 345;
 }
 
-html[data-theme="card-car"] {
-    --bg-color-1: #0b1a1a;
-    --bg-color-2: #102a2c;
-    --hue: 160;
+html[data-theme="card-car-hub"] {
+    --bg-color-1: #091a20;
+    --bg-color-2: #0e2836;
+    --hue: 165;
 }
 
 html[data-theme="card-golf-hub"] {
@@ -124,18 +124,6 @@ html[data-theme="card-cv"] {
     --bg-color-1: #0f1724;
     --bg-color-2: #1a2332;
     --hue: 215;
-}
-
-html[data-theme="card-math"] {
-    --bg-color-1: #160e24;
-    --bg-color-2: #241436;
-    --hue: 270;
-}
-
-html[data-theme="card-math-game"] {
-    --bg-color-1: #1c130d;
-    --bg-color-2: #2c1a0e;
-    --hue: 25;
 }
 
 html[data-theme="card-cargo-packer"] {
@@ -192,28 +180,10 @@ html[data-theme="card-fika"] {
     --hue: 30;
 }
 
-html[data-theme="card-bil"] {
-    --bg-color-1: #08162a;
-    --bg-color-2: #0c2440;
-    --hue: 205;
-}
-
-html[data-theme="card-black-hole"] {
-    --bg-color-1: #0b0906;
-    --bg-color-2: #1c1408;
-    --hue: 40;
-}
-
 html[data-theme="card-gait"] {
     --bg-color-1: #08161a;
     --bg-color-2: #0c2622;
     --hue: 158;
-}
-
-html[data-theme="card-erosion"] {
-    --bg-color-1: #081824;
-    --bg-color-2: #0c2a3c;
-    --hue: 199;
 }
 
 html[data-theme="card-name-song"] {
@@ -1015,15 +985,15 @@ p.subtitle {
     --card-hover-border: rgba(129, 140, 248, 0.45);
 }
 
-#card-converter {
+#card-units-hub {
     --accent-rgb: 6, 182, 212;
-    --card-bg-gradient: linear-gradient(135deg, rgba(14, 30, 38, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(20, 48, 60, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-bg-gradient: linear-gradient(135deg, rgba(14, 30, 38, 0.65) 0%, rgba(24, 20, 42, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(20, 48, 60, 0.80) 0%, rgba(36, 26, 62, 0.75) 100%);
     --card-border: rgba(6, 182, 212, 0.22);
     --card-hover-border: rgba(34, 211, 238, 0.48);
 }
 
-#card-converter .card-link {
+#card-units-hub .card-link {
     color: rgb(34, 211, 238);
 }
 
@@ -1039,32 +1009,16 @@ p.subtitle {
     color: rgb(134, 239, 172);
 }
 
-/* ── The dimension picker: the flip side of #card-golf-hub ───────────
-   Two options, each carrying its own accent and its own record, so the
-   blue one reads as the 3D game without a word saying so. --accent-rgb
-   is a plain inherited property, which is exactly what is wanted here:
-   setting it on the option re-tints the badge, the arrow and the score
-   inside it in one go. ── */
-#card-golf-hub .card-face-back {
+/* ── Shared hub pickers: flip side of .hub-card (#card-golf-hub,
+   #card-car-hub, #card-units-hub). Each option carries its own --accent-rgb
+   so the badge, arrow and stat tint together. ── */
+.hub-card .card-face-back {
     gap: 0.65rem;
-    /* .card-face packs to the start; the options want the full width.
-       They happen to get it today because the 3D blurb is long enough to
-       push them there, which is not a thing to rely on. */
     align-items: stretch;
 }
 
-/* ── The picker on a short screen ────────────────────────────────────
-   This is the tallest panel on the site — two games, each with a picture
-   — and it is sized to its content, so on a short viewport it is the one
-   that runs out of room and starts scrolling inside itself. Both steps
-   below buy height back from the pictures rather than from the copy,
-   because a cropped screenshot still says which game it is and a
-   truncated sentence does not.
-
-   object-fit: cover means the shorter frames crop rather than squash;
-   both shots have their subject through the middle band. ── */
 @media (max-height: 680px) {
-    #card-golf-hub .dim-shot {
+    .hub-card .dim-shot {
         aspect-ratio: 800 / 280;
     }
 
@@ -1079,31 +1033,24 @@ p.subtitle {
     }
 }
 
-/* Two of everything is what makes this panel the tall one, so it is also
-   the one that cannot spend a wider panel on taller pictures: at 820
-   wide, two stacked 16:9 shots want more height than a 1080p screen has.
-   Side by side, the extra width goes into the pictures instead — which
-   is what you want when the whole panel is a choice between two of them.
-
-   The landscape rule below does the same thing for the opposite reason:
-   a phone on its side has barely 350px of panel, which no amount of
-   cropping fits two stacked options into. */
 @media (min-width: 760px), (max-height: 480px) {
-    #card-golf-hub .card-face-back {
+    .hub-card .card-face-back {
         display: grid;
         grid-template-columns: 1fr 1fr;
         align-content: start;
     }
 
-    #card-golf-hub .dim-head {
+    .hub-card.hub-card-3 .card-face-back {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .hub-card .dim-head {
         grid-column: 1 / -1;
     }
 }
 
 @media (max-height: 480px) {
-    /* Undo the short-screen crop from the rule above: side by side the
-       shots are half as wide, so they fit at their natural shape. */
-    #card-golf-hub .dim-shot {
+    .hub-card .dim-shot {
         aspect-ratio: 800 / 420;
     }
 }
@@ -1151,6 +1098,26 @@ p.subtitle {
 
 .dim-3d {
     --accent-rgb: 56, 189, 248;
+}
+
+.dim-us {
+    --accent-rgb: 16, 185, 129;
+}
+
+.dim-se {
+    --accent-rgb: 254, 204, 2;
+}
+
+.dim-conv {
+    --accent-rgb: 6, 182, 212;
+}
+
+.dim-guide {
+    --accent-rgb: 168, 85, 247;
+}
+
+.dim-game {
+    --accent-rgb: 249, 115, 22;
 }
 
 /* Same frame, same aspect-ratio trick and same lazy load as .peek-shot:
@@ -1889,15 +1856,15 @@ p.subtitle {
     line-height: 1;
 }
 
-#card-car {
+#card-car-hub {
     --accent-rgb: 16, 185, 129;
-    --card-bg-gradient: linear-gradient(135deg, rgba(12, 34, 30, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(16, 54, 46, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-bg-gradient: linear-gradient(135deg, rgba(12, 34, 30, 0.65) 0%, rgba(10, 26, 48, 0.62) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(16, 54, 46, 0.80) 0%, rgba(14, 38, 68, 0.78) 100%);
     --card-border: rgba(16, 185, 129, 0.22);
     --card-hover-border: rgba(52, 211, 153, 0.48);
 }
 
-#card-car .card-link {
+#card-car-hub .card-link {
     color: rgb(52, 211, 153);
 }
 
@@ -1917,30 +1884,6 @@ p.subtitle {
 #card-cv::before,
 #card-cv .card-face-front::before {
     opacity: calc(0.03 + var(--mag) * 0.12);
-}
-
-#card-math {
-    --accent-rgb: 168, 85, 247;
-    --card-bg-gradient: linear-gradient(135deg, rgba(28, 20, 40, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(44, 28, 64, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
-    --card-border: rgba(168, 85, 247, 0.22);
-    --card-hover-border: rgba(192, 132, 252, 0.48);
-}
-
-#card-math .card-link {
-    color: rgb(192, 132, 252);
-}
-
-#card-math-game {
-    --accent-rgb: 249, 115, 22;
-    --card-bg-gradient: linear-gradient(135deg, rgba(38, 24, 18, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(60, 36, 26, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
-    --card-border: rgba(249, 115, 22, 0.22);
-    --card-hover-border: rgba(251, 146, 60, 0.48);
-}
-
-#card-math-game .card-link {
-    color: rgb(251, 146, 60);
 }
 
 #card-3d-poc {
@@ -2039,100 +1982,6 @@ p.subtitle {
     color: rgb(236, 181, 113);
 }
 
-/* The Swedish edition of Lease, Rent or Buy: flag blue, with the cross
-   drawn faintly in yellow across the face — off-centre towards the hoist,
-   as on the flag — and a Swedish number plate where other cards keep a
-   stat chip. The cross is one SVG shape with one fill in the face's own
-   background, so the yellow is even where the arms meet, drawn at a
-   fixed size in the flag's proportions (hoist 5u, arms 2u, top 4u,
-   u = 20px) so both arms keep the same thickness whatever the card's
-   shape. It tilts and flips with the card. */
-#card-bil {
-    --accent-rgb: 254, 204, 2;
-    --card-bg-gradient:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M100 0H140V80H2000V120H140V2000H100V120H0V80H100Z' fill='rgb(254,204,2)' fill-opacity='0.075'/%3E%3C/svg%3E") 0 0 no-repeat,
-        linear-gradient(135deg, rgba(0, 74, 130, 0.62) 0%, rgba(12, 24, 44, 0.62) 100%);
-    --card-hover-gradient:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='2000'%3E%3Cpath d='M100 0H140V80H2000V120H140V2000H100V120H0V80H100Z' fill='rgb(254,204,2)' fill-opacity='0.12'/%3E%3C/svg%3E") 0 0 no-repeat,
-        linear-gradient(135deg, rgba(0, 92, 160, 0.80) 0%, rgba(14, 30, 56, 0.78) 100%);
-    --card-border: rgba(254, 204, 2, 0.24);
-    --card-hover-border: rgba(254, 204, 2, 0.55);
-}
-
-#card-bil .card-link {
-    color: rgb(254, 214, 64);
-}
-
-/* The icon is a road sign rather than a line drawing: it keeps its own
-   colours instead of taking the accent. */
-#card-bil .card-icon {
-    background: rgba(0, 106, 167, 0.32);
-    border-color: rgba(254, 204, 2, 0.35);
-}
-
-#card-bil .card-icon svg {
-    width: 34px;
-    height: 34px;
-}
-
-/* A Swedish plate: white, the blue EU band with an S, black characters. */
-.plate-chip {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 10;
-    display: inline-flex;
-    align-items: stretch;
-    height: 22px;
-    border-radius: 4px;
-    overflow: hidden;
-    background: #f4f6f9;
-    border: 1.5px solid #1b2230;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-    font-family: 'Outfit', sans-serif;
-    line-height: 1;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.plate-chip .pc-eu {
-    width: 13px;
-    background: #0b47a8;
-    color: #fff;
-    font-size: 0.55rem;
-    font-weight: 700;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 2px;
-}
-
-.plate-chip .pc-chars {
-    color: #10141c;
-    font-weight: 700;
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    padding: 0 7px;
-    display: flex;
-    align-items: center;
-}
-
-.card:hover .plate-chip {
-    transform: rotate(-3deg) scale(1.06);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 14px rgba(254, 204, 2, 0.25);
-}
-
-#card-black-hole {
-    --accent-rgb: 251, 191, 36;
-    --card-bg-gradient: linear-gradient(135deg, rgba(44, 32, 10, 0.66) 0%, rgba(15, 18, 28, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(70, 50, 14, 0.82) 0%, rgba(24, 24, 36, 0.75) 100%);
-    --card-border: rgba(251, 191, 36, 0.22);
-    --card-hover-border: rgba(253, 224, 138, 0.50);
-}
-
-#card-black-hole .card-link {
-    color: rgb(253, 224, 138);
-}
-
 #card-gait {
     --accent-rgb: 52, 211, 153;
     --card-bg-gradient: linear-gradient(135deg, rgba(12, 44, 38, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
@@ -2143,18 +1992,6 @@ p.subtitle {
 
 #card-gait .card-link {
     color: rgb(134, 239, 201);
-}
-
-#card-erosion {
-    --accent-rgb: 56, 189, 248;
-    --card-bg-gradient: linear-gradient(135deg, rgba(12, 38, 58, 0.66) 0%, rgba(15, 22, 35, 0.60) 100%);
-    --card-hover-gradient: linear-gradient(135deg, rgba(16, 58, 88, 0.82) 0%, rgba(20, 30, 48, 0.75) 100%);
-    --card-border: rgba(56, 189, 248, 0.22);
-    --card-hover-border: rgba(150, 220, 252, 0.50);
-}
-
-#card-erosion .card-link {
-    color: rgb(150, 220, 252);
 }
 
 #card-name-song {

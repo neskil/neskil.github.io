@@ -1,8 +1,10 @@
 # Data Room — standing instructions
 
-Eight 3D visualizations behind one scene switcher. Vanilla JS, three.js r128
-vendored, no build step. Read `.agents/AGENTS.md` first for the workspace-wide
-rules; this file owns what is specific to this folder.
+Ten 3D visualizations behind one scene switcher (Black Hole first, followed by
+Trade Flows, Site as a City, Particle Field, Nebula, Flocking, Mandelbulb,
+Attractors, Wave Field, and Rainmaker). Vanilla JS, three.js r128 vendored, no
+build step. Read `.agents/AGENTS.md` first for the workspace-wide rules; this
+file owns what is specific to this folder.
 
 ## Shape of the thing
 
@@ -11,8 +13,8 @@ rules; this file owns what is specific to this folder.
 | `index.html` | The page: head/meta, the HUD markup, and the ordered `<script>` list. |
 | `style.css` | All of the chrome. There is no per-scene CSS. |
 | `js/app.js` | The shell — renderer, loop, scene registry, HUD, orbit controller, quality ladder, control widgets. |
-| `js/scene-*.js` | One self-contained scene each. |
-| `js/data/*.js` | Baked data: the land mask, the port table, the repo stats (refresh with `node tools/update-city.mjs`). |
+| `js/scene-*.js` | One self-contained scene each (10 total; `scene-black-hole.js` opens first). |
+| `js/data/*.js` | Pure logic & baked data: `geodesic.js` (Schwarzschild orbits), `erosion.js` (hydraulic erosion), `land.js`, `ports.js`, `city.js` (refresh with `node tools/update-city.mjs`). |
 | `../vendor/three.min.js` | Shared three.js r128, UMD global. Do not upgrade casually — the scenes use r128 shader-chunk names and `sRGBEncoding`. |
 
 ## The scene contract

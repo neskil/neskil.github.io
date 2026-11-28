@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
     <script>
@@ -483,7 +483,7 @@
                          flip side — the same mechanism the About card uses — with each
                          game's own record on its own option, so the pick is informed before
                          you make it. ── -->
-                    <div class="card flip-card" id="card-golf-hub">
+                    <div class="card flip-card hub-card" id="card-golf-hub">
                         <div class="card-flip-inner">
                             <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
                                 aria-controls="golf-panel">
@@ -930,7 +930,7 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-lab-body">
                     <span class="shelf-icon" aria-hidden="true">🧪</span>
                     <span class="shelf-text"><span class="shelf-title">Labs</span><span class="shelf-blurb">Things to poke at, with no score to keep.</span></span>
-                    <span class="shelf-count">6</span>
+                    <span class="shelf-count">7</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
@@ -954,11 +954,11 @@
                                         </svg>
                                     </div>
                                     <h3 class="card-title">Data Room</h3>
-                                    <p class="card-desc">Eight interactive 3D visualizations: world trade on a globe, this
-                                        site drawn as a city, three flocks nobody steers, a fractal with no mesh, and real
-                                        water. Every one has controls.</p>
+                                    <p class="card-desc">Ten interactive 3D visualizations: a ray-traced black hole, world
+                                        trade on a globe, this site as a city, three flocks, a fractal with no mesh, real
+                                        water, and an eroding island. Every one has controls.</p>
                                     <div class="card-stat-chip">
-                                        <span class="stat-icon">🛰️</span> Eight scenes, one switcher
+                                        <span class="stat-icon">🛰️</span> Ten scenes, one switcher
                                     </div>
                                 </div>
                                 <span class="card-link">Take a look <svg viewBox="0 0 24 24">
@@ -981,7 +981,11 @@
                                     </svg>
                                 </button>
                                 <div class="peek-shot">
+                                    <img data-src="assets/preview/black-hole.webp" alt="A ray-traced Schwarzschild black hole with its glowing accretion disc bent up and over the shadow by gravity." width="800" height="420"
+                                        decoding="async">
                                     <img data-src="assets/preview/viz-poc.webp" alt="A dark globe drawn as a field of glowing dots, with coloured shipping-lane arcs curving between ports across Europe, Africa and Asia." width="800" height="420"
+                                        decoding="async">
+                                    <img data-src="assets/preview/erosion.webp" alt="A green island with two snowy peaks under falling rain, its slopes scored with gullies and blue rivers running to the sea." width="800" height="420"
                                         decoding="async">
                                     <img data-src="assets/preview/viz-poc-2.webp" alt="A sheet of water seen from above at an angle, expanding ripple rings crossing and interfering over a glowing blue lattice." width="800" height="420"
                                         decoding="async">
@@ -992,11 +996,9 @@
                                 </div>
                                 <div class="peek-body">
                                     <div class="peek-title">Data Room</div>
-                                    <p class="peek-text">Eight interactive 3D visualizations: world trade on a globe, this
-                                        site drawn as a city, three flocks nobody steers, a fractal with no mesh, and real
-                                        water. Every one has controls.</p>
+                                    <p class="peek-text">Ten interactive 3D visualizations behind one switcher: opens on a ray-traced black hole with gravity lensing and a light-path diagram, then world trade on a globe, this site drawn as a city, a particle morph field, a raymarched nebula, three flocks nobody steers, a Mandelbulb fractal, strange attractors, real water, and Rainmaker — an island worn down by rain.</p>
                                 </div>
-                                <a class="peek-launch" href="viz-poc/index.html?v=1.0.1">Open <svg viewBox="0 0 24 24">
+                                <a class="peek-launch" href="viz-poc/index.html?v=1.1.0">Open <svg viewBox="0 0 24 24">
                                         <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" fill="none" />
                                     </svg></a>
@@ -1305,61 +1307,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card flip-card" id="card-black-hole">
-                        <div class="card-flip-inner">
-                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-black-hole-panel">
-                                <div>
-                                    <div class="card-icon">
-                                        <svg viewBox="0 0 24 24">
-                                            <ellipse cx="12" cy="12.6" rx="10" ry="3.4" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.55"/>
-                                            <path d="M5.2 11.2a6.8 6.8 0 0 1 13.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                                            <circle cx="12" cy="11.6" r="3.9" fill="currentColor"/>
-                                        </svg>
-                                    </div>
-                                    <h3 class="card-title">Pocket Black Hole</h3>
-                                    <p class="card-desc">A black hole ray-traced live in the browser: every pixel is a photon followed backwards through curved space.</p>
-                                    <div class="card-stat-chip">
-                                        <span class="stat-icon">🔭</span> Real relativity
-                                    </div>
-                                </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                    </svg></span>
-                            </button>
-                            <div class="card-face card-face-back peek-back" id="card-black-hole-panel" role="dialog" aria-modal="true"
-                                aria-label="Pocket Black Hole">
-                                <button type="button" class="card-close" data-flip-close aria-label="Close">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" />
-                                    </svg>
-                                </button>
-                                <div class="peek-shot">
-                                <img data-src="assets/preview/black-hole.webp" alt="A black hole seen just above the plane of its glowing disc: the far side of the disc is bent up and over the shadow, and the side turning towards the camera is far brighter." width="800" height="420"
-                                    decoding="async">
-                                <img data-src="assets/preview/black-hole-2.webp" alt="The same hole in front of a coloured reference grid, the grid lines wrapped into rings round the shadow." width="800" height="420"
-                                    decoding="async">
-                                </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">Pocket Black Hole</div>
-                                    <p class="peek-text">Turn it, zoom in, and switch gravity&#39;s bending off to see the same scene in flat space. The disc&#39;s near side outshines the far one because the gas is doing half the speed of light. Slide the mass from one Sun to tens of billions and the picture turns into kilometres and lap times, and an inset lets you fire light past the hole to find the edge of the shadow by hand.</p>
-                                    <div class="peek-stat"><span class="stat-icon">🕳️</span> Any mass &bull; lensing on or off &bull; light paths</div>
-                                </div>
-                                <a class="peek-launch" href="black-hole/index.html">Look closer <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
-                            </div>
-                        </div>
-                    </div>
                     <div class="card flip-card" id="card-gait">
                         <div class="card-flip-inner">
                             <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
@@ -1416,61 +1363,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card flip-card" id="card-erosion">
-                        <div class="card-flip-inner">
-                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-erosion-panel">
-                                <div>
-                                    <div class="card-icon">
-                                        <svg viewBox="0 0 24 24">
-                                            <path d="M2.5 19l5.5-9 3 4.5 3.5-7 7 11.5z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                                            <path d="M14.5 7.5c-.6 2.400.9 3.400.2 5.400s.8 3.200.3 6.100" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                            <path d="M6 3.200v2M9.5 2.5v2M18 2.800v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
-                                        </svg>
-                                    </div>
-                                    <h3 class="card-title">Rainmaker</h3>
-                                    <p class="card-desc">An island and the rain that wears it down, one drop at a time, into gullies, rivers and deltas.</p>
-                                    <div class="card-stat-chip">
-                                        <span class="stat-icon">🌧️</span> Rain or monsoon
-                                    </div>
-                                </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                    </svg></span>
-                            </button>
-                            <div class="card-face card-face-back peek-back" id="card-erosion-panel" role="dialog" aria-modal="true"
-                                aria-label="Rainmaker">
-                                <button type="button" class="card-close" data-flip-close aria-label="Close">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" />
-                                    </svg>
-                                </button>
-                                <div class="peek-shot">
-                                <img data-src="assets/preview/erosion.webp" alt="A green island with two snowy peaks under falling rain, its slopes scored with gullies and blue rivers running to the sea." width="800" height="420"
-                                    decoding="async">
-                                <img data-src="assets/preview/erosion-2.webp" alt="A cloudburst poured on one slope: a single wide river runs from the hills to a pale delta pushing out into the sea." width="800" height="420"
-                                    decoding="async">
-                                </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">Rainmaker</div>
-                                    <p class="peek-text">Each raindrop is followed downhill on its own. It lifts rock where it runs fast and the ground is steep, and drops it where it slows, so valleys cut back into the hills and silt builds deltas at the shore. Pour a cloudburst under your finger, push up a hill or dig a channel, and flip back to see the island as it was before the weather.</p>
-                                    <div class="peek-stat"><span class="stat-icon">🏝️</span> New island every time &bull; before and after</div>
-                                </div>
-                                <a class="peek-launch" href="erosion/index.html">Make it rain <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
-                            </div>
-                        </div>
-                    </div>
                     </div>
                 </div>
             </div>
@@ -1481,18 +1373,17 @@
                 <button type="button" class="shelf-head" aria-expanded="true" aria-controls="shelf-tools-body">
                     <span class="shelf-icon" aria-hidden="true">🧰</span>
                     <span class="shelf-text"><span class="shelf-title">Useful tools</span><span class="shelf-blurb">For an EU brain living with US units, and car dealers on both sides of the Atlantic.</span></span>
-                    <span class="shelf-count">5</span>
+                    <span class="shelf-count">2</span>
                     <svg class="shelf-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
             </h2>
             <div class="shelf-body" id="shelf-tools-body">
                 <div class="shelf-clip">
                     <div class="grid">
-                    <div class="card card-metal flip-card" id="card-car">
+                    <div class="card card-metal flip-card hub-card" id="card-car-hub">
                         <div class="card-flip-inner">
                             <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-car-panel">
-                                <span class="new-badge">NEW</span>
+                                aria-controls="card-car-hub-panel">
                                 <div>
                                     <div class="card-icon">
                                         <svg viewBox="0 0 24 24">
@@ -1506,110 +1397,61 @@
                                             <circle cx="17" cy="17" r="0.8" fill="currentColor" opacity="0.6" stroke="none"/>
                                         </svg>
                                     </div>
-                                    <h3 class="card-title">Lease, Rent or Buy?</h3>
-                                    <p class="card-desc">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
-                                </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                    </svg></span>
-                            </button>
-                            <div class="card-face card-face-back peek-back" id="card-car-panel" role="dialog" aria-modal="true"
-                                aria-label="Lease, Rent or Buy?">
-                                <button type="button" class="card-close" data-flip-close aria-label="Close">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" />
-                                    </svg>
-                                </button>
-                                <div class="peek-shot">
-                                    <img data-src="assets/preview/car.webp" alt="Lease, Rent or Buy: four columns comparing cash, loan, lease and monthly rental for the same car." width="800" height="420"
-                                        decoding="async">
-                                </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">Lease, Rent or Buy?</div>
-                                    <p class="peek-text">Compare leasing, financing, cash, and subscription costs with real depreciation data.</p>
-                                </div>
-                                <a class="peek-launch" href="car/index.html">Run the numbers <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card flip-card" id="card-bil">
-                        <div class="card-flip-inner">
-                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-bil-panel">
-                                <span class="plate-chip" aria-hidden="true"><span class="pc-eu">S</span><span class="pc-chars">HYR 036</span></span>
-                                <div>
-                                    <div class="card-icon">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <g transform="translate(0 1.4) scale(0.24)">
-                                                <path d="M50 7 L94 84 H6 Z" fill="#fecc02" stroke="#d4202a" stroke-width="8" stroke-linejoin="round"/>
-                                                <g fill="#111" stroke="none">
-                                                    <path d="M26 61 L29 56.5 L34 52.5 L41 47.5 L46 45.5 L56 47 L66 47.5 L71 50 L73.5 55 L72.5 62 L73.5 72 L74.5 79 L71 79 L69.5 67 L67 63.5 L60 64 L50 64 L47.5 67 L47.5 79 L44 79 L44 67 L42 63.5 L40 63 L38.5 67.5 L36.5 62.5 L33 61.5 L29.5 63.5 L26.5 63 Z"/>
-                                                    <path d="M40.2 62 h2.6 v17 h-2.6 Z M66.4 63 h2.6 v15.5 h-2.6 Z"/>
-                                                    <path d="M35 51.5 L31 47.5 L27.5 47.8 L24 43.5 L27.4 44.4 L27.8 40.6 L30.2 44.6 L31.6 40.2 L33.4 44.4 L35.4 41 L36.6 47 Z"/>
-                                                    <path d="M37.5 50.2 L40.2 45.4 L39.4 41 L42 44.2 L43.6 40.4 L44.6 45.4 L41.8 49.4 Z"/>
-                                                </g>
-                                            </g>
-                                        </svg>
+                                    <h3 class="card-title">Car Cost Calculator</h3>
+                                    <p class="card-desc">Lease, finance, cash, or rent? True cost of ownership with real depreciation data on both sides of the Atlantic.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">🚗</span> US · Sweden
                                     </div>
-                                    <h3 class="card-title">Leasa, hyra eller köpa?</h3>
-                                    <p class="card-desc">The Swedish edition, på svenska or in English: privatleasing, billån, bilabonnemang or no car at all, in kronor per mil, with malus and winter tyres priced in.</p>
                                 </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
+                                <span class="card-link">Pick a market <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
                                     </svg></span>
                             </button>
-                            <div class="card-face card-face-back peek-back" id="card-bil-panel" role="dialog" aria-modal="true"
-                                aria-label="Leasa, hyra eller köpa?">
+                            <div class="card-face card-face-back" id="card-car-hub-panel" role="dialog" aria-modal="true"
+                                aria-label="Choose a car cost calculator">
                                 <button type="button" class="card-close" data-flip-close aria-label="Close">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" />
                                     </svg>
                                 </button>
-                                <div class="peek-shot">
-                                <img data-src="assets/preview/bil.webp" alt="The Swedish calculator's answer on a number plate: privatleasing at about 5 900 kr a month, above six routes from cash to no car." width="800" height="420"
-                                    decoding="async">
-                                <img data-src="assets/preview/bil-2.webp" alt="Where the money goes: stacked bars for each route, from value lost to fuel and parking, in kronor a month." width="800" height="420"
-                                    decoding="async">
-                                <img data-src="assets/preview/bil-3.webp" alt="The walkthrough asking where you live, with Stockholm, Göteborg, Malmö, central Sweden and Norrland to choose from." width="800" height="420"
-                                    decoding="async">
+                                <div class="dim-head">
+                                    <div class="dim-title">Car Cost Calculator</div>
+                                    <div class="dim-sub">Which market?</div>
                                 </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">Leasa, hyra eller köpa?</div>
-                                    <p class="peek-text">Cash, billån, privatleasing, bilabonnemang, a monthly rental, no car, or a förmånsbil if work offers one, priced the same way in kronor a month and per mil. Malus, ränteavdrag on secured loans only, the three-year vagnskadegaranti, besiktning and two sets of tyres are already in, and a payment remark closes the doors it really closes. A nine-question walkthrough fills it in for you, på svenska or in English, and a second car can go through the same routes beside the first.</p>
-                                    <div class="peek-stat"><span class="stat-icon">🇸🇪</span> 7 routes &bull; kr/mil &bull; svenska / English</div>
-                                </div>
-                                <a class="peek-launch" href="bil/index.html">Räkna på det <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
+                                <a class="dim-option dim-us" href="car/index.html">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/car.webp" alt="Lease, Rent or Buy: four columns comparing cash, loan, lease and monthly rental for the same car." width="800" height="420" decoding="async">
+                                        <span class="dim-badge">US</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">Lease, Rent or Buy?</span>
+                                        <span class="dim-desc">Compare US leasing, auto loans, cash, and monthly rentals side by side with real depreciation curves, opportunity cost, and resale math.</span>
+                                        <span class="dim-stat"><span class="stat-icon">🇺🇸</span> USD · $/mo &amp; $/mi</span>
+                                    </span>
+                                </a>
+                                <a class="dim-option dim-se" href="bil/index.html">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/bil.webp" alt="The Swedish calculator's answer on a number plate: privatleasing at about 5 900 kr a month, above six routes from cash to no car." width="800" height="420" decoding="async">
+                                        <img data-src="assets/preview/bil-2.webp" alt="Where the money goes: stacked bars for each route, from value lost to fuel and parking, in kronor a month." width="800" height="420" decoding="async">
+                                        <img data-src="assets/preview/bil-3.webp" alt="The walkthrough asking where you live, with Stockholm, Göteborg, Malmö, central Sweden and Norrland to choose from." width="800" height="420" decoding="async">
+                                        <span class="dim-badge">SE</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">Leasa, hyra eller köpa?</span>
+                                        <span class="dim-desc">The Swedish edition, på svenska or in English: cash, billån, privatleasing, bilabonnemang, långtidshyra, no car, or förmånsbil in kronor per mil, with malus, ränteavdrag, vagnskadegaranti, and winter tyres priced in.</span>
+                                        <span class="dim-stat"><span class="stat-icon">🇸🇪</span> 7 routes · kr/mil · SV / EN</span>
+                                    </span>
+                                </a>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card card-metal flip-card" id="card-converter">
+                    <div class="card card-metal flip-card hub-card hub-card-3" id="card-units-hub">
                         <div class="card-flip-inner">
                             <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-converter-panel">
+                                aria-controls="card-units-hub-panel">
                                 <div>
                                     <div class="card-icon">
                                         <svg viewBox="0 0 24 24">
@@ -1619,147 +1461,60 @@
                                             <path d="M8.7 13l-2.4 2.2 2.4 2.2"/>
                                         </svg>
                                     </div>
-                                    <h3 class="card-title">Quick Converter</h3>
-                                    <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
+                                    <h3 class="card-title">EU ↔ US Units</h3>
+                                    <p class="card-desc">Instant unit converter, mental-math cheat sheet, and a 60-second practice game for an EU brain living with freedom units.</p>
+                                    <div class="card-stat-chip">
+                                        <span class="stat-icon">📏</span> Convert · Guide · Practice
+                                    </div>
                                 </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
+                                <span class="card-link">Pick a tool <svg viewBox="0 0 24 24">
+                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
                                     </svg></span>
                             </button>
-                            <div class="card-face card-face-back peek-back" id="card-converter-panel" role="dialog" aria-modal="true"
-                                aria-label="Quick Converter">
+                            <div class="card-face card-face-back" id="card-units-hub-panel" role="dialog" aria-modal="true"
+                                aria-label="Choose a unit tool">
                                 <button type="button" class="card-close" data-flip-close aria-label="Close">
                                     <svg viewBox="0 0 24 24">
                                         <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" />
                                     </svg>
                                 </button>
-                                <div class="peek-shot">
-                                    <img data-src="assets/preview/converter.webp" alt="Quick Converter with Distance picked, showing the four directions it will convert between." width="800" height="420"
-                                        decoding="async">
+                                <div class="dim-head">
+                                    <div class="dim-title">EU ↔ US Units</div>
+                                    <div class="dim-sub">Convert, look up a rule of thumb, or test your instincts</div>
                                 </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">Quick Converter</div>
-                                    <p class="peek-text">Feeling confused about freedom units, here is your solution!</p>
-                                </div>
-                                <a class="peek-launch" href="converter/index.html">Open Converter <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card card-metal flip-card" id="card-math">
-                        <div class="card-flip-inner">
-                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-math-panel">
-                                <div>
-                                    <div class="card-icon">
-                                        <svg viewBox="0 0 24 24">
-                                            <rect x="2.5" y="7" width="19" height="10" rx="2.2" fill="currentColor" fill-opacity="0.1"/>
-                                            <path d="M6.3 7v3.2M9.9 7v2M13.5 7v3.2M17.1 7v2"/>
-                                            <path d="M7.6 17v-2.6M12 17v-2.6M16.4 17v-2.6" opacity="0.55"/>
-                                        </svg>
-                                    </div>
-                                    <h3 class="card-title">EU/US Unit Cheat Sheet</h3>
-                                    <p class="card-desc">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
-                                </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                    </svg></span>
-                            </button>
-                            <div class="card-face card-face-back peek-back" id="card-math-panel" role="dialog" aria-modal="true"
-                                aria-label="EU/US Unit Cheat Sheet">
-                                <button type="button" class="card-close" data-flip-close aria-label="Close">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" />
-                                    </svg>
-                                </button>
-                                <div class="peek-shot">
-                                    <img data-src="assets/preview/math.webp" alt="The cheat sheet’s temperature card: "double + 30" for Celsius to Fahrenheit, worked through twice." width="800" height="420"
-                                        decoding="async">
-                                </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">EU/US Unit Cheat Sheet</div>
-                                    <p class="peek-text">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
-                                </div>
-                                <a class="peek-launch" href="math/index.html">View cheatsheet <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card card-metal flip-card" id="card-math-game">
-                        <div class="card-flip-inner">
-                            <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                                aria-controls="card-math-game-panel">
-                                <div>
-                                    <div class="card-icon">
-                                        <svg viewBox="0 0 24 24">
-                                            <circle cx="12" cy="13.5" r="8" fill="currentColor" fill-opacity="0.1"/>
-                                            <path d="M12 5.5V3.4"/>
-                                            <path d="M9.9 3.4h4.2"/>
-                                            <path d="M17.7 7.8l1.8-1.8" opacity="0.6"/>
-                                            <path d="M9.6 11.8h4.8M12 9.4v4.8"/>
-                                            <path d="M9.6 17.5h4.8" opacity="0.75"/>
-                                        </svg>
-                                    </div>
-                                    <h3 class="card-title">Mental Math Game</h3>
-                                    <p class="card-desc">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
-                                    <div class="card-stat-chip" id="stat-math-game">
-                                        <span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>
-                                    </div>
-                                </div>
-                                <span class="card-link">Take a look <svg viewBox="0 0 24 24">
-                                        <path d="M3.6 12a8.4 8.4 0 0 1 14.4-5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M18.4 2.8v3.7h-3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                        <path d="M20.4 12a8.4 8.4 0 0 1-14.4 5.9" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                        <path d="M5.6 21.2v-3.7h3.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round" fill="none" />
-                                    </svg></span>
-                            </button>
-                            <div class="card-face card-face-back peek-back" id="card-math-game-panel" role="dialog" aria-modal="true"
-                                aria-label="Mental Math Game">
-                                <button type="button" class="card-close" data-flip-close aria-label="Close">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" />
-                                    </svg>
-                                </button>
-                                <div class="peek-shot">
-                                    <img data-src="assets/preview/math-game.webp" alt="The practice game mid-question: "34 km to mi" over four answers, with the score and a running clock." width="800" height="420"
-                                        decoding="async">
-                                </div>
-                                <div class="peek-body">
-                                    <div class="peek-title">Mental Math Game</div>
-                                    <p class="peek-text">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</p>
-                                    <div class="peek-stat" data-mirror-stat="stat-math-game"></div>
-                                </div>
-                                <a class="peek-launch" href="math/index.html#game">Start practice <svg viewBox="0 0 24 24">
-                                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                                    </svg></a>
+                                <a class="dim-option dim-conv" href="converter/index.html">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/converter.webp" alt="Quick Converter with Distance picked, showing the four directions it will convert between." width="800" height="420" decoding="async">
+                                        <span class="dim-badge">Convert</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">Quick Converter</span>
+                                        <span class="dim-desc">Feeling confused about freedom units? Instant two-way conversions for distance, weight, volume, and temperature.</span>
+                                    </span>
+                                </a>
+                                <a class="dim-option dim-guide" href="math/index.html">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/math.webp" alt="The cheat sheet's temperature card: double + 30 for Celsius to Fahrenheit, worked through twice." width="800" height="420" decoding="async">
+                                        <span class="dim-badge">Guide</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">EU/US Unit Cheat Sheet</span>
+                                        <span class="dim-desc">Quick reference cheatsheet for practical mental conversions between metric and US units.</span>
+                                    </span>
+                                </a>
+                                <a class="dim-option dim-game" href="math/index.html#game">
+                                    <span class="dim-shot">
+                                        <img data-src="assets/preview/math-game.webp" alt="The practice game mid-question: 34 km to mi over four answers, with the score and a running clock." width="800" height="420" decoding="async">
+                                        <span class="dim-badge">Game</span>
+                                    </span>
+                                    <span class="dim-body">
+                                        <span class="dim-name">Mental Math Game</span>
+                                        <span class="dim-desc">Test your unit conversion skills in a fast-paced 60-second time attack practice mode.</span>
+                                        <span class="dim-stat" id="stat-math-game"><span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span></span>
+                                    </span>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1907,7 +1662,7 @@
             <span style="white-space:nowrap">&ldquo;neskil&rdquo;</span> comes from. All rights reserved.</p>
     </footer>
 
-    <script src="js/home.js?v=3"></script>
+    <script src="js/home.js?v=4"></script>
 </body>
 
 </html>

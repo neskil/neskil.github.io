@@ -23,4 +23,8 @@ Disallow: /supply-chain/audio-check.html
 Disallow: /supply-chain/research-zoom-check.html
 Disallow: /supply-chain/interaction-tests.html
 
+# Consolidated into Data Room (/viz-poc/); thin redirect stubs kept for old links.
+Disallow: /black-hole/
+Disallow: /erosion/
+
 Sitemap: https://neskil.github.io/sitemap.xml

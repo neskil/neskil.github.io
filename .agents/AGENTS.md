@@ -35,18 +35,19 @@ Folder-based routing — each major page or app is fully isolated with its own
   Tycoon), `/paper-plane/` (Paper Plane Glider), `/sand/` (Sand Clock),
   `/terrarium/` (Pocket Weather Terrarium), `/fika/` (Fika Generator),
   `/name-song/` (Sound of Your Name), `/bil/` (Leasa · Hyra · Köpa, the
-  Swedish car calculator), `/orbit/` (Pocket Orbit), `/black-hole/` (Pocket
-  Black Hole), `/gait/` (Gait Lab) and `/erosion/` (Rainmaker) each own their HTML, logic, assets, and
-  styling — see the doc map above before working in any of them. For both
+  Swedish car calculator), `/orbit/` (Pocket Orbit), `/gait/` (Gait Lab),
+  and `/usa-quiz/` (USA Quiz Night) each own their HTML, logic, assets, and
+  styling (`/black-hole/` and `/erosion/` are thin redirect stubs into
+  `/viz-poc/`) — see the doc map above before working in any of them. For both
   `/golf/` and `/golf3d/`, compatibility with `level-editor.html` is **not
   required**: keeping editor-built holes playable is nice-to-have when easy,
   but never let editor parity or round-tripping slow down or restrict new map
-  designs or game mechanics. The last
-  eleven keep their rules in DOM-free modules (`js/sim.js`, `js/flight.js`,
-  `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`,
-  `orbit/`'s `js/sim.js` with its autopilot `js/pilot.js`, `js/geodesic.js`,
-  and a `js/sim.js` each for `gait/` and `erosion/`) that their
-  `tests.html` imports directly; README.md's layout table says which is which.
+  designs or game mechanics. The DOM-free logic modules (`js/sim.js`,
+  `js/flight.js`, `js/weather.js`, `js/deck.js`, `js/compose.js`, `js/model.js`,
+  `orbit/`'s `js/sim.js` with `js/pilot.js`, `usa-quiz/`'s `js/game.js`, and
+  `viz-poc/`'s `js/data/geodesic.js` and `js/data/erosion.js`) are imported or
+  loaded directly by their `tests.html`; README.md's layout table says which is
+  which.
 - **Release flow**: build new projects in their own isolated directory. Do
   NOT add a card for one to the root `index.html` until it's completed,
   tested, and approved. While a project is under active development, an
